@@ -1,6 +1,7 @@
 #!/bin/sh
 #################################################################################################
-## - 04/05/2017 ---		RT-AC56U/RT-AC68U Firewall Addition By Adamm v3.1.1 -  					#
+## - 04/05/2017 ---		RT-AC56U/RT-AC68U Firewall Addition By Adamm v3.1.2 -  					#
+## 							https://github.com/Adamm00/IPSet_ASUS								#
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
 ### /jffs/scripts/firewall-start			         <-- Sets up cronjob/iptables rules		  #
@@ -21,6 +22,7 @@ BANMALWARE="banmalware"      # <-- Bans various malware domains
 WHITELIST="whitelist"        # <-- Add IPs from path to Whitelist
 NEWLIST="new"			     # <-- Create new IPSet Blacklist
 DISABLE="disable"			 # <-- Disable Firewall
+UPDATE="update"				 # <-- Update Script to latest version (check github for changes)
 ##############################
 
 start_time=`date +%s`
@@ -137,6 +139,17 @@ then
 	iptables -D FORWARD -m set --match-set BlockedCountries src,dst -j DROP
 	iptables -D FORWARD -m set --match-set Whitelist src,dst -j ACCEPT
 	iptables -D logdrop -m state --state NEW -j SET --add-set Blacklist src	
+	
+elif [ X"$@" = X"$UPDATE" ]
+then
+	if [ X"`cat /jffs/scripts/firewall`" = X"`wget -q -O - https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh`" ]; then
+		echo "Firewall Up To Date"
+		logger -t Firewall "[Firewall Up To Date]"
+	else
+		echo "[New Version Detected - Updating]... ... ..."
+		logger -t Firewall "[New Version Detected - Updating]... ... ..."
+		wget -O /jffs/scripts/firewall https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh
+	fi
 	
 else
 
