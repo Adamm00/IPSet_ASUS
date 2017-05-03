@@ -1,6 +1,6 @@
 #!/bin/sh
 #################################################################################################
-## - 04/05/2017 ---		RT-AC56U/RT-AC68U Firewall Addition By Adamm v3.1.2 -  		#
+## - 04/05/2017 ---		RT-AC56U/RT-AC68U Firewall Addition By Adamm v3.1.3 -  		#
 ## 					https://github.com/Adamm00/IPSet_ASUS			#
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -22,14 +22,15 @@ BANMALWARE="banmalware"      # <-- Bans various malware domains
 WHITELIST="whitelist"        # <-- Add IPs from path to Whitelist
 NEWLIST="new"		     # <-- Create new IPSet Blacklist
 DISABLE="disable"	     # <-- Disable Firewall
+DEBUG="debug"		     # <-- Enable/Disable Debug Output
 UPDATE="update"		     # <-- Update Script to latest version (check github for changes)
 ##############################
 
 start_time=`date +%s`
-cat /jffs/scripts/firewall | head -27
+cat /jffs/scripts/firewall | head -28
 
 #####################################################################################################################################
-# -            Unban / Removeall / Save / Ban / Country / Bancountry / Banmalware / Whitelist / New / Disable / Update	  	  - #
+# -        Unban / Removeall / Save / Ban / Country / Bancountry / Banmalware / Whitelist / New / Disable / Debug / Update	  - #
 #####################################################################################################################################
 
 if [ X"$@" = X"$UNBANSINGLE" ]
@@ -139,6 +140,22 @@ then
 	iptables -D FORWARD -m set --match-set BlockedCountries src,dst -j DROP > /dev/null 2>&1
 	iptables -D FORWARD -m set --match-set Whitelist src,dst -j ACCEPT > /dev/null 2>&1
 	iptables -D logdrop -m state --state NEW -j SET --add-set Blacklist src > /dev/null 2>&1
+	
+elif [ X"$@" = X"$DEBUG" ]
+then
+	echo "Select Debug Mode (enable/disable)"
+	read DEBUGMODE
+		if [ X"$DEBUGMODE" = X"enable" ]; then
+			echo "[Enabling Debug Mode] ... ... ..."
+			logger -t Firewall "[Enabling Debug Mode] ... ... ..."
+			iptables -I INPUT -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - INPUT] " --log-tcp-sequence --log-tcp-options --log-ip-options
+			iptables -I FORWARD -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - FORWARD] " --log-tcp-sequence --log-tcp-options --log-ip-options
+		elif [ X"$DEBUGMODE" = X"disable" ]; then
+			echo "[Disabling Debug Mode] ... ... ..."
+			logger -t Firewall "[Disabling Debug Mode] ... ... ..."
+			iptables -D INPUT -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - INPUT] " --log-tcp-sequence --log-tcp-options --log-ip-options
+			iptables -D FORWARD -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - FORWARD] " --log-tcp-sequence --log-tcp-options --log-ip-options
+		fi
 	
 elif [ X"$@" = X"$UPDATE" ]
 then
