@@ -1,6 +1,6 @@
 #!/bin/sh
 #################################################################################################
-## - 04/05/2017 ---		RT-AC56U/RT-AC68U Firewall Addition By Adamm v3.2.0 -  		#
+## - 04/05/2017 ---		RT-AC56U/RT-AC68U Firewall Addition By Adamm v3.2.1 -  		#
 ## 					https://github.com/Adamm00/IPSet_ASUS			#
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -212,7 +212,7 @@ else
 
 		if [ X"`nvram get fw_log_x`" = X"drop" ]
 		then
-			echo "Correct Settings Detected"
+			echo "Correct Settings Detected."
 		else
 			echo "Enabled Firewall Logging"
 			nvram set fw_log_x=drop
@@ -226,7 +226,7 @@ else
 	insmod xt_set > /dev/null 2>&1
 	ipset -q -R  < /jffs/scripts/ipset.txt
 	ipset -q -N Whitelist nethash
-	ipset -q -N Blacklist iphash --maxelem 500000
+	ipset -q -N Blacklist iphash --maxelem 5000000
 	ipset -q -N BlockedCountries nethash
 	iptables -D logdrop -m state --state NEW -j LOG --log-prefix "DROP " --log-tcp-sequence --log-tcp-options --log-ip-options  > /dev/null 2>&1
 	iptables -D INPUT -m set --match-set Whitelist src -j ACCEPT > /dev/null 2>&1
@@ -259,5 +259,5 @@ NEWAMOUNT=`nvram get Blacklist`
 nvram commit
 HITS=$(expr `iptables --line -nvL INPUT | grep -E "set.*Blacklist" | awk '{print $2}'` + `iptables --line -nvL FORWARD | grep -E "set.*Blacklist" | awk '{print $2}'`)
 start_time=$(expr `date +%s` - $start_time)
-echo "[Complete] $NEWAMOUNT IPs currently banned. `expr $NEWAMOUNT - $OLDAMOUNT` New IP's Banned. $HITS Sucessful Blocks [`echo $start_time`s]"
-logger -t Firewall "[Complete] $NEWAMOUNT IPs currently banned. `expr $NEWAMOUNT - $OLDAMOUNT` New IP's Banned. [`echo $start_time`s]"
+echo "[Complete] $NEWAMOUNT IPs currently banned. `expr $NEWAMOUNT - $OLDAMOUNT` New IP's Banned. $HITS Connections Blocked! [`echo $start_time`s]"
+logger -t Firewall "[Complete] $NEWAMOUNT IPs currently banned. `expr $NEWAMOUNT - $OLDAMOUNT` New IP's Banned. $HITS Connections Blocked! [`echo $start_time`s]"
