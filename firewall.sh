@@ -10,7 +10,7 @@
 ###################################################################################################################
 
 ##############################
-###		  Commands		   ###
+###	  Commands	   ###
 ##############################
 UNBANSINGLE="unban"          # <-- Remove Single IP From Blacklist
 REMOVEBANS="removeall"       # <-- Remove All Entries From Blacklist
@@ -130,15 +130,15 @@ then
 	
 elif [ X"$@" = X"$DISABLE" ]
 then
-	echo "Disabling Firewall"
-	logger -t Firewall "[Disabling Firewall] "
-	iptables -D INPUT -m set --match-set Whitelist src -j ACCEPT
-	iptables -D INPUT -m set --match-set Blacklist src -j DROP
-	iptables -D INPUT -m set --match-set BlockedCountries src -j DROP
-	iptables -D FORWARD -m set --match-set Blacklist src,dst -j DROP
-	iptables -D FORWARD -m set --match-set BlockedCountries src,dst -j DROP
-	iptables -D FORWARD -m set --match-set Whitelist src,dst -j ACCEPT
-	iptables -D logdrop -m state --state NEW -j SET --add-set Blacklist src	
+	echo "[Disabling Firewall] ... ... ..."
+	logger -t Firewall "[Disabling Firewall] ... ... ..."
+	iptables -D INPUT -m set --match-set Whitelist src -j ACCEPT > /dev/null 2>&1
+	iptables -D INPUT -m set --match-set Blacklist src -j DROP > /dev/null 2>&1
+	iptables -D INPUT -m set --match-set BlockedCountries src -j DROP > /dev/null 2>&1
+	iptables -D FORWARD -m set --match-set Blacklist src,dst -j DROP > /dev/null 2>&1
+	iptables -D FORWARD -m set --match-set BlockedCountries src,dst -j DROP > /dev/null 2>&1
+	iptables -D FORWARD -m set --match-set Whitelist src,dst -j ACCEPT > /dev/null 2>&1
+	iptables -D logdrop -m state --state NEW -j SET --add-set Blacklist src > /dev/null 2>&1
 	
 elif [ X"$@" = X"$UPDATE" ]
 then
@@ -190,20 +190,20 @@ else
 	ipset -q -N Blacklist iphash --maxelem 500000
 	ipset -q -N BlockedCountries nethash
 	iptables -D logdrop -m state --state NEW -j LOG --log-prefix "DROP " --log-tcp-sequence --log-tcp-options --log-ip-options  > /dev/null 2>&1
-	iptables -D INPUT -m set --match-set Whitelist src -j ACCEPT
-	iptables -D INPUT -m set --match-set Blacklist src -j DROP
-	iptables -D INPUT -m set --match-set BlockedCountries src -j DROP
-	iptables -D FORWARD -m set --match-set Blacklist src,dst -j DROP
-	iptables -D FORWARD -m set --match-set BlockedCountries src,dst -j DROP
-	iptables -D FORWARD -m set --match-set Whitelist src,dst -j ACCEPT
-	iptables -D logdrop -m state --state NEW -j SET --add-set Blacklist src	
-	iptables -I INPUT -m set --match-set Blacklist src -j DROP
-	iptables -I INPUT -m set --match-set BlockedCountries src -j DROP
-	iptables -I INPUT -m set --match-set Whitelist src -j ACCEPT
-	iptables -I FORWARD -m set --match-set Blacklist src,dst -j DROP
-	iptables -I FORWARD -m set --match-set BlockedCountries src,dst -j DROP
-	iptables -I FORWARD -m set --match-set Whitelist src,dst -j ACCEPT
-	iptables -I logdrop -m state --state NEW -j SET --add-set Blacklist src
+	iptables -D INPUT -m set --match-set Whitelist src -j ACCEPT > /dev/null 2>&1
+	iptables -D INPUT -m set --match-set Blacklist src -j DROP > /dev/null 2>&1
+	iptables -D INPUT -m set --match-set BlockedCountries src -j DROP > /dev/null 2>&1
+	iptables -D FORWARD -m set --match-set Blacklist src,dst -j DROP > /dev/null 2>&1
+	iptables -D FORWARD -m set --match-set BlockedCountries src,dst -j DROP > /dev/null 2>&1
+	iptables -D FORWARD -m set --match-set Whitelist src,dst -j ACCEPT > /dev/null 2>&1
+	iptables -D logdrop -m state --state NEW -j SET --add-set Blacklist src > /dev/null 2>&1
+	iptables -I INPUT -m set --match-set Blacklist src -j DROP > /dev/null 2>&1
+	iptables -I INPUT -m set --match-set BlockedCountries src -j DROP > /dev/null 2>&1
+	iptables -I INPUT -m set --match-set Whitelist src -j ACCEPT > /dev/null 2>&1
+	iptables -I FORWARD -m set --match-set Blacklist src,dst -j DROP > /dev/null 2>&1
+	iptables -I FORWARD -m set --match-set BlockedCountries src,dst -j DROP > /dev/null 2>&1
+	iptables -I FORWARD -m set --match-set Whitelist src,dst -j ACCEPT > /dev/null 2>&1
+	iptables -I logdrop -m state --state NEW -j SET --add-set Blacklist src > /dev/null 2>&1
 	ipset -q -A Whitelist 192.168.1.0/24
 	ipset -q -A Whitelist `nvram get lan_ipaddr`/24
 	echo "`sed '/DROP IN=/d' /tmp/syslog.log`" > /tmp/syslog.log
