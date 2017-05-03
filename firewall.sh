@@ -1,7 +1,7 @@
 #!/bin/sh
 #################################################################################################
-## - 04/05/2017 ---		RT-AC56U/RT-AC68U Firewall Addition By Adamm v3.1.2 -  					#
-## 							https://github.com/Adamm00/IPSet_ASUS								#
+## - 04/05/2017 ---		RT-AC56U/RT-AC68U Firewall Addition By Adamm v3.1.2 -  		#
+## 					https://github.com/Adamm00/IPSet_ASUS			#
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
 ### /jffs/scripts/firewall-start			         <-- Sets up cronjob/iptables rules		  #
@@ -20,16 +20,16 @@ BANCOUNTRYSINGLE="country"   # <-- Adds entire country to blacklist
 BANCOUNTRYLIST="bancountry"  # <-- Bans specified countries in this file
 BANMALWARE="banmalware"      # <-- Bans various malware domains
 WHITELIST="whitelist"        # <-- Add IPs from path to Whitelist
-NEWLIST="new"			     # <-- Create new IPSet Blacklist
-DISABLE="disable"			 # <-- Disable Firewall
-UPDATE="update"				 # <-- Update Script to latest version (check github for changes)
+NEWLIST="new"		     # <-- Create new IPSet Blacklist
+DISABLE="disable"	     # <-- Disable Firewall
+UPDATE="update"		     # <-- Update Script to latest version (check github for changes)
 ##############################
 
 start_time=`date +%s`
-cat /jffs/scripts/firewall | head -25
+cat /jffs/scripts/firewall | head -27
 
 #####################################################################################################################################
-# -           Unban / Unbanall / Removeall / Save / Ban / Country / Bancountry / Banmalware / New / Whitelist					  - #
+# -            Unban / Removeall / Save / Ban / Country / Bancountry / Banmalware / Whitelist / New / Disable / Update	  	  - #
 #####################################################################################################################################
 
 if [ X"$@" = X"$UNBANSINGLE" ]
