@@ -226,7 +226,7 @@ else
 	insmod xt_set > /dev/null 2>&1
 	ipset -q -R  < /jffs/scripts/ipset.txt
 	ipset -q -N Whitelist nethash
-	ipset -q -N Blacklist iphash --maxelem 5000000
+	ipset -q -N Blacklist iphash --maxelem 500000
 	ipset -q -N BlockedCountries nethash
 	iptables -D logdrop -m state --state NEW -j LOG --log-prefix "DROP " --log-tcp-sequence --log-tcp-options --log-ip-options  > /dev/null 2>&1
 	iptables -D INPUT -m set --match-set Whitelist src -j ACCEPT > /dev/null 2>&1
