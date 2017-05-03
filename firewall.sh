@@ -1,6 +1,6 @@
 #!/bin/sh
 #################################################################################################
-## - 04/05/2017 ---		RT-AC56U/RT-AC68U Firewall Addition By Adamm v3.1.3 -  		#
+## - 04/05/2017 ---		RT-AC56U/RT-AC68U Firewall Addition By Adamm v3.2.0 -  		#
 ## 					https://github.com/Adamm00/IPSet_ASUS			#
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -88,18 +88,40 @@ then
 elif [ X"$@" = X"$BANMALWARE" ]
 then
 	echo "Banning Known Malware IP (ETA 3mins)"
-	echo `wget -qO- https://ransomwaretracker.abuse.ch/downloads/RW_IPBL.txt` >> /tmp/malwarelist.txt
-	echo `wget -qO- https://zeustracker.abuse.ch/blocklist.php?download=badips` >> /tmp/malwarelist.txt
-	echo `wget -qO- https://feodotracker.abuse.ch/blocklist/?download=ipblocklist` >> /tmp/malwarelist.txt
-	echo `wget -qO- http://www.malwaredomainlist.com/hostslist/ip.txt` >> /tmp/malwarelist.txt
+	echo "Downloading Lists"
 	echo `wget -qO- http://cinsscore.com/list/ci-badguys.txt` >> /tmp/malwarelist.txt
+	echo `wget -qO- http://malc0de.com/bl/IP_Blacklist.txt` >> /tmp/malwarelist.txt
 	echo `wget -qO- http://sanyalnet-cloud-vps.freeddns.org/mirai-ips.txt` >> /tmp/malwarelist.txt
-	echo `wget -qO- https://lists.blocklist.de/lists/all.txt` >> /tmp/malwarelist.txt
-	for IP in `cat /tmp/malwarelist.txt`
+	echo `wget -qO- http://www.abuseat.org/iotcc.txt` >> /tmp/malwarelist.txt
+	echo `wget -qO- http://www.malwaredomainlist.com/hostslist/ip.txt` >> /tmp/malwarelist.txt
+	echo `wget -qO- https://feodotracker.abuse.ch/blocklist/?download=ipblocklist` >> /tmp/malwarelist.txt
+	echo `wget -qO- https://lists.blocklist.de/lists/bots.txt` >> /tmp/malwarelist.txt
+	echo `wget -qO- https://lists.blocklist.de/lists/ssh.txt` >> /tmp/malwarelist.txt
+	echo `wget -qO- https://ransomwaretracker.abuse.ch/downloads/CW_PS_IPBL.txt` >> /tmp/malwarelist.txt
+	echo `wget -qO- https://ransomwaretracker.abuse.ch/downloads/LY_PS_IPBL.txt` >> /tmp/malwarelist.txt
+	echo `wget -qO- https://ransomwaretracker.abuse.ch/downloads/RW_IPBL.txt` >> /tmp/malwarelist.txt
+	echo `wget -qO- https://ransomwaretracker.abuse.ch/downloads/TC_PS_IPBL.txt` >> /tmp/malwarelist.txt
+	echo `wget -qO- https://ransomwaretracker.abuse.ch/downloads/TL_C2_IPBL.txt` >> /tmp/malwarelist.txt
+	echo `wget -qO- https://ransomwaretracker.abuse.ch/downloads/TL_PS_IPBL.txt` >> /tmp/malwarelist.txt
+	echo `wget -qO- https://rules.emergingthreats.net/fwrules/emerging-Block-IPs.txt` >> /tmp/malwarelist.txt
+	echo `wget -qO- https://zeustracker.abuse.ch/blocklist.php?download=badips` >> /tmp/malwarelist.txt
+	echo "Filtering IPv4 Addresses"
+	cat /tmp/malwarelist.txt | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" > /tmp/malwarelist2.txt
+	echo "Filtering IPv4 Ranges"
+	cat /tmp/malwarelist.txt | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\/[0-9]{1,2}\b" > /tmp/malwarelist3.txt
+	echo "Banning `cat /tmp/malwarelist2.txt | wc -l` IPv4 Adresses"
+	for IP in `cat /tmp/malwarelist2.txt`
 	do
 	ipset -q -A Blacklist $IP
 	done
+	echo "Banning `cat /tmp/malwarelist3.txt | wc -l` IPv4 Ranges"
+	for IP in `cat /tmp/malwarelist3.txt`
+	do
+	ipset -q -A BlockedCountries $IP
+	done
 	rm -rf /tmp/malwarelist.txt
+	rm -rf /tmp/malwarelist2.txt
+	rm -rf /tmp/malwarelist3.txt
 
 elif [ X"$@" = X"$WHITELIST" ]
 then
@@ -204,7 +226,7 @@ else
 	insmod xt_set > /dev/null 2>&1
 	ipset -q -R  < /jffs/scripts/ipset.txt
 	ipset -q -N Whitelist nethash
-	ipset -q -N Blacklist iphash --maxelem 500000
+	ipset -q -N Blacklist iphash --maxelem 5000000
 	ipset -q -N BlockedCountries nethash
 	iptables -D logdrop -m state --state NEW -j LOG --log-prefix "DROP " --log-tcp-sequence --log-tcp-options --log-ip-options  > /dev/null 2>&1
 	iptables -D INPUT -m set --match-set Whitelist src -j ACCEPT > /dev/null 2>&1
@@ -235,6 +257,7 @@ OLDAMOUNT=`nvram get Blacklist`
 nvram set Blacklist=`expr \`ipset -L Blacklist | wc -l\` - 6`
 NEWAMOUNT=`nvram get Blacklist`
 nvram commit
+HITS=$(expr `iptables --line -nvL INPUT | grep -E "set.*Blacklist" | awk '{print $2}'` + `iptables --line -nvL FORWARD | grep -E "set.*Blacklist" | awk '{print $2}'`)
 start_time=$(expr `date +%s` - $start_time)
-echo "[Complete] $NEWAMOUNT IPs currently banned. `expr $NEWAMOUNT - $OLDAMOUNT` New IP's Banned. [`echo $start_time`s]"
+echo "[Complete] $NEWAMOUNT IPs currently banned. `expr $NEWAMOUNT - $OLDAMOUNT` New IP's Banned. $HITS Sucessful Blocks [`echo $start_time`s]"
 logger -t Firewall "[Complete] $NEWAMOUNT IPs currently banned. `expr $NEWAMOUNT - $OLDAMOUNT` New IP's Banned. [`echo $start_time`s]"
