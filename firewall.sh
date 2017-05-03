@@ -1,6 +1,6 @@
-﻿#!/bin/sh
+#!/bin/sh
 #################################################################################################
-## - 02/05/2017 ---		RT-AC56U/RT-AC68U Firewall Addition By Adamm v3.1 -  					#
+## - 04/05/2017 ---		RT-AC56U/RT-AC68U Firewall Addition By Adamm v3.1.1 -  					#
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
 ### /jffs/scripts/firewall-start			         <-- Sets up cronjob/iptables rules		  #
@@ -12,7 +12,6 @@
 ###		  Commands		   ###
 ##############################
 UNBANSINGLE="unban"          # <-- Remove Single IP From Blacklist
-UNBANALL="unbanall"          # <-- Unbans All IPs In Blacklist
 REMOVEBANS="removeall"       # <-- Remove All Entries From Blacklist
 SAVEIPSET="save"             # <-- Save Blacklists to /jffs/scripts/ipset.txt
 BANSINGLE="ban"              # <-- Adds Entry To Blacklist
@@ -20,7 +19,8 @@ BANCOUNTRYSINGLE="country"   # <-- Adds entire country to blacklist
 BANCOUNTRYLIST="bancountry"  # <-- Bans specified countries in this file
 BANMALWARE="banmalware"      # <-- Bans various malware domains
 WHITELIST="whitelist"        # <-- Add IPs from path to Whitelist
-NEWLIST="new"		     # <-- Create new IPSet Blacklist
+NEWLIST="new"			     # <-- Create new IPSet Blacklist
+DISABLE="disable"			 # <-- Disable Firewall
 ##############################
 
 start_time=`date +%s`
@@ -38,13 +38,6 @@ then
 	ipset  -D Blacklist $unbannedip
 	echo "`sed /$unbannedip/d /jffs/scripts/ipset.txt`" > /jffs/scripts/ipset.txt
 	echo "$unbannedip Is Now Unbanned"
-
-elif [ X"$@" = X"$UNBANALL" ]
-then
-	echo "[Unbanning All IP's] ... ... ..."
-	logger -t Firewall "[Unbanning All IP's] ... ... ..."
-	ipset --flush Blacklist
-	ipset --flush BlockedCountries
 
 elif [ X"$@" = X"$REMOVEBANS" ]
 then
@@ -132,8 +125,18 @@ then
 	sed -i "s/$SET1/$SET2/g" /jffs/scripts/ipset2.txt
 	ipset -q -R  < /jffs/scripts/ipset2.txt
 	echo "Successfully Added New Set"
-
 	
+elif [ X"$@" = X"$DISABLE" ]
+then
+	echo "Disabling Firewall"
+	logger -t Firewall "[Disabling Firewall] "
+	iptables -D INPUT -m set --match-set Whitelist src -j ACCEPT
+	iptables -D INPUT -m set --match-set Blacklist src -j DROP
+	iptables -D INPUT -m set --match-set BlockedCountries src -j DROP
+	iptables -D FORWARD -m set --match-set Blacklist src,dst -j DROP
+	iptables -D FORWARD -m set --match-set BlockedCountries src,dst -j DROP
+	iptables -D FORWARD -m set --match-set Whitelist src,dst -j ACCEPT
+	iptables -D logdrop -m state --state NEW -j SET --add-set Blacklist src	
 	
 else
 
