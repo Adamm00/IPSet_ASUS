@@ -1,6 +1,6 @@
 #!/bin/sh
 #################################################################################################
-## - 04/05/2017 ---		RT-AC56U/RT-AC68U Firewall Addition By Adamm v3.2.4 -  		#
+## - 04/05/2017 ---		RT-AC56U/RT-AC68U Firewall Addition By Adamm v3.2.5 -  		#
 ## 					https://github.com/Adamm00/IPSet_ASUS			#
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -91,7 +91,7 @@ then
 if [ -f /jffs/scripts/malware-filter ]; then
    echo "Malware-filter by @swetoast detected, please use this instead."
 else
-   	echo "Banning Known Malware IP (ETA 4mins)"
+   	echo "Banning Known Malware IP (ETA 6mins)"
 	echo "Downloading Lists"
 	echo `wget -qO- http://cinsscore.com/list/ci-badguys.txt` >> /tmp/malwarelist.txt
 	echo `wget -qO- http://malc0de.com/bl/IP_Blacklist.txt` >> /tmp/malwarelist.txt
@@ -109,6 +109,10 @@ else
 	echo `wget -qO- https://ransomwaretracker.abuse.ch/downloads/TL_PS_IPBL.txt` >> /tmp/malwarelist.txt
 	echo `wget -qO- https://rules.emergingthreats.net/fwrules/emerging-Block-IPs.txt` >> /tmp/malwarelist.txt
 	echo `wget -qO- https://zeustracker.abuse.ch/blocklist.php?download=badips` >> /tmp/malwarelist.txt
+	echo `wget -qO- https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/firehol_level1.netset` >> /tmp/malwarelist.txt
+	echo `wget -qO- https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/firehol_level2.netset` >> /tmp/malwarelist.txt
+	echo `wget -qO- https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/firehol_level3.netset` >> /tmp/malwarelist.txt
+	echo `wget -qO- https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/firehol_webserver.netset` >> /tmp/malwarelist.txt
 	echo "Filtering IPv4 Ranges"
 	cat /tmp/malwarelist.txt | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\/[0-9]{1,2}\b" > /tmp/malwarelist1.txt
 	echo "Filtering IPv4 Addresses"
