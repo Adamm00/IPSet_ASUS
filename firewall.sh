@@ -1,6 +1,6 @@
 #!/bin/sh
 #################################################################################################
-## - 04/05/2017 ---		RT-AC56U/RT-AC68U Firewall Addition By Adamm v3.2.3 -  		#
+## - 04/05/2017 ---		RT-AC56U/RT-AC68U Firewall Addition By Adamm v3.2.4 -  		#
 ## 					https://github.com/Adamm00/IPSet_ASUS			#
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -87,7 +87,11 @@ then
 
 elif [ X"$@" = X"$BANMALWARE" ]
 then
-	echo "Banning Known Malware IP (ETA 4mins)"
+
+if [ -f /jffs/scripts/malware-filter ]; then
+   echo "Malware-filter by @swetoast detected, please use this instead."
+else
+   	echo "Banning Known Malware IP (ETA 4mins)"
 	echo "Downloading Lists"
 	echo `wget -qO- http://cinsscore.com/list/ci-badguys.txt` >> /tmp/malwarelist.txt
 	echo `wget -qO- http://malc0de.com/bl/IP_Blacklist.txt` >> /tmp/malwarelist.txt
@@ -124,6 +128,7 @@ then
 	rm -rf /tmp/malwarelist1.txt
 	rm -rf /tmp/malwarelist2.txt
 	rm -rf /tmp/malwarelist3.txt
+fi
 
 elif [ X"$@" = X"$WHITELIST" ]
 then
