@@ -109,10 +109,6 @@ else
 	echo `wget -qO- https://ransomwaretracker.abuse.ch/downloads/TL_PS_IPBL.txt` >> /tmp/malwarelist.txt
 	echo `wget -qO- https://rules.emergingthreats.net/fwrules/emerging-Block-IPs.txt` >> /tmp/malwarelist.txt
 	echo `wget -qO- https://zeustracker.abuse.ch/blocklist.php?download=badips` >> /tmp/malwarelist.txt
-	echo `wget -qO- https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/firehol_level1.netset` >> /tmp/malwarelist.txt
-	echo `wget -qO- https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/firehol_level2.netset` >> /tmp/malwarelist.txt
-	echo `wget -qO- https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/firehol_level3.netset` >> /tmp/malwarelist.txt
-	echo `wget -qO- https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/firehol_webserver.netset` >> /tmp/malwarelist.txt
 	echo "Filtering IPv4 Ranges"
 	cat /tmp/malwarelist.txt | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\/[0-9]{1,2}\b" > /tmp/malwarelist1.txt
 	echo "Filtering IPv4 Addresses"
