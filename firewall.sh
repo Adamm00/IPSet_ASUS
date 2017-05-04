@@ -1,6 +1,6 @@
 #!/bin/sh
 #################################################################################################
-## - 04/05/2017 ---		RT-AC56U/RT-AC68U Firewall Addition By Adamm v3.2.2 -  		#
+## - 04/05/2017 ---		RT-AC56U/RT-AC68U Firewall Addition By Adamm v3.2.3 -  		#
 ## 					https://github.com/Adamm00/IPSet_ASUS			#
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -19,7 +19,7 @@ BANSINGLE="ban"              # <-- Adds Entry To Blacklist
 BANCOUNTRYSINGLE="country"   # <-- Adds entire country to blacklist
 BANCOUNTRYLIST="bancountry"  # <-- Bans specified countries in this file
 BANMALWARE="banmalware"      # <-- Bans various malware domains
-WHITELIST="whitelist"        # <-- Add IPs from path to Whitelist
+WHITELIST="whitelist"        # <-- Add IP range to whitelist
 NEWLIST="new"		     # <-- Create new IPSet Blacklist
 DISABLE="disable"	     # <-- Disable Firewall
 DEBUG="debug"		     # <-- Enable/Disable Debug Output
@@ -38,7 +38,7 @@ then
 	echo "Input IP Address To Unban"
 	read unbannedip
 	logger -t Firewall "[Unbanning And Removing $unbannedip From Blacklist] ... ... ..."
-	ipset  -D Blacklist $unbannedip
+	ipset -D Blacklist $unbannedip
 	echo "`sed /$unbannedip/d /jffs/scripts/ipset.txt`" > /jffs/scripts/ipset.txt
 	echo "$unbannedip Is Now Unbanned"
 
@@ -62,7 +62,7 @@ then
 	echo "Input IP Address"
 	read bannedip
 	logger -t Firewall "[Adding $bannedip To Blacklist] ... ... ..."
-	ipset -q -A Blacklist $bannedip
+	ipset -A Blacklist $bannedip
 	echo "$bannedip Is Now Banned"
 
 elif [ X"$@" = X"$BANCOUNTRYSINGLE" ]
@@ -127,13 +127,11 @@ then
 
 elif [ X"$@" = X"$WHITELIST" ]
 then
-	echo "Input file location"
-	read WHITELISTFILE
-	for IP in `cat $WHITELISTFILE`
-	do
-	ipset -q -A Whitelist $IP
-	echo $IP
-	done
+	echo "Input IP Range To Whitelist"
+	read whitelistip
+	logger -t Firewall "[Adding $whitelistip To Whitelist] ... ... ..."
+	ipset -A Whitelist $whitelistip
+	echo "$whitelistip Is Now Whitelisted"
 	ipset --save > /jffs/scripts/ipset.txt
 
 elif [ X"$@" = X"$NEWLIST" ]
