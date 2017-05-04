@@ -48,7 +48,7 @@ then
 	echo "[Deleting All `echo \`nvram get Blacklist\`` Entries From Blacklist] ... ... ..."
 	logger -t Firewall "[Deleting All `echo \`nvram get Blacklist\`` Entries From Blacklist] ... ... ..."
 	ipset --flush Blacklist
-	ipset --flush BlockedCountries
+	ipset --flush BlockedRanges
 	ipset --save > /jffs/scripts/ipset.txt
 
 elif [ X"$@" = X"$SAVEIPSET" ]
@@ -69,10 +69,10 @@ elif [ X"$@" = X"$BANCOUNTRYSINGLE" ]
 then
 	echo "Input Country Abbreviation"
 	read country
-	for IP in $(wget -q -O - http://www.ipdeny.com/ipblocks/data/countries/$country.zone)
-	do
-	ipset -q -A BlockedCountries $IP
-	done
+		for IP in $(wget -q -O - http://www.ipdeny.com/ipblocks/data/countries/$country.zone)
+		do
+		ipset -q -A BlockedRanges $IP
+		done
 
 elif [ X"$@" = X"$BANCOUNTRYLIST" ]
 then
@@ -81,8 +81,8 @@ then
 	do
         for IP in $(wget -q -O - http://www.ipdeny.com/ipblocks/data/countries/$country.zone)
        	do
-    	ipset -q -A BlockedCountries $IP
-	done
+    	ipset -q -A BlockedRanges $IP
+		done
 	done
 
 elif [ X"$@" = X"$BANMALWARE" ]
@@ -111,15 +111,15 @@ then
 	grep -vf /tmp/malwarelist1.txt /tmp/malwarelist.txt > /tmp/malwarelist2.txt
 	cat /tmp/malwarelist2.txt | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" > /tmp/malwarelist3.txt
 	echo "Banning `cat /tmp/malwarelist3.txt | wc -l` IPv4 Adresses"
-	for IP in `cat /tmp/malwarelist3.txt`
-	do
-	ipset -q -A Blacklist $IP
-	done
+		for IP in `cat /tmp/malwarelist3.txt`
+		do
+		ipset -q -A Blacklist $IP
+		done
 	echo "Banning `cat /tmp/malwarelist1.txt | wc -l` IPv4 Ranges"
-	for IP in `cat /tmp/malwarelist1.txt`
-	do
-	ipset -q -A BlockedCountries $IP
-	done
+		for IP in `cat /tmp/malwarelist1.txt`
+		do
+		ipset -q -A BlockedRanges $IP
+		done
 	rm -rf /tmp/malwarelist.txt
 	rm -rf /tmp/malwarelist1.txt
 	rm -rf /tmp/malwarelist2.txt
@@ -157,9 +157,9 @@ then
 	logger -t Firewall "[Disabling Firewall] ... ... ..."
 	iptables -D INPUT -m set --match-set Whitelist src -j ACCEPT > /dev/null 2>&1
 	iptables -D INPUT -m set --match-set Blacklist src -j DROP > /dev/null 2>&1
-	iptables -D INPUT -m set --match-set BlockedCountries src -j DROP > /dev/null 2>&1
+	iptables -D INPUT -m set --match-set BlockedRanges src -j DROP > /dev/null 2>&1
 	iptables -D FORWARD -m set --match-set Blacklist src,dst -j DROP > /dev/null 2>&1
-	iptables -D FORWARD -m set --match-set BlockedCountries src,dst -j DROP > /dev/null 2>&1
+	iptables -D FORWARD -m set --match-set BlockedRanges src,dst -j DROP > /dev/null 2>&1
 	iptables -D FORWARD -m set --match-set Whitelist src,dst -j ACCEPT > /dev/null 2>&1
 	iptables -D logdrop -m state --state NEW -j SET --add-set Blacklist src > /dev/null 2>&1
 	
@@ -227,20 +227,20 @@ else
 	ipset -q -R  < /jffs/scripts/ipset.txt
 	ipset -q -N Whitelist nethash
 	ipset -q -N Blacklist iphash --maxelem 500000
-	ipset -q -N BlockedCountries nethash
+	ipset -q -N BlockedRanges nethash
 	iptables -D logdrop -m state --state NEW -j LOG --log-prefix "DROP " --log-tcp-sequence --log-tcp-options --log-ip-options  > /dev/null 2>&1
 	iptables -D INPUT -m set --match-set Whitelist src -j ACCEPT > /dev/null 2>&1
 	iptables -D INPUT -m set --match-set Blacklist src -j DROP > /dev/null 2>&1
-	iptables -D INPUT -m set --match-set BlockedCountries src -j DROP > /dev/null 2>&1
+	iptables -D INPUT -m set --match-set BlockedRanges src -j DROP > /dev/null 2>&1
 	iptables -D FORWARD -m set --match-set Blacklist src,dst -j DROP > /dev/null 2>&1
-	iptables -D FORWARD -m set --match-set BlockedCountries src,dst -j DROP > /dev/null 2>&1
+	iptables -D FORWARD -m set --match-set BlockedRanges src,dst -j DROP > /dev/null 2>&1
 	iptables -D FORWARD -m set --match-set Whitelist src,dst -j ACCEPT > /dev/null 2>&1
 	iptables -D logdrop -m state --state NEW -j SET --add-set Blacklist src > /dev/null 2>&1
 	iptables -I INPUT -m set --match-set Blacklist src -j DROP > /dev/null 2>&1
-	iptables -I INPUT -m set --match-set BlockedCountries src -j DROP > /dev/null 2>&1
+	iptables -I INPUT -m set --match-set BlockedRanges src -j DROP > /dev/null 2>&1
 	iptables -I INPUT -m set --match-set Whitelist src -j ACCEPT > /dev/null 2>&1
 	iptables -I FORWARD -m set --match-set Blacklist src,dst -j DROP > /dev/null 2>&1
-	iptables -I FORWARD -m set --match-set BlockedCountries src,dst -j DROP > /dev/null 2>&1
+	iptables -I FORWARD -m set --match-set BlockedRanges src,dst -j DROP > /dev/null 2>&1
 	iptables -I FORWARD -m set --match-set Whitelist src,dst -j ACCEPT > /dev/null 2>&1
 	iptables -I logdrop -m state --state NEW -j SET --add-set Blacklist src > /dev/null 2>&1
 	ipset -q -A Whitelist 192.168.1.0/24
