@@ -1,6 +1,6 @@
 #!/bin/sh
 #################################################################################################
-## - 05/05/2017 ---		RT-AC56U/RT-AC68U Firewall Addition By Adamm v3.3.0 -  		#
+## - 05/05/2017 ---		RT-AC56U/RT-AC68U Firewall Addition By Adamm v3.3.1 -  		#
 ## 					https://github.com/Adamm00/IPSet_ASUS			#
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -103,7 +103,6 @@ else
 	echo "Applying Blacklists"
 	ipset -q -R -! < /tmp/malwarelist1.txt
 	rm -rf /tmp/malwarelist*
-	ipset -q -A Whitelist 127.0.0.0/8 #Banned by FireHOL for some reason
 fi
 
 elif [ X"$@" = X"$WHITELIST" ]
@@ -205,7 +204,7 @@ else
 	echo "[IP Banning Started] ... ... ..."
 	logger -t Firewall "[IP Banning Started] ... ... ..."
 	insmod xt_set > /dev/null 2>&1
-	ipset -q -R -!  < /jffs/scripts/ipset.txt
+	ipset -q -R  < /jffs/scripts/ipset.txt
 	ipset -q -N Whitelist nethash
 	ipset -q -N Blacklist iphash --maxelem 500000
 	ipset -q -N BlockedRanges nethash
@@ -226,6 +225,7 @@ else
 	iptables -I logdrop -m state --state NEW -j SET --add-set Blacklist src > /dev/null 2>&1
 	ipset -q -A Whitelist 192.168.1.0/24
 	ipset -q -A Whitelist `nvram get lan_ipaddr`/24
+	ipset -q -A Whitelist 151.101.96.133/32
 	echo "`sed '/DROP IN=/d' /tmp/syslog.log`" > /tmp/syslog.log
 	echo "`sed '/DROP IN=/d' /tmp/syslog.log-1`" > /tmp/syslog.log-1
 
