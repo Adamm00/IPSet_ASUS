@@ -15,6 +15,3 @@ http://ransomwaretracker.abuse.ch/downloads/TL_PS_IPBL.txt
 http://rules.emergingthreats.net/fwrules/emerging-Block-IPs.txt
 http://zeustracker.abuse.ch/blocklist.php?download=badips
 https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/firehol_level1.netset
-https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/firehol_level2.netset
-https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/firehol_level3.netset
-https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/firehol_webserver.netset
