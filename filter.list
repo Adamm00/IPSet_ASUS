@@ -11,15 +11,12 @@ https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/spamhaus_drop.
 https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/spamhaus_edrop.netset
 https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/dshield.netset
 https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/malwaredomainlist.ipset
-https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/hphosts_exp.ipset
-https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/hphosts_hjk.ipset
 https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/maxmind_proxy_fraud.ipset
 https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/cybercrime.ipset
 https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/bbcan177_ms1.netset
 https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/bbcan177_ms3.netset
 https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/dyndns_ponmocup.ipset
 https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/malc0de.ipset
-https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/ransomware_feed.ipset
 https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/ransomware_rw.ipset
 https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/ransomware_cryptowall_ps.ipset
 https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/ransomware_locky_ps.ipset
