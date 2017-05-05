@@ -1,6 +1,6 @@
 #!/bin/sh
 #################################################################################################
-## - 05/05/2017 ---		RT-AC56U/RT-AC68U Firewall Addition By Adamm v3.3.1 -  		#
+## - 05/05/2017 ---		RT-AC56U/RT-AC68U Firewall Addition By Adamm v3.3.0 -  		#
 ## 					https://github.com/Adamm00/IPSet_ASUS			#
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -234,11 +234,14 @@ fi
 ###############
 # - Logging - #
 ###############
-OLDAMOUNT=`nvram get Blacklist`
-nvram set Blacklist=`expr \`ipset -L Blacklist | wc -l\` - 6`
-NEWAMOUNT=`nvram get Blacklist`
+OLDIPS=`nvram get Blacklist`
+OLDRANGES=`nvram get BlockedRanges`
+nvram set Blacklist=`expr \`ipset -L Blacklist | wc -l\` - 7`
+nvram set BlockedRanges=`expr \`ipset -L BlockedRanges | wc -l\` - 7`
+NEWIPS=`nvram get Blacklist`
+NEWRANGES=`nvram get BlockedRanges`
 nvram commit
 HITS=$(expr `iptables --line -nvL INPUT | grep -E "set.*Blacklist" | awk '{print $2}'` + `iptables --line -nvL FORWARD | grep -E "set.*Blacklist" | awk '{print $2}'`)
 start_time=$(expr `date +%s` - $start_time)
-echo "[Complete] $NEWAMOUNT IPs currently banned. `expr $NEWAMOUNT - $OLDAMOUNT` New IP's Banned. $HITS Connections Blocked! [`echo $start_time`s]"
-logger -t Firewall "[Complete] $NEWAMOUNT IPs currently banned. `expr $NEWAMOUNT - $OLDAMOUNT` New IP's Banned. $HITS Connections Blocked! [`echo $start_time`s]"
+echo "[Complete] $NEWIPS IPs / $NEWRANGES Ranges banned. `expr $NEWIPS - $OLDIPS` New IPs / `expr $NEWRANGES - $OLDRANGES` New Ranges Banned. $HITS Connections Blocked! [`echo $start_time`s]"
+logger -t Firewall "[Complete] $NEWIPS IPs / $NEWRANGES Ranges banned. `expr $NEWIPS - $OLDIPS` New IPs / `expr $NEWRANGES - $OLDRANGES` New Ranges Banned. $HITS Connections Blocked! [`echo $start_time`s]"
