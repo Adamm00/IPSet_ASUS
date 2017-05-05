@@ -1,6 +1,6 @@
 #!/bin/sh
 #################################################################################################
-## - 04/05/2017 ---		RT-AC56U/RT-AC68U Firewall Addition By Adamm v3.2.5 -  		#
+## - 05/05/2017 ---		RT-AC56U/RT-AC68U Firewall Addition By Adamm v3.3.0 -  		#
 ## 					https://github.com/Adamm00/IPSet_ASUS			#
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -89,45 +89,21 @@ elif [ X"$@" = X"$BANMALWARE" ]
 then
 
 if [ -f /jffs/scripts/malware-filter ]; then
-   echo "Malware-filter by @swetoast detected, please use this instead."
+	echo "Malware-filter by @swetoast detected, please use this instead."
+elif [ -f /jffs/scripts/ya-malware-block.sh ]; then
+	echo "Ya-Malware-Block by @redhat27 detected, please use this instead."
 else
-   	echo "Banning Known Malware IP (ETA 6mins)"
+   	echo "Banning Known Malware IPs"
 	echo "Downloading Lists"
-	echo `wget -qO- http://cinsscore.com/list/ci-badguys.txt` >> /tmp/malwarelist.txt
-	echo `wget -qO- http://malc0de.com/bl/IP_Blacklist.txt` >> /tmp/malwarelist.txt
-	echo `wget -qO- http://sanyalnet-cloud-vps.freeddns.org/mirai-ips.txt` >> /tmp/malwarelist.txt
-	echo `wget -qO- http://www.abuseat.org/iotcc.txt` >> /tmp/malwarelist.txt
-	echo `wget -qO- http://www.malwaredomainlist.com/hostslist/ip.txt` >> /tmp/malwarelist.txt
-	echo `wget -qO- https://feodotracker.abuse.ch/blocklist/?download=ipblocklist` >> /tmp/malwarelist.txt
-	echo `wget -qO- https://lists.blocklist.de/lists/bots.txt` >> /tmp/malwarelist.txt
-	echo `wget -qO- https://lists.blocklist.de/lists/ssh.txt` >> /tmp/malwarelist.txt
-	echo `wget -qO- https://ransomwaretracker.abuse.ch/downloads/CW_PS_IPBL.txt` >> /tmp/malwarelist.txt
-	echo `wget -qO- https://ransomwaretracker.abuse.ch/downloads/LY_PS_IPBL.txt` >> /tmp/malwarelist.txt
-	echo `wget -qO- https://ransomwaretracker.abuse.ch/downloads/RW_IPBL.txt` >> /tmp/malwarelist.txt
-	echo `wget -qO- https://ransomwaretracker.abuse.ch/downloads/TC_PS_IPBL.txt` >> /tmp/malwarelist.txt
-	echo `wget -qO- https://ransomwaretracker.abuse.ch/downloads/TL_C2_IPBL.txt` >> /tmp/malwarelist.txt
-	echo `wget -qO- https://ransomwaretracker.abuse.ch/downloads/TL_PS_IPBL.txt` >> /tmp/malwarelist.txt
-	echo `wget -qO- https://rules.emergingthreats.net/fwrules/emerging-Block-IPs.txt` >> /tmp/malwarelist.txt
-	echo `wget -qO- https://zeustracker.abuse.ch/blocklist.php?download=badips` >> /tmp/malwarelist.txt
-	echo "Filtering IPv4 Ranges"
-	cat /tmp/malwarelist.txt | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\/[0-9]{1,2}\b" > /tmp/malwarelist1.txt
+	wget -q --no-check-certificate -O /tmp/malwarelist.txt -i https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/filter.list
 	echo "Filtering IPv4 Addresses"
-	grep -vf /tmp/malwarelist1.txt /tmp/malwarelist.txt > /tmp/malwarelist2.txt
-	cat /tmp/malwarelist2.txt | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" > /tmp/malwarelist3.txt
-	echo "Banning `cat /tmp/malwarelist3.txt | wc -l` IPv4 Adresses"
-		for IP in `cat /tmp/malwarelist3.txt`
-		do
-		ipset -q -A Blacklist $IP
-		done
-	echo "Banning `cat /tmp/malwarelist1.txt | wc -l` IPv4 Ranges"
-		for IP in `cat /tmp/malwarelist1.txt`
-		do
-		ipset -q -A BlockedRanges $IP
-		done
-	rm -rf /tmp/malwarelist.txt
-	rm -rf /tmp/malwarelist1.txt
-	rm -rf /tmp/malwarelist2.txt
-	rm -rf /tmp/malwarelist3.txt
+	cat /tmp/malwarelist.txt | sed -n "s/\r//;/^$/d;/^[0-9,\.]*$/s/^/add Blacklist /p" | sort -u > /tmp/malwarelist1.txt
+	echo "Filtering IPv4 Ranges"
+	cat /tmp/malwarelist.txt | sed -n "s/\r//;/^$/d;/^[0-9,\.,\/]*$/s/^/add BlockedRanges /p" | grep "/" | sort -u >> /tmp/malwarelist1.txt
+	echo "Applying Blacklists"
+	ipset -q -R -! < /tmp/malwarelist1.txt
+	rm -rf /tmp/malwarelist*
+	ipset -q -A Whitelist 127.0.0.0/8 #Banned by FireHOL for some reason
 fi
 
 elif [ X"$@" = X"$WHITELIST" ]
@@ -229,7 +205,7 @@ else
 	echo "[IP Banning Started] ... ... ..."
 	logger -t Firewall "[IP Banning Started] ... ... ..."
 	insmod xt_set > /dev/null 2>&1
-	ipset -q -R  < /jffs/scripts/ipset.txt
+	ipset -q -R -!  < /jffs/scripts/ipset.txt
 	ipset -q -N Whitelist nethash
 	ipset -q -N Blacklist iphash --maxelem 500000
 	ipset -q -N BlockedRanges nethash
