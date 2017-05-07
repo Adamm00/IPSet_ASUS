@@ -160,7 +160,7 @@ then
 		logger -st Firewall "[Firewall Up To Date]"
 	else
 		logger -st Firewall "[New Version Detected - Updating]... ... ..."
-		wget -O /jffs/scripts/firewall https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh
+		wget -q --no-check-certificate -O /jffs/scripts/firewall -i https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh
 	fi
 	
 else
