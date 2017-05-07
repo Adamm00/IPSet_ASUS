@@ -17,7 +17,7 @@ sh /jffs/scripts/firewall *commandhere*
 "bancountry"  # <-- Bans specified countries in this file  
 "banmalware"  # <-- Bans various malware domains  
 "whitelist"   # <-- Add IPs from path to Whitelist  
-"new"		      # <-- Create new IPSet Blacklist  
+"import"		  # <-- Import and merge IPSet save to firewall  
 "disable"	    # <-- Disable Firewall  
 "update"		  # <-- Update Script to latest version (check github for changes)  
 
