@@ -24,10 +24,11 @@
 #	  "disable"	     # <-- Disable Firewall
 #	  "debug"	     # <-- Enable/Disable Debug Output
 #	  "update"	     # <-- Update Script to latest version (check github for changes)
+#	  "start"	     # <-- Initiate Firewall
 ##############################
 
 start_time=`date +%s`
-cat /opt/tmp/test.sh | head -28
+cat /jffs/scripts/firewall | head -28
 
 Check_Settings () {
 			if [ X"`nvram get jffs2_scripts`" = X"1" ]
