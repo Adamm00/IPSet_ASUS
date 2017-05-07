@@ -1,6 +1,6 @@
 #!/bin/sh
 #################################################################################################
-## - 07/05/2017 ---		RT-AC56U/RT-AC68U Firewall Addition By Adamm v3.3.4 -  		#
+## - 07/05/2017 ---		RT-AC56U/RT-AC68U Firewall Addition By Adamm v3.3.5 -  		#
 ## 					https://github.com/Adamm00/IPSet_ASUS			#
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -37,16 +37,14 @@ if [ X"$@" = X"$UNBANSINGLE" ]
 then
 	echo "Input IP Address To Unban"
 	read unbannedip
-	logger -t Firewall "[Unbanning And Removing $unbannedip From Blacklist] ... ... ..."
+	logger -st Firewall "[Unbanning And Removing $unbannedip From Blacklist] ... ... ..."
 	ipset -D Blacklist $unbannedip
 	sed -i /$unbannedip/d /jffs/scripts/ipset.txt
-	echo "$unbannedip Is Now Unbanned"
 
 elif [ X"$@" = X"$REMOVEBANS" ]
 then
 	nvram set Blacklist=`expr \`ipset -L Blacklist | wc -l\` - 6`
-	echo "[Deleting All `echo \`nvram get Blacklist\`` Entries From Blacklist] ... ... ..."
-	logger -t Firewall "[Deleting All `echo \`nvram get Blacklist\`` Entries From Blacklist] ... ... ..."
+	logger -st Firewall "[Deleting All `echo \`nvram get Blacklist\`` Entries From Blacklist] ... ... ..."
 	ipset --flush Blacklist
 	ipset --flush BlockedRanges
 	ipset --save > /jffs/scripts/ipset.txt
@@ -61,9 +59,8 @@ elif [ X"$@" = X"$BANSINGLE" ]
 then
 	echo "Input IP Address"
 	read bannedip
-	logger -t Firewall "[Adding $bannedip To Blacklist] ... ... ..."
+	logger -st Firewall "[Adding $bannedip To Blacklist] ... ... ..."
 	ipset -A Blacklist $bannedip
-	echo "$bannedip Is Now Banned"
 
 elif [ X"$@" = X"$BANCOUNTRYSINGLE" ]
 then
@@ -109,9 +106,8 @@ elif [ X"$@" = X"$WHITELIST" ]
 then
 	echo "Input IP Range To Whitelist"
 	read whitelistip
-	logger -t Firewall "[Adding $whitelistip To Whitelist] ... ... ..."
+	logger -st Firewall "[Adding $whitelistip To Whitelist] ... ... ..."
 	ipset -A Whitelist $whitelistip
-	echo "$whitelistip Is Now Whitelisted"
 	ipset --save > /jffs/scripts/ipset.txt
 
 elif [ X"$@" = X"$IMPORTLIST" ]
@@ -135,8 +131,7 @@ then
 	
 elif [ X"$@" = X"$DISABLE" ]
 then
-	echo "[Disabling Firewall] ... ... ..."
-	logger -t Firewall "[Disabling Firewall] ... ... ..."
+	logger -st Firewall "[Disabling Firewall] ... ... ..."
 	iptables -D INPUT -m set --match-set Whitelist src -j ACCEPT > /dev/null 2>&1
 	iptables -D INPUT -m set --match-set Blacklist src -j DROP > /dev/null 2>&1
 	iptables -D INPUT -m set --match-set BlockedRanges src -j DROP > /dev/null 2>&1
@@ -150,13 +145,11 @@ then
 	echo "Select Debug Mode (enable/disable)"
 	read DEBUGMODE
 		if [ X"$DEBUGMODE" = X"enable" ]; then
-			echo "[Enabling Debug Mode] ... ... ..."
-			logger -t Firewall "[Enabling Debug Mode] ... ... ..."
+			logger -st Firewall "[Enabling Debug Mode] ... ... ..."
 			iptables -I INPUT -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - INPUT] " --log-tcp-sequence --log-tcp-options --log-ip-options
 			iptables -I FORWARD -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - FORWARD] " --log-tcp-sequence --log-tcp-options --log-ip-options
 		elif [ X"$DEBUGMODE" = X"disable" ]; then
-			echo "[Disabling Debug Mode] ... ... ..."
-			logger -t Firewall "[Disabling Debug Mode] ... ... ..."
+			logger -st Firewall "[Disabling Debug Mode] ... ... ..."
 			iptables -D INPUT -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - INPUT] " --log-tcp-sequence --log-tcp-options --log-ip-options
 			iptables -D FORWARD -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - FORWARD] " --log-tcp-sequence --log-tcp-options --log-ip-options
 		fi
@@ -164,11 +157,9 @@ then
 elif [ X"$@" = X"$UPDATE" ]
 then
 	if [ X"`cat /jffs/scripts/firewall`" = X"`wget -q -O - https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh`" ]; then
-		echo "Firewall Up To Date"
-		logger -t Firewall "[Firewall Up To Date]"
+		logger -st Firewall "[Firewall Up To Date]"
 	else
-		echo "[New Version Detected - Updating]... ... ..."
-		logger -t Firewall "[New Version Detected - Updating]... ... ..."
+		logger -st Firewall "[New Version Detected - Updating]... ... ..."
 		wget -O /jffs/scripts/firewall https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh
 	fi
 	
@@ -203,8 +194,7 @@ else
 
 
 	sed -i '/IP Banning Started/d' /tmp/syslog.log
-	echo "[IP Banning Started] ... ... ..."
-	logger -t Firewall "[IP Banning Started] ... ... ..."
+	logger -st Firewall "[IP Banning Started] ... ... ..."
 	insmod xt_set > /dev/null 2>&1
 	ipset -q -R  < /jffs/scripts/ipset.txt
 	ipset -q -N Whitelist nethash
@@ -244,5 +234,4 @@ NEWRANGES=`nvram get BlockedRanges`
 nvram commit
 HITS=$(expr `iptables --line -nvL INPUT | grep -E "set.*Blacklist" | awk '{print $2}'` + `iptables --line -nvL INPUT | grep -E "set.*BlockedRanges" | awk '{print $2}'` + `iptables --line -nvL FORWARD | grep -E "set.*Blacklist" | awk '{print $2}'` + `iptables --line -nvL FORWARD | grep -E "set.*BlockedRanges" | awk '{print $2}'`)
 start_time=$(expr `date +%s` - $start_time)
-echo "[Complete] $NEWIPS IPs / $NEWRANGES Ranges banned. `expr $NEWIPS - $OLDIPS` New IPs / `expr $NEWRANGES - $OLDRANGES` New Ranges Banned. $HITS Connections Blocked! [`echo $start_time`s]"
-logger -t Firewall "[Complete] $NEWIPS IPs / $NEWRANGES Ranges banned. `expr $NEWIPS - $OLDIPS` New IPs / `expr $NEWRANGES - $OLDRANGES` New Ranges Banned. $HITS Connections Blocked! [`echo $start_time`s]"
+logger -st Firewall "[Complete] $NEWIPS IPs / $NEWRANGES Ranges banned. `expr $NEWIPS - $OLDIPS` New IPs / `expr $NEWRANGES - $OLDRANGES` New Ranges Banned. $HITS Connections Blocked! [`echo $start_time`s]"
