@@ -1,6 +1,6 @@
 #!/bin/sh
 #################################################################################################
-## - 08/05/2017 ---		RT-AC56U/RT-AC68U Firewall Addition By Adamm v3.4.0 -  		#
+## - 08/05/2017 ---		RT-AC56U/RT-AC68U Firewall Addition By Adamm v3.4.1 -  		#
 ## 					https://github.com/Adamm00/IPSet_ASUS			#
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -69,11 +69,11 @@ Unload_IPTables () {
 		iptables -D FORWARD -m set --match-set BlockedRanges src,dst -j DROP > /dev/null 2>&1
 		iptables -D FORWARD -m set --match-set Whitelist src,dst -j ACCEPT > /dev/null 2>&1
 		iptables -D logdrop -m state --state NEW -j SET --add-set Blacklist src > /dev/null 2>&1
-		iptables -I INPUT -m set --match-set Blacklist src -j DROP > /dev/null 2>&1
 }
 
 
 Load_IPTables () {
+		iptables -I INPUT -m set --match-set Blacklist src -j DROP > /dev/null 2>&1
 		iptables -I INPUT -m set --match-set BlockedRanges src -j DROP > /dev/null 2>&1
 		iptables -I INPUT -m set --match-set Whitelist src -j ACCEPT > /dev/null 2>&1
 		iptables -I FORWARD -m set --match-set Blacklist src,dst -j DROP > /dev/null 2>&1
