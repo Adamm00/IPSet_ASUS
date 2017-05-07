@@ -1,6 +1,6 @@
 #!/bin/sh
 #################################################################################################
-## - 07/05/2017 ---		RT-AC56U/RT-AC68U Firewall Addition By Adamm v3.3.3 -  		#
+## - 07/05/2017 ---		RT-AC56U/RT-AC68U Firewall Addition By Adamm v3.3.4 -  		#
 ## 					https://github.com/Adamm00/IPSet_ASUS			#
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -39,7 +39,7 @@ then
 	read unbannedip
 	logger -t Firewall "[Unbanning And Removing $unbannedip From Blacklist] ... ... ..."
 	ipset -D Blacklist $unbannedip
-	echo "`sed /$unbannedip/d /jffs/scripts/ipset.txt`" > /jffs/scripts/ipset.txt
+	sed -i /$unbannedip/d /jffs/scripts/ipset.txt
 	echo "$unbannedip Is Now Unbanned"
 
 elif [ X"$@" = X"$REMOVEBANS" ]
@@ -55,7 +55,7 @@ elif [ X"$@" = X"$SAVEIPSET" ]
 then
 	echo "[Saving Blacklists] ... ... ..."
 	ipset --save > /jffs/scripts/ipset.txt
-	echo "`sed '/USER admin pid/d' /tmp/syslog.log`" > /tmp/syslog.log
+	sed -i '/USER admin pid/d' /tmp/syslog.log
 
 elif [ X"$@" = X"$BANSINGLE" ]
 then
@@ -131,6 +131,7 @@ then
 	sed -i "s/$SET1/$SET2/g" /tmp/ipset2.txt
 	ipset -q -R -! < /tmp/ipset2.txt
 	rm -rf /tmp/ipset2.txt
+	echo "Successfully Merged Blacklist"
 	
 elif [ X"$@" = X"$DISABLE" ]
 then
@@ -201,7 +202,7 @@ else
 		fi
 
 
-	echo "`sed '/IP Banning Started/d' /tmp/syslog.log`" > /tmp/syslog.log
+	sed -i '/IP Banning Started/d' /tmp/syslog.log
 	echo "[IP Banning Started] ... ... ..."
 	logger -t Firewall "[IP Banning Started] ... ... ..."
 	insmod xt_set > /dev/null 2>&1
@@ -227,8 +228,8 @@ else
 	ipset -q -A Whitelist 192.168.1.0/24
 	ipset -q -A Whitelist `nvram get lan_ipaddr`/24
 	ipset -q -A Whitelist 151.101.96.133/32
-	echo "`sed '/DROP IN=/d' /tmp/syslog.log`" > /tmp/syslog.log
-	echo "`sed '/DROP IN=/d' /tmp/syslog.log-1`" > /tmp/syslog.log-1
+	sed -i '/DROP IN=/d' /tmp/syslog.log
+	sed -i '/DROP IN=/d' /tmp/syslog.log-1
 
 fi
 
