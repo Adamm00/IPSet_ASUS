@@ -28,7 +28,7 @@
 ##############################
 
 start_time=`date +%s`
-cat /jffs/scripts/firewall | head -28
+cat /jffs/scripts/firewall | head -29
 
 Check_Settings () {
 			if [ X"`nvram get jffs2_scripts`" = X"1" ]
@@ -97,7 +97,7 @@ Logging () {
 }
 
 #####################################################################################################################################
-# -      Unban / Unbanall / Save / Ban / Country / Bancountry / Banmalware / Whitelist / Import / Disable / Debug / Update       - #
+# -   Unban / Unbanall / Save / Ban / Country / Bancountry / Banmalware / Whitelist / Import / Disable / Debug / Update / Start   - #
 #####################################################################################################################################
 
 
