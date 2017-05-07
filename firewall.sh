@@ -12,22 +12,22 @@
 ##############################
 ###	  Commands	   ###
 ##############################
-UNBANSINGLE="unban"          # <-- Remove Single IP From Blacklist
-REMOVEBANS="removeall"       # <-- Remove All Entries From Blacklist
-SAVEIPSET="save"             # <-- Save Blacklists to /jffs/scripts/ipset.txt
-BANSINGLE="ban"              # <-- Adds Entry To Blacklist
-BANCOUNTRYSINGLE="country"   # <-- Adds entire country to blacklist
-BANCOUNTRYLIST="bancountry"  # <-- Bans specified countries in this file
-BANMALWARE="banmalware"      # <-- Bans various malware domains
-WHITELIST="whitelist"        # <-- Add IP range to whitelist
-IMPORTLIST="import"	     # <-- Import and merge IPSet save to firewall
-DISABLE="disable"	     # <-- Disable Firewall
-DEBUG="debug"		     # <-- Enable/Disable Debug Output
-UPDATE="update"		     # <-- Update Script to latest version (check github for changes)
+#	  "unban"	     # <-- Remove Single IP From Blacklist
+#	  "unbanall"	     # <-- Remove All Entries From Blacklist
+#	  "save"	     # <-- Save Blacklists to /jffs/scripts/ipset.txt
+#	  "ban"		     # <-- Adds Entry To Blacklist
+# 	  "country"	     # <-- Adds entire country to blacklist
+#	  "bancountry"	     # <-- Bans specified countries in this file
+#	  "banmalware"	     # <-- Bans various malware domains
+#	  "whitelist"        # <-- Add IP range to whitelist
+#	  "import"	     # <-- Import and merge IPSet save to firewall
+#	  "disable"	     # <-- Disable Firewall
+#	  "debug"	     # <-- Enable/Disable Debug Output
+#	  "update"	     # <-- Update Script to latest version (check github for changes)
 ##############################
 
 start_time=`date +%s`
-cat /jffs/scripts/firewall | head -28
+cat /opt/tmp/test.sh | head -28
 
 Check_Settings () {
 			if [ X"`nvram get jffs2_scripts`" = X"1" ]
@@ -96,20 +96,25 @@ Logging () {
 }
 
 #####################################################################################################################################
-# -      Unban / Removeall / Save / Ban / Country / Bancountry / Banmalware / Whitelist / Import / Disable / Debug / Update       - #
+# -      Unban / Unbanall / Save / Ban / Country / Bancountry / Banmalware / Whitelist / Import / Disable / Debug / Update       - #
 #####################################################################################################################################
 
 
-case $@ in
+case $1 in
 	unban)
-		echo "Input IP Address To Unban"
-		read unbannedip
+		if [ -z $2 ]; then
+			echo "Input IP Address To Unban"
+			read unbannedip
+		else
+			unbannedip=$2
+		fi
+		
 		logger -st Firewall "[Unbanning And Removing $unbannedip From Blacklist] ... ... ..."
 		ipset -D Blacklist $unbannedip
 		sed -i /$unbannedip/d /jffs/scripts/ipset.txt
 		;;
 
-	removeall)
+	unbanall)
 		nvram set Blacklist=`expr \`ipset -L Blacklist | wc -l\` - 6`
 		logger -st Firewall "[Deleting All `echo \`nvram get Blacklist\`` Entries From Blacklist] ... ... ..."
 		ipset --flush Blacklist
@@ -124,8 +129,13 @@ case $@ in
 		;;
 
 	ban)
-		echo "Input IP Address"
-		read bannedip
+		if [ -z $2 ]; then
+			echo "Input IP Address To Ban"
+			read bannedip
+		else
+			bannedip=$2
+		fi
+		
 		logger -st Firewall "[Adding $bannedip To Blacklist] ... ... ..."
 		ipset -A Blacklist $bannedip
 		;;
@@ -170,8 +180,13 @@ case $@ in
 		;;
 		
 	whitelist)
-		echo "Input IP Range To Whitelist"
-		read whitelistip
+		if [ -z $2 ]; then
+			echo "Input IP Range To Whitelist"
+			read whitelistip
+		else
+			whitelistip=$2
+		fi
+		
 		logger -st Firewall "[Adding $whitelistip To Whitelist] ... ... ..."
 		ipset -A Whitelist $whitelistip
 		ipset --save > /jffs/scripts/ipset.txt
@@ -202,16 +217,16 @@ case $@ in
 		;;
 
 	debug)
-		echo "Select Debug Mode (enable/disable)"
-		read DEBUGMODE
-			if [ X"$DEBUGMODE" = X"enable" ]; then
+			if [ X"$2" = X"enable" ]; then
 				logger -st Firewall "[Enabling Debug Mode] ... ... ..."
 				iptables -I INPUT -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - INPUT] " --log-tcp-sequence --log-tcp-options --log-ip-options
 				iptables -I FORWARD -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - FORWARD] " --log-tcp-sequence --log-tcp-options --log-ip-options
-			elif [ X"$DEBUGMODE" = X"disable" ]; then
+			elif [ X"$2" = X"disable" ]; then
 				logger -st Firewall "[Disabling Debug Mode] ... ... ..."
 				iptables -D INPUT -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - INPUT] " --log-tcp-sequence --log-tcp-options --log-ip-options
 				iptables -D FORWARD -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - FORWARD] " --log-tcp-sequence --log-tcp-options --log-ip-options
+			else
+				echo "Error - Use Syntax './jffs/scripts/firewall debug (enable/disable)'"
 			fi
 		;;
 
@@ -246,3 +261,5 @@ case $@ in
 		;;
 
 esac
+
+Logging
