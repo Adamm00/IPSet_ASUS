@@ -55,7 +55,7 @@ elif [ X"$@" = X"$SAVEIPSET" ]
 then
 	echo "[Saving Blacklists] ... ... ..."
 	ipset --save > /jffs/scripts/ipset.txt
-	sed -i '/USER admin pid/d' /tmp/syslog.log
+	sed -i '/USER admin pid .*firewall/d' /tmp/syslog.log
 
 elif [ X"$@" = X"$BANSINGLE" ]
 then
@@ -229,7 +229,6 @@ else
 	ipset -q -A Whitelist `nvram get lan_ipaddr`/24
 	ipset -q -A Whitelist 151.101.96.133/32
 	sed -i '/DROP IN=/d' /tmp/syslog.log
-	sed -i '/DROP IN=/d' /tmp/syslog.log-1
 
 fi
 
