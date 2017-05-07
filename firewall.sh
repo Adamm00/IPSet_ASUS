@@ -1,6 +1,6 @@
 #!/bin/sh
 #################################################################################################
-## - 05/05/2017 ---		RT-AC56U/RT-AC68U Firewall Addition By Adamm v3.3.2 -  		#
+## - 07/05/2017 ---		RT-AC56U/RT-AC68U Firewall Addition By Adamm v3.3.3 -  		#
 ## 					https://github.com/Adamm00/IPSet_ASUS			#
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -20,7 +20,7 @@ BANCOUNTRYSINGLE="country"   # <-- Adds entire country to blacklist
 BANCOUNTRYLIST="bancountry"  # <-- Bans specified countries in this file
 BANMALWARE="banmalware"      # <-- Bans various malware domains
 WHITELIST="whitelist"        # <-- Add IP range to whitelist
-NEWLIST="new"		     # <-- Create new IPSet Blacklist
+IMPORTLIST="import"	     # <-- Import and merge IPSet save to firewall
 DISABLE="disable"	     # <-- Disable Firewall
 DEBUG="debug"		     # <-- Enable/Disable Debug Output
 UPDATE="update"		     # <-- Update Script to latest version (check github for changes)
@@ -30,7 +30,7 @@ start_time=`date +%s`
 cat /jffs/scripts/firewall | head -28
 
 #####################################################################################################################################
-# -        Unban / Removeall / Save / Ban / Country / Bancountry / Banmalware / Whitelist / New / Disable / Debug / Update	  - #
+# -      Unban / Removeall / Save / Ban / Country / Bancountry / Banmalware / Whitelist / Import / Disable / Debug / Update       - #
 #####################################################################################################################################
 
 if [ X"$@" = X"$UNBANSINGLE" ]
@@ -102,7 +102,7 @@ else
 	cat /tmp/malwarelist.txt | sed -n "s/\r//;/^$/d;/^[0-9,\.,\/]*$/s/^/add BlockedRanges /p" | grep "/" | sort -u >> /tmp/malwarelist1.txt
 	echo "Applying Blacklists"
 	ipset -q -R -! < /tmp/malwarelist1.txt
-	rm -rf /tmp/malwarelist*
+	rm -rf /tmp/malwarelist*.txt
 fi
 
 elif [ X"$@" = X"$WHITELIST" ]
@@ -114,22 +114,23 @@ then
 	echo "$whitelistip Is Now Whitelisted"
 	ipset --save > /jffs/scripts/ipset.txt
 
-elif [ X"$@" = X"$NEWLIST" ]
+elif [ X"$@" = X"$IMPORTLIST" ]
 then
 	echo "Does The Blacklist Need To Be Downloaded? yes/no"
+	echo "If No Than List Will Be Read From /tmp/ipset2.txt"
 	read ENABLEDOWNLOAD
 		if [ X"$ENABLEDOWNLOAD" = X"yes" ]; then
 			echo "Input URL For IPSet Blacklist"
 			read DOWNLOADURL
-			wget -O /jffs/scripts/ipset2.txt $DOWNLOADURL
+			wget -q --no-check-certificate -O /tmp/ipset2.txt -i $DOWNLOADURL
 		fi
 	echo "Input Old Set Name"
 	read SET1
-	echo "Input New Set Name"
+	echo "Input Set To Merge Into"
 	read SET2
-	sed -i "s/$SET1/$SET2/g" /jffs/scripts/ipset2.txt
-	ipset -q -R  < /jffs/scripts/ipset2.txt
-	echo "Successfully Added New Set"
+	sed -i "s/$SET1/$SET2/g" /tmp/ipset2.txt
+	ipset -q -R -! < /tmp/ipset2.txt
+	rm -rf /tmp/ipset2.txt
 	
 elif [ X"$@" = X"$DISABLE" ]
 then
