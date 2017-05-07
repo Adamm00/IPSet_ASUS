@@ -1,8 +1,4 @@
 #!/bin/sh
 
-echo "0 * * * * /jffs/scripts/firewall save" > /var/spool/cron/crontabs/`nvram get http_username`
-[ -n "`pidof crond`" ] && killall -q crond
-
-sleep 5
-crond
+cru a Firewall_save "0 * * * * /jffs/scripts/firewall save"
 sh /jffs/scripts/firewall
