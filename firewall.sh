@@ -1,6 +1,6 @@
 #!/bin/sh
 #################################################################################################
-## - 08/05/2017 ---		RT-AC56U/RT-AC68U Firewall Addition By Adamm v3.4.1 -  		#
+## - 08/05/2017 ---		RT-AC56U/RT-AC68U Firewall Addition By Adamm v3.4.2 -  		#
 ## 					https://github.com/Adamm00/IPSet_ASUS			#
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -161,7 +161,7 @@ case $1 in
 		done
 		;;
 
-	balmalware)
+	banmalware)
 	if [ -f /jffs/scripts/malware-filter ]; then
 		echo "Malware-filter by @swetoast detected, please use this instead."
 	elif [ -f /jffs/scripts/ya-malware-block.sh ]; then
