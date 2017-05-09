@@ -278,20 +278,27 @@ case $1 in
 		;;
 
 	disable)
-			logger -st Skynet "[Disabling Firewall] ... ... ..."
-			Unload_IPTables
-		;;
+		logger -st Skynet "[Disabling Firewall] ... ... ..."
+		Unload_IPTables
+	;;
 
 	debug)
-			if [ "$2" = "enable" ]; then
+		case $2 in
+			enable)
 				logger -st Skynet "[Enabling Debug Output] ... ... ..."
 				iptables -t raw -I PREROUTING -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options
-			elif [ "$2" = "disable" ]; then
+			;;
+			disable)
 				logger -st Skynet "[Disabling Debug Output] ... ... ..."
 				iptables -t raw -D PREROUTING -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options
-			else
-				echo "Error - Use Syntax './jffs/scripts/firewall debug (enable/disable)'"
-			fi
+			;;
+			filter)
+				echo "Unbanning Private IP's"
+				Unban_PrivateIP
+			;;
+		*)
+			echo "Error - Use Syntax './jffs/scripts/firewall debug (enable/disable)'"
+		esac
 		;;
 
 	update)
