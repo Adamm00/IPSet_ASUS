@@ -87,8 +87,8 @@ Logging () {
 		NEWIPS=`nvram get Blacklist`
 		NEWRANGES=`nvram get BlockedRanges`
 		nvram commit
-		HITS1=`iptables --line -vL -nt raw | grep -E "set.*Blacklist" | awk '{print $2}'`
-		HITS2=`iptables --line -vL -nt raw | grep -E "set.*BlockedRanges" | awk '{print $2}'`
+		HITS1=`iptables -vL -nt raw | grep -E "set.*Blacklist" | awk '{print $1}'`
+		HITS2=`iptables -vL -nt raw | grep -E "set.*BlockedRanges" | awk '{print $1}'`
 		start_time=$(expr `date +%s` - $start_time)
 		logger -st Firewall "[Complete] $NEWIPS IPs / $NEWRANGES Ranges banned. `expr $NEWIPS - $OLDIPS` New IPs / `expr $NEWRANGES - $OLDRANGES` New Ranges Banned. $HITS1 IP / $HITS2 Range Connections Blocked! [`echo $start_time`s]"
 }
