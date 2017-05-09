@@ -7,7 +7,7 @@
 #  / ____ \\__ \ |_| \__ \ | |    | | | |  __/\ V  V / (_| | | |  / ____ \ (_| | (_| | | |_| | (_) | | | |  #
 # /_/    \_\___/\__,_|___/ |_|    |_|_|  \___| \_/\_/ \__,_|_|_| /_/    \_\__,_|\__,_|_|\__|_|\___/|_| |_|  #
 #													    #
-## - 10/05/2017 -		        Asus Firewall Addition By Adamm v3.5.1				    #
+## - 10/05/2017 -		        Asus Firewall Addition By Adamm v3.5.2				    #
 ## 					https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -36,11 +36,11 @@
 #	  "start"	     # <-- Initiate Firewall
 ##############################
 
-start_time=`date +%s`
-cat /jffs/scripts/firewall | head -38
+start_time=$(date +%s)
+cat $0 | head -38
 
 Check_Settings () {
-			if [ X"`ipset -v | grep -o v6`" != X"v6" ]; then
+			if [ X"$(ipset -v | grep -o v6)" != X"v6" ]; then
 				echo "IPSet version not supported"
 				exit
 			fi
@@ -50,19 +50,19 @@ Check_Settings () {
 				ln -s /jffs/scripts/firewall /opt/bin
 			fi
 
-			if [ X"`nvram get jffs2_scripts`" != X"1" ]; then
+			if [ X"$(nvram get jffs2_scripts)" != X"1" ]; then
 				echo "Enabling Custom JFFS Scripts"
 				nvram set jffs2_scripts=1
 				nvram commit
 			fi
 
-			if [ X"`nvram get fw_enable_x`" != X"1" ];then
+			if [ X"$(nvram get fw_enable_x)" != X"1" ];then
 				echo "Enabling SPI Firewall"
 				nvram set fw_enable_x=1
 				nvram commit
 			fi
 	
-			if [ X"`nvram get fw_log_x`" != X"drop" ];then
+			if [ X"$(nvram get fw_log_x)" != X"drop" ];then
 				echo "Enabling Firewall Logging"
 				nvram set fw_log_x=drop
 				nvram commit
@@ -85,26 +85,26 @@ Load_IPTables () {
 }
 
 Logging () {
-		OLDIPS=`nvram get Blacklist`
-		OLDRANGES=`nvram get BlockedRanges`
-		nvram set Blacklist=`expr \`ipset -L Blacklist | wc -l\` - 7`
-		nvram set BlockedRanges=`expr \`ipset -L BlockedRanges | wc -l\` - 7`
-		NEWIPS=`nvram get Blacklist`
-		NEWRANGES=`nvram get BlockedRanges`
+		OLDIPS=$(nvram get Blacklist)
+		OLDRANGES=$(nvram get BlockedRanges)
+		nvram set Blacklist=$(expr $(ipset -L Blacklist | wc -l) - 7)
+		nvram set BlockedRanges=$(expr $(ipset -L BlockedRanges | wc -l) - 7)
+		NEWIPS=$(nvram get Blacklist)
+		NEWRANGES=$(nvram get BlockedRanges)
 		nvram commit
-		HITS1=`iptables -vL -nt raw | grep -E "set.*Blacklist" | awk '{print $1}'`
-		HITS2=`iptables -vL -nt raw | grep -E "set.*BlockedRanges" | awk '{print $1}'`
-		start_time=$(expr `date +%s` - $start_time)
-		logger -st Firewall "[Complete] $NEWIPS IPs / $NEWRANGES Ranges banned. `expr $NEWIPS - $OLDIPS` New IPs / `expr $NEWRANGES - $OLDRANGES` New Ranges Banned. $HITS1 IP / $HITS2 Range Connections Blocked! [`echo $start_time`s]"
+		HITS1=$(iptables -vL -nt raw | grep -E "set.*Blacklist" | awk '{print $1}')
+		HITS2=$(iptables -vL -nt raw | grep -E "set.*BlockedRanges" | awk '{print $1}')
+		start_time=$(expr $(date +%s) - $start_time)
+		logger -st Firewall "[Complete] $NEWIPS IPs / $NEWRANGES Ranges banned. $(expr $NEWIPS - $OLDIPS) New IPs / $(expr $NEWRANGES - $OLDRANGES) New Ranges Banned. $HITS1 IP / $HITS2 Range Connections Blocked! [$(echo $start_time)s]"
 }
 
 Unban_PrivateIP () {
-		for IP in `ipset -L Blacklist | grep -E '(^127\.)|(^10\.)|(^172\.1[6-9]\.)|(^172\.2[0-9]\.)|(^172\.3[0-1]\.)|(^192\.168\.)|(^0.)|(^169\.254\.)'`
+		for IP in $(ipset -L Blacklist | grep -E '(^127\.)|(^10\.)|(^172\.1[6-9]\.)|(^172\.2[0-9]\.)|(^172\.3[0-1]\.)|(^192\.168\.)|(^0.)|(^169\.254\.)')
 			do
 			ipset -D Blacklist $IP
 		done
 		
-		for IP in `ipset -L BlockedRanges | grep -E '(^127\.)|(^10\.)|(^172\.1[6-9]\.)|(^172\.2[0-9]\.)|(^172\.3[0-1]\.)|(^192\.168\.)|(^0.)|(^169\.254\.)'`
+		for IP in $(ipset -L BlockedRanges | grep -E '(^127\.)|(^10\.)|(^172\.1[6-9]\.)|(^172\.2[0-9]\.)|(^172\.3[0-1]\.)|(^192\.168\.)|(^0.)|(^169\.254\.)')
 			do
 			ipset -D BlockedRanges $IP
 		done
@@ -146,8 +146,8 @@ case $1 in
 		;;
 
 	unbanall)
-		nvram set Blacklist=`expr \`ipset -L Blacklist | wc -l\` - 6`
-		logger -st Firewall "[Deleting All `echo \`nvram get Blacklist\`` Entries From Blacklist] ... ... ..."
+		nvram set Blacklist=$(expr $(ipset -L Blacklist | wc -l) - 6)
+		logger -st Firewall "[Deleting All $(nvram get Blacklist) Entries From Blacklist] ... ... ..."
 		ipset --flush Blacklist
 		ipset --flush BlockedRanges
 		ipset --save > /jffs/scripts/ipset.txt
@@ -276,11 +276,11 @@ case $1 in
 		;;
 
 	update)
-		if [ X"`cat /jffs/scripts/firewall`" = X"`wget -q -O - https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh`" ]; then
+		if [ X"$(cat $0)" = X"$(wget -q -O - https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh)" ]; then
 			logger -st Firewall "[Firewall Up To Date]"
 		else
 			logger -st Firewall "[New Version Detected - Updating]... ... ..."
-			wget -q --no-check-certificate -O /jffs/scripts/firewall https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh && logger -st Firewall "[Firewall Sucessfully Updated]"
+			wget -q --no-check-certificate -O $0 https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh && logger -st Firewall "[Firewall Sucessfully Updated]"
 			exit
 		fi
 		;;
@@ -296,7 +296,7 @@ case $1 in
 		ipset -q -N Blacklist iphash --maxelem 500000
 		ipset -q -N BlockedRanges nethash
 		ipset -q -A Whitelist 192.168.1.0/24
-		ipset -q -A Whitelist `nvram get lan_ipaddr`/24
+		ipset -q -A Whitelist $(nvram get lan_ipaddr)/24
 		ipset -q -A Whitelist 151.101.96.133/32
 		Unload_IPTables
 		Load_IPTables
