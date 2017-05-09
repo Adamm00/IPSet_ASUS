@@ -9,19 +9,19 @@ This script is an extra line of defense from malicious attackers (mostly bots) w
 
 sh /jffs/scripts/firewall *commandhere*
 
-"unban"       # <-- Remove Single IP From Blacklist  
-"unbanall"    # <-- Remove All Entries From Blacklist
-"unbandomain"	# <-- Unban IP's associated with domain
-"save"        # <-- Save Blacklists to /jffs/scripts/ipset.txt  
-"ban"         # <-- Adds Entry To Blacklist
-"bandomain"	  # <-- Ban IP's associated with domain
-"country"     # <-- Adds entire country to blacklist  
-"bancountry"  # <-- Bans specified countries in this file  
-"banmalware"  # <-- Bans various malware domains  
-"whitelist"   # <-- Add IPs from path to Whitelist  
-"import"		  # <-- Import and merge IPSet save to firewall  
-"disable"	    # <-- Disable Firewall  
-"update"		  # <-- Update Script to latest version (check github for changes)  
+    "unban"        # <-- Remove Single IP From Blacklist  
+    "unbanall"     # <-- Remove All Entries From Blacklist  
+    "unbandomain"  # <-- Unban IP's associated with domain  
+    "save"         # <-- Save Blacklists to /jffs/scripts/ipset.txt
+    "ban"          # <-- Adds Entry To Blacklist  
+    "bandomain"    # <-- Ban IP's associated with domain  
+    "country"      # <-- Adds entire country to blacklist  
+    "bancountry"   # <-- Bans specified countries in this file  
+    "banmalware"   # <-- Bans various malware domains  
+    "whitelist"    # <-- Add IPs from path to Whitelist  
+    "import"       # <-- Import and merge IPSet save to firewall  
+    "disable"      # <-- Disable Firewall  
+    "update"       # <-- Update Script to latest version (check github for changes)  
 
 
 ## Installation
