@@ -30,7 +30,7 @@
 ##############################
 
 start_time=`date +%s`
-cat /jffs/scripts/firewall | head -29
+cat /jffs/scripts/firewall | head -31
 
 Check_Settings () {
 			if [ X"`nvram get jffs2_scripts`" = X"1" ]
