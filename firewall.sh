@@ -215,10 +215,10 @@ case $1 in
 	debug)
 			if [ X"$2" = X"enable" ]; then
 				logger -st Firewall "[Enabling Debug Mode] ... ... ..."
-				iptables -t raw -I PREROUTING -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - INPUT] " --log-tcp-sequence --log-tcp-options --log-ip-options
+				iptables -t raw -I PREROUTING -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options
 			elif [ X"$2" = X"disable" ]; then
 				logger -st Firewall "[Disabling Debug Mode] ... ... ..."
-				iptables -t raw -D PREROUTING -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - INPUT] " --log-tcp-sequence --log-tcp-options --log-ip-options
+				iptables -t raw -D PREROUTING -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options
 			else
 				echo "Error - Use Syntax './jffs/scripts/firewall debug (enable/disable)'"
 			fi
