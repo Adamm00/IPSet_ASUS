@@ -10,9 +10,11 @@ This script is an extra line of defense from malicious attackers (mostly bots) w
 sh /jffs/scripts/firewall *commandhere*
 
 "unban"       # <-- Remove Single IP From Blacklist  
-"removeall"   # <-- Remove All Entries From Blacklist  
+"unbanall"    # <-- Remove All Entries From Blacklist
+"unbandomain"	# <-- Unban IP's associated with domain
 "save"        # <-- Save Blacklists to /jffs/scripts/ipset.txt  
-"ban"         # <-- Adds Entry To Blacklist  
+"ban"         # <-- Adds Entry To Blacklist
+"bandomain"	  # <-- Ban IP's associated with domain
 "country"     # <-- Adds entire country to blacklist  
 "bancountry"  # <-- Bans specified countries in this file  
 "banmalware"  # <-- Bans various malware domains  
