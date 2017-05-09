@@ -1,6 +1,6 @@
 #!/bin/sh
 #################################################################################################
-## - 09/05/2017 ---		RT-AC56U/RT-AC68U Firewall Addition By Adamm v3.4.4 -  		#
+## - 09/05/2017 ---		RT-AC56U/RT-AC68U Firewall Addition By Adamm v3.4.5 -  		#
 ## 					https://github.com/Adamm00/IPSet_ASUS			#
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -14,8 +14,10 @@
 ##############################
 #	  "unban"	     # <-- Remove Single IP From Blacklist
 #	  "unbanall"	     # <-- Remove All Entries From Blacklist
+#	  "unbandomain"	     # <-- Unban IP's associated with domain
 #	  "save"	     # <-- Save Blacklists to /jffs/scripts/ipset.txt
 #	  "ban"		     # <-- Adds Entry To Blacklist
+#	  "bandomain"	     # <-- Ban IP's associated with domain
 # 	  "country"	     # <-- Adds entire country to blacklist
 #	  "bancountry"	     # <-- Bans specified countries in this file
 #	  "banmalware"	     # <-- Bans various malware domains
@@ -91,9 +93,9 @@ Logging () {
 		logger -st Firewall "[Complete] $NEWIPS IPs / $NEWRANGES Ranges banned. `expr $NEWIPS - $OLDIPS` New IPs / `expr $NEWRANGES - $OLDRANGES` New Ranges Banned. $HITS1 IP / $HITS2 Range Connections Blocked! [`echo $start_time`s]"
 }
 
-#####################################################################################################################################
-# -   Unban / Unbanall / Save / Ban / Country / Bancountry / Banmalware / Whitelist / Import / Disable / Debug / Update / Start   - #
-#####################################################################################################################################
+###################################################################################################################################################
+# -   unban / unbandomain / unbanall / save / ban / country / bancountry / banmalware / whitelist / import / disable / debug / update / start   - #
+###################################################################################################################################################
 
 
 case $1 in
@@ -108,6 +110,22 @@ case $1 in
 		logger -st Firewall "[Unbanning And Removing $unbannedip From Blacklist] ... ... ..."
 		ipset -D Blacklist $unbannedip
 		sed -i /$unbannedip/d /jffs/scripts/ipset.txt
+		;;
+		
+	unbandomain)
+		if [ -z $2 ]; then
+			echo "Input Domain To Unban"
+			read unbannedip
+		else
+			unbannedip=$2
+		fi
+		
+		logger -st Firewall "[Unbanning And Removing $unbannedip From Blacklist] ... ... ..."
+		for IP in $(nslookup $unbannedip | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" | awk 'NR>2')
+			do
+			ipset -D Blacklist $IP
+			sed -i /$IP/d /jffs/scripts/ipset.txt
+		done
 		;;
 
 	unbanall)
@@ -134,6 +152,21 @@ case $1 in
 		
 		logger -st Firewall "[Adding $bannedip To Blacklist] ... ... ..."
 		ipset -A Blacklist $bannedip
+		;;
+		
+	bandomain)
+		if [ -z $2 ]; then
+			echo "Input Domain To Ban"
+			read bannedip
+		else
+			bannedip=$2
+		fi
+		
+		logger -st Firewall "[Adding $bannedip To Blacklist] ... ... ..."
+		for IP in $(nslookup $bannedip | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" | awk 'NR>2')
+			do
+			ipset -A Blacklist $IP
+		done
 		;;
 
 	country)
