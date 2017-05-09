@@ -7,7 +7,7 @@
 #  / ____ \\__ \ |_| \__ \ | |    | | | |  __/\ V  V / (_| | | |  / ____ \ (_| | (_| | | |_| | (_) | | | |  #
 # /_/    \_\___/\__,_|___/ |_|    |_|_|  \___| \_/\_/ \__,_|_|_| /_/    \_\__,_|\__,_|_|\__|_|\___/|_| |_|  #
 #													    #
-## - 10/05/2017 -		        Asus Firewall Addition By Adamm v3.5.0				    #
+## - 10/05/2017 -		        Asus Firewall Addition By Adamm v3.5.1				    #
 ## 					https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -98,6 +98,18 @@ Logging () {
 		logger -st Firewall "[Complete] $NEWIPS IPs / $NEWRANGES Ranges banned. `expr $NEWIPS - $OLDIPS` New IPs / `expr $NEWRANGES - $OLDRANGES` New Ranges Banned. $HITS1 IP / $HITS2 Range Connections Blocked! [`echo $start_time`s]"
 }
 
+Unban_PrivateIP () {
+		for $IP in `ipset -L Blacklist | grep -E '(^127\.)|(^10\.)|(^172\.1[6-9]\.)|(^172\.2[0-9]\.)|(^172\.3[0-1]\.)|(^192\.168\.)|(^0.)|(^169\.254\.)'`
+			do
+			ipset -D Blacklist $IP
+		done
+		
+		for $IP in `ipset -L BlockedRanges | grep -E '(^127\.)|(^10\.)|(^172\.1[6-9]\.)|(^172\.2[0-9]\.)|(^172\.3[0-1]\.)|(^192\.168\.)|(^0.)|(^169\.254\.)'`
+			do
+			ipset -D BlockedRanges $IP
+		done
+}
+
 ###################################################################################################################################################
 # -   unban / unbandomain / unbanall / save / ban / country / bancountry / banmalware / whitelist / import / disable / debug / update / start   - #
 ###################################################################################################################################################
@@ -143,6 +155,7 @@ case $1 in
 
 	save)
 		echo "[Saving Blacklists] ... ... ..."
+		Unban_PrivateIP
 		ipset --save > /jffs/scripts/ipset.txt
 		sed -i '/USER admin pid .*firewall/d' /tmp/syslog.log
 		;;
@@ -278,6 +291,7 @@ case $1 in
 		logger -st Firewall "[IP Banning Started] ... ... ..."
 		insmod xt_set > /dev/null 2>&1
 		ipset -q -R  < /jffs/scripts/ipset.txt
+		Unban_PrivateIP
 		ipset -q -N Whitelist nethash
 		ipset -q -N Blacklist iphash --maxelem 500000
 		ipset -q -N BlockedRanges nethash
