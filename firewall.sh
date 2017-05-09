@@ -7,7 +7,7 @@
 #  / ____ \\__ \ |_| \__ \ | |    | | | |  __/\ V  V / (_| | | |  / ____ \ (_| | (_| | | |_| | (_) | | | |  #
 # /_/    \_\___/\__,_|___/ |_|    |_|_|  \___| \_/\_/ \__,_|_|_| /_/    \_\__,_|\__,_|_|\__|_|\___/|_| |_|  #
 #													    #
-## - 09/05/2017 -		        Asus Firewall Addition By Adamm v3.4.6				    #
+## - 09/05/2017 -		        Asus Firewall Addition By Adamm v3.4.7				    #
 ## 					https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -40,9 +40,17 @@ start_time=`date +%s`
 cat /jffs/scripts/firewall | head -38
 
 Check_Settings () {
+			if [ X"`ipset -v | grep v4`" = X"v4" ]
+			then
+				echo "IPSet version not supported"
+				exit
+			else
+				echo "Correct Setting Detected."
+			fi
+
 			if [ X"`nvram get jffs2_scripts`" = X"1" ]
 			then
-				echo "Correct Settings Detected."
+				echo "Correct Setting Detected."
 			else
 				echo "Enabled Custom JFFS Scripts"
 				nvram set jffs2_scripts=1
@@ -51,7 +59,7 @@ Check_Settings () {
 
 			if [ X"`nvram get fw_enable_x`" = X"1" ]
 			then
-				echo "Correct Settings Detected."
+				echo "Correct Setting Detected."
 			else
 				echo "Enabled SPI Firewall"
 				nvram set fw_enable_x=1
@@ -60,7 +68,7 @@ Check_Settings () {
 	
 			if [ X"`nvram get fw_log_x`" = X"drop" ]
 			then
-				echo "Correct Settings Detected."
+				echo "Correct Setting Detected."
 			else
 				echo "Enabled Firewall Logging"
 				nvram set fw_log_x=drop
