@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                              				    #
 #													    #
-## - 10/05/2017 -		   Asus Firewall Addition By Adamm v3.5.2				    #
+## - 10/05/2017 -		   Asus Firewall Addition By Adamm v3.5.4				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -120,7 +120,7 @@ Unban_PrivateIP () {
 case $1 in
 	unban)
 		if [ -z $2 ]; then
-			echo "For Automatic Unbanning In Future Use; \"sh $0 unban IP\""
+			echo "For Automated Unbanning In Future Use; \"sh $0 unban IP\""
 			echo "Input IP Address To Unban"
 			read unbannedip
 		else
@@ -134,7 +134,7 @@ case $1 in
 		
 	unbandomain)
 		if [ -z $2 ]; then
-			echo "For Automatic Unbanning In Future Use; \"sh $0 unbandomain DOMAIN\""
+			echo "For Automated Unbanning In Future Use; \"sh $0 unbandomain DOMAIN\""
 			echo "Input Domain To Unban"
 			read unbannedip
 		else
@@ -166,7 +166,7 @@ case $1 in
 
 	ban)
 		if [ -z $2 ]; then
-			echo "For Automatic Banning In Future Use; \"sh $0 ban IP\""
+			echo "For Automated Banning In Future Use; \"sh $0 ban IP\""
 			echo "Input IP Address To Ban"
 			read bannedip
 		else
@@ -179,7 +179,7 @@ case $1 in
 		
 	bandomain)
 		if [ -z $2 ]; then
-			echo "For Automatic Banning In Future Use; \"sh $0 bandomain DOMAIN\""
+			echo "For Automated Banning In Future Use; \"sh $0 bandomain DOMAIN\""
 			echo "Input Domain To Ban"
 			read bannedip
 		else
@@ -224,7 +224,17 @@ case $1 in
 	fi
 		echo "Banning Known Malware IPs"
 		echo "Downloading Lists"
-		wget -q --no-check-certificate -O /tmp/malwarelist.txt -i https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/filter.list
+		if  [ -n "$2" ] && [ "$2" != "-f" ]; then
+			listurl=$2
+			echo "Custom List Detected: $2"
+		elif [ -n "$3" ]; then
+			listurl=$3
+			echo "Custom List Detected: $3"
+		else
+			echo "To Use A Custom List In Future Use; \"sh $0 banmalware URL\""
+			listurl="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/filter.list"
+		fi
+		wget -q --no-check-certificate -O /tmp/malwarelist.txt -i $listurl
 		echo "Filtering IPv4 Addresses"
 		cat /tmp/malwarelist.txt | grep -vE '(^127\.)|(^10\.)|(^172\.1[6-9]\.)|(^172\.2[0-9]\.)|(^172\.3[0-1]\.)|(^192\.168\.)|(^0.)|(^169\.254\.)'| sed -n "s/\r//;/^$/d;/^[0-9,\.]*$/s/^/add Blacklist /p" | sort -u > /tmp/malwarelist1.txt
 		echo "Filtering IPv4 Ranges"
@@ -236,7 +246,7 @@ case $1 in
 		
 	whitelist)
 		if [ -z $2 ]; then
-			echo "For Automatic Whitelisting In Future Use; \"sh $0 whitelist IP\""
+			echo "For Automated Whitelisting In Future Use; \"sh $0 whitelist IP\""
 			echo "Input IP Range To Whitelist"
 			read whitelistip
 		else
