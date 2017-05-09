@@ -1,6 +1,6 @@
 #!/bin/sh
 #################################################################################################
-## - 08/05/2017 ---		RT-AC56U/RT-AC68U Firewall Addition By Adamm v3.4.2 -  		#
+## - 09/05/2017 ---		RT-AC56U/RT-AC68U Firewall Addition By Adamm v3.4.4 -  		#
 ## 					https://github.com/Adamm00/IPSet_ASUS			#
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -62,23 +62,17 @@ Check_Settings () {
 
 Unload_IPTables () {
 		iptables -D logdrop -m state --state NEW -j LOG --log-prefix "DROP " --log-tcp-sequence --log-tcp-options --log-ip-options  > /dev/null 2>&1
-		iptables -D INPUT -m set --match-set Whitelist src -j ACCEPT > /dev/null 2>&1
-		iptables -D INPUT -m set --match-set Blacklist src -j DROP > /dev/null 2>&1
-		iptables -D INPUT -m set --match-set BlockedRanges src -j DROP > /dev/null 2>&1
-		iptables -D FORWARD -m set --match-set Blacklist src,dst -j DROP > /dev/null 2>&1
-		iptables -D FORWARD -m set --match-set BlockedRanges src,dst -j DROP > /dev/null 2>&1
-		iptables -D FORWARD -m set --match-set Whitelist src,dst -j ACCEPT > /dev/null 2>&1
+		iptables -t raw -D PREROUTING -m set --match-set Blacklist src -j DROP > /dev/null 2>&1
+		iptables -t raw -D PREROUTING -m set --match-set BlockedRanges src -j DROP > /dev/null 2>&1
+		iptables -t raw -D PREROUTING -m set --match-set Whitelist src -j ACCEPT > /dev/null 2>&1
 		iptables -D logdrop -m state --state NEW -j SET --add-set Blacklist src > /dev/null 2>&1
 }
 
 
 Load_IPTables () {
-		iptables -I INPUT -m set --match-set Blacklist src -j DROP > /dev/null 2>&1
-		iptables -I INPUT -m set --match-set BlockedRanges src -j DROP > /dev/null 2>&1
-		iptables -I INPUT -m set --match-set Whitelist src -j ACCEPT > /dev/null 2>&1
-		iptables -I FORWARD -m set --match-set Blacklist src,dst -j DROP > /dev/null 2>&1
-		iptables -I FORWARD -m set --match-set BlockedRanges src,dst -j DROP > /dev/null 2>&1
-		iptables -I FORWARD -m set --match-set Whitelist src,dst -j ACCEPT > /dev/null 2>&1
+		iptables -t raw -I PREROUTING -m set --match-set Blacklist src -j DROP > /dev/null 2>&1
+		iptables -t raw -I PREROUTING -m set --match-set BlockedRanges src -j DROP > /dev/null 2>&1
+		iptables -t raw -I PREROUTING -m set --match-set Whitelist src -j ACCEPT > /dev/null 2>&1
 		iptables -I logdrop -m state --state NEW -j SET --add-set Blacklist src > /dev/null 2>&1
 }
 
@@ -91,9 +85,10 @@ Logging () {
 		NEWIPS=`nvram get Blacklist`
 		NEWRANGES=`nvram get BlockedRanges`
 		nvram commit
-		HITS=$(expr `iptables --line -nvL INPUT | grep -E "set.*Blacklist" | awk '{print $2}'` + `iptables --line -nvL INPUT | grep -E "set.*BlockedRanges" | awk '{print $2}'` + `iptables --line -nvL FORWARD | grep -E "set.*Blacklist" | awk '{print $2}'` + `iptables --line -nvL FORWARD | grep -E "set.*BlockedRanges" | awk '{print $2}'`)
+		HITS1=`iptables --line -vL -nt raw | grep -E "set.*Blacklist" | awk '{print $2}'`
+		HITS2=`iptables --line -vL -nt raw | grep -E "set.*BlockedRanges" | awk '{print $2}'`
 		start_time=$(expr `date +%s` - $start_time)
-		logger -st Firewall "[Complete] $NEWIPS IPs / $NEWRANGES Ranges banned. `expr $NEWIPS - $OLDIPS` New IPs / `expr $NEWRANGES - $OLDRANGES` New Ranges Banned. $HITS Connections Blocked! [`echo $start_time`s]"
+		logger -st Firewall "[Complete] $NEWIPS IPs / $NEWRANGES Ranges banned. `expr $NEWIPS - $OLDIPS` New IPs / `expr $NEWRANGES - $OLDRANGES` New Ranges Banned. $HITS1 IP / $HITS2 Range Connections Blocked! [`echo $start_time`s]"
 }
 
 #####################################################################################################################################
@@ -220,12 +215,10 @@ case $1 in
 	debug)
 			if [ X"$2" = X"enable" ]; then
 				logger -st Firewall "[Enabling Debug Mode] ... ... ..."
-				iptables -I INPUT -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - INPUT] " --log-tcp-sequence --log-tcp-options --log-ip-options
-				iptables -I FORWARD -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - FORWARD] " --log-tcp-sequence --log-tcp-options --log-ip-options
+				iptables -t raw -I PREROUTING -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - INPUT] " --log-tcp-sequence --log-tcp-options --log-ip-options
 			elif [ X"$2" = X"disable" ]; then
 				logger -st Firewall "[Disabling Debug Mode] ... ... ..."
-				iptables -D INPUT -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - INPUT] " --log-tcp-sequence --log-tcp-options --log-ip-options
-				iptables -D FORWARD -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - FORWARD] " --log-tcp-sequence --log-tcp-options --log-ip-options
+				iptables -t raw -D PREROUTING -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - INPUT] " --log-tcp-sequence --log-tcp-options --log-ip-options
 			else
 				echo "Error - Use Syntax './jffs/scripts/firewall debug (enable/disable)'"
 			fi
