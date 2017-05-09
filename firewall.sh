@@ -7,11 +7,11 @@
 #  / ____ \\__ \ |_| \__ \ | |    | | | |  __/\ V  V / (_| | | |  / ____ \ (_| | (_| | | |_| | (_) | | | |  #
 # /_/    \_\___/\__,_|___/ |_|    |_|_|  \___| \_/\_/ \__,_|_|_| /_/    \_\__,_|\__,_|_|\__|_|\___/|_| |_|  #
 #													    #
-## - 09/05/2017 -		        Asus Firewall Addition By Adamm v3.4.8				    #
+## - 09/05/2017 -		        Asus Firewall Addition By Adamm v3.4.9				    #
 ## 					https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
-### /jffs/scripts/firewall-start			         <-- Sets up cronjob/iptables rules		  #
+### /jffs/scripts/firewall-start			         <-- Sets up cronjob/initial execution		  #
 ### /jffs/scripts/firewall					 <-- Blacklists IP's From /jffs/scripts/ipset.txt #
 ### /jffs/scripts/ipset.txt					 <-- Banned IP List/IPSet Rules			  #
 ###################################################################################################################
@@ -258,10 +258,10 @@ case $1 in
 
 	debug)
 			if [ X"$2" = X"enable" ]; then
-				logger -st Firewall "[Enabling Debug Mode] ... ... ..."
+				logger -st Firewall "[Enabling Debug Output] ... ... ..."
 				iptables -t raw -I PREROUTING -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options
 			elif [ X"$2" = X"disable" ]; then
-				logger -st Firewall "[Disabling Debug Mode] ... ... ..."
+				logger -st Firewall "[Disabling Debug Output] ... ... ..."
 				iptables -t raw -D PREROUTING -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options
 			else
 				echo "Error - Use Syntax './jffs/scripts/firewall debug (enable/disable)'"
@@ -273,7 +273,8 @@ case $1 in
 			logger -st Firewall "[Firewall Up To Date]"
 		else
 			logger -st Firewall "[New Version Detected - Updating]... ... ..."
-			wget -q --no-check-certificate -O /jffs/scripts/firewall https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh
+			wget -q --no-check-certificate -O /jffs/scripts/firewall https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh && logger -st Firewall "[Firewall Sucessfully Updated]"
+			exit
 		fi
 		;;
 
@@ -295,7 +296,7 @@ case $1 in
 		;;
 
      *)
-          echo "Command not found, please try again."
+          echo "Command not recognised, please try again"
 		;;
 
 esac
