@@ -1,7 +1,14 @@
 #!/bin/sh
-#################################################################################################
-## - 09/05/2017 ---		RT-AC56U/RT-AC68U Firewall Addition By Adamm v3.4.5 -  		#
-## 					https://github.com/Adamm00/IPSet_ASUS			#
+#############################################################################################################
+#                           ______ _                        _ _               _     _ _ _   _               #
+#     /\                   |  ____(_)                      | | |     /\      | |   | (_) | (_)              #
+#    /  \   ___ _   _ ___  | |__   _ _ __ _____      ____ _| | |    /  \   __| | __| |_| |_ _  ___  _ __    #
+#   / /\ \ / __| | | / __| |  __| | | '__/ _ \ \ /\ / / _` | | |   / /\ \ / _` |/ _` | | __| |/ _ \| '_ \   # 
+#  / ____ \\__ \ |_| \__ \ | |    | | | |  __/\ V  V / (_| | | |  / ____ \ (_| | (_| | | |_| | (_) | | | |  #
+# /_/    \_\___/\__,_|___/ |_|    |_|_|  \___| \_/\_/ \__,_|_|_| /_/    \_\__,_|\__,_|_|\__|_|\___/|_| |_|  #
+#													    #
+## - 09/05/2017 -		        Asus Firewall Addition By Adamm v3.4.6				    #
+## 					https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
 ### /jffs/scripts/firewall-start			         <-- Sets up cronjob/iptables rules		  #
@@ -30,7 +37,7 @@
 ##############################
 
 start_time=`date +%s`
-cat /jffs/scripts/firewall | head -31
+cat /jffs/scripts/firewall | head -38
 
 Check_Settings () {
 			if [ X"`nvram get jffs2_scripts`" = X"1" ]
@@ -61,7 +68,6 @@ Check_Settings () {
 			fi
 }
 
-
 Unload_IPTables () {
 		iptables -D logdrop -m state --state NEW -j LOG --log-prefix "DROP " --log-tcp-sequence --log-tcp-options --log-ip-options  > /dev/null 2>&1
 		iptables -t raw -D PREROUTING -m set --match-set Blacklist src -j DROP > /dev/null 2>&1
@@ -70,14 +76,12 @@ Unload_IPTables () {
 		iptables -D logdrop -m state --state NEW -j SET --add-set Blacklist src > /dev/null 2>&1
 }
 
-
 Load_IPTables () {
 		iptables -t raw -I PREROUTING -m set --match-set Blacklist src -j DROP > /dev/null 2>&1
 		iptables -t raw -I PREROUTING -m set --match-set BlockedRanges src -j DROP > /dev/null 2>&1
 		iptables -t raw -I PREROUTING -m set --match-set Whitelist src -j ACCEPT > /dev/null 2>&1
 		iptables -I logdrop -m state --state NEW -j SET --add-set Blacklist src > /dev/null 2>&1
 }
-
 
 Logging () {
 		OLDIPS=`nvram get Blacklist`
