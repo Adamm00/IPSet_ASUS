@@ -7,7 +7,7 @@
 #  / ____ \\__ \ |_| \__ \ | |    | | | |  __/\ V  V / (_| | | |  / ____ \ (_| | (_| | | |_| | (_) | | | |  #
 # /_/    \_\___/\__,_|___/ |_|    |_|_|  \___| \_/\_/ \__,_|_|_| /_/    \_\__,_|\__,_|_|\__|_|\___/|_| |_|  #
 #													    #
-## - 10/05/2017 -		        Asus Firewall Addition By Adamm v3.5.2				    #
+## - 10/05/2017 -		        Asus Firewall Addition By Adamm v3.5.3				    #
 ## 					https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -40,7 +40,7 @@ start_time=$(date +%s)
 cat $0 | head -38
 
 Check_Settings () {
-			if [ X"$(ipset -v | grep -o v6)" != X"v6" ]; then
+			if [ "$(ipset -v | grep -o v6)" != "v6" ]; then
 				echo "IPSet version not supported"
 				exit
 			fi
@@ -50,19 +50,19 @@ Check_Settings () {
 				ln -s /jffs/scripts/firewall /opt/bin
 			fi
 
-			if [ X"$(nvram get jffs2_scripts)" != X"1" ]; then
+			if [ "$(nvram get jffs2_scripts)" != "1" ]; then
 				echo "Enabling Custom JFFS Scripts"
 				nvram set jffs2_scripts=1
 				nvram commit
 			fi
 
-			if [ X"$(nvram get fw_enable_x)" != X"1" ];then
+			if [ "$(nvram get fw_enable_x)" != "1" ]; then
 				echo "Enabling SPI Firewall"
 				nvram set fw_enable_x=1
 				nvram commit
 			fi
 	
-			if [ X"$(nvram get fw_log_x)" != X"drop" ];then
+			if [ "$(nvram get fw_log_x)" != "drop" ]; then
 				echo "Enabling Firewall Logging"
 				nvram set fw_log_x=drop
 				nvram commit
@@ -118,6 +118,7 @@ Unban_PrivateIP () {
 case $1 in
 	unban)
 		if [ -z $2 ]; then
+			echo "For Automatic Unbanning In Future Use; \"sh $0 unban IP\""
 			echo "Input IP Address To Unban"
 			read unbannedip
 		else
@@ -131,6 +132,7 @@ case $1 in
 		
 	unbandomain)
 		if [ -z $2 ]; then
+			echo "For Automatic Unbanning In Future Use; \"sh $0 unbandomain DOMAIN\""
 			echo "Input Domain To Unban"
 			read unbannedip
 		else
@@ -162,6 +164,7 @@ case $1 in
 
 	ban)
 		if [ -z $2 ]; then
+			echo "For Automatic Banning In Future Use; \"sh $0 ban IP\""
 			echo "Input IP Address To Ban"
 			read bannedip
 		else
@@ -174,6 +177,7 @@ case $1 in
 		
 	bandomain)
 		if [ -z $2 ]; then
+			echo "For Automatic Banning In Future Use; \"sh $0 bandomain DOMAIN\""
 			echo "Input Domain To Ban"
 			read bannedip
 		else
@@ -208,11 +212,14 @@ case $1 in
 		;;
 
 	banmalware)
-	if [ -f /jffs/scripts/malware-filter ]; then
-		echo "Malware-filter by @swetoast detected, please use this instead."
-	elif [ -f /jffs/scripts/ya-malware-block.sh ]; then
-		echo "Ya-Malware-Block by @redhat27 detected, please use this instead."
-	else
+	if [ "$2" != "-f" ] && [ -f /jffs/scripts/malware-filter ] || [ -f /jffs/scripts/ya-malware-block.sh ]; then
+		echo "Another Malware Filter Script Detected And May Cause Conflicts, Are You Sure You Want To Continue? (yes/no)"
+		echo "To Ignore This Error In Future Use; \"sh $0 banmalware -f\""
+		read CONTINUE
+		if [ "$CONTINUE" != "yes" ]; then
+			exit
+		fi
+	fi
 		echo "Banning Known Malware IPs"
 		echo "Downloading Lists"
 		wget -q --no-check-certificate -O /tmp/malwarelist.txt -i https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/filter.list
@@ -223,11 +230,11 @@ case $1 in
 		echo "Applying Blacklists"
 		ipset -q -R -! < /tmp/malwarelist1.txt
 		rm -rf /tmp/malwarelist*.txt
-	fi
 		;;
 		
 	whitelist)
 		if [ -z $2 ]; then
+			echo "For Automatic Whitelisting In Future Use; \"sh $0 whitelist IP\""
 			echo "Input IP Range To Whitelist"
 			read whitelistip
 		else
@@ -243,7 +250,7 @@ case $1 in
 		echo "Does The Blacklist Need To Be Downloaded? yes/no"
 		echo "If No Than List Will Be Read From /tmp/ipset2.txt"
 		read ENABLEDOWNLOAD
-			if [ X"$ENABLEDOWNLOAD" = X"yes" ]; then
+			if [ "$ENABLEDOWNLOAD" = "yes" ]; then
 				echo "Input URL For IPSet Blacklist"
 				read DOWNLOADURL
 				wget -q --no-check-certificate -O /tmp/ipset2.txt -i $DOWNLOADURL
@@ -264,10 +271,10 @@ case $1 in
 		;;
 
 	debug)
-			if [ X"$2" = X"enable" ]; then
+			if [ "$2" = "enable" ]; then
 				logger -st Firewall "[Enabling Debug Output] ... ... ..."
 				iptables -t raw -I PREROUTING -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options
-			elif [ X"$2" = X"disable" ]; then
+			elif [ "$2" = "disable" ]; then
 				logger -st Firewall "[Disabling Debug Output] ... ... ..."
 				iptables -t raw -D PREROUTING -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options
 			else
@@ -276,7 +283,7 @@ case $1 in
 		;;
 
 	update)
-		if [ X"$(cat $0)" = X"$(wget -q -O - https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh)" ]; then
+		if [ "$(cat $0)" = "$(wget -q -O - https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh)" ]; then
 			logger -st Firewall "[Firewall Up To Date]"
 		else
 			logger -st Firewall "[New Version Detected - Updating]... ... ..."
@@ -304,7 +311,7 @@ case $1 in
 		;;
 
      *)
-          echo "Command not recognised, please try again"
+          echo "Command Not Recognised, Please Try Again"
 		;;
 
 esac
