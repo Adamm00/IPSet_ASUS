@@ -1,14 +1,16 @@
 #!/bin/sh
 #############################################################################################################
-#                           ______ _                        _ _               _     _ _ _   _               #
-#     /\                   |  ____(_)                      | | |     /\      | |   | (_) | (_)              #
-#    /  \   ___ _   _ ___  | |__   _ _ __ _____      ____ _| | |    /  \   __| | __| |_| |_ _  ___  _ __    #
-#   / /\ \ / __| | | / __| |  __| | | '__/ _ \ \ /\ / / _` | | |   / /\ \ / _` |/ _` | | __| |/ _ \| '_ \   # 
-#  / ____ \\__ \ |_| \__ \ | |    | | | |  __/\ V  V / (_| | | |  / ____ \ (_| | (_| | | |_| | (_) | | | |  #
-# /_/    \_\___/\__,_|___/ |_|    |_|_|  \___| \_/\_/ \__,_|_|_| /_/    \_\__,_|\__,_|_|\__|_|\___/|_| |_|  #
+#			       _____ _                     _           ____   				    #
+#			      / ____| |                   | |         |___ \				    # 
+#			     | (___ | | ___   _ _ __   ___| |_  __   __ __) |				    #	
+#			      \___ \| |/ / | | | '_ \ / _ \ __| \ \ / /|__ < 				    #
+#			      ____) |   <| |_| | | | |  __/ |_   \ V / ___) |				    #
+#			     |_____/|_|\_\\__, |_| |_|\___|\__|   \_(_)____/ 				    #
+#			                   __/ |                             				    #
+# 			                  |___/                              				    #
 #													    #
-## - 10/05/2017 -		        Asus Firewall Addition By Adamm v3.5.3				    #
-## 					https://github.com/Adamm00/IPSet_ASUS				    #
+## - 10/05/2017 -		   Asus Firewall Addition By Adamm v3.5.2				    #
+## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
 ### /jffs/scripts/firewall-start			         <-- Sets up cronjob/initial execution		  #
@@ -37,7 +39,7 @@
 ##############################
 
 start_time=$(date +%s)
-cat $0 | head -38
+cat $0 | head -40
 
 Check_Settings () {
 			if [ "$(ipset -v | grep -o v6)" != "v6" ]; then
@@ -95,7 +97,7 @@ Logging () {
 		HITS1=$(iptables -vL -nt raw | grep -E "set.*Blacklist" | awk '{print $1}')
 		HITS2=$(iptables -vL -nt raw | grep -E "set.*BlockedRanges" | awk '{print $1}')
 		start_time=$(expr $(date +%s) - $start_time)
-		logger -st Firewall "[Complete] $NEWIPS IPs / $NEWRANGES Ranges banned. $(expr $NEWIPS - $OLDIPS) New IPs / $(expr $NEWRANGES - $OLDRANGES) New Ranges Banned. $HITS1 IP / $HITS2 Range Connections Blocked! [$(echo $start_time)s]"
+		logger -st Skynet "[Complete] $NEWIPS IPs / $NEWRANGES Ranges banned. $(expr $NEWIPS - $OLDIPS) New IPs / $(expr $NEWRANGES - $OLDRANGES) New Ranges Banned. $HITS1 IP / $HITS2 Range Connections Blocked! [$(echo $start_time)s]"
 }
 
 Unban_PrivateIP () {
@@ -125,7 +127,7 @@ case $1 in
 			unbannedip=$2
 		fi
 		
-		logger -st Firewall "[Unbanning And Removing $unbannedip From Blacklist] ... ... ..."
+		logger -st Skynet "[Unbanning And Removing $unbannedip From Blacklist] ... ... ..."
 		ipset -D Blacklist $unbannedip
 		sed -i /$unbannedip/d /jffs/scripts/ipset.txt
 		;;
@@ -139,7 +141,7 @@ case $1 in
 			unbannedip=$2
 		fi
 		
-		logger -st Firewall "[Unbanning And Removing $unbannedip From Blacklist] ... ... ..."
+		logger -st Skynet "[Unbanning And Removing $unbannedip From Blacklist] ... ... ..."
 		for IP in $(nslookup $unbannedip | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" | awk 'NR>2')
 			do
 			ipset -D Blacklist $IP
@@ -149,7 +151,7 @@ case $1 in
 
 	unbanall)
 		nvram set Blacklist=$(expr $(ipset -L Blacklist | wc -l) - 6)
-		logger -st Firewall "[Deleting All $(nvram get Blacklist) Entries From Blacklist] ... ... ..."
+		logger -st Skynet "[Deleting All $(nvram get Blacklist) Entries From Blacklist] ... ... ..."
 		ipset --flush Blacklist
 		ipset --flush BlockedRanges
 		ipset --save > /jffs/scripts/ipset.txt
@@ -171,7 +173,7 @@ case $1 in
 			bannedip=$2
 		fi
 		
-		logger -st Firewall "[Adding $bannedip To Blacklist] ... ... ..."
+		logger -st Skynet "[Adding $bannedip To Blacklist] ... ... ..."
 		ipset -A Blacklist $bannedip
 		;;
 		
@@ -184,7 +186,7 @@ case $1 in
 			bannedip=$2
 		fi
 		
-		logger -st Firewall "[Adding $bannedip To Blacklist] ... ... ..."
+		logger -st Skynet "[Adding $bannedip To Blacklist] ... ... ..."
 		for IP in $(nslookup $bannedip | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" | awk 'NR>2')
 			do
 			ipset -A Blacklist $IP
@@ -241,7 +243,7 @@ case $1 in
 			whitelistip=$2
 		fi
 		
-		logger -st Firewall "[Adding $whitelistip To Whitelist] ... ... ..."
+		logger -st Skynet "[Adding $whitelistip To Whitelist] ... ... ..."
 		ipset -A Whitelist $whitelistip
 		ipset --save > /jffs/scripts/ipset.txt
 		;;
@@ -266,16 +268,16 @@ case $1 in
 		;;
 
 	disable)
-			logger -st Firewall "[Disabling Firewall] ... ... ..."
+			logger -st Skynet "[Disabling Firewall] ... ... ..."
 			Unload_IPTables
 		;;
 
 	debug)
 			if [ "$2" = "enable" ]; then
-				logger -st Firewall "[Enabling Debug Output] ... ... ..."
+				logger -st Skynet "[Enabling Debug Output] ... ... ..."
 				iptables -t raw -I PREROUTING -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options
 			elif [ "$2" = "disable" ]; then
-				logger -st Firewall "[Disabling Debug Output] ... ... ..."
+				logger -st Skynet "[Disabling Debug Output] ... ... ..."
 				iptables -t raw -D PREROUTING -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options
 			else
 				echo "Error - Use Syntax './jffs/scripts/firewall debug (enable/disable)'"
@@ -284,10 +286,10 @@ case $1 in
 
 	update)
 		if [ "$(cat $0)" = "$(wget -q -O - https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh)" ]; then
-			logger -st Firewall "[Firewall Up To Date]"
+			logger -st Skynet "[Firewall Up To Date]"
 		else
-			logger -st Firewall "[New Version Detected - Updating]... ... ..."
-			wget -q --no-check-certificate -O $0 https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh && logger -st Firewall "[Firewall Sucessfully Updated]"
+			logger -st Skynet "[New Version Detected - Updating]... ... ..."
+			wget -q --no-check-certificate -O $0 https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh && logger -st Skynet "[Firewall Sucessfully Updated]"
 			exit
 		fi
 		;;
@@ -295,7 +297,7 @@ case $1 in
 	start)
 		Check_Settings
 		sed -i '/IP Banning Started/d' /tmp/syslog.log
-		logger -st Firewall "[IP Banning Started] ... ... ..."
+		logger -st Skynet "[IP Banning Started] ... ... ..."
 		insmod xt_set > /dev/null 2>&1
 		ipset -q -R  < /jffs/scripts/ipset.txt
 		Unban_PrivateIP
