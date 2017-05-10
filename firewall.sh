@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                              				    #
 #													    #
-## - 10/05/2017 -		   Asus Firewall Addition By Adamm v3.5.4				    #
+## - 10/05/2017 -		   Asus Firewall Addition By Adamm v3.5.5				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -259,18 +259,26 @@ case $1 in
 		;;
 
 	import)
-		echo "Does The Blacklist Need To Be Downloaded? yes/no"
-		echo "If No Than List Will Be Read From /tmp/ipset2.txt"
-		read ENABLEDOWNLOAD
-			if [ "$ENABLEDOWNLOAD" = "yes" ]; then
-				echo "Input URL For IPSet Blacklist"
-				read DOWNLOADURL
-				wget -q --no-check-certificate -O /tmp/ipset2.txt -i $DOWNLOADURL
+			if [ -n "$2" ] && [ "$2" != "local" ]; then
+				echo "Custom List Detected: $2"
+				wget -q --no-check-certificate -O /tmp/ipset2.txt -i $2
+			else
+				echo "To Use A Custom List In Future Use; \"sh $0 import URL\""
+				echo "Defaulting To Local Set At /tmp/ipset2.txt"
 			fi
-		echo "Input Old Set Name"
-		read SET1
-		echo "Input Set To Merge Into"
-		read SET2
+			
+			if [ -n "$3" ] && [ -n "$4" ]; then
+				echo "Merging Old Set $3 Into $4"
+				SET1=$3
+				SET2=$4
+			else
+				echo "To Automate This In Future Use;"
+				echo "\"sh $0 import URL/local OLDSET NEWSET\""
+				echo "Input Old Set Name"
+				read SET1
+				echo "Input Set To Merge Into"
+				read SET2
+			fi
 		sed -i "s/$SET1/$SET2/g" /tmp/ipset2.txt
 		ipset -q -R -! < /tmp/ipset2.txt
 		rm -rf /tmp/ipset2.txt
