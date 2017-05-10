@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                              				    #
 #													    #
-## - 11/05/2017 -		   Asus Firewall Addition By Adamm v3.6.1				    #
+## - 11/05/2017 -		   Asus Firewall Addition By Adamm v3.6.2				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -319,8 +319,27 @@ case $1 in
 				echo "Unbanning Private IP's"
 				Unban_PrivateIP
 			;;
+			info)
+				RED='\033[0;31m'
+				GRN='\033[0;32m'
+				NC='\033[0m'
+				echo "Router Model: $(uname -n)"
+				echo "Skynet Version: $(cat $0 | grep -oE 'v[0-9]{1,2}([.][0-9]{1,2})([.][0-9]{1,2})')"
+				iptables --version
+				ipset -v
+				echo "FW Version: $(nvram get buildno)_$(nvram get extendno)"
+				cat /jffs/scripts/firewall-start | grep "firewall start" > /dev/null 2>&1 && echo -e $GRN"Startup Entry Detected"$NC || echo -e $GRN"Startup Entry Not Detected"$NC
+				cru l | grep firewall > /dev/null 2>&1 && echo -e $GRN"Cronjob Detected"$NC || echo -e $GRN"Cronjob Not Detected"$NC
+				iptables -vL -nt raw | grep Whitelist > /dev/null 2>&1 && echo -e $GRN"Whitelist IPTable Detected"$NC || echo -e $RED"Whitelist IPTable Not Detected"$NC
+				iptables -vL -nt raw | grep BlockedRanges > /dev/null 2>&1 && echo -e $GRN"BlockedRanges IPTable Detected"$NC || echo -e $RED"BlockedRanges IPTable Not Detected"$NC
+				iptables -vL -nt raw | grep Blacklist > /dev/null 2>&1 && echo -e $GRN"Blacklist IPTable Detected"$NC || echo -e $RED"Blacklist IPTable Not Detected"$NC
+				ipset -L Whitelist > /dev/null 2>&1 && echo -e $GRN"Whitelist IPSet Detected"$NC || echo -e $RED"Whitelist IPSet Not Detected"$NC
+				ipset -L BlockedRanges > /dev/null 2>&1 && echo -e $GRN"BlockedRanges IPSet Detected"$NC || echo -e $RED"BlockedRanges IPSet Not Detected"$NC
+				ipset -L Blacklist > /dev/null 2>&1 && echo -e $GRN"Blacklist IPSet Detected"$NC || echo -e $RED"Blacklist IPSet Not Detected"$NC
+			;;
+			
 		*)
-			echo "Error - Use Syntax './jffs/scripts/firewall debug (enable/disable)'"
+			echo "Error - Use Syntax './jffs/scripts/firewall debug (enable/disable/filter/info)'"
 		esac
 		;;
 
