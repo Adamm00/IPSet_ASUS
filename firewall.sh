@@ -318,12 +318,12 @@ case $1 in
 			logger -st Skynet "[Firewall Up To Date]"
 			exit
 		elif [ "$localver" != "$remotever" ] && [ "$2" = "check" ]; then
-			logger -st Skynet "[Firewall Update Detected]"
+			logger -st Skynet "[Firewall Update Detected - $remotever]"
 			exit
 		elif [ "$2" = "-f" ]; then
 			logger -st Skynet "[Forcing Update]"
 		fi
-			logger -st Skynet "[New Version Detected - Updating]... ... ..."
+			logger -st Skynet "[New Version Detected - Updating To $remotever]... ... ..."
 			wget -q --no-check-certificate -O $0 https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh && logger -st Skynet "[Firewall Sucessfully Updated]"
 			exit
 		;;
