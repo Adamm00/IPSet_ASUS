@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                              				    #
 #													    #
-## - 10/05/2017 -		   Asus Firewall Addition By Adamm v3.5.7				    #
+## - 11/05/2017 -		   Asus Firewall Addition By Adamm v3.6.0				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -21,17 +21,12 @@
 ##############################
 ###	  Commands	   ###
 ##############################
-#	  "unban"	     # <-- Remove Single IP From Blacklist
-#	  "unbanall"	     # <-- Remove All Entries From Blacklist
-#	  "unbandomain"	     # <-- Unban IP's Associated With Domain
+#	  "unban"	     # <-- Remove Entry From Blacklist (IP/Range/Domain/All)
 #	  "save"	     # <-- Save Blacklists To /jffs/scripts/ipset.txt
-#	  "ban"		     # <-- Adds Entry To Blacklist
-#	  "bandomain"	     # <-- Ban IP's Associated With Domain
-# 	  "country"	     # <-- Adds Entire Country To Blacklist
-#	  "bancountry"	     # <-- Bans Specified Countries In This File
+#	  "ban"		     # <-- Adds Entry To Blacklist (IP/Range/Domain/Country)
 #	  "banmalware"	     # <-- Bans Various Malware Domains
-#	  "whitelist"        # <-- Add IP Range To Whitelist
-#	  "import"	     # <-- Import And Merge IPSet Save To Firewall
+#	  "whitelist"        # <-- Add Entry To Whitelist (IP/Range/Domain)
+#	  "import"	     # <-- Import And Merge IPSet Backup To Firewall
 #	  "disable"	     # <-- Disable Firewall
 #	  "debug"	     # <-- Enable/Disable Debug Output
 #	  "update"	     # <-- Update Script To Latest Version (check github for changes)
@@ -39,7 +34,7 @@
 ##############################
 
 start_time=$(date +%s)
-cat $0 | head -40
+cat $0 | head -35
 
 Check_Settings () {
 			if [ "$(ipset -v | grep -o v6)" != "v6" ]; then
@@ -112,48 +107,55 @@ Unban_PrivateIP () {
 		done
 }
 
-###################################################################################################################################################
-# -   unban / unbandomain / unbanall / save / ban / country / bancountry / banmalware / whitelist / import / disable / debug / update / start   - #
-###################################################################################################################################################
+Domain_Lookup () {
+		echo "$(nslookup $1 | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" | awk 'NR>2')"
+}
+
+####################################################################################################
+# -   unban  / save / ban / banmalware / whitelist / import / disable / debug / update / start   - #
+####################################################################################################
 
 
 case $1 in
 	unban)
 		if [ -z "$2" ]; then
-			echo "For Automated Unbanning In Future Use; \"sh $0 unban IP\""
-			echo "Input IP Address To Unban"
+			echo "For Automated IP Unbanning Use; \"sh $0 unban IP\""
+			echo "For Automated IP Range Unbanning Use; \"sh $0 unban range IP\""
+			echo "For Automated Domain Unbanning Use; \"sh $0 unban domain URL\""
+			echo "To Unban All Domains Use; \"sh $0 unban all\""
+			echo "Input IP To Unban"
 			read unbannedip
-		else
-			unbannedip=$2
-		fi
-		
-		logger -st Skynet "[Unbanning And Removing $unbannedip From Blacklist] ... ... ..."
-		ipset -D Blacklist $unbannedip
-		sed -i /$unbannedip/d /jffs/scripts/ipset.txt
-		;;
-		
-	unbandomain)
-		if [ -z "$2" ]; then
-			echo "For Automated Unbanning In Future Use; \"sh $0 unbandomain DOMAIN\""
+			logger -st Skynet "[Removing $unbannedip From Blacklist] ... ... ..."
+			ipset -D Blacklist $unbannedip
+		elif [ -n "$2" ] && [ "$2" != "domain" ]&& [ "$2" != "range" ] && [ "$2" != "all" ]; then
+			logger -st Skynet "[Removing $2 From Blacklist] ... ... ..."
+			ipset -D Blacklist $2
+		elif [ "$2" = "range" ] && [ -n "$3" ]; then
+			logger -st Skynet "[Removing $3 From Blacklist] ... ... ..."
+			ipset -D BlockedRanges $3
+		elif [ "$2" = "domain" ] && [ -z "$3" ]; then
 			echo "Input Domain To Unban"
-			read unbannedip
-		else
-			unbannedip=$2
-		fi
-		
-		logger -st Skynet "[Unbanning And Removing $unbannedip From Blacklist] ... ... ..."
-		for IP in $(nslookup $unbannedip | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" | awk 'NR>2')
+			read unbandomain
+			logger -st Skynet "[Removing $blacklistdomain From Blacklist] ... ... ..."
+			for IP in $(Domain_Lookup $blacklistdomain)
+				do
+				ipset -D Blacklist $IP
+			done
+		elif [ "$2" = "domain" ] && [ -n "$3" ]; then
+		logger -st Skynet "[Removing $3 From Blacklist] ... ... ..."
+		for IP in $(Domain_Lookup $3)
 			do
 			ipset -D Blacklist $IP
-			sed -i /$IP/d /jffs/scripts/ipset.txt
 		done
-		;;
-
-	unbanall)
-		nvram set Blacklist=$(expr $(ipset -L Blacklist | wc -l) - 6)
-		logger -st Skynet "[Deleting All $(nvram get Blacklist) Entries From Blacklist] ... ... ..."
-		ipset --flush Blacklist
-		ipset --flush BlockedRanges
+		elif [ "$2" = "all" ]; then
+			nvram set Blacklist=$(expr $(ipset -L Blacklist | wc -l) - 6)
+			logger -st Skynet "[Removing All $(nvram get Blacklist) Entries From Blacklist] ... ... ..."
+			ipset --flush Blacklist
+			ipset --flush BlockedRanges
+		else
+			echo "Command Not Recognised, Please Try Again"
+			exit
+		fi
 		ipset --save > /jffs/scripts/ipset.txt
 		;;
 
@@ -166,51 +168,47 @@ case $1 in
 
 	ban)
 		if [ -z "$2" ]; then
-			echo "For Automated Banning In Future Use; \"sh $0 ban IP\""
-			echo "Input IP Address To Ban"
+			echo "For Automated IP Banning Use; \"sh $0 ban IP\""
+			echo "For Automated IP Range Banning Use; \"sh $0 ban range IP\""
+			echo "For Automated Domain Banning Use; \"sh $0 ban domain URL\""
+			echo "For Automated Manual Country Banning Use; \"sh $0 ban country zone\""
+			echo "Input IP To Ban"
 			read bannedip
-		else
-			bannedip=$2
-		fi
-		
-		logger -st Skynet "[Adding $bannedip To Blacklist] ... ... ..."
-		ipset -A Blacklist $bannedip
-		;;
-		
-	bandomain)
-		if [ -z "$2" ]; then
-			echo "For Automated Banning In Future Use; \"sh $0 bandomain DOMAIN\""
-			echo "Input Domain To Ban"
-			read bannedip
-		else
-			bannedip=$2
-		fi
-		
-		logger -st Skynet "[Adding $bannedip To Blacklist] ... ... ..."
-		for IP in $(nslookup $bannedip | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" | awk 'NR>2')
+			logger -st Skynet "[Adding $bannedip To Blacklist] ... ... ..."
+			ipset -A Blacklist $bannedip
+		elif [ -n "$2" ] && [ "$2" != "range" ] && [ "$2" != "domain" ] && [ "$2" != "country" ] && [ "$2" != "countrylist" ]; then
+			logger -st Skynet "[Adding $2 To Blacklist] ... ... ..."
+			ipset -A Blacklist $2
+		elif [ "$2" = "range" ] && [ -n "$3" ]; then
+			logger -st Skynet "[Adding $3 To Blacklist] ... ... ..."
+			ipset -A BlockedRanges $3
+		elif [ "$2" = "domain" ] && [ -z "$3" ]; then
+			echo "Input Domain To Blacklist"
+			read blacklistdomain
+			logger -st Skynet "[Adding $blacklistdomain To Blacklist] ... ... ..."
+			for IP in $(Domain_Lookup $blacklistdomain)
+				do
+				ipset -A Blacklist $IP
+			done
+		elif [ "$2" = "domain" ] && [ -n "$3" ]; then
+		logger -st Skynet "[Adding $3 To Blacklist] ... ... ..."
+		for IP in $(Domain_Lookup $3)
 			do
 			ipset -A Blacklist $IP
 		done
-		;;
-
-	country)
-		echo "Input Country Abbreviation"
-		read country
-			for IP in $(wget -q -O - http://www.ipdeny.com/ipblocks/data/countries/$country.zone)
-			do
-			ipset -q -A BlockedRanges $IP
-			done
-		;;
-
-	bancountry)
-		echo "[Banning Spam Countries] ... ... ..."
-		for country in pk cn in jp ru sa
-		do
-			for IP in $(wget -q -O - http://www.ipdeny.com/ipblocks/data/countries/$country.zone)
-			do
-			ipset -q -A BlockedRanges $IP
-			done
-		done
+		elif [ "$2" = "country" ] && [ -n "$3" ]; then
+			echo "Banning Known IP Ranges For $3"
+			echo "Downloading Lists"
+			wget -q --no-check-certificate -O /tmp/countrylist.txt -i http://www.ipdeny.com/ipblocks/data/countries/$3.zone
+			echo "Filtering IPv4 Ranges"
+			cat /tmp/countrylist.txt | sed -n "s/\r//;/^$/d;/^[0-9,\.,\/]*$/s/^/add BlockedRanges /p" | grep "/" | sort -u >> /tmp/countrylist1.txt
+			echo "Applying Blacklists"
+			ipset -q -R -! < /tmp/countrylist1.txt
+			rm -rf /tmp/countrylist*.txt
+		else
+			echo "Command Not Recognised, Please Try Again"
+			exit
+		fi
 		;;
 
 	banmalware)
@@ -246,39 +244,56 @@ case $1 in
 		
 	whitelist)
 		if [ -z "$2" ]; then
-			echo "For Automated Whitelisting In Future Use; \"sh $0 whitelist IP\""
-			echo "Input IP Range To Whitelist"
+			echo "For Automated IP Whitelisting Use; \"sh $0 whitelist IP\""
+			echo "For Automated Domain Whitelisting Use; \"sh $0 whitelist domain URL\""
+			echo "Input IP To Whitelist"
 			read whitelistip
+			logger -st Skynet "[Adding $whitelistip To Whitelist] ... ... ..."
+			ipset -A Whitelist $whitelistip
+		elif [ -n "$2" ] && [ "$2" != "domain" ]; then
+			logger -st Skynet "[Adding $2 To Whitelist] ... ... ..."
+			ipset -A Whitelist $2
+		elif [ "$2" = "domain" ] && [ -z "$3" ];then
+			echo "Input Domain To Whitelist"
+			read whitelistdomain
+			logger -st Skynet "[Adding $whitelistdomain To Whitelist] ... ... ..."
+			for IP in $(Domain_Lookup $whitelistdomain)
+				do
+				ipset -A Whitelist $IP
+			done
+		elif [ "$2" = "domain" ] && [ -n "$3" ]; then
+		logger -st Skynet "[Adding $3 To Whitelist] ... ... ..."
+		for IP in $(Domain_Lookup $3)
+			do
+			ipset -A Whitelist $IP
+		done
 		else
-			whitelistip=$2
+			echo "Command Not Recognised, Please Try Again"
+			exit
 		fi
-		
-		logger -st Skynet "[Adding $whitelistip To Whitelist] ... ... ..."
-		ipset -A Whitelist $whitelistip
 		ipset --save > /jffs/scripts/ipset.txt
 		;;
 
 	import)
-			if [ -n "$2" ] && [ "$2" != "local" ]; then
-				echo "Custom List Detected: $2"
-				wget -q --no-check-certificate -O /tmp/ipset2.txt -i $2
-			else
-				echo "To Use A Custom List In Future Use; \"sh $0 import URL\""
-				echo "Defaulting To Local Set At /tmp/ipset2.txt"
-			fi
+		if [ -n "$2" ] && [ "$2" != "local" ]; then
+			echo "Custom List Detected: $2"
+			wget -q --no-check-certificate -O /tmp/ipset2.txt -i $2
+		else
+			echo "To Use A Custom List In Future Use; \"sh $0 import URL\""
+			echo "Defaulting To Local Set At /tmp/ipset2.txt"
+		fi
 			
-			if [ -n "$3" ] && [ -n "$4" ]; then
-				echo "Merging Old Set $3 Into $4"
-				SET1=$3
-				SET2=$4
-			else
-				echo "To Automate This In Future Use;"
-				echo "\"sh $0 import URL/local OLDSET NEWSET\""
-				echo "Input Old Set Name"
-				read SET1
-				echo "Input Set To Merge Into"
-				read SET2
-			fi
+		if [ -n "$3" ] && [ -n "$4" ]; then
+			echo "Merging Old Set $3 Into $4"
+			SET1=$3
+			SET2=$4
+		else
+			echo "To Automate Importing Use; \"sh $0 import URL/local OLDSET NEWSET\""
+			echo "Input Old Set Name"
+			read SET1
+			echo "Input Set To Merge Into"
+			read SET2
+		fi
 		sed -i "s/$SET1/$SET2/g" /tmp/ipset2.txt
 		ipset -q -R -! < /tmp/ipset2.txt
 		rm -rf /tmp/ipset2.txt
@@ -315,7 +330,7 @@ case $1 in
 		if [ "$localver" = "$remotever" ] && [ "$2" != "-f" ]; then
 			echo "To Use Only Check For Update Use; \"sh $0 update check\""
 			echo "To Force Update Use; \"sh $0 update -f\""
-			logger -st Skynet "[Firewall Up To Date]"
+			logger -st Skynet "[Firewall Up To Date - $localver]"
 			exit
 		elif [ "$localver" != "$remotever" ] && [ "$2" = "check" ]; then
 			logger -st Skynet "[Firewall Update Detected - $remotever]"
