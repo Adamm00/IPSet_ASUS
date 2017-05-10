@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                              				    #
 #													    #
-## - 11/05/2017 -		   Asus Firewall Addition By Adamm v3.6.0				    #
+## - 11/05/2017 -		   Asus Firewall Addition By Adamm v3.6.1				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -96,14 +96,14 @@ Logging () {
 }
 
 Unban_PrivateIP () {
-		for IP in $(ipset -L Blacklist | grep -E '(^127\.)|(^10\.)|(^172\.1[6-9]\.)|(^172\.2[0-9]\.)|(^172\.3[0-1]\.)|(^192\.168\.)|(^0.)|(^169\.254\.)')
+		for ip in $(ipset -L Blacklist | grep -E '(^127\.)|(^10\.)|(^172\.1[6-9]\.)|(^172\.2[0-9]\.)|(^172\.3[0-1]\.)|(^192\.168\.)|(^0.)|(^169\.254\.)')
 			do
-			ipset -D Blacklist $IP
+			ipset -D Blacklist $ip
 		done
 		
-		for IP in $(ipset -L BlockedRanges | grep -E '(^127\.)|(^10\.)|(^172\.1[6-9]\.)|(^172\.2[0-9]\.)|(^172\.3[0-1]\.)|(^192\.168\.)|(^0.)|(^169\.254\.)')
+		for ip in $(ipset -L BlockedRanges | grep -E '(^127\.)|(^10\.)|(^172\.1[6-9]\.)|(^172\.2[0-9]\.)|(^172\.3[0-1]\.)|(^192\.168\.)|(^0.)|(^169\.254\.)')
 			do
-			ipset -D BlockedRanges $IP
+			ipset -D BlockedRanges $ip
 		done
 }
 
@@ -124,9 +124,9 @@ case $1 in
 			echo "For Automated Domain Unbanning Use; \"sh $0 unban domain URL\""
 			echo "To Unban All Domains Use; \"sh $0 unban all\""
 			echo "Input IP To Unban"
-			read unbannedip
-			logger -st Skynet "[Removing $unbannedip From Blacklist] ... ... ..."
-			ipset -D Blacklist $unbannedip
+			read unbanip
+			logger -st Skynet "[Removing $unbanip From Blacklist] ... ... ..."
+			ipset -D Blacklist $unbanip
 		elif [ -n "$2" ] && [ "$2" != "domain" ]&& [ "$2" != "range" ] && [ "$2" != "all" ]; then
 			logger -st Skynet "[Removing $2 From Blacklist] ... ... ..."
 			ipset -D Blacklist $2
@@ -136,16 +136,16 @@ case $1 in
 		elif [ "$2" = "domain" ] && [ -z "$3" ]; then
 			echo "Input Domain To Unban"
 			read unbandomain
-			logger -st Skynet "[Removing $blacklistdomain From Blacklist] ... ... ..."
-			for IP in $(Domain_Lookup $blacklistdomain)
+			logger -st Skynet "[Removing $unbandomain From Blacklist] ... ... ..."
+			for ip in $(Domain_Lookup $unbandomain)
 				do
-				ipset -D Blacklist $IP
+				ipset -D Blacklist $ip
 			done
 		elif [ "$2" = "domain" ] && [ -n "$3" ]; then
 		logger -st Skynet "[Removing $3 From Blacklist] ... ... ..."
-		for IP in $(Domain_Lookup $3)
+		for ip in $(Domain_Lookup $3)
 			do
-			ipset -D Blacklist $IP
+			ipset -D Blacklist $ip
 		done
 		elif [ "$2" = "all" ]; then
 			nvram set Blacklist=$(expr $(ipset -L Blacklist | wc -l) - 6)
@@ -173,9 +173,9 @@ case $1 in
 			echo "For Automated Domain Banning Use; \"sh $0 ban domain URL\""
 			echo "For Automated Manual Country Banning Use; \"sh $0 ban country zone\""
 			echo "Input IP To Ban"
-			read bannedip
-			logger -st Skynet "[Adding $bannedip To Blacklist] ... ... ..."
-			ipset -A Blacklist $bannedip
+			read banip
+			logger -st Skynet "[Adding $banip To Blacklist] ... ... ..."
+			ipset -A Blacklist $banip
 		elif [ -n "$2" ] && [ "$2" != "range" ] && [ "$2" != "domain" ] && [ "$2" != "country" ] && [ "$2" != "countrylist" ]; then
 			logger -st Skynet "[Adding $2 To Blacklist] ... ... ..."
 			ipset -A Blacklist $2
@@ -184,17 +184,17 @@ case $1 in
 			ipset -A BlockedRanges $3
 		elif [ "$2" = "domain" ] && [ -z "$3" ]; then
 			echo "Input Domain To Blacklist"
-			read blacklistdomain
-			logger -st Skynet "[Adding $blacklistdomain To Blacklist] ... ... ..."
-			for IP in $(Domain_Lookup $blacklistdomain)
+			read bandomain
+			logger -st Skynet "[Adding $bandomain To Blacklist] ... ... ..."
+			for ip in $(Domain_Lookup $bandomain)
 				do
-				ipset -A Blacklist $IP
+				ipset -A Blacklist $ip
 			done
 		elif [ "$2" = "domain" ] && [ -n "$3" ]; then
 		logger -st Skynet "[Adding $3 To Blacklist] ... ... ..."
-		for IP in $(Domain_Lookup $3)
+		for ip in $(Domain_Lookup $3)
 			do
-			ipset -A Blacklist $IP
+			ipset -A Blacklist $ip
 		done
 		elif [ "$2" = "country" ] && [ -n "$3" ]; then
 			echo "Banning Known IP Ranges For $3"
@@ -215,8 +215,8 @@ case $1 in
 	if [ "$2" != "-f" ] && [ -f /jffs/scripts/malware-filter ] || [ -f /jffs/scripts/ya-malware-block.sh ]; then
 		echo "Another Malware Filter Script Detected And May Cause Conflicts, Are You Sure You Want To Continue? (yes/no)"
 		echo "To Ignore This Error In Future Use; \"sh $0 banmalware -f\""
-		read CONTINUE
-		if [ "$CONTINUE" != "yes" ]; then
+		read continue
+		if [ "$continue" != "yes" ]; then
 			exit
 		fi
 	fi
@@ -257,15 +257,15 @@ case $1 in
 			echo "Input Domain To Whitelist"
 			read whitelistdomain
 			logger -st Skynet "[Adding $whitelistdomain To Whitelist] ... ... ..."
-			for IP in $(Domain_Lookup $whitelistdomain)
+			for ip in $(Domain_Lookup $whitelistdomain)
 				do
-				ipset -A Whitelist $IP
+				ipset -A Whitelist $ip
 			done
 		elif [ "$2" = "domain" ] && [ -n "$3" ]; then
 		logger -st Skynet "[Adding $3 To Whitelist] ... ... ..."
-		for IP in $(Domain_Lookup $3)
+		for ip in $(Domain_Lookup $3)
 			do
-			ipset -A Whitelist $IP
+			ipset -A Whitelist $ip
 		done
 		else
 			echo "Command Not Recognised, Please Try Again"
@@ -285,16 +285,16 @@ case $1 in
 			
 		if [ -n "$3" ] && [ -n "$4" ]; then
 			echo "Merging Old Set $3 Into $4"
-			SET1=$3
-			SET2=$4
+			set1=$3
+			set2=$4
 		else
 			echo "To Automate Importing Use; \"sh $0 import URL/local OLDSET NEWSET\""
 			echo "Input Old Set Name"
-			read SET1
+			read set1
 			echo "Input Set To Merge Into"
-			read SET2
+			read set2
 		fi
-		sed -i "s/$SET1/$SET2/g" /tmp/ipset2.txt
+		sed -i "s/$set1/$set2/g" /tmp/ipset2.txt
 		ipset -q -R -! < /tmp/ipset2.txt
 		rm -rf /tmp/ipset2.txt
 		echo "Successfully Merged Blacklist"
@@ -362,9 +362,10 @@ case $1 in
 		Load_IPTables
 		sed -i '/DROP IN=/d' /tmp/syslog.log
 		;;
-
-     *)
+		
+	*)
         echo "Command Not Recognised, Please Try Again"
+		echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
 		;;
 
 esac
