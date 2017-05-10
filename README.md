@@ -43,20 +43,20 @@ Here Are Some Example Unban Commands;
 
 Here Are Some Example Ban Commands;
 "./jffs/scripts/firewall ban" This Requires Manual Input (Only IPs accepted)
-"./jffs/scripts/firewall unban 8.8.8.8" This Bans The IP Specified
-"./jffs/scripts/firewall unban range 8.8.8.8/24" This Bans the CIDR Block Specified
-"./jffs/scripts/firewall unban domain" This Requires Manual Input (Only Domains Accepted)
-"./jffs/scripts/firewall unban domain google.com" This Bans the URL Specified
-"./jffs/scripts/firewall country pk" This Bans The Known IPs For The Specified Country http://www.ipdeny.com/ipblocks/data/countries/
+"./jffs/scripts/firewall ban 8.8.8.8" This Bans The IP Specified
+"./jffs/scripts/firewall ban range 8.8.8.8/24" This Bans the CIDR Block Specified
+"./jffs/scripts/firewall ban domain" This Requires Manual Input (Only Domains Accepted)
+"./jffs/scripts/firewall ban domain google.com" This Bans the URL Specified
+"./jffs/scripts/firewall ban country pk" This Bans The Known IPs For The Specified Country http://www.ipdeny.com/ipblocks/data/countries/
 
 Here Are Some Example Banmalware Commands;
 "./jffs/scripts/firewall banmalware" This Bans IPs From The Predefined Filter List
 "./jffs/scripts/firewall banmalware google.com/filter.list" This Uses The Fitler List From The Specified URL
 
 Here Are Some Example Whitelist Commands;
-"./jffs/scripts/firewall unban" This Requires Manual Input (Only IPs accepted)
-"./jffs/scripts/firewall unban IP" This Bans The IP or Range Specified
-"./jffs/scripts/firewall unban domain" This Requires Manual Input (Only Domains Accepted)
+"./jffs/scripts/firewall whitelist" This Requires Manual Input (Only IPs accepted)
+"./jffs/scripts/firewall whitelist IP" This Bans The IP or Range Specified
+"./jffs/scripts/firewall whitelist domain" This Requires Manual Input (Only Domains Accepted)
 "./jffs/scripts/firewall whitelist domain google.com" This Bans the URL Specified
 
 Here Are Some Example Debug Commands;
