@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                              				    #
 #													    #
-## - 10/05/2017 -		   Asus Firewall Addition By Adamm v3.5.6				    #
+## - 10/05/2017 -		   Asus Firewall Addition By Adamm v3.5.7				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -312,7 +312,7 @@ case $1 in
 	update)
 		localver="$(cat $0 | grep -oE 'v[0-9]{1,2}([.][0-9]{1,2})([.][0-9]{1,2})')"
 		remotever="$(wget -q -O - https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh | grep -oE 'v[0-9]{1,2}([.][0-9]{1,2})([.][0-9]{1,2})')"
-		if [ "$localver" = "$remotever" ] && [ -z "$2" ]; then
+		if [ "$localver" = "$remotever" ] && [ "$2" != "-f" ]; then
 			echo "To Use Only Check For Update Use; \"sh $0 update check\""
 			echo "To Force Update Use; \"sh $0 update -f\""
 			logger -st Skynet "[Firewall Up To Date]"
@@ -323,9 +323,11 @@ case $1 in
 		elif [ "$2" = "-f" ]; then
 			logger -st Skynet "[Forcing Update]"
 		fi
+		if [ "$localver" != "$remotever" ] || [ "$2" = "-f" ]; then
 			logger -st Skynet "[New Version Detected - Updating To $remotever]... ... ..."
 			wget -q --no-check-certificate -O $0 https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh && logger -st Skynet "[Firewall Sucessfully Updated]"
 			exit
+		fi
 		;;
 
 	start)
