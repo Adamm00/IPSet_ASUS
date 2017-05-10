@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                              				    #
 #													    #
-## - 10/05/2017 -		   Asus Firewall Addition By Adamm v3.5.5				    #
+## - 10/05/2017 -		   Asus Firewall Addition By Adamm v3.5.6				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -23,18 +23,18 @@
 ##############################
 #	  "unban"	     # <-- Remove Single IP From Blacklist
 #	  "unbanall"	     # <-- Remove All Entries From Blacklist
-#	  "unbandomain"	     # <-- Unban IP's associated with domain
-#	  "save"	     # <-- Save Blacklists to /jffs/scripts/ipset.txt
+#	  "unbandomain"	     # <-- Unban IP's Associated With Domain
+#	  "save"	     # <-- Save Blacklists To /jffs/scripts/ipset.txt
 #	  "ban"		     # <-- Adds Entry To Blacklist
-#	  "bandomain"	     # <-- Ban IP's associated with domain
-# 	  "country"	     # <-- Adds entire country to blacklist
-#	  "bancountry"	     # <-- Bans specified countries in this file
-#	  "banmalware"	     # <-- Bans various malware domains
-#	  "whitelist"        # <-- Add IP range to whitelist
-#	  "import"	     # <-- Import and merge IPSet save to firewall
+#	  "bandomain"	     # <-- Ban IP's Associated With Domain
+# 	  "country"	     # <-- Adds Entire Country To Blacklist
+#	  "bancountry"	     # <-- Bans Specified Countries In This File
+#	  "banmalware"	     # <-- Bans Various Malware Domains
+#	  "whitelist"        # <-- Add IP Range To Whitelist
+#	  "import"	     # <-- Import And Merge IPSet Save To Firewall
 #	  "disable"	     # <-- Disable Firewall
 #	  "debug"	     # <-- Enable/Disable Debug Output
-#	  "update"	     # <-- Update Script to latest version (check github for changes)
+#	  "update"	     # <-- Update Script To Latest Version (check github for changes)
 #	  "start"	     # <-- Initiate Firewall
 ##############################
 
@@ -310,13 +310,22 @@ case $1 in
 		;;
 
 	update)
-		if [ "$(cat $0)" = "$(wget -q -O - https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh)" ]; then
+		localver="$(cat $0 | grep -oE 'v[0-9]{1,2}([.][0-9]{1,2})([.][0-9]{1,2})')"
+		remotever="$(wget -q -O - https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh | grep -oE 'v[0-9]{1,2}([.][0-9]{1,2})([.][0-9]{1,2})')"
+		if [ "$localver" = "$remotever" ] && [ -z "$2" ]; then
+			echo "To Use Only Check For Update Use; \"sh $0 update check\""
+			echo "To Force Update Use; \"sh $0 update -f\""
 			logger -st Skynet "[Firewall Up To Date]"
-		else
+			exit
+		elif [ "$localver" != "$remotever" ] && [ "$2" = "check" ]; then
+			logger -st Skynet "[Firewall Update Detected]"
+			exit
+		elif [ "$2" = "-f" ]; then
+			logger -st Skynet "[Forcing Update]"
+		fi
 			logger -st Skynet "[New Version Detected - Updating]... ... ..."
 			wget -q --no-check-certificate -O $0 https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh && logger -st Skynet "[Firewall Sucessfully Updated]"
 			exit
-		fi
 		;;
 
 	start)
@@ -331,14 +340,14 @@ case $1 in
 		ipset -q -N BlockedRanges nethash
 		ipset -q -A Whitelist 192.168.1.0/24
 		ipset -q -A Whitelist $(nvram get lan_ipaddr)/24
-		ipset -q -A Whitelist 151.101.96.133/32
+		ipset -q -A Whitelist 151.101.96.133/32   # raw.githubusercontent.com Update Server
 		Unload_IPTables
 		Load_IPTables
 		sed -i '/DROP IN=/d' /tmp/syslog.log
 		;;
 
      *)
-          echo "Command Not Recognised, Please Try Again"
+        echo "Command Not Recognised, Please Try Again"
 		;;
 
 esac
