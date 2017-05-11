@@ -47,7 +47,7 @@ Here Are Some Example Ban Commands;
 "./jffs/scripts/firewall ban range 8.8.8.8/24" This Bans the CIDR Block Specified
 "./jffs/scripts/firewall ban domain" This Requires Manual Input (Only Domains Accepted)
 "./jffs/scripts/firewall ban domain google.com" This Bans the URL Specified
-"./jffs/scripts/firewall ban country pk" This Bans The Known IPs For The Specified Country http://www.ipdeny.com/ipblocks/data/countries/
+"./jffs/scripts/firewall ban country "pk cn sa"" This Bans The Known IPs For The Specified Countries (accepts single/multiple inputs if quoted) http://www.ipdeny.com/ipblocks/data/countries/
 
 Here Are Some Example Banmalware Commands;
 "./jffs/scripts/firewall banmalware" This Bans IPs From The Predefined Filter List
@@ -60,7 +60,9 @@ Here Are Some Example Whitelist Commands;
 "./jffs/scripts/firewall whitelist domain google.com" This Bans the URL Specified
 
 Here Are Some Example Debug Commands;
-"./jffs/scripts/firewall debug enable" Enable Debugging To Syslog
+"./jffs/scripts/firewall debug enable" Enable All Debugging To Syslog
+"./jffs/scripts/firewall debug enable newbans" Enable New Ban Debugging To Syslog Only
+"./jffs/scripts/firewall debug enable blocked" Enable Blocked Packet Debugging To Syslog Only
 "./jffs/scripts/firewall debug disable" Disable Debugging
 
 Here Are Some Example Update Commands;
