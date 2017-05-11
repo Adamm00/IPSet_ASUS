@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                              				    #
 #													    #
-## - 12/05/2017 -		   Asus Firewall Addition By Adamm v3.6.6				    #
+## - 12/05/2017 -		   Asus Firewall Addition By Adamm v3.6.7				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -66,8 +66,13 @@ Check_Settings () {
 			fi
 }
 
+Unload_DebugIPTables () {
+		iptables -t raw -D PREROUTING -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options > /dev/null 2>&1
+		iptables -D logdrop -m state --state NEW -j LOG --log-prefix "[NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options > /dev/null 2>&1
+}
+
 Unload_IPTables () {
-		iptables -D logdrop -m state --state NEW -j LOG --log-prefix "DROP " --log-tcp-sequence --log-tcp-options --log-ip-options  > /dev/null 2>&1
+		iptables -D logdrop -m state --state NEW -j LOG --log-prefix "DROP " --log-tcp-sequence --log-tcp-options --log-ip-options > /dev/null 2>&1
 		iptables -t raw -D PREROUTING -m set --match-set Blacklist src -j DROP > /dev/null 2>&1
 		iptables -t raw -D PREROUTING -m set --match-set BlockedRanges src -j DROP > /dev/null 2>&1
 		iptables -t raw -D PREROUTING -m set --match-set Whitelist src -j ACCEPT > /dev/null 2>&1
@@ -318,19 +323,28 @@ case $1 in
 	disable)
 		logger -st Skynet "[Disabling Firewall] ... ... ..."
 		Unload_IPTables
+		Unload_DebugIPTables
 	;;
 
 	debug)
 		case $2 in
 			enable)
-				logger -st Skynet "[Enabling Debug Output] ... ... ..."
-				iptables -t raw -I PREROUTING 2 -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options
-				iptables -I logdrop -m state --state NEW -j LOG --log-prefix "[NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options  > /dev/null 2>&1
+				Unload_DebugIPTables
+				if [ "$3" = "newbans" ]; then
+					logger -st Skynet "[Enabling New Ban Debug Output] ... ... ..."
+					iptables -I logdrop -m state --state NEW -j LOG --log-prefix "[NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options > /dev/null 2>&1
+				elif [ "$3" = "blocked" ]; then
+					logger -st Skynet "[Enabling Blocked Packet Debug Output] ... ... ..."
+					iptables -t raw -I PREROUTING 2 -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options > /dev/null 2>&1
+				else
+					logger -st Skynet "[Enabling All Debug Output] ... ... ..."
+					iptables -t raw -I PREROUTING 2 -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options > /dev/null 2>&1
+					iptables -I logdrop -m state --state NEW -j LOG --log-prefix "[NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options > /dev/null 2>&1
+				fi
 			;;
 			disable)
-				logger -st Skynet "[Disabling Debug Output] ... ... ..."
-				iptables -t raw -D PREROUTING -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options
-				iptables -D logdrop -m state --state NEW -j LOG --log-prefix "[NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options  > /dev/null 2>&1
+				logger -st Skynet "[Disabling All Debug Output] ... ... ..."
+				Unload_DebugIPTables			
 			;;
 			filter)
 				echo "Unbanning Private IP's"
@@ -395,6 +409,7 @@ case $1 in
 		ipset -q -A Whitelist $(nvram get lan_ipaddr)/24
 		ipset -q -A Whitelist 151.101.96.133/32   # raw.githubusercontent.com Update Server
 		Unload_IPTables
+		Unload_DebugIPTables
 		Load_IPTables
 		sed -i '/DROP IN=/d' /tmp/syslog.log
 		;;
