@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                              				    #
 #													    #
-## - 12/05/2017 -		   Asus Firewall Addition By Adamm v3.6.4				    #
+## - 12/05/2017 -		   Asus Firewall Addition By Adamm v3.6.5				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -211,7 +211,10 @@ case $1 in
 		elif [ "$2" = "country" ] && [ -n "$3" ]; then
 			echo "Banning Known IP Ranges For $3"
 			echo "Downloading Lists"
-			wget -q --no-check-certificate -O /tmp/countrylist.txt -i http://www.ipdeny.com/ipblocks/data/countries/$3.zone
+			for country in $3
+			do
+				wget -q -O - http://www.ipdeny.com/ipblocks/data/countries/$country.zone >> /tmp/countrylist.txt
+			done
 			echo "Filtering IPv4 Ranges"
 			cat /tmp/countrylist.txt | sed -n "s/\r//;/^$/d;/^[0-9,\.,\/]*$/s/^/add BlockedRanges /p" | grep "/" | sort -u >> /tmp/countrylist1.txt
 			echo "Applying Blacklists"
