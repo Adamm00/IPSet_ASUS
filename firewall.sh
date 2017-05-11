@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                              				    #
 #													    #
-## - 12/05/2017 -		   Asus Firewall Addition By Adamm v3.6.7				    #
+## - 12/05/2017 -		   Asus Firewall Addition By Adamm v3.6.8				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -83,7 +83,11 @@ Load_IPTables () {
 		iptables -t raw -I PREROUTING -m set --match-set Blacklist src -j DROP > /dev/null 2>&1
 		iptables -t raw -I PREROUTING -m set --match-set BlockedRanges src -j DROP > /dev/null 2>&1
 		iptables -t raw -I PREROUTING -m set --match-set Whitelist src -j ACCEPT > /dev/null 2>&1
-		iptables -I logdrop -m state --state NEW -j SET --add-set Blacklist src > /dev/null 2>&1
+		if [ "$1" = "noautoban" ]; then
+			echo "No Autoban Specified"
+		else
+			iptables -I logdrop -m state --state NEW -j SET --add-set Blacklist src > /dev/null 2>&1
+		fi
 }
 
 Logging () {
@@ -410,7 +414,7 @@ case $1 in
 		ipset -q -A Whitelist 151.101.96.133/32   # raw.githubusercontent.com Update Server
 		Unload_IPTables
 		Unload_DebugIPTables
-		Load_IPTables
+		Load_IPTables $2
 		sed -i '/DROP IN=/d' /tmp/syslog.log
 		;;
 		
