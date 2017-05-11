@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                              				    #
 #													    #
-## - 12/05/2017 -		   Asus Firewall Addition By Adamm v3.6.5				    #
+## - 12/05/2017 -		   Asus Firewall Addition By Adamm v3.6.6				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -183,7 +183,7 @@ case $1 in
 			echo "For Automated IP Banning Use; \"sh $0 ban IP\""
 			echo "For Automated IP Range Banning Use; \"sh $0 ban range IP\""
 			echo "For Automated Domain Banning Use; \"sh $0 ban domain URL\""
-			echo "For Automated Manual Country Banning Use; \"sh $0 ban country zone\""
+			echo "For Automated Country Banning Use; \"sh $0 ban country zone\""
 			echo "Input IP To Ban"
 			read banip
 			logger -st Skynet "[Adding $banip To Blacklist] ... ... ..."
@@ -325,10 +325,12 @@ case $1 in
 			enable)
 				logger -st Skynet "[Enabling Debug Output] ... ... ..."
 				iptables -t raw -I PREROUTING 2 -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options
+				iptables -I logdrop -m state --state NEW -j LOG --log-prefix "[NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options  > /dev/null 2>&1
 			;;
 			disable)
 				logger -st Skynet "[Disabling Debug Output] ... ... ..."
 				iptables -t raw -D PREROUTING -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options
+				iptables -D logdrop -m state --state NEW -j LOG --log-prefix "[NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options  > /dev/null 2>&1
 			;;
 			filter)
 				echo "Unbanning Private IP's"
