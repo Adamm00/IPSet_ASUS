@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                              				    #
 #													    #
-## - 11/05/2017 -		   Asus Firewall Addition By Adamm v3.6.3				    #
+## - 12/05/2017 -		   Asus Firewall Addition By Adamm v3.6.4				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -321,7 +321,7 @@ case $1 in
 		case $2 in
 			enable)
 				logger -st Skynet "[Enabling Debug Output] ... ... ..."
-				iptables -t raw -I PREROUTING -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options
+				iptables -t raw -I PREROUTING 2 -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options
 			;;
 			disable)
 				logger -st Skynet "[Disabling Debug Output] ... ... ..."
