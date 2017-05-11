@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                              				    #
 #													    #
-## - 11/05/2017 -		   Asus Firewall Addition By Adamm v3.6.2				    #
+## - 11/05/2017 -		   Asus Firewall Addition By Adamm v3.6.3				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -95,20 +95,32 @@ Logging () {
 		logger -st Skynet "[Complete] $NEWIPS IPs / $NEWRANGES Ranges banned. $(expr $NEWIPS - $OLDIPS) New IPs / $(expr $NEWRANGES - $OLDRANGES) New Ranges Banned. $HITS1 IP / $HITS2 Range Connections Blocked! [$(echo $start_time)s]"
 }
 
+Domain_Lookup () {
+		echo "$(nslookup $1 | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" | awk 'NR>2')"
+}
+
+Filter_Version () {
+		grep -oE 'v[0-9]{1,2}([.][0-9]{1,2})([.][0-9]{1,2})'
+}
+
+Filter_Date () {
+		grep -oE '[0-9]{1,2}([/][0-9]{1,2})([/][0-9]{1,4})'
+}
+
+Filter_PrivateIP () {
+		echo '(^127\.)|(^10\.)|(^172\.1[6-9]\.)|(^172\.2[0-9]\.)|(^172\.3[0-1]\.)|(^192\.168\.)|(^0.)|(^169\.254\.)'
+}
+
 Unban_PrivateIP () {
-		for ip in $(ipset -L Blacklist | grep -E '(^127\.)|(^10\.)|(^172\.1[6-9]\.)|(^172\.2[0-9]\.)|(^172\.3[0-1]\.)|(^192\.168\.)|(^0.)|(^169\.254\.)')
+		for ip in $(ipset -L Blacklist | grep -E $(Filter_PrivateIP))
 			do
 			ipset -D Blacklist $ip
 		done
 		
-		for ip in $(ipset -L BlockedRanges | grep -E '(^127\.)|(^10\.)|(^172\.1[6-9]\.)|(^172\.2[0-9]\.)|(^172\.3[0-1]\.)|(^192\.168\.)|(^0.)|(^169\.254\.)')
+		for ip in $(ipset -L BlockedRanges | grep -E $(Filter_PrivateIP))
 			do
 			ipset -D BlockedRanges $ip
 		done
-}
-
-Domain_Lookup () {
-		echo "$(nslookup $1 | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" | awk 'NR>2')"
 }
 
 ####################################################################################################
@@ -234,9 +246,9 @@ case $1 in
 		echo "Downloading Lists"
 		wget -q --no-check-certificate -O /tmp/malwarelist.txt -i $listurl
 		echo "Filtering IPv4 Addresses"
-		cat /tmp/malwarelist.txt | grep -vE '(^127\.)|(^10\.)|(^172\.1[6-9]\.)|(^172\.2[0-9]\.)|(^172\.3[0-1]\.)|(^192\.168\.)|(^0.)|(^169\.254\.)'| sed -n "s/\r//;/^$/d;/^[0-9,\.]*$/s/^/add Blacklist /p" | sort -u > /tmp/malwarelist1.txt
+		cat /tmp/malwarelist.txt | grep -vE $(Filter_PrivateIP) | sed -n "s/\r//;/^$/d;/^[0-9,\.]*$/s/^/add Blacklist /p" | sort -u > /tmp/malwarelist1.txt
 		echo "Filtering IPv4 Ranges"
-		cat /tmp/malwarelist.txt | grep -vE '(^127\.)|(^10\.)|(^172\.1[6-9]\.)|(^172\.2[0-9]\.)|(^172\.3[0-1]\.)|(^192\.168\.)|(^0.)|(^169\.254\.)' | sed -n "s/\r//;/^$/d;/^[0-9,\.,\/]*$/s/^/add BlockedRanges /p" | grep "/" | sort -u >> /tmp/malwarelist1.txt
+		cat /tmp/malwarelist.txt | grep -vE $(Filter_PrivateIP) | sed -n "s/\r//;/^$/d;/^[0-9,\.,\/]*$/s/^/add BlockedRanges /p" | grep "/" | sort -u >> /tmp/malwarelist1.txt
 		echo "Applying Blacklists"
 		ipset -q -R -! < /tmp/malwarelist1.txt
 		rm -rf /tmp/malwarelist*.txt
@@ -324,7 +336,7 @@ case $1 in
 				GRN='\033[0;32m'
 				NC='\033[0m'
 				echo "Router Model: $(uname -n)"
-				echo "Skynet Version: $(cat $0 | grep -oE 'v[0-9]{1,2}([.][0-9]{1,2})([.][0-9]{1,2})')"
+				echo "Skynet Version: $(cat $0 | Filter_Version) ($(cat $0 | Filter_Date))"
 				iptables --version
 				ipset -v
 				echo "FW Version: $(nvram get buildno)_$(nvram get extendno)"
@@ -344,8 +356,8 @@ case $1 in
 		;;
 
 	update)
-		localver="$(cat $0 | grep -oE 'v[0-9]{1,2}([.][0-9]{1,2})([.][0-9]{1,2})')"
-		remotever="$(wget -q -O - https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh | grep -oE 'v[0-9]{1,2}([.][0-9]{1,2})([.][0-9]{1,2})')"
+		localver="$(cat $0 | Filter_Version)"
+		remotever="$(wget -q -O - https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh | Filter_Version)"
 		if [ "$localver" = "$remotever" ] && [ "$2" != "-f" ]; then
 			echo "To Use Only Check For Update Use; \"sh $0 update check\""
 			echo "To Force Update Use; \"sh $0 update -f\""
