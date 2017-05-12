@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                              				    #
 #													    #
-## - 13/05/2017 -		   Asus Firewall Addition By Adamm v3.7.8				    #
+## - 13/05/2017 -		   Asus Firewall Addition By Adamm v3.7.9				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -31,7 +31,7 @@
 #	  "debug"	     # <-- Enable/Disable Debug Output
 #	  "update"	     # <-- Update Script To Latest Version (check github for changes)
 #	  "start"	     # <-- Initiate Firewall
-#	  "stats"	     # <-- Print Stats Of Recently Banned IPs (Requires debugging enabled)
+#	  "stats"	     # <-- Print/Search Stats Of Recently Banned IPs (Requires debugging enabled)
 ##############################
 
 start_time=$(date +%s)
@@ -141,6 +141,14 @@ Purge_Logs () {
 		sed -i '/BLOCKED -/d' /tmp/syslog.log
 		sed -i '/Aug  1 1/d' /jffs/skynet.log
 		}
+		
+Unban_HTTP () {
+		for ip in $(grep -E 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep NEW | grep -oE 'SRC=[0-9,\.]* ' | grep -oE '[0-9,\.]* ')
+			do
+			ipset -D Blacklist $ip
+			sed -i /$ip/d /jffs/skynet.log
+		done
+		}
 
 
 ####################################################################################################
@@ -194,9 +202,10 @@ case $1 in
 	save)
 		echo "[Saving Blacklists] ... ... ..."
 		Unban_PrivateIP
+		Purge_Logs
+		Unban_HTTP
 		ipset --save > /jffs/scripts/ipset.txt
 		sed -i '/USER admin pid .*firewall/d' /tmp/syslog.log
-		Purge_Logs
 		;;
 
 	ban)
@@ -341,6 +350,7 @@ case $1 in
 		Unload_IPTables
 		Unload_DebugIPTables
 		Purge_Logs
+		Unban_HTTP
 	;;
 
 	debug)
@@ -363,6 +373,7 @@ case $1 in
 				logger -st Skynet "[Disabling All Debug Output] ... ... ..."
 				Unload_DebugIPTables
 				Purge_Logs
+				Unban_HTTP
 			;;
 			filter)
 				echo "Unbanning Private IP's"
@@ -443,6 +454,7 @@ case $1 in
 			exit
 		fi
 		Purge_Logs
+		Unban_HTTP
 		if [ "$2" = "reset" ]; then
 			rm -rf /jffs/skynet.log
 			echo "Stat Data Reset"
