@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                              				    #
 #													    #
-## - 12/05/2017 -		   Asus Firewall Addition By Adamm v3.7.2				    #
+## - 12/05/2017 -		   Asus Firewall Addition By Adamm v3.7.3				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -35,7 +35,7 @@
 ##############################
 
 start_time=$(date +%s)
-cat $0 | head -35
+cat $0 | head -36
 
 Check_Settings () {
 			if [ "$(ipset -v | grep -o v6)" != "v6" ]; then
@@ -432,12 +432,22 @@ case $1 in
 		Filter_DST () {
 			echo '(DST=127\.)|(DST=10\.)|(DST=172\.1[6-9]\.)|(DST=172\.2[0-9]\.)|(DST=172\.3[0-1]\.)|(DST=192\.168\.)|(DST=0.)|(DST=169\.254\.)'
 		}
-		# Check for debug mode
+		if [ -f /jffs/skynet.log ] && [ "$(wc -l /jffs/skynet.log | awk '{print $1}')" != "0" ]; then
+			echo "Debug Data Detected in /jffs/skynet.log"
+		else
+			echo "No Debug Data Detected - Make Sure Debug Mode Is Enabled To Compile Stats"
+			exit
+		fi
 		Purge_Logs
+		if [ "$2" = "reset" ]; then
+			rm -rf /jffs/skynet.log
+			echo "Stat Data Reset"
+			exit
+		fi
 		echo "Monitoring From $(cat /jffs/skynet.log | awk '{print $1" "$2" "$3}' | head -1) To $(cat /jffs/skynet.log | awk '{print $1" "$2" "$3}' | tail -1)"
 		echo "$(cat /jffs/skynet.log | grep -v "SPT=80 " | grep -v "SPT=443 " | grep -oE 'SRC=[0-9,\.]* ' | grep -oE '[0-9,\.]* ' | grep -vE $(Filter_PrivateIP) | wc -l) Connections Detected"
 		echo
-		if [ -n $2 ]; then
+		if [ -n "$2" ]; then
 			counter=$2
 		else
 			counter=10
