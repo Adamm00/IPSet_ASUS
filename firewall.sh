@@ -146,6 +146,7 @@ Unban_HTTP () {
 		for ip in $(grep -E 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep NEW | grep -oE 'SRC=[0-9,\.]* ' | grep -oE '[0-9,\.]* ')
 			do
 			ipset -D Blacklist $ip
+			logger -st Skynet "[Removing $ip From Blacklist (false positive detected)]"
 			sed -i /$ip/d /jffs/skynet.log
 		done
 		}
