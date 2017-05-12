@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                              				    #
 #													    #
-## - 13/05/2017 -		   Asus Firewall Addition By Adamm v3.7.9				    #
+## - 13/05/2017 -		   Asus Firewall Addition By Adamm v3.8.0				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -448,14 +448,14 @@ case $1 in
 		Filter_DST () {
 			echo '(DST=127\.)|(DST=10\.)|(DST=172\.1[6-9]\.)|(DST=172\.2[0-9]\.)|(DST=172\.3[0-1]\.)|(DST=192\.168\.)|(DST=0.)|(DST=169\.254\.)'
 		}
+		Purge_Logs
+		Unban_HTTP
 		if [ -f /jffs/skynet.log ] && [ "$(wc -l /jffs/skynet.log | awk '{print $1}')" != "0" ]; then
 			echo "Debug Data Detected in /jffs/skynet.log - $(ls -lh /jffs/skynet.log | awk '{print $5}')"
 		else
 			echo "No Debug Data Detected - Make Sure Debug Mode Is Enabled To Compile Stats"
 			exit
 		fi
-		Purge_Logs
-		Unban_HTTP
 		if [ "$2" = "reset" ]; then
 			rm -rf /jffs/skynet.log
 			echo "Stat Data Reset"
