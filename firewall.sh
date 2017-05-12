@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                              				    #
 #													    #
-## - 12/05/2017 -		   Asus Firewall Addition By Adamm v3.7.1				    #
+## - 12/05/2017 -		   Asus Firewall Addition By Adamm v3.7.2				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -31,6 +31,7 @@
 #	  "debug"	     # <-- Enable/Disable Debug Output
 #	  "update"	     # <-- Update Script To Latest Version (check github for changes)
 #	  "start"	     # <-- Initiate Firewall
+#	  "stats"	     # <-- Print Stats Of Recently Banned IPs (Requires debugging enabled)
 ##############################
 
 start_time=$(date +%s)
@@ -68,7 +69,7 @@ Check_Settings () {
 
 Unload_DebugIPTables () {
 		iptables -t raw -D PREROUTING -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options > /dev/null 2>&1
-		iptables -D logdrop -m state --state NEW -j LOG --log-prefix "[NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options > /dev/null 2>&1
+		iptables -D logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options > /dev/null 2>&1
 }
 
 Unload_IPTables () {
@@ -132,6 +133,14 @@ Unban_PrivateIP () {
 		done
 }
 
+Purge_Logs () {
+		cat /tmp/syslog.log-1 | sed '/BLOCKED -/!d' >> /jffs/skynet.log
+		sed -i '/BLOCKED -/d' /tmp/syslog.log-1
+		cat /tmp/syslog.log | sed '/BLOCKED -/!d' >> /jffs/skynet.log
+		sed -i '/BLOCKED -/d' /tmp/syslog.log
+		}
+
+
 ####################################################################################################
 # -   unban  / save / ban / banmalware / whitelist / import / disable / debug / update / start   - #
 ####################################################################################################
@@ -185,6 +194,7 @@ case $1 in
 		Unban_PrivateIP
 		ipset --save > /jffs/scripts/ipset.txt
 		sed -i '/USER admin pid .*firewall/d' /tmp/syslog.log
+		Purge_Logs
 		;;
 
 	ban)
@@ -336,14 +346,14 @@ case $1 in
 				Unload_DebugIPTables
 				if [ "$3" = "newbans" ]; then
 					logger -st Skynet "[Enabling New Ban Debug Output] ... ... ..."
-					iptables -I logdrop -m state --state NEW -j LOG --log-prefix "[NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options > /dev/null 2>&1
+					iptables -I logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options > /dev/null 2>&1
 				elif [ "$3" = "blocked" ]; then
 					logger -st Skynet "[Enabling Blocked Packet Debug Output] ... ... ..."
 					iptables -t raw -I PREROUTING 2 -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options > /dev/null 2>&1
 				else
 					logger -st Skynet "[Enabling All Debug Output] ... ... ..."
 					iptables -t raw -I PREROUTING 2 -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options > /dev/null 2>&1
-					iptables -I logdrop -m state --state NEW -j LOG --log-prefix "[NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options > /dev/null 2>&1
+					iptables -I logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options > /dev/null 2>&1
 				fi
 			;;
 			disable)
@@ -422,8 +432,10 @@ case $1 in
 		Filter_DST () {
 			echo '(DST=127\.)|(DST=10\.)|(DST=172\.1[6-9]\.)|(DST=172\.2[0-9]\.)|(DST=172\.3[0-1]\.)|(DST=192\.168\.)|(DST=0.)|(DST=169\.254\.)'
 		}
-		echo "Monitoring Since $(cat /tmp/syslog.log | awk '{print $1" "$2" "$3}' | head -1)"
-		echo "$(cat /tmp/syslog.log | grep -v "SPT=80 " | grep -v "SPT=443 " | grep -oE 'SRC=[0-9,\.]* ' | grep -oE '[0-9,\.]* ' | grep -vE $(Filter_PrivateIP) | wc -l) Connections Detected"
+		# Check for debug mode
+		Purge_Logs
+		echo "Monitoring From $(cat /jffs/skynet.log | awk '{print $1" "$2" "$3}' | head -1) To $(cat /jffs/skynet.log | awk '{print $1" "$2" "$3}' | tail -1)"
+		echo "$(cat /jffs/skynet.log | grep -v "SPT=80 " | grep -v "SPT=443 " | grep -oE 'SRC=[0-9,\.]* ' | grep -oE '[0-9,\.]* ' | grep -vE $(Filter_PrivateIP) | wc -l) Connections Detected"
 		echo
 		if [ -n $2 ]; then
 			counter=$2
@@ -431,16 +443,16 @@ case $1 in
 			counter=10
 		fi
 		echo "Top $counter Ports Attacked;   (Port 80 or 443 Usually Indicates Website Blocking Hits)"
-		cat /tmp/syslog.log | grep -v "SPT=80 " | grep -v "SPT=443 " | grep -vE $(Filter_DST) | grep -oE 'DPT=[0-9]{1,5}' | grep -oE '[0-9]{1,5}' | sort -n | uniq -c | sort -nr | head -$counter | awk '{print $1"x on Port "$2}'
+		cat /jffs/skynet.log | grep -v "SPT=80 " | grep -v "SPT=443 " | grep -vE $(Filter_DST) | grep -oE 'DPT=[0-9]{1,5}' | grep -oE '[0-9]{1,5}' | sort -n | uniq -c | sort -nr | head -$counter | awk '{print $1"x http://www.speedguide.net/port.php?port="$2}'
 		echo
 		echo "Top $counter Attacker Source Ports;"
-		cat /tmp/syslog.log | grep -v "SPT=80 " | grep -v "SPT=443 " | grep -vE $(Filter_DST) | grep -oE 'SPT=[0-9]{1,5}' | grep -oE '[0-9]{1,5}' | sort -n | uniq -c | sort -nr | head -$counter | awk '{print $1"x on Port "$2}'
+		cat /jffs/skynet.log | grep -v "SPT=80 " | grep -v "SPT=443 " | grep -vE $(Filter_DST) | grep -oE 'SPT=[0-9]{1,5}' | grep -oE '[0-9]{1,5}' | sort -n | uniq -c | sort -nr | head -$counter | awk '{print $1"x http://www.speedguide.net/port.php?port="$2}'
 		echo
 		echo "Last $counter Attackers;"
-		cat /tmp/syslog.log | grep -v "SPT=80 " | grep -v "SPT=443 " | grep -oE 'SRC=[0-9,\.]* ' | grep -oE '[0-9,\.]* ' | grep -vE $(Filter_PrivateIP) | tail -$counter | sed '1!G;h;$!d' 
+		cat /jffs/skynet.log | grep -v "SPT=80 " | grep -v "SPT=443 " | grep -oE 'SRC=[0-9,\.]* ' | grep -oE '[0-9,\.]* ' | grep -vE $(Filter_PrivateIP) | tail -$counter | sed '1!G;h;$!d' | awk '{print "http://www.ip-tracker.org/locator/ip-lookup.php?ip="$1}'
 		echo
 		echo "Top $counter Attackers;"
-		cat /tmp/syslog.log | grep -v "SPT=80 " | grep -v "SPT=443 " | grep -oE 'SRC=[0-9,\.]* ' | grep -oE '[0-9,\.]* ' | grep -vE $(Filter_PrivateIP) | sort -n | uniq -c | sort -nr | head -$counter| awk '{print $1"x Hits By "$2}'
+		cat /jffs/skynet.log | grep -v "SPT=80 " | grep -v "SPT=443 " | grep -oE 'SRC=[0-9,\.]* ' | grep -oE '[0-9,\.]* ' | grep -vE $(Filter_PrivateIP) | sort -n | uniq -c | sort -nr | head -$counter| awk '{print $1"x http://www.ip-tracker.org/locator/ip-lookup.php?ip="$2}'
 		echo
 		;;
 		
