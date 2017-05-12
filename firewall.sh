@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                              				    #
 #													    #
-## - 13/05/2017 -		   Asus Firewall Addition By Adamm v3.7.6				    #
+## - 13/05/2017 -		   Asus Firewall Addition By Adamm v3.7.7				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -138,6 +138,7 @@ Purge_Logs () {
 		sed -i '/BLOCKED -/d' /tmp/syslog.log-1
 		cat /tmp/syslog.log | sed '/BLOCKED -/!d' >> /jffs/skynet.log
 		sed -i '/BLOCKED -/d' /tmp/syslog.log
+		sed -i '/Aug  1 1/d' /jffs/skynet.log
 		}
 
 
