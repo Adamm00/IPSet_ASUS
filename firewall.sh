@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                              				    #
 #													    #
-## - 12/05/2017 -		   Asus Firewall Addition By Adamm v3.7.3				    #
+## - 12/05/2017 -		   Asus Firewall Addition By Adamm v3.7.4				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -458,8 +458,11 @@ case $1 in
 		echo "Top $counter Attacker Source Ports;"
 		cat /jffs/skynet.log | grep -v "SPT=80 " | grep -v "SPT=443 " | grep -vE $(Filter_DST) | grep -oE 'SPT=[0-9]{1,5}' | grep -oE '[0-9]{1,5}' | sort -n | uniq -c | sort -nr | head -$counter | awk '{print $1"x http://www.speedguide.net/port.php?port="$2}'
 		echo
-		echo "Last $counter Attackers;"
+		echo "Last $counter Connections Blocked;"
 		cat /jffs/skynet.log | grep -v "SPT=80 " | grep -v "SPT=443 " | grep -oE 'SRC=[0-9,\.]* ' | grep -oE '[0-9,\.]* ' | grep -vE $(Filter_PrivateIP) | tail -$counter | sed '1!G;h;$!d' | awk '{print "http://www.ip-tracker.org/locator/ip-lookup.php?ip="$1}'
+		echo
+		echo "Last $counter New Bans;"
+		cat /jffs/skynet.log | grep -v "SPT=80 " | grep -v "SPT=443 " | grep "NEW BAN" | grep -oE 'SRC=[0-9,\.]* ' | grep -oE '[0-9,\.]* ' | grep -vE $(Filter_PrivateIP) | tail -$counter | sed '1!G;h;$!d' | awk '{print "http://www.ip-tracker.org/locator/ip-lookup.php?ip="$1}'
 		echo
 		echo "Top $counter Attackers;"
 		cat /jffs/skynet.log | grep -v "SPT=80 " | grep -v "SPT=443 " | grep -oE 'SRC=[0-9,\.]* ' | grep -oE '[0-9,\.]* ' | grep -vE $(Filter_PrivateIP) | sort -n | uniq -c | sort -nr | head -$counter| awk '{print $1"x http://www.ip-tracker.org/locator/ip-lookup.php?ip="$2}'
