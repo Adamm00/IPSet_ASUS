@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                              				    #
 #													    #
-## - 13/05/2017 -		   Asus Firewall Addition By Adamm v3.7.5				    #
+## - 13/05/2017 -		   Asus Firewall Addition By Adamm v3.7.6				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -338,6 +338,7 @@ case $1 in
 		logger -st Skynet "[Disabling Firewall] ... ... ..."
 		Unload_IPTables
 		Unload_DebugIPTables
+		Purge_Logs
 	;;
 
 	debug)
@@ -358,7 +359,8 @@ case $1 in
 			;;
 			disable)
 				logger -st Skynet "[Disabling All Debug Output] ... ... ..."
-				Unload_DebugIPTables			
+				Unload_DebugIPTables
+				Purge_Logs
 			;;
 			filter)
 				echo "Unbanning Private IP's"
