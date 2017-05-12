@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                              				    #
 #													    #
-## - 12/05/2017 -		   Asus Firewall Addition By Adamm v3.6.9				    #
+## - 12/05/2017 -		   Asus Firewall Addition By Adamm v3.7.0				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -422,14 +422,16 @@ case $1 in
 		Filter_DST () {
 			echo '(DST=127\.)|(DST=10\.)|(DST=172\.1[6-9]\.)|(DST=172\.2[0-9]\.)|(DST=172\.3[0-1]\.)|(DST=192\.168\.)|(DST=0.)|(DST=169\.254\.)'
 		}
-
+		echo "Monitoring Since $(cat /tmp/syslog.log | awk '{print $1" "$2" "$3}' | head -1)"
+		echo "$(cat /tmp/syslog.log | grep -v "SPT=80 " | grep -v "SPT=443 " | grep -oE 'SRC=[0-9,\.]* ' | grep -oE '[0-9,\.]* ' | grep -vE $(Filter_PrivateIP) | wc -l) Connections Detected"
+		echo
 		echo "Top10 Ports Attacked;   (Port 80 or 443 Usually Indicates Website Blocking Hits)"
 		cat /tmp/syslog.log | grep -v "SPT=80 " | grep -v "SPT=443 " | grep -vE $(Filter_DST) | grep -oE 'DPT=[0-9]{1,5}' | grep -oE '[0-9]{1,5}' | sort -n | uniq -c | sort -nr | head -10 | awk '{print $1"x on Port "$2}'
 		echo
-		echo "Top10 Attack Source Ports;"
+		echo "Top10 Attacker Source Ports;"
 		cat /tmp/syslog.log | grep -v "SPT=80 " | grep -v "SPT=443 " | grep -vE $(Filter_DST) | grep -oE 'SPT=[0-9]{1,5}' | grep -oE '[0-9]{1,5}' | sort -n | uniq -c | sort -nr | head -10 | awk '{print $1"x on Port "$2}'
 		echo
-		echo "Last 10 Attacks;"
+		echo "Last 10 Attackers;"
 		cat /tmp/syslog.log | grep -v "SPT=80 " | grep -v "SPT=443 " | grep -oE 'SRC=[0-9,\.]* ' | grep -oE '[0-9,\.]* ' | grep -vE $(Filter_PrivateIP) | tail -10 | sed '1!G;h;$!d' 
 		echo
 		echo "Top10 Attackers;"
