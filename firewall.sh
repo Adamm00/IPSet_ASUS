@@ -461,7 +461,12 @@ case $1 in
 			echo "$counter Most Recent Attacks On Port $4;";
 			cat /jffs/skynet.log | grep "DPT=$4 " | tail -$counter
 			exit
-		elif [ "$2" = "search" ] && [ "$3" = "IP" ]; then
+		elif [ "$2" = "search" ] && [ "$3" = "ip" ]; then
+			if [ -n "$(ipset -L Blacklist | grep $4)" ]; then
+				echo "IP Is Still Banned"
+			else
+				echo "IP Is No Longer Banned"
+			fi
 			echo "$4 First Tracked On $(cat /jffs/skynet.log | grep "SRC=$4 " | head -1 | awk '{print $1" "$2" "$3}')"
 			echo "$4 Last Tracked On $(cat /jffs/skynet.log | grep "SRC=$4 " | tail -1 | awk '{print $1" "$2" "$3}')"
 			echo "$(cat /jffs/skynet.log | grep "SRC=$4 " | wc -l) Attempts Total"
