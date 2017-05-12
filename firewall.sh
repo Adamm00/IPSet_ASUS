@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                              				    #
 #													    #
-## - 13/05/2017 -		   Asus Firewall Addition By Adamm v3.8.0				    #
+## - 13/05/2017 -		   Asus Firewall Addition By Adamm v3.8.1				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -125,16 +125,18 @@ Unban_PrivateIP () {
 		for ip in $(ipset -L Blacklist | grep -E $(Filter_PrivateIP))
 			do
 			ipset -D Blacklist $ip
+			sed -i /$ip/d /jffs/skynet.log
 		done
 		
 		for ip in $(ipset -L BlockedRanges | grep -E $(Filter_PrivateIP))
 			do
 			ipset -D BlockedRanges $ip
+			sed -i /$ip/d /jffs/skynet.log
 		done
 }
 
 Purge_Logs () {
-		find /jffs/skynet.log -mtime +7 -type f -delete
+		find /jffs/skynet.log -mtime +7 -type f -delete > /dev/null 2>&1
 		cat /tmp/syslog.log-1 | sed '/BLOCKED -/!d' >> /jffs/skynet.log
 		sed -i '/BLOCKED -/d' /tmp/syslog.log-1
 		cat /tmp/syslog.log | sed '/BLOCKED -/!d' >> /jffs/skynet.log
@@ -152,9 +154,9 @@ Unban_HTTP () {
 		}
 
 
-####################################################################################################
-# -   unban  / save / ban / banmalware / whitelist / import / disable / debug / update / start   - #
-####################################################################################################
+############################################################################################################
+# -   unban  / save / ban / banmalware / whitelist / import / disable / debug / update / start / stats   - #
+############################################################################################################
 
 
 case $1 in
@@ -168,9 +170,11 @@ case $1 in
 			read unbanip
 			logger -st Skynet "[Removing $unbanip From Blacklist] ... ... ..."
 			ipset -D Blacklist $unbanip
+			sed -i /$unbanip/d /jffs/skynet.log
 		elif [ -n "$2" ] && [ "$2" != "domain" ]&& [ "$2" != "range" ] && [ "$2" != "all" ]; then
 			logger -st Skynet "[Removing $2 From Blacklist] ... ... ..."
 			ipset -D Blacklist $2
+			sed -i /$2/d /jffs/skynet.log
 		elif [ "$2" = "range" ] && [ -n "$3" ]; then
 			logger -st Skynet "[Removing $3 From Blacklist] ... ... ..."
 			ipset -D BlockedRanges $3
@@ -181,18 +185,22 @@ case $1 in
 			for ip in $(Domain_Lookup $unbandomain)
 				do
 				ipset -D Blacklist $ip
+				sed -i /$ip/d /jffs/skynet.log
 			done
 		elif [ "$2" = "domain" ] && [ -n "$3" ]; then
 		logger -st Skynet "[Removing $3 From Blacklist] ... ... ..."
 		for ip in $(Domain_Lookup $3)
 			do
 			ipset -D Blacklist $ip
+			sed -i /$ip/d /jffs/skynet.log
 		done
 		elif [ "$2" = "all" ]; then
 			nvram set Blacklist=$(expr $(ipset -L Blacklist | wc -l) - 6)
 			logger -st Skynet "[Removing All $(nvram get Blacklist) Entries From Blacklist] ... ... ..."
 			ipset --flush Blacklist
 			ipset --flush BlockedRanges
+			Purge_Logs
+			rm -rf /jffs/skynet.log
 		else
 			echo "Command Not Recognised, Please Try Again"
 			exit
@@ -296,9 +304,11 @@ case $1 in
 			read whitelistip
 			logger -st Skynet "[Adding $whitelistip To Whitelist] ... ... ..."
 			ipset -A Whitelist $whitelistip
+			sed -i /$whitelistip/d /jffs/skynet.log
 		elif [ -n "$2" ] && [ "$2" != "domain" ]; then
 			logger -st Skynet "[Adding $2 To Whitelist] ... ... ..."
 			ipset -A Whitelist $2
+			sed -i /$2/d /jffs/skynet.log
 		elif [ "$2" = "domain" ] && [ -z "$3" ];then
 			echo "Input Domain To Whitelist"
 			read whitelistdomain
@@ -306,12 +316,14 @@ case $1 in
 			for ip in $(Domain_Lookup $whitelistdomain)
 				do
 				ipset -A Whitelist $ip
+				sed -i /$ip/d /jffs/skynet.log
 			done
 		elif [ "$2" = "domain" ] && [ -n "$3" ]; then
 		logger -st Skynet "[Adding $3 To Whitelist] ... ... ..."
 		for ip in $(Domain_Lookup $3)
 			do
 			ipset -A Whitelist $ip
+			sed -i /$ip/d /jffs/skynet.log
 		done
 		else
 			echo "Command Not Recognised, Please Try Again"
@@ -504,8 +516,11 @@ case $1 in
 		echo "Last $counter New Bans;"
 		cat /jffs/skynet.log | grep -v "SPT=80 " | grep -v "SPT=443 " | grep "NEW BAN" | grep -oE 'SRC=[0-9,\.]* ' | grep -oE '[0-9,\.]* ' | grep -vE $(Filter_PrivateIP) | tail -$counter | sed '1!G;h;$!d' | awk '{print "http://www.ip-tracker.org/locator/ip-lookup.php?ip="$1}'
 		echo
+		echo "Top $counter HTTP(s) Blocks;"
+		grep -E 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -oE 'SRC=[0-9,\.]* ' | grep -oE 'SRC=[0-9,\.]* ' | grep -oE '[0-9,\.]* ' | grep -vE $(Filter_PrivateIP) | sort -n | uniq -c | sort -nr | head -$counter | awk '{print $1"x http://www.ip-tracker.org/locator/ip-lookup.php?ip="$2}'
+		echo
 		echo "Top $counter Attackers;"
-		cat /jffs/skynet.log | grep -v "SPT=80 " | grep -v "SPT=443 " | grep -oE 'SRC=[0-9,\.]* ' | grep -oE '[0-9,\.]* ' | grep -vE $(Filter_PrivateIP) | sort -n | uniq -c | sort -nr | head -$counter| awk '{print $1"x http://www.ip-tracker.org/locator/ip-lookup.php?ip="$2}'
+		cat /jffs/skynet.log | grep -v "SPT=80 " | grep -v "SPT=443 " | grep -oE 'SRC=[0-9,\.]* ' | grep -oE '[0-9,\.]* ' | grep -vE $(Filter_PrivateIP) | sort -n | uniq -c | sort -nr | head -$counter | awk '{print $1"x http://www.ip-tracker.org/locator/ip-lookup.php?ip="$2}'
 		echo
 		;;
 		
