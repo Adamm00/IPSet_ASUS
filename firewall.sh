@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                              				    #
 #													    #
-## - 12/05/2017 -		   Asus Firewall Addition By Adamm v3.7.0				    #
+## - 12/05/2017 -		   Asus Firewall Addition By Adamm v3.7.1				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -425,17 +425,22 @@ case $1 in
 		echo "Monitoring Since $(cat /tmp/syslog.log | awk '{print $1" "$2" "$3}' | head -1)"
 		echo "$(cat /tmp/syslog.log | grep -v "SPT=80 " | grep -v "SPT=443 " | grep -oE 'SRC=[0-9,\.]* ' | grep -oE '[0-9,\.]* ' | grep -vE $(Filter_PrivateIP) | wc -l) Connections Detected"
 		echo
-		echo "Top10 Ports Attacked;   (Port 80 or 443 Usually Indicates Website Blocking Hits)"
-		cat /tmp/syslog.log | grep -v "SPT=80 " | grep -v "SPT=443 " | grep -vE $(Filter_DST) | grep -oE 'DPT=[0-9]{1,5}' | grep -oE '[0-9]{1,5}' | sort -n | uniq -c | sort -nr | head -10 | awk '{print $1"x on Port "$2}'
+		if [ -n $2 ]; then
+			counter=$2
+		else
+			counter=10
+		fi
+		echo "Top $counter Ports Attacked;   (Port 80 or 443 Usually Indicates Website Blocking Hits)"
+		cat /tmp/syslog.log | grep -v "SPT=80 " | grep -v "SPT=443 " | grep -vE $(Filter_DST) | grep -oE 'DPT=[0-9]{1,5}' | grep -oE '[0-9]{1,5}' | sort -n | uniq -c | sort -nr | head -$counter | awk '{print $1"x on Port "$2}'
 		echo
-		echo "Top10 Attacker Source Ports;"
-		cat /tmp/syslog.log | grep -v "SPT=80 " | grep -v "SPT=443 " | grep -vE $(Filter_DST) | grep -oE 'SPT=[0-9]{1,5}' | grep -oE '[0-9]{1,5}' | sort -n | uniq -c | sort -nr | head -10 | awk '{print $1"x on Port "$2}'
+		echo "Top $counter Attacker Source Ports;"
+		cat /tmp/syslog.log | grep -v "SPT=80 " | grep -v "SPT=443 " | grep -vE $(Filter_DST) | grep -oE 'SPT=[0-9]{1,5}' | grep -oE '[0-9]{1,5}' | sort -n | uniq -c | sort -nr | head -$counter | awk '{print $1"x on Port "$2}'
 		echo
-		echo "Last 10 Attackers;"
-		cat /tmp/syslog.log | grep -v "SPT=80 " | grep -v "SPT=443 " | grep -oE 'SRC=[0-9,\.]* ' | grep -oE '[0-9,\.]* ' | grep -vE $(Filter_PrivateIP) | tail -10 | sed '1!G;h;$!d' 
+		echo "Last $counter Attackers;"
+		cat /tmp/syslog.log | grep -v "SPT=80 " | grep -v "SPT=443 " | grep -oE 'SRC=[0-9,\.]* ' | grep -oE '[0-9,\.]* ' | grep -vE $(Filter_PrivateIP) | tail -$counter | sed '1!G;h;$!d' 
 		echo
-		echo "Top10 Attackers;"
-		cat /tmp/syslog.log | grep -v "SPT=80 " | grep -v "SPT=443 " | grep -oE 'SRC=[0-9,\.]* ' | grep -oE '[0-9,\.]* ' | grep -vE $(Filter_PrivateIP) | sort -n | uniq -c | sort -nr | head -10| awk '{print $1"x Hits By "$2}'
+		echo "Top $counter Attackers;"
+		cat /tmp/syslog.log | grep -v "SPT=80 " | grep -v "SPT=443 " | grep -oE 'SRC=[0-9,\.]* ' | grep -oE '[0-9,\.]* ' | grep -vE $(Filter_PrivateIP) | sort -n | uniq -c | sort -nr | head -$counter| awk '{print $1"x Hits By "$2}'
 		echo
 		;;
 		
