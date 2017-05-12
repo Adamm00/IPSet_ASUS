@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                              				    #
 #													    #
-## - 12/05/2017 -		   Asus Firewall Addition By Adamm v3.6.8				    #
+## - 12/05/2017 -		   Asus Firewall Addition By Adamm v3.6.9				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -98,7 +98,7 @@ Logging () {
 		NEWIPS=$(nvram get Blacklist)
 		NEWRANGES=$(nvram get BlockedRanges)
 		nvram commit
-		HITS1=$(iptables -vL -nt raw | grep -E "set.*Blacklist" | awk '{print $1}')
+		HITS1=$(iptables -vL -nt raw | grep -v LOG | grep -E "set.*Blacklist" | awk '{print $1}')
 		HITS2=$(iptables -vL -nt raw | grep -E "set.*BlockedRanges" | awk '{print $1}')
 		start_time=$(expr $(date +%s) - $start_time)
 		logger -st Skynet "[Complete] $NEWIPS IPs / $NEWRANGES Ranges banned. $(expr $NEWIPS - $OLDIPS) New IPs / $(expr $NEWRANGES - $OLDRANGES) New Ranges Banned. $HITS1 IP / $HITS2 Range Connections Blocked! [$(echo $start_time)s]"
@@ -416,6 +416,25 @@ case $1 in
 		Unload_DebugIPTables
 		Load_IPTables $2
 		sed -i '/DROP IN=/d' /tmp/syslog.log
+		;;
+	
+	stats)
+		Filter_DST () {
+			echo '(DST=127\.)|(DST=10\.)|(DST=172\.1[6-9]\.)|(DST=172\.2[0-9]\.)|(DST=172\.3[0-1]\.)|(DST=192\.168\.)|(DST=0.)|(DST=169\.254\.)'
+		}
+
+		echo "Top10 Ports Attacked;   (Port 80 or 443 Usually Indicates Website Blocking Hits)"
+		cat /tmp/syslog.log | grep -v "SPT=80 " | grep -v "SPT=443 " | grep -vE $(Filter_DST) | grep -oE 'DPT=[0-9]{1,5}' | grep -oE '[0-9]{1,5}' | sort -n | uniq -c | sort -nr | head -10 | awk '{print $1"x on Port "$2}'
+		echo
+		echo "Top10 Attack Source Ports;"
+		cat /tmp/syslog.log | grep -v "SPT=80 " | grep -v "SPT=443 " | grep -vE $(Filter_DST) | grep -oE 'SPT=[0-9]{1,5}' | grep -oE '[0-9]{1,5}' | sort -n | uniq -c | sort -nr | head -10 | awk '{print $1"x on Port "$2}'
+		echo
+		echo "Last 10 Attacks;"
+		cat /tmp/syslog.log | grep -v "SPT=80 " | grep -v "SPT=443 " | grep -oE 'SRC=[0-9,\.]* ' | grep -oE '[0-9,\.]* ' | grep -vE $(Filter_PrivateIP) | tail -10 | sed '1!G;h;$!d' 
+		echo
+		echo "Top10 Attackers;"
+		cat /tmp/syslog.log | grep -v "SPT=80 " | grep -v "SPT=443 " | grep -oE 'SRC=[0-9,\.]* ' | grep -oE '[0-9,\.]* ' | grep -vE $(Filter_PrivateIP) | sort -n | uniq -c | sort -nr | head -10| awk '{print $1"x Hits By "$2}'
+		echo
 		;;
 		
 	*)
