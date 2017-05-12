@@ -17,6 +17,7 @@ sh /jffs/scripts/firewall *commandhere*
     "import"       # <-- Import And Merge IPSet Save To Firewall  
     "disable"      # <-- Disable Firewall  
     "update"       # <-- Update Script To Latest Version (check github for changes)  
+    "stats"        # <-- Print/Search Stats Of Recently Banned IPs (Requires debugging enabled)
 
 
 ## Installation
@@ -69,6 +70,15 @@ Here Are Some Example Update Commands;
 "./jffs/scripts/firewall update" Standard Update Check - If Nothing Detected Exit
 "./jffs/scripts/firewall update check" Check For Updates Only - Wont Update If Detected
 "./jffs/scripts/firewall update -f" Force Update Even If No Changes Detected
+
+Here Are Some Example Stat Commands;
+"./jffs/scripts/firewall stats" Compile Stats With Default Top10 Output
+"./jffs/scripts/firewall stats 20" Compile Stats With Customiseable Top20 Output
+"./jffs/scripts/firewall stats search ip 8.8.8.8" Search All Debug Data For Entries On 8.8.8.8
+"./jffs/scripts/firewall stats search ip 8.8.8.8 20" Search All Debug Data For Entries On 8.8.8.8 With Customiseable Top20 Output
+"./jffs/scripts/firewall stats search port 23" Search All Debug Data For Entries On Port 23
+"./jffs/scripts/firewall stats search port 23 20" Search All Debug Data For Entries On Port 23 With Customiseable Top20 Output
+"./jffs/scripts/firewall stats reset" Reset All Collected Debug Data
 ```
 
 
