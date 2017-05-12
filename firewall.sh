@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                              				    #
 #													    #
-## - 12/05/2017 -		   Asus Firewall Addition By Adamm v3.7.4				    #
+## - 13/05/2017 -		   Asus Firewall Addition By Adamm v3.7.5				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -447,10 +447,28 @@ case $1 in
 		echo "Monitoring From $(cat /jffs/skynet.log | awk '{print $1" "$2" "$3}' | head -1) To $(cat /jffs/skynet.log | awk '{print $1" "$2" "$3}' | tail -1)"
 		echo "$(cat /jffs/skynet.log | grep -v "SPT=80 " | grep -v "SPT=443 " | grep -oE 'SRC=[0-9,\.]* ' | grep -oE '[0-9,\.]* ' | grep -vE $(Filter_PrivateIP) | wc -l) Connections Detected"
 		echo
-		if [ -n "$2" ]; then
+		counter=10
+		if [ -n "$2" ] && [ "$2" != "search" ]; then
 			counter=$2
-		else
-			counter=10
+		elif [ -n "$5" ]; then
+			counter=$5
+		fi
+		if [ "$2" = "search" ] && [ "$3" = "port" ]; then
+			echo "Port $4 First Tracked On $(cat /jffs/skynet.log | grep "DPT=$4 " | head -1 | awk '{print $1" "$2" "$3}')"
+			echo "Port $4 Last Tracked On $(cat /jffs/skynet.log | grep "DPT=$4 " | tail -1 | awk '{print $1" "$2" "$3}')"
+			echo "$(cat /jffs/skynet.log | grep "DPT=$4 " | wc -l) Attempts Total"
+			echo
+			echo "$counter Most Recent Attacks On Port $4;";
+			cat /jffs/skynet.log | grep "DPT=$4 " | tail -$counter
+			exit
+		elif [ "$2" = "search" ] && [ "$3" = "IP" ]; then
+			echo "$4 First Tracked On $(cat /jffs/skynet.log | grep "SRC=$4 " | head -1 | awk '{print $1" "$2" "$3}')"
+			echo "$4 Last Tracked On $(cat /jffs/skynet.log | grep "SRC=$4 " | tail -1 | awk '{print $1" "$2" "$3}')"
+			echo "$(cat /jffs/skynet.log | grep "SRC=$4 " | wc -l) Attempts Total"
+			echo
+			echo "$counter Most Recent Attacks From $4;"
+			cat /jffs/skynet.log | grep "SRC=$4 " | tail -$counter
+			exit
 		fi
 		echo "Top $counter Ports Attacked;   (Port 80 or 443 Usually Indicates Website Blocking Hits)"
 		cat /jffs/skynet.log | grep -v "SPT=80 " | grep -v "SPT=443 " | grep -vE $(Filter_DST) | grep -oE 'DPT=[0-9]{1,5}' | grep -oE '[0-9]{1,5}' | sort -n | uniq -c | sort -nr | head -$counter | awk '{print $1"x http://www.speedguide.net/port.php?port="$2}'
