@@ -511,16 +511,16 @@ case $1 in
 		cat /jffs/skynet.log | grep -v "SPT=80 " | grep -v "SPT=443 " | grep -vE $(Filter_DST) | grep -oE 'SPT=[0-9]{1,5}' | grep -oE '[0-9]{1,5}' | sort -n | uniq -c | sort -nr | head -$counter | awk '{print $1"x http://www.speedguide.net/port.php?port="$2}'
 		echo
 		echo "Last $counter Connections Blocked;"
-		cat /jffs/skynet.log | grep -v "SPT=80 " | grep -v "SPT=443 " | grep -oE 'SRC=[0-9,\.]* ' | grep -oE '[0-9,\.]* ' | grep -vE $(Filter_PrivateIP) | tail -$counter | sed '1!G;h;$!d' | awk '{print "http://www.ip-tracker.org/locator/ip-lookup.php?ip="$1}'
+		cat /jffs/skynet.log | grep -v "SPT=80 " | grep -v "SPT=443 " | grep -oE 'SRC=[0-9,\.]* ' | grep -oE '[0-9,\.]* ' | grep -vE $(Filter_PrivateIP) | tail -$counter | sed '1!G;h;$!d' | awk '{print "https://www.abuseipdb.com/check/"$1}'
 		echo
 		echo "Last $counter New Bans;"
-		cat /jffs/skynet.log | grep -v "SPT=80 " | grep -v "SPT=443 " | grep "NEW BAN" | grep -oE 'SRC=[0-9,\.]* ' | grep -oE '[0-9,\.]* ' | grep -vE $(Filter_PrivateIP) | tail -$counter | sed '1!G;h;$!d' | awk '{print "http://www.ip-tracker.org/locator/ip-lookup.php?ip="$1}'
+		cat /jffs/skynet.log | grep -v "SPT=80 " | grep -v "SPT=443 " | grep "NEW BAN" | grep -oE 'SRC=[0-9,\.]* ' | grep -oE '[0-9,\.]* ' | grep -vE $(Filter_PrivateIP) | tail -$counter | sed '1!G;h;$!d' | awk '{print "https://www.abuseipdb.com/check/"$1}'
 		echo
 		echo "Top $counter HTTP(s) Blocks;"
-		grep -E 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -oE 'SRC=[0-9,\.]* ' | grep -oE 'SRC=[0-9,\.]* ' | grep -oE '[0-9,\.]* ' | grep -vE $(Filter_PrivateIP) | sort -n | uniq -c | sort -nr | head -$counter | awk '{print $1"x http://www.ip-tracker.org/locator/ip-lookup.php?ip="$2}'
+		grep -E 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -oE 'SRC=[0-9,\.]* ' | grep -oE 'SRC=[0-9,\.]* ' | grep -oE '[0-9,\.]* ' | grep -vE $(Filter_PrivateIP) | sort -n | uniq -c | sort -nr | head -$counter | awk '{print $1"x https://www.abuseipdb.com/check/"$2}'
 		echo
 		echo "Top $counter Attackers;"
-		cat /jffs/skynet.log | grep -v "SPT=80 " | grep -v "SPT=443 " | grep -oE 'SRC=[0-9,\.]* ' | grep -oE '[0-9,\.]* ' | grep -vE $(Filter_PrivateIP) | sort -n | uniq -c | sort -nr | head -$counter | awk '{print $1"x http://www.ip-tracker.org/locator/ip-lookup.php?ip="$2}'
+		cat /jffs/skynet.log | grep -v "SPT=80 " | grep -v "SPT=443 " | grep -oE 'SRC=[0-9,\.]* ' | grep -oE '[0-9,\.]* ' | grep -vE $(Filter_PrivateIP) | sort -n | uniq -c | sort -nr | head -$counter | awk '{print $1"x https://www.abuseipdb.com/check/"$2}'
 		echo
 		;;
 		
