@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                              				    #
 #													    #
-## - 13/05/2017 -		   Asus Firewall Addition By Adamm v3.8.2				    #
+## - 13/05/2017 -		   Asus Firewall Addition By Adamm v3.8.3				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -289,9 +289,9 @@ case $1 in
 		echo "Downloading Lists"
 		wget -q --no-check-certificate -O /tmp/malwarelist.txt -i $listurl
 		echo "Filtering IPv4 Addresses"
-		cat /tmp/malwarelist.txt | grep -vE $(Filter_PrivateIP) | sed -n "s/\r//;/^$/d;/^[0-9,\.]*$/s/^/add Blacklist /p" | sort -u > /tmp/malwarelist1.txt
+		grep -vE $(Filter_PrivateIP) /tmp/malwarelist.txt | sed -n "s/\r//;/^$/d;/^[0-9,\.]*$/s/^/add Blacklist /p" | sort -u > /tmp/malwarelist1.txt
 		echo "Filtering IPv4 Ranges"
-		cat /tmp/malwarelist.txt | grep -vE $(Filter_PrivateIP) | sed -n "s/\r//;/^$/d;/^[0-9,\.,\/]*$/s/^/add BlockedRanges /p" | grep "/" | sort -u >> /tmp/malwarelist1.txt
+		grep -vE $(Filter_PrivateIP) /tmp/malwarelist.txt | sed -n "s/\r//;/^$/d;/^[0-9,\.,\/]*$/s/^/add BlockedRanges /p" | grep "/" | sort -u >> /tmp/malwarelist1.txt
 		echo "Applying Blacklists"
 		ipset -q -R -! < /tmp/malwarelist1.txt
 		rm -rf /tmp/malwarelist*.txt
@@ -408,7 +408,7 @@ case $1 in
 				iptables --version
 				ipset -v
 				echo "FW Version: $(nvram get buildno)_$(nvram get extendno)"
-				cat /jffs/scripts/firewall-start | grep "firewall start" > /dev/null 2>&1 && echo -e $GRN"Startup Entry Detected"$NC || echo -e $GRN"Startup Entry Not Detected"$NC
+				grep "firewall start" /jffs/scripts/firewall-start > /dev/null 2>&1 && echo -e $GRN"Startup Entry Detected"$NC || echo -e $GRN"Startup Entry Not Detected"$NC
 				cru l | grep firewall > /dev/null 2>&1 && echo -e $GRN"Cronjob Detected"$NC || echo -e $GRN"Cronjob Not Detected"$NC
 				iptables -vL -nt raw | grep Whitelist > /dev/null 2>&1 && echo -e $GRN"Whitelist IPTable Detected"$NC || echo -e $RED"Whitelist IPTable Not Detected"$NC
 				iptables -vL -nt raw | grep BlockedRanges > /dev/null 2>&1 && echo -e $GRN"BlockedRanges IPTable Detected"$NC || echo -e $RED"BlockedRanges IPTable Not Detected"$NC
@@ -480,9 +480,9 @@ case $1 in
 			echo "Stat Data Reset"
 			exit
 		fi
-		echo "Monitoring From $(cat /jffs/skynet.log | awk '{print $1" "$2" "$3}' | head -1) To $(cat /jffs/skynet.log | awk '{print $1" "$2" "$3}' | tail -1)"
-		echo "$(cat /jffs/skynet.log | grep -v "SPT=80 " | grep -v "SPT=443 " | grep -oE 'SRC=[0-9,\.]* ' | grep -oE '[0-9,\.]* ' | grep -vE $(Filter_PrivateIP) | wc -l) Connections Detected"
-		echo "$(cat /jffs/skynet.log | grep -v "SPT=80 " | grep -v "SPT=443 " | grep "NEW BAN"| wc -l) Autobans Issued"
+		echo "Monitoring From $(awk '{print $1" "$2" "$3}' /jffs/skynet.log | head -1) To $(awk '{print $1" "$2" "$3}' /jffs/skynet.log | tail -1)"
+		echo "$(grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -oE 'SRC=[0-9,\.]* ' | grep -oE '[0-9,\.]* ' | grep -vE $(Filter_PrivateIP) | wc -l) Connections Detected"
+		echo "$(grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep "NEW BAN"| wc -l) Autobans Issued"
 		echo
 		counter=10
 		if [ -n "$2" ] && [ "$2" != "search" ]; then
@@ -491,12 +491,12 @@ case $1 in
 			counter=$5
 		fi
 		if [ "$2" = "search" ] && [ "$3" = "port" ]; then
-			echo "Port $4 First Tracked On $(cat /jffs/skynet.log | grep "DPT=$4 " | head -1 | awk '{print $1" "$2" "$3}')"
-			echo "Port $4 Last Tracked On $(cat /jffs/skynet.log | grep "DPT=$4 " | tail -1 | awk '{print $1" "$2" "$3}')"
-			echo "$(cat /jffs/skynet.log | grep "DPT=$4 " | wc -l) Attempts Total"
+			echo "Port $4 First Tracked On $(grep "DPT=$4 " /jffs/skynet.log | head -1 | awk '{print $1" "$2" "$3}')"
+			echo "Port $4 Last Tracked On $(grep "DPT=$4 " /jffs/skynet.log | tail -1 | awk '{print $1" "$2" "$3}')"
+			echo "$(grep "DPT=$4 " /jffs/skynet.log | wc -l) Attempts Total"
 			echo
 			echo "$counter Most Recent Attacks On Port $4;";
-			cat /jffs/skynet.log | grep "DPT=$4 " | tail -$counter
+			grep "DPT=$4 " /jffs/skynet.log | tail -$counter
 			exit
 		elif [ "$2" = "search" ] && [ "$3" = "ip" ]; then
 			if [ -n "$(ipset -L Blacklist | grep $4)" ]; then
@@ -504,31 +504,31 @@ case $1 in
 			else
 				echo "IP Is No Longer Banned"
 			fi
-			echo "$4 First Tracked On $(cat /jffs/skynet.log | grep "SRC=$4 " | head -1 | awk '{print $1" "$2" "$3}')"
-			echo "$4 Last Tracked On $(cat /jffs/skynet.log | grep "SRC=$4 " | tail -1 | awk '{print $1" "$2" "$3}')"
-			echo "$(cat /jffs/skynet.log | grep "SRC=$4 " | wc -l) Attempts Total"
+			echo "$4 First Tracked On $(grep "SRC=$4 " /jffs/skynet.log | head -1 | awk '{print $1" "$2" "$3}')"
+			echo "$4 Last Tracked On $(grep "SRC=$4 " /jffs/skynet.log | tail -1 | awk '{print $1" "$2" "$3}')"
+			echo "$(grep "SRC=$4 " /jffs/skynet.log | wc -l) Attempts Total"
 			echo
 			echo "$counter Most Recent Attacks From $4;"
-			cat /jffs/skynet.log | grep "SRC=$4 " | tail -$counter
+			grep "SRC=$4 " /jffs/skynet.log | tail -$counter
 			exit
 		fi
-		echo "Top $counter Ports Attacked;   (Port 80 or 443 Usually Indicates Website Blocking Hits)"
-		cat /jffs/skynet.log | grep -v "SPT=80 " | grep -v "SPT=443 " | grep -vE $(Filter_DST) | grep -oE 'DPT=[0-9]{1,5}' | grep -oE '[0-9]{1,5}' | sort -n | uniq -c | sort -nr | head -$counter | awk '{print $1"x http://www.speedguide.net/port.php?port="$2}'
+		echo "Top $counter Ports Attacked;"
+		grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -vE $(Filter_DST) | grep -oE 'DPT=[0-9]{1,5}' | grep -oE '[0-9]{1,5}' | sort -n | uniq -c | sort -nr | head -$counter | awk '{print $1"x http://www.speedguide.net/port.php?port="$2}'
 		echo
 		echo "Top $counter Attacker Source Ports;"
-		cat /jffs/skynet.log | grep -v "SPT=80 " | grep -v "SPT=443 " | grep -vE $(Filter_DST) | grep -oE 'SPT=[0-9]{1,5}' | grep -oE '[0-9]{1,5}' | sort -n | uniq -c | sort -nr | head -$counter | awk '{print $1"x http://www.speedguide.net/port.php?port="$2}'
+		grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -vE $(Filter_DST) | grep -oE 'SPT=[0-9]{1,5}' | grep -oE '[0-9]{1,5}' | sort -n | uniq -c | sort -nr | head -$counter | awk '{print $1"x http://www.speedguide.net/port.php?port="$2}'
 		echo
 		echo "Last $counter Connections Blocked;"
-		cat /jffs/skynet.log | grep -v "SPT=80 " | grep -v "SPT=443 " | grep -oE 'SRC=[0-9,\.]* ' | grep -oE '[0-9,\.]* ' | grep -vE $(Filter_PrivateIP) | tail -$counter | sed '1!G;h;$!d' | awk '{print "https://www.abuseipdb.com/check/"$1}'
+		grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -oE 'SRC=[0-9,\.]* ' | grep -oE '[0-9,\.]* ' | grep -vE $(Filter_PrivateIP) | tail -$counter | sed '1!G;h;$!d' | awk '{print "https://www.abuseipdb.com/check/"$1}'
 		echo
 		echo "Last $counter New Bans;"
-		cat /jffs/skynet.log | grep -v "SPT=80 " | grep -v "SPT=443 " | grep "NEW BAN" | grep -oE 'SRC=[0-9,\.]* ' | grep -oE '[0-9,\.]* ' | grep -vE $(Filter_PrivateIP) | tail -$counter | sed '1!G;h;$!d' | awk '{print "https://www.abuseipdb.com/check/"$1}'
+		grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep "NEW BAN" | grep -oE 'SRC=[0-9,\.]* ' | grep -oE '[0-9,\.]* ' | grep -vE $(Filter_PrivateIP) | tail -$counter | sed '1!G;h;$!d' | awk '{print "https://www.abuseipdb.com/check/"$1}'
 		echo
 		echo "Top $counter HTTP(s) Blocks;"
-		grep -E 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -oE 'SRC=[0-9,\.]* ' | grep -oE 'SRC=[0-9,\.]* ' | grep -oE '[0-9,\.]* ' | grep -vE $(Filter_PrivateIP) | sort -n | uniq -c | sort -nr | head -$counter | awk '{print $1"x https://www.abuseipdb.com/check/"$2}'
+		grep -E 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -oE 'SRC=[0-9,\.]* ' | grep -oE '[0-9,\.]* ' | grep -vE $(Filter_PrivateIP) | sort -n | uniq -c | sort -nr | head -$counter | awk '{print $1"x https://www.abuseipdb.com/check/"$2}'
 		echo
 		echo "Top $counter Attackers;"
-		cat /jffs/skynet.log | grep -v "SPT=80 " | grep -v "SPT=443 " | grep -oE 'SRC=[0-9,\.]* ' | grep -oE '[0-9,\.]* ' | grep -vE $(Filter_PrivateIP) | sort -n | uniq -c | sort -nr | head -$counter | awk '{print $1"x https://www.abuseipdb.com/check/"$2}'
+		grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -oE 'SRC=[0-9,\.]* ' | grep -oE '[0-9,\.]* ' | grep -vE $(Filter_PrivateIP) | sort -n | uniq -c | sort -nr | head -$counter | awk '{print $1"x https://www.abuseipdb.com/check/"$2}'
 		echo
 		;;
 		
