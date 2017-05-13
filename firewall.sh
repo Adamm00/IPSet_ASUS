@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                              				    #
 #													    #
-## - 14/05/2017 -		   Asus Firewall Addition By Adamm v3.8.5				    #
+## - 14/05/2017 -		   Asus Firewall Addition By Adamm v3.8.6				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -338,29 +338,27 @@ case $1 in
 		;;
 
 	import)
-		if [ -n "$2" ] && [ "$2" != "local" ]; then
+		echo "This Function Only Supports IPSet Generated Save Files And Adds Them ALL To Blacklist"
+		echo "To Save A Specific Set In SSH Use; 'ipset --save Blacklist > /jffs/scripts/ipset2.txt'"
+		if [ -n "$2" ]; then
 			echo "Custom List Detected: $2"
-			wget -q --no-check-certificate -O /tmp/ipset2.txt -i $2
+			wget -q --no-check-certificate -O /jffs/scripts/ipset2.txt http://www.abuseat.org/iotcc.txt
 		else
-			echo "To Use A Custom List In Future Use; \"sh $0 import URL\""
-			echo "Defaulting To Local Set At /tmp/ipset2.txt"
+			echo "To Download A Custom List Use; \"sh $0 import URL\""
+			echo "Defaulting Blacklist Location To /tmp/ipset2.txt"
 		fi
-			
-		if [ -n "$3" ] && [ -n "$4" ]; then
-			echo "Merging Old Set $3 Into $4"
-			set1=$3
-			set2=$4
-		else
-			echo "To Automate Importing Use; \"sh $0 import URL/local OLDSET NEWSET\""
-			echo "Input Old Set Name"
-			read set1
-			echo "Input Set To Merge Into"
-			read set2
+		if [ ! -f /jffs/scripts/ipset2.txt ]; then
+			echo "No IPSet Backup Detected - Exiting"
+			exit
 		fi
-		sed -i "s/$set1/$set2/g" /tmp/ipset2.txt
-		ipset -q -R -! < /tmp/ipset2.txt
-		rm -rf /tmp/ipset2.txt
-		echo "Successfully Merged Blacklist"
+		echo "Stripping Old List Data"
+		echo "Filtering IPv4 Addresses"
+		grep -v "create" /jffs/scripts/ipset2.txt |  awk '{print $3}' | grep -vE $(Filter_PrivateIP) | sed -n "s/\r//;/^$/d;/^[0-9,\.]*$/s/^/add Blacklist /p" > /jffs/scripts/ipset3.txt
+		echo "Filtering IPv4 Ranges"
+		grep -v "create" /jffs/scripts/ipset2.txt |  awk '{print $3}' | grep -vE $(Filter_PrivateIP) | sed -n "s/\r//;/^$/d;/^[0-9,\.,\/]*$/s/^/add BlockedRanges /p" | grep "/" >> /jffs/scripts/ipset3.txt
+		echo "Importing IPs To Blacklist"
+		ipset -q -R -! < /tmp/ipset3.txt
+		rm -rf /tmp/ipset3.txt
 		;;
 
 	disable)
