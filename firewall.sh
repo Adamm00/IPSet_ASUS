@@ -342,7 +342,7 @@ case $1 in
 		echo "To Save A Specific Set In SSH Use; 'ipset --save Blacklist > /jffs/scripts/ipset2.txt'"
 		if [ -n "$2" ]; then
 			echo "Custom List Detected: $2"
-			wget -q --no-check-certificate -O /jffs/scripts/ipset2.txt http://www.abuseat.org/iotcc.txt
+			wget -q --no-check-certificate -O /jffs/scripts/ipset2.txt $2
 		else
 			echo "To Download A Custom List Use; \"sh $0 import URL\""
 			echo "Defaulting Blacklist Location To /tmp/ipset2.txt"
