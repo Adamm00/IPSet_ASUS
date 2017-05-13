@@ -495,6 +495,9 @@ case $1 in
 			echo "Port $4 Last Tracked On $(grep "DPT=$4 " /jffs/skynet.log | tail -1 | awk '{print $1" "$2" "$3}')"
 			echo "$(grep "DPT=$4 " /jffs/skynet.log | wc -l) Attempts Total"
 			echo
+			echo "First Attack Tracked On Port $4;"
+			grep "DPT=$4 " /jffs/skynet.log | head -1
+			echo
 			echo "$counter Most Recent Attacks On Port $4;";
 			grep "DPT=$4 " /jffs/skynet.log | tail -$counter
 			exit
@@ -507,6 +510,9 @@ case $1 in
 			echo "$4 First Tracked On $(grep "SRC=$4 " /jffs/skynet.log | head -1 | awk '{print $1" "$2" "$3}')"
 			echo "$4 Last Tracked On $(grep "SRC=$4 " /jffs/skynet.log | tail -1 | awk '{print $1" "$2" "$3}')"
 			echo "$(grep "SRC=$4 " /jffs/skynet.log | wc -l) Attempts Total"
+			echo
+			echo "First Attack Tracked From $4;"
+			grep "SRC=$4 " /jffs/skynet.log | head -1
 			echo
 			echo "$counter Most Recent Attacks From $4;"
 			grep "SRC=$4 " /jffs/skynet.log | tail -$counter
