@@ -485,7 +485,7 @@ case $1 in
 		echo "$(grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep "NEW BAN"| wc -l) Autobans Issued"
 		echo
 		counter=10
-		if [ -n "$2" ] && [ "$2" != "search" ]; then
+		if [ -n "$2" ] && [ "$2" != "search" ] && [ -z "$3" ]; then
 			counter=$2
 		elif [ -n "$5" ]; then
 			counter=$5
