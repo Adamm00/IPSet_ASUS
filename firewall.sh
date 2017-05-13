@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                              				    #
 #													    #
-## - 13/05/2017 -		   Asus Firewall Addition By Adamm v3.8.1				    #
+## - 13/05/2017 -		   Asus Firewall Addition By Adamm v3.8.2				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -70,6 +70,7 @@ Check_Settings () {
 Unload_DebugIPTables () {
 		iptables -t raw -D PREROUTING -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options > /dev/null 2>&1
 		iptables -D logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options > /dev/null 2>&1
+		iptables -D logdrop -m set --match-set Whitelist src -j ACCEPT > /dev/null 2>&1
 }
 
 Unload_IPTables () {
@@ -377,6 +378,7 @@ case $1 in
 				if [ "$3" = "newbans" ]; then
 					logger -st Skynet "[Enabling New Ban Debug Output] ... ... ..."
 					iptables -I logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options > /dev/null 2>&1
+					iptables -I logdrop -m set --match-set Whitelist src -j ACCEPT > /dev/null 2>&1
 				elif [ "$3" = "blocked" ]; then
 					logger -st Skynet "[Enabling Blocked Packet Debug Output] ... ... ..."
 					iptables -t raw -I PREROUTING 2 -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options > /dev/null 2>&1
@@ -384,6 +386,7 @@ case $1 in
 					logger -st Skynet "[Enabling All Debug Output] ... ... ..."
 					iptables -t raw -I PREROUTING 2 -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options > /dev/null 2>&1
 					iptables -I logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options > /dev/null 2>&1
+					iptables -I logdrop -m set --match-set Whitelist src -j ACCEPT > /dev/null 2>&1
 				fi
 			;;
 			disable)
