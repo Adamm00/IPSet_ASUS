@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                              				    #
 #													    #
-## - 13/05/2017 -		   Asus Firewall Addition By Adamm v3.8.4				    #
+## - 14/05/2017 -		   Asus Firewall Addition By Adamm v3.8.4				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -410,6 +410,7 @@ case $1 in
 				echo "FW Version: $(nvram get buildno)_$(nvram get extendno)"
 				grep "firewall start" /jffs/scripts/firewall-start &>- && echo -e $GRN"Startup Entry Detected"$NC || echo -e $GRN"Startup Entry Not Detected"$NC
 				cru l | grep firewall &>- && echo -e $GRN"Cronjob Detected"$NC || echo -e $GRN"Cronjob Not Detected"$NC
+				iptables -L | grep LOG | grep BAN &>- && echo -e $GRN"Autobanning Enabled"$NC || echo -e $RED"Autobanning Disabled"$NC
 				iptables -vL -nt raw | grep Whitelist &>- && echo -e $GRN"Whitelist IPTable Detected"$NC || echo -e $RED"Whitelist IPTable Not Detected"$NC
 				iptables -vL -nt raw | grep BlockedRanges &>- && echo -e $GRN"BlockedRanges IPTable Detected"$NC || echo -e $RED"BlockedRanges IPTable Not Detected"$NC
 				iptables -vL -nt raw | grep Blacklist &>- && echo -e $GRN"Blacklist IPTable Detected"$NC || echo -e $RED"Blacklist IPTable Not Detected"$NC
@@ -536,6 +537,7 @@ case $1 in
 		echo "Top $counter Attackers;"
 		grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | grep -vE $(Filter_PrivateIP) | sort -n | uniq -c | sort -nr | head -$counter | awk '{print $1"x https://www.abuseipdb.com/check/"$2}'
 		echo
+		grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | sort -n | uniq -c | sort -nr
 		;;
 		
 	*)
