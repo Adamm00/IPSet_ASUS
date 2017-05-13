@@ -304,10 +304,12 @@ case $1 in
 			read whitelistip
 			logger -st Skynet "[Adding $whitelistip To Whitelist] ... ... ..."
 			ipset -A Whitelist $whitelistip
+			ipset -D Blacklist $whitelistip
 			sed -i /$whitelistip/d /jffs/skynet.log
 		elif [ -n "$2" ] && [ "$2" != "domain" ]; then
 			logger -st Skynet "[Adding $2 To Whitelist] ... ... ..."
 			ipset -A Whitelist $2
+			ipset -D Blacklist $2
 			sed -i /$2/d /jffs/skynet.log
 		elif [ "$2" = "domain" ] && [ -z "$3" ];then
 			echo "Input Domain To Whitelist"
@@ -316,6 +318,7 @@ case $1 in
 			for ip in $(Domain_Lookup $whitelistdomain)
 				do
 				ipset -A Whitelist $ip
+				ipset -D Blacklist $ip
 				sed -i /$ip/d /jffs/skynet.log
 			done
 		elif [ "$2" = "domain" ] && [ -n "$3" ]; then
@@ -323,6 +326,7 @@ case $1 in
 		for ip in $(Domain_Lookup $3)
 			do
 			ipset -A Whitelist $ip
+			ipset -D Blacklist $ip
 			sed -i /$ip/d /jffs/skynet.log
 		done
 		else
@@ -475,6 +479,7 @@ case $1 in
 		fi
 		echo "Monitoring From $(cat /jffs/skynet.log | awk '{print $1" "$2" "$3}' | head -1) To $(cat /jffs/skynet.log | awk '{print $1" "$2" "$3}' | tail -1)"
 		echo "$(cat /jffs/skynet.log | grep -v "SPT=80 " | grep -v "SPT=443 " | grep -oE 'SRC=[0-9,\.]* ' | grep -oE '[0-9,\.]* ' | grep -vE $(Filter_PrivateIP) | wc -l) Connections Detected"
+		echo "$(cat /jffs/skynet.log | grep -v "SPT=80 " | grep -v "SPT=443 " | grep "NEW BAN"| wc -l) Autobans Issued"
 		echo
 		counter=10
 		if [ -n "$2" ] && [ "$2" != "search" ]; then
