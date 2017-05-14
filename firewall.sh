@@ -68,29 +68,30 @@ Check_Settings () {
 }
 
 Unload_DebugIPTables () {
-		iptables -t raw -D PREROUTING -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options &>-
-		iptables -D logdrop -m set --match-set Whitelist src -j ACCEPT &>-
+		iptables -t raw -D PREROUTING -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options >&-
+		iptables -D logdrop -m set --match-set Whitelist src -j ACCEPT >&-
 }
 
 Unload_IPTables () {
-		iptables -D logdrop -m state --state NEW -j LOG --log-prefix "DROP " --log-tcp-sequence --log-tcp-options --log-ip-options &>-
-		iptables -t raw -D PREROUTING -m set --match-set Blacklist src -j DROP &>-
-		iptables -t raw -D PREROUTING -m set --match-set BlockedRanges src -j DROP &>-
-		iptables -t raw -D PREROUTING -m set --match-set Whitelist src -j ACCEPT &>-
-		iptables -D logdrop -m state --state INVALID -j SET --add-set Blacklist src &>-
-		iptables -D logdrop -m state --state INVALID -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options &>-
+		iptables -D logdrop -m state --state NEW -j LOG --log-prefix "DROP " --log-tcp-sequence --log-tcp-options --log-ip-options >&-
+		iptables -t raw -D PREROUTING -m set --match-set Blacklist src -j DROP >&-
+		iptables -t raw -D PREROUTING -m set --match-set BlockedRanges src -j DROP >&-
+		iptables -t raw -D PREROUTING -m set --match-set Whitelist src -j ACCEPT >&-
+		iptables -D logdrop -m state --state INVALID -j SET --add-set Blacklist src >&-
+		iptables -D logdrop -m state --state INVALID -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options >&-
 }
 
 Load_IPTables () {
-		iptables -t raw -I PREROUTING -m set --match-set Blacklist src -j DROP &>-
-		iptables -t raw -I PREROUTING -m set --match-set BlockedRanges src -j DROP &>-
-		iptables -t raw -I PREROUTING -m set --match-set Whitelist src -j ACCEPT &>-
+		iptables -t raw -I PREROUTING -m set --match-set Blacklist src -j DROP >&-
+		iptables -t raw -I PREROUTING -m set --match-set BlockedRanges src -j DROP >&-
+		iptables -t raw -I PREROUTING -m set --match-set Whitelist src -j ACCEPT >&-
 		if [ "$1" = "noautoban" ]; then
 			echo "No Autoban Specified"
 		else
-			iptables -I logdrop -m state --state INVALID -j SET --add-set Blacklist src &>-
-			iptables -I logdrop -m state --state INVALID -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options &>-
-			iptables -I logdrop -m set --match-set Whitelist src -j ACCEPT &>-
+			iptables -I logdrop 4 -m state --state NEW -j LOG --log-prefix "[Other Drop] " --log-tcp-sequence --log-tcp-options --log-ip-options >&-
+			iptables -I logdrop -m state --state INVALID -j SET --add-set Blacklist src >&-
+			iptables -I logdrop -m state --state INVALID -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options >&-
+			iptables -I logdrop -m set --match-set Whitelist src -j ACCEPT >&-
 		fi
 }
 
@@ -139,7 +140,7 @@ Unban_PrivateIP () {
 }
 
 Purge_Logs () {
-		find /jffs/skynet.log -mtime +7 -type f -delete &>-
+		find /jffs/skynet.log -mtime +7 -type f -delete >&-
 		cat /tmp/syslog.log-1 | sed '/BLOCKED -/!d' >> /jffs/skynet.log
 		sed -i '/BLOCKED -/d' /tmp/syslog.log-1
 		cat /tmp/syslog.log | sed '/BLOCKED -/!d' >> /jffs/skynet.log
@@ -376,8 +377,8 @@ case $1 in
 			enable)
 				Unload_DebugIPTables
 				logger -st Skynet "[Enabling Raw Debug Output] ... ... ..."
-				iptables -t raw -I PREROUTING 2 -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options &>-
-				iptables -I logdrop -m set --match-set Whitelist src -j ACCEPT &>-
+				iptables -t raw -I PREROUTING 2 -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options >&-
+				iptables -I logdrop -m set --match-set Whitelist src -j ACCEPT >&-
 			;;
 			disable)
 				logger -st Skynet "[Disabling Raw Debug Output] ... ... ..."
@@ -398,15 +399,15 @@ case $1 in
 				iptables --version
 				ipset -v
 				echo "FW Version: $(nvram get buildno)_$(nvram get extendno)"
-				grep "firewall start" /jffs/scripts/firewall-start &>- && echo -e $GRN"Startup Entry Detected"$NC || echo -e $GRN"Startup Entry Not Detected"$NC
-				cru l | grep firewall &>- && echo -e $GRN"Cronjob Detected"$NC || echo -e $GRN"Cronjob Not Detected"$NC
-				iptables -L | grep LOG | grep BAN &>- && echo -e $GRN"Autobanning Enabled"$NC || echo -e $RED"Autobanning Disabled"$NC
-				iptables -vL -nt raw | grep Whitelist &>- && echo -e $GRN"Whitelist IPTable Detected"$NC || echo -e $RED"Whitelist IPTable Not Detected"$NC
-				iptables -vL -nt raw | grep BlockedRanges &>- && echo -e $GRN"BlockedRanges IPTable Detected"$NC || echo -e $RED"BlockedRanges IPTable Not Detected"$NC
-				iptables -vL -nt raw | grep Blacklist &>- && echo -e $GRN"Blacklist IPTable Detected"$NC || echo -e $RED"Blacklist IPTable Not Detected"$NC
-				ipset -L Whitelist &>- && echo -e $GRN"Whitelist IPSet Detected"$NC || echo -e $RED"Whitelist IPSet Not Detected"$NC
-				ipset -L BlockedRanges &>- && echo -e $GRN"BlockedRanges IPSet Detected"$NC || echo -e $RED"BlockedRanges IPSet Not Detected"$NC
-				ipset -L Blacklist &>- && echo -e $GRN"Blacklist IPSet Detected"$NC || echo -e $RED"Blacklist IPSet Not Detected"$NC
+				grep "firewall start" /jffs/scripts/firewall-start >&- && echo -e $GRN"Startup Entry Detected"$NC || echo -e $GRN"Startup Entry Not Detected"$NC
+				cru l | grep firewall >&- && echo -e $GRN"Cronjob Detected"$NC || echo -e $GRN"Cronjob Not Detected"$NC
+				iptables -L | grep LOG | grep BAN >&- && echo -e $GRN"Autobanning Enabled"$NC || echo -e $RED"Autobanning Disabled"$NC
+				iptables -vL -nt raw | grep Whitelist >&- && echo -e $GRN"Whitelist IPTable Detected"$NC || echo -e $RED"Whitelist IPTable Not Detected"$NC
+				iptables -vL -nt raw | grep BlockedRanges >&- && echo -e $GRN"BlockedRanges IPTable Detected"$NC || echo -e $RED"BlockedRanges IPTable Not Detected"$NC
+				iptables -vL -nt raw | grep Blacklist >&- && echo -e $GRN"Blacklist IPTable Detected"$NC || echo -e $RED"Blacklist IPTable Not Detected"$NC
+				ipset -L Whitelist >&- && echo -e $GRN"Whitelist IPSet Detected"$NC || echo -e $RED"Whitelist IPSet Not Detected"$NC
+				ipset -L BlockedRanges >&- && echo -e $GRN"BlockedRanges IPSet Detected"$NC || echo -e $RED"BlockedRanges IPSet Not Detected"$NC
+				ipset -L Blacklist >&- && echo -e $GRN"Blacklist IPSet Detected"$NC || echo -e $RED"Blacklist IPSet Not Detected"$NC
 			;;
 			
 		*)
@@ -439,7 +440,7 @@ case $1 in
 		Check_Settings
 		sed -i '/IP Banning Started/d' /tmp/syslog.log
 		logger -st Skynet "[IP Banning Started] ... ... ..."
-		insmod xt_set &>-
+		insmod xt_set >&-
 		ipset -q -R  < /jffs/scripts/ipset.txt
 		Unban_PrivateIP
 		ipset -q -N Whitelist nethash
@@ -512,7 +513,7 @@ case $1 in
 			grep "SRC=$4 " /jffs/skynet.log | tail -$counter
 			exit
 		fi
-		echo "Top $counter Ports Attacked;"
+		echo "Top $counter Ports Attacked; (This may pick up false positives from applications like uTorrent if DoS filter is enabled)"
 		grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -vE $(Filter_DST) | grep -oE 'DPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -$counter | awk '{print $1"x http://www.speedguide.net/port.php?port="$2}'
 		echo
 		echo "Top $counter Attacker Source Ports;"
