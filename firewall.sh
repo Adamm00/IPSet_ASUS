@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                              				    #
 #													    #
-## - 14/05/2017 -		   Asus Firewall Addition By Adamm v3.8.7				    #
+## - 14/05/2017 -		   Asus Firewall Addition By Adamm v3.8.8				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -88,7 +88,9 @@ Load_IPTables () {
 		if [ "$1" = "noautoban" ]; then
 			echo "No Autoban Specified"
 		else
-			iptables -I logdrop -m state --state NEW -j SET --add-set Blacklist src &>-
+		iptables -I logdrop -m state --state NEW -j SET --add-set Blacklist src &>-
+		iptables -I logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options &>-
+		iptables -I logdrop -m set --match-set Whitelist src -j ACCEPT &>-
 		fi
 }
 
@@ -374,19 +376,10 @@ case $1 in
 		case $2 in
 			enable)
 				Unload_DebugIPTables
-				if [ "$3" = "newbans" ]; then
-					logger -st Skynet "[Enabling New Ban Debug Output] ... ... ..."
-					iptables -I logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options &>-
-					iptables -I logdrop -m set --match-set Whitelist src -j ACCEPT &>-
-				elif [ "$3" = "blocked" ]; then
-					logger -st Skynet "[Enabling Blocked Packet Debug Output] ... ... ..."
-					iptables -t raw -I PREROUTING 2 -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options &>-
-				else
-					logger -st Skynet "[Enabling All Debug Output] ... ... ..."
-					iptables -t raw -I PREROUTING 2 -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options &>-
-					iptables -I logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options &>-
-					iptables -I logdrop -m set --match-set Whitelist src -j ACCEPT &>-
-				fi
+				logger -st Skynet "[Enabling All Debug Output] ... ... ..."
+				iptables -t raw -I PREROUTING 2 -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options &>-
+				iptables -I logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options &>-
+				iptables -I logdrop -m set --match-set Whitelist src -j ACCEPT &>-
 			;;
 			disable)
 				logger -st Skynet "[Disabling All Debug Output] ... ... ..."
@@ -474,6 +467,9 @@ case $1 in
 		else
 			echo "No Debug Data Detected - Make Sure Debug Mode Is Enabled To Compile Stats"
 			exit
+		fi
+		if [ ! -n "$(iptables -L -nt raw | grep BLOCKED)" ]; then
+			echo "Only New Bans Being Tracked (enable debug mode for connection tracking)"
 		fi
 		if [ "$2" = "reset" ]; then
 			rm -rf /jffs/skynet.log
