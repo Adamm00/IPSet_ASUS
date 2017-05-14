@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                              				    #
 #													    #
-## - 14/05/2017 -		   Asus Firewall Addition By Adamm v3.8.8				    #
+## - 14/05/2017 -		   Asus Firewall Addition By Adamm v3.9.0				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -64,12 +64,29 @@ Check_Settings () {
 				echo "Enabling Firewall Logging"
 				nvram set fw_log_x=drop
 				nvram commit
-			fi
+			fi	
+}
+
+Unload_DOSTables () {
+		if [ "$(nvram get fw_dos_x)" = "1" ]; then
+			iptables -D logdrop -p icmp --icmp-type 8 -j DROP &>-
+			iptables -D logdrop -p tcp --tcp-flags SYN,ACK,FIN,RST RST -j DROP &>-
+			iptables -D logdrop -p tcp --tcp-flags FIN,SYN,RST,ACK SYN -j DROP &>-
+		fi
+}
+
+Load_DOSTables () {
+		if [ "$(nvram get fw_dos_x)" = "1" ]; then
+			iptables -D logdrop -m set --match-set Whitelist src -j ACCEPT &>-
+			iptables -I logdrop -p icmp --icmp-type 8 -j DROP &>-
+			iptables -I logdrop -p tcp --tcp-flags SYN,ACK,FIN,RST RST -j DROP &>-
+			iptables -I logdrop -p tcp --tcp-flags FIN,SYN,RST,ACK SYN -j DROP &>-
+			iptables -I logdrop -m set --match-set Whitelist src -j ACCEPT &>-
+		fi
 }
 
 Unload_DebugIPTables () {
 		iptables -t raw -D PREROUTING -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options &>-
-		iptables -D logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options &>-
 		iptables -D logdrop -m set --match-set Whitelist src -j ACCEPT &>-
 }
 
@@ -79,6 +96,7 @@ Unload_IPTables () {
 		iptables -t raw -D PREROUTING -m set --match-set BlockedRanges src -j DROP &>-
 		iptables -t raw -D PREROUTING -m set --match-set Whitelist src -j ACCEPT &>-
 		iptables -D logdrop -m state --state NEW -j SET --add-set Blacklist src &>-
+		iptables -D logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options &>-
 }
 
 Load_IPTables () {
@@ -88,9 +106,9 @@ Load_IPTables () {
 		if [ "$1" = "noautoban" ]; then
 			echo "No Autoban Specified"
 		else
-		iptables -I logdrop -m state --state NEW -j SET --add-set Blacklist src &>-
-		iptables -I logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options &>-
-		iptables -I logdrop -m set --match-set Whitelist src -j ACCEPT &>-
+			iptables -I logdrop -m state --state NEW -j SET --add-set Blacklist src &>-
+			iptables -I logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options &>-
+			iptables -I logdrop -m set --match-set Whitelist src -j ACCEPT &>-
 		fi
 }
 
@@ -354,7 +372,6 @@ case $1 in
 			echo "No IPSet Backup Detected - Exiting"
 			exit
 		fi
-		echo "Stripping Old List Data"
 		echo "Filtering IPv4 Addresses"
 		grep -v "create" /jffs/scripts/ipset2.txt |  awk '{print $3}' | grep -vE $(Filter_PrivateIP) | sed -n "s/\r//;/^$/d;/^[0-9,\.]*$/s/^/add Blacklist /p" > /tmp/ipset3.txt
 		echo "Filtering IPv4 Ranges"
@@ -376,13 +393,12 @@ case $1 in
 		case $2 in
 			enable)
 				Unload_DebugIPTables
-				logger -st Skynet "[Enabling All Debug Output] ... ... ..."
+				logger -st Skynet "[Enabling Raw Debug Output] ... ... ..."
 				iptables -t raw -I PREROUTING 2 -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options &>-
-				iptables -I logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options &>-
 				iptables -I logdrop -m set --match-set Whitelist src -j ACCEPT &>-
 			;;
 			disable)
-				logger -st Skynet "[Disabling All Debug Output] ... ... ..."
+				logger -st Skynet "[Disabling Raw Debug Output] ... ... ..."
 				Unload_DebugIPTables
 				Purge_Logs
 				Unban_HTTP
@@ -452,7 +468,9 @@ case $1 in
 		ipset -q -A Whitelist 151.101.96.133/32   # raw.githubusercontent.com Update Server
 		Unload_IPTables
 		Unload_DebugIPTables
+		Unload_DOSTables
 		Load_IPTables $2
+		Load_DOSTables
 		sed -i '/DROP IN=/d' /tmp/syslog.log
 		;;
 	
