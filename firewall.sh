@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                              				    #
 #													    #
-## - 14/05/2017 -		   Asus Firewall Addition By Adamm v3.9.0				    #
+## - 14/05/2017 -		   Asus Firewall Addition By Adamm v3.9.1				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -67,24 +67,6 @@ Check_Settings () {
 			fi	
 }
 
-Unload_DOSTables () {
-		if [ "$(nvram get fw_dos_x)" = "1" ]; then
-			iptables -D logdrop -p icmp --icmp-type 8 -j DROP &>-
-			iptables -D logdrop -p tcp --tcp-flags SYN,ACK,FIN,RST RST -j DROP &>-
-			iptables -D logdrop -p tcp --tcp-flags FIN,SYN,RST,ACK SYN -j DROP &>-
-		fi
-}
-
-Load_DOSTables () {
-		if [ "$(nvram get fw_dos_x)" = "1" ]; then
-			iptables -D logdrop -m set --match-set Whitelist src -j ACCEPT &>-
-			iptables -I logdrop -p icmp --icmp-type 8 -j DROP &>-
-			iptables -I logdrop -p tcp --tcp-flags SYN,ACK,FIN,RST RST -j DROP &>-
-			iptables -I logdrop -p tcp --tcp-flags FIN,SYN,RST,ACK SYN -j DROP &>-
-			iptables -I logdrop -m set --match-set Whitelist src -j ACCEPT &>-
-		fi
-}
-
 Unload_DebugIPTables () {
 		iptables -t raw -D PREROUTING -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options &>-
 		iptables -D logdrop -m set --match-set Whitelist src -j ACCEPT &>-
@@ -106,8 +88,8 @@ Load_IPTables () {
 		if [ "$1" = "noautoban" ]; then
 			echo "No Autoban Specified"
 		else
-			iptables -I logdrop -m state --state NEW -j SET --add-set Blacklist src &>-
-			iptables -I logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options &>-
+			iptables -I logdrop -m state --state INVALID -j SET --add-set Blacklist src &>-
+			iptables -I logdrop -m state --state INVALID -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options &>-
 			iptables -I logdrop -m set --match-set Whitelist src -j ACCEPT &>-
 		fi
 }
@@ -468,9 +450,7 @@ case $1 in
 		ipset -q -A Whitelist 151.101.96.133/32   # raw.githubusercontent.com Update Server
 		Unload_IPTables
 		Unload_DebugIPTables
-		Unload_DOSTables
 		Load_IPTables $2
-		Load_DOSTables
 		sed -i '/DROP IN=/d' /tmp/syslog.log
 		;;
 	
