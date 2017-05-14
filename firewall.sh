@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                              				    #
 #													    #
-## - 14/05/2017 -		   Asus Firewall Addition By Adamm v3.9.1				    #
+## - 14/05/2017 -		   Asus Firewall Addition By Adamm v3.9.2				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -88,7 +88,6 @@ Load_IPTables () {
 		if [ "$1" = "noautoban" ]; then
 			echo "No Autoban Specified"
 		else
-			iptables -I logdrop 4 -m state --state INVALID -j LOG --log-prefix "[Other Drop] " --log-tcp-sequence --log-tcp-options --log-ip-options &>-
 			iptables -I logdrop -m state --state INVALID -j SET --add-set Blacklist src &>-
 			iptables -I logdrop -m state --state INVALID -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options &>-
 			iptables -I logdrop -m set --match-set Whitelist src -j ACCEPT &>-
