@@ -356,9 +356,9 @@ case $1 in
 		fi
 		echo "Stripping Old List Data"
 		echo "Filtering IPv4 Addresses"
-		grep -v "create" /jffs/scripts/ipset2.txt |  awk '{print $3}' | grep -vE $(Filter_PrivateIP) | sed -n "s/\r//;/^$/d;/^[0-9,\.]*$/s/^/add Blacklist /p" > /jffs/scripts/ipset3.txt
+		grep -v "create" /jffs/scripts/ipset2.txt |  awk '{print $3}' | grep -vE $(Filter_PrivateIP) | sed -n "s/\r//;/^$/d;/^[0-9,\.]*$/s/^/add Blacklist /p" > /tmp/ipset3.txt
 		echo "Filtering IPv4 Ranges"
-		grep -v "create" /jffs/scripts/ipset2.txt |  awk '{print $3}' | grep -vE $(Filter_PrivateIP) | sed -n "s/\r//;/^$/d;/^[0-9,\.,\/]*$/s/^/add BlockedRanges /p" | grep "/" >> /jffs/scripts/ipset3.txt
+		grep -v "create" /jffs/scripts/ipset2.txt |  awk '{print $3}' | grep -vE $(Filter_PrivateIP) | sed -n "s/\r//;/^$/d;/^[0-9,\.,\/]*$/s/^/add BlockedRanges /p" | grep "/" >> /tmp/ipset3.txt
 		echo "Importing IPs To Blacklist"
 		ipset -q -R -! < /tmp/ipset3.txt
 		rm -rf /tmp/ipset3.txt
