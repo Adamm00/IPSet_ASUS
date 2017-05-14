@@ -77,8 +77,8 @@ Unload_IPTables () {
 		iptables -t raw -D PREROUTING -m set --match-set Blacklist src -j DROP &>-
 		iptables -t raw -D PREROUTING -m set --match-set BlockedRanges src -j DROP &>-
 		iptables -t raw -D PREROUTING -m set --match-set Whitelist src -j ACCEPT &>-
-		iptables -D logdrop -m state --state NEW -j SET --add-set Blacklist src &>-
-		iptables -D logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options &>-
+		iptables -D logdrop -m state --state INVALID -j SET --add-set Blacklist src &>-
+		iptables -D logdrop -m state --state INVALID -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options &>-
 }
 
 Load_IPTables () {
@@ -88,6 +88,7 @@ Load_IPTables () {
 		if [ "$1" = "noautoban" ]; then
 			echo "No Autoban Specified"
 		else
+			iptables -I logdrop 4 -m state --state INVALID -j LOG --log-prefix "[Other Drop] " --log-tcp-sequence --log-tcp-options --log-ip-options &>-
 			iptables -I logdrop -m state --state INVALID -j SET --add-set Blacklist src &>-
 			iptables -I logdrop -m state --state INVALID -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options &>-
 			iptables -I logdrop -m set --match-set Whitelist src -j ACCEPT &>-
