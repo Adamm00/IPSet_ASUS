@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                              				    #
 #													    #
-## - 14/05/2017 -		   Asus Firewall Addition By Adamm v3.9.3				    #
+## - 16/05/2017 -		   Asus Firewall Addition By Adamm v3.9.4				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -141,8 +141,8 @@ Unban_PrivateIP () {
 
 Purge_Logs () {
 		find /jffs/skynet.log -mtime +7 -type f -delete &> /dev/null
-		cat /tmp/syslog.log-1 | sed '/BLOCKED -/!d' >> /jffs/skynet.log
-		sed -i '/BLOCKED -/d' /tmp/syslog.log-1
+		cat /tmp/syslog.log-1 | sed '/BLOCKED -/!d' >> /jffs/skynet.log &> /dev/null
+		sed -i '/BLOCKED -/d' /tmp/syslog.log-1 &> /dev/null
 		cat /tmp/syslog.log | sed '/BLOCKED -/!d' >> /jffs/skynet.log
 		sed -i '/BLOCKED -/d' /tmp/syslog.log
 		sed -i '/Aug  1 1/d' /jffs/skynet.log
@@ -513,16 +513,16 @@ case $1 in
 			grep "SRC=$4 " /jffs/skynet.log | tail -$counter
 			exit
 		fi
-		echo "Top $counter Ports Attacked; (This may pick up false positives from applications like uTorrent if DoS filter is enabled)"
-		grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -vE $(Filter_DST) | grep -oE 'DPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -$counter | awk '{print $1"x http://www.speedguide.net/port.php?port="$2}'
+		echo "Top $counter Ports Attacked; (This may pick up false positives from applications like uTorrent)"
+		grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -vE $(Filter_DST) | grep -oE 'DPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -$counter | awk '{print $1"x https://www.speedguide.net/port.php?port="$2}'
 		echo
 		echo "Top $counter Attacker Source Ports;"
-		grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -vE $(Filter_DST) | grep -oE 'SPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -$counter | awk '{print $1"x http://www.speedguide.net/port.php?port="$2}'
+		grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -vE $(Filter_DST) | grep -oE 'SPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -$counter | awk '{print $1"x https://www.speedguide.net/port.php?port="$2}'
 		echo
 		echo "Last $counter Connections Blocked;"
 		grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | grep -vE $(Filter_PrivateIP) | tail -$counter | sed '1!G;h;$!d' | awk '{print "https://www.abuseipdb.com/check/"$1}'
 		echo
-		echo "Last $counter New Bans;"
+		echo "Last $counter Autobans;"
 		grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep "NEW BAN" | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | grep -vE $(Filter_PrivateIP) | tail -$counter | sed '1!G;h;$!d' | awk '{print "https://www.abuseipdb.com/check/"$1}'
 		echo
 		echo "Top $counter HTTP(s) Blocks;"
