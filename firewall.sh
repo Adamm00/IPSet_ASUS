@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                              				    #
 #													    #
-## - 16/05/2017 -		   Asus Firewall Addition By Adamm v3.9.5				    #
+## - 16/05/2017 -		   Asus Firewall Addition By Adamm v3.9.6				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -522,16 +522,16 @@ case $1 in
 		grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -vE $(Filter_DST) | grep -oE 'SPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -$counter | awk '{print $1"x https://www.speedguide.net/port.php?port="$2}'
 		echo
 		echo "Last $counter Connections Blocked;"
-		grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | grep -vE $(Filter_PrivateIP) | tail -$counter | sed '1!G;h;$!d' | awk '{print "https://www.abuseipdb.com/check/"$1}'
+		grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | grep -vE $(Filter_PrivateIP) | tail -$counter | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
 		echo
 		echo "Last $counter Autobans;"
-		grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep "NEW BAN" | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | grep -vE $(Filter_PrivateIP) | tail -$counter | sed '1!G;h;$!d' | awk '{print "https://www.abuseipdb.com/check/"$1}'
+		grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep "NEW BAN" | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | grep -vE $(Filter_PrivateIP) | tail -$counter | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
 		echo
 		echo "Top $counter HTTP(s) Blocks;"
-		grep -E 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | grep -vE $(Filter_PrivateIP) | sort -n | uniq -c | sort -nr | head -$counter | awk '{print $1"x https://www.abuseipdb.com/check/"$2}'
+		grep -E 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | grep -vE $(Filter_PrivateIP) | sort -n | uniq -c | sort -nr | head -$counter | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}'
 		echo
 		echo "Top $counter Attackers;"
-		grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | grep -vE $(Filter_PrivateIP) | sort -n | uniq -c | sort -nr | head -$counter | awk '{print $1"x https://www.abuseipdb.com/check/"$2}'
+		grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | grep -vE $(Filter_PrivateIP) | sort -n | uniq -c | sort -nr | head -$counter | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}'
 		echo
 		;;
 		
