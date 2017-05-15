@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                              				    #
 #													    #
-## - 16/05/2017 -		   Asus Firewall Addition By Adamm v3.9.4				    #
+## - 16/05/2017 -		   Asus Firewall Addition By Adamm v3.9.5				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -448,6 +448,8 @@ case $1 in
 		ipset -q -N BlockedRanges nethash
 		ipset -q -A Whitelist 192.168.1.0/24
 		ipset -q -A Whitelist $(nvram get lan_ipaddr)/24
+		ipset -q -A Whitelist $(nvram get wan_dns1_x)/32
+		ipset -q -A Whitelist $(nvram get wan_dns2_x)/32
 		ipset -q -A Whitelist 151.101.96.133/32   # raw.githubusercontent.com Update Server
 		Unload_IPTables
 		Unload_DebugIPTables
