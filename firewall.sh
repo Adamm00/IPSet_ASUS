@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 17/05/2017 -		   Asus Firewall Addition By Adamm v4.0.2				    #
+## - 17/05/2017 -		   Asus Firewall Addition By Adamm v4.0.3				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -210,6 +210,12 @@ case $1 in
 			ipset -D Blacklist $ip
 			sed -i /$ip/d /jffs/skynet.log
 		done
+		elif [ "$2" = "country" ]; then
+			echo "Removing Previous Country Bans"
+			sed 's/add/del/g' /jffs/scripts/countrylist.txt | ipset -q -R -!
+		elif ["$2" = "malware" ]; then
+			echo "Removing Previous Malware Bans"
+			sed 's/add/del/g' /jffs/scripts/malwarelist.txt | ipset -q -R -!
 		elif [ "$2" = "all" ]; then
 			nvram set Blacklist=$(expr $(ipset -L Blacklist | wc -l) - 6)
 			logger -st Skynet "[Removing All $(nvram get Blacklist) Entries From Blacklist] ... ... ..."
@@ -264,6 +270,8 @@ case $1 in
 			ipset -A Blacklist $ip
 		done
 		elif [ "$2" = "country" ] && [ -n "$3" ]; then
+			echo "Removing Previous Country Bans"
+			sed 's/add/del/g' /jffs/scripts/countrylist.txt | ipset -q -R -!
 			echo "Banning Known IP Ranges For $3"
 			echo "Downloading Lists"
 			for country in $3
@@ -271,9 +279,9 @@ case $1 in
 				wget -q -O - http://www.ipdeny.com/ipblocks/data/countries/$country.zone >> /tmp/countrylist.txt
 			done
 			echo "Filtering IPv4 Ranges"
-			cat /tmp/countrylist.txt | sed -n "s/\r//;/^$/d;/^[0-9,\.,\/]*$/s/^/add BlockedRanges /p" | grep "/" | sort -u >> /tmp/countrylist1.txt
+			cat /tmp/countrylist.txt | sed -n "s/\r//;/^$/d;/^[0-9,\.,\/]*$/s/^/add BlockedRanges /p" | grep "/" | sort -u >> /jffs/scripts/countrylist.txt
 			echo "Applying Blacklists"
-			ipset -q -R -! < /tmp/countrylist1.txt
+			ipset -q -R -! < /jffs/scripts/countrylist.txt
 			rm -rf /tmp/countrylist*.txt
 		else
 			echo "Command Not Recognised, Please Try Again"
@@ -300,7 +308,7 @@ case $1 in
 		else
 			echo "To Use A Custom List In Future Use; \"sh $0 banmalware URL\""
 			listurl="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/filter.list"
-			echo "Clearing Previous Bans"
+			echo "Removing Previous Malware Bans"
 			sed 's/add/del/g' /jffs/scripts/malwarelist.txt | ipset -q -R -!			
 		fi
 		echo "Downloading Lists"
@@ -468,7 +476,7 @@ case $1 in
 		fi
 		if [ "$localver" != "$remotever" ] || [ "$2" = "-f" ]; then
 			logger -st Skynet "[New Version Detected - Updating To $remotever]... ... ..."
-			wget -q --no-check-certificate -O $0 https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh && logger -st Skynet "[Skynet Sucessfully Updated]"
+			wget -q --no-check-certificate -O $0 https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh && logger -st Skynet "[Skynet Sucessfully Updated - Restarting Firewall]"
 			service restart_firewall
 			exit
 		fi
@@ -562,7 +570,7 @@ case $1 in
 			grep "SRC=$4 " /jffs/skynet.log | tail -$counter
 			exit
 		fi
-		echo "Top $counter Ports Attacked; (This may pick up false positives from applications like uTorrent)"
+		echo "Top $counter Ports Attacked; (This may pick up false positives from applications like uTorrent or Apple Devices)"
 		grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -vE $(Filter_DST) | grep -oE 'DPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -$counter | awk '{print $1"x https://www.speedguide.net/port.php?port="$2}'
 		echo
 		echo "Top $counter Attacker Source Ports;"
