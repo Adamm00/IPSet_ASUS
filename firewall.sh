@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 17/05/2017 -		   Asus Firewall Addition By Adamm v4.0.1				    #
+## - 17/05/2017 -		   Asus Firewall Addition By Adamm v4.0.2				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -69,6 +69,7 @@ Check_Settings () {
 }
 
 Unload_DebugIPTables () {
+		iptables -t raw -D PREROUTING -m set --match-set BlockedRanges src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options &> /dev/null
 		iptables -t raw -D PREROUTING -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options &> /dev/null
 }
 
@@ -103,8 +104,8 @@ Logging () {
 		NEWIPS=$(nvram get Blacklist)
 		NEWRANGES=$(nvram get BlockedRanges)
 		nvram commit
-		HITS1=$(iptables -vL -nt raw | grep -v LOG | grep "Blacklist src" | awk '{print $1}')
-		HITS2=$(iptables -vL -nt raw | grep "BlockedRanges src" | awk '{print $1}')
+		HITS1=$(iptables -vL -nt raw | grep -v "LOG" | grep "Blacklist src" | awk '{print $1}')
+		HITS2=$(iptables -vL -nt raw | grep -v "LOG" | grep "BlockedRanges src" | awk '{print $1}')
 		start_time=$(expr $(date +%s) - $start_time)
 		logger -st Skynet "[Complete] $NEWIPS IPs / $NEWRANGES Ranges banned. $(expr $NEWIPS - $OLDIPS) New IPs / $(expr $NEWRANGES - $OLDRANGES) New Ranges Banned. $HITS1 IP / $HITS2 Range Connections Blocked! [$(echo $start_time)s]"
 }
@@ -164,7 +165,8 @@ Unban_HTTP () {
 		
 Enable_Debug () {
 		logger -st Skynet "[Enabling Raw Debug Output] ... ... ..."
-		iptables -t raw -I PREROUTING 2 -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options &> /dev/null
+		iptables -t raw -I PREROUTING 2 -m set --match-set BlockedRanges src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options &> /dev/null
+		iptables -t raw -I PREROUTING 4 -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options &> /dev/null
 }
 
 #####################################################################################################################
@@ -438,8 +440,8 @@ case $1 in
 				cru l | grep firewall &> /dev/null && echo -e $GRN"Cronjob Detected"$NC || echo -e $GRN"Cronjob Not Detected"$NC
 				iptables -L | grep LOG | grep BAN &> /dev/null && echo -e $GRN"Autobanning Enabled"$NC || echo -e $RED"Autobanning Disabled"$NC
 				iptables -vL -nt raw | grep Whitelist &> /dev/null && echo -e $GRN"Whitelist IPTable Detected"$NC || echo -e $RED"Whitelist IPTable Not Detected"$NC
-				iptables -vL -nt raw | grep BlockedRanges &> /dev/null && echo -e $GRN"BlockedRanges IPTable Detected"$NC || echo -e $RED"BlockedRanges IPTable Not Detected"$NC
-				iptables -vL -nt raw | grep Blacklist &> /dev/null && echo -e $GRN"Blacklist IPTable Detected"$NC || echo -e $RED"Blacklist IPTable Not Detected"$NC
+				iptables -vL -nt raw | grep -v "LOG" | grep BlockedRanges &> /dev/null && echo -e $GRN"BlockedRanges IPTable Detected"$NC || echo -e $RED"BlockedRanges IPTable Not Detected"$NC
+				iptables -vL -nt raw | grep -v "LOG" | grep Blacklist &> /dev/null && echo -e $GRN"Blacklist IPTable Detected"$NC || echo -e $RED"Blacklist IPTable Not Detected"$NC
 				ipset -L Whitelist &> /dev/null && echo -e $GRN"Whitelist IPSet Detected"$NC || echo -e $RED"Whitelist IPSet Not Detected"$NC
 				ipset -L BlockedRanges &> /dev/null && echo -e $GRN"BlockedRanges IPSet Detected"$NC || echo -e $RED"BlockedRanges IPSet Not Detected"$NC
 				ipset -L Blacklist &> /dev/null && echo -e $GRN"Blacklist IPSet Detected"$NC || echo -e $RED"Blacklist IPSet Not Detected"$NC
