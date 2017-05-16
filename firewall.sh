@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                              				    #
 #													    #
-## - 16/05/2017 -		   Asus Firewall Addition By Adamm v3.9.6				    #
+## - 16/05/2017 -		   Asus Firewall Addition By Adamm v3.9.7				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -166,6 +166,7 @@ Unban_HTTP () {
 
 case $1 in
 	unban)
+		Purge_Logs
 		if [ -z "$2" ]; then
 			echo "For Automated IP Unbanning Use; \"sh $0 unban IP\""
 			echo "For Automated IP Range Unbanning Use; \"sh $0 unban range IP\""
@@ -204,7 +205,6 @@ case $1 in
 			logger -st Skynet "[Removing All $(nvram get Blacklist) Entries From Blacklist] ... ... ..."
 			ipset --flush Blacklist
 			ipset --flush BlockedRanges
-			Purge_Logs
 			rm -rf /jffs/skynet.log
 		else
 			echo "Command Not Recognised, Please Try Again"
@@ -215,14 +215,15 @@ case $1 in
 
 	save)
 		echo "[Saving Blacklists] ... ... ..."
-		Unban_PrivateIP
 		Purge_Logs
+		Unban_PrivateIP
 		Unban_HTTP
 		ipset --save > /jffs/scripts/ipset.txt
 		sed -i '/USER admin pid .*firewall/d' /tmp/syslog.log
 		;;
 
 	ban)
+		Purge_Logs
 		if [ -z "$2" ]; then
 			echo "For Automated IP Banning Use; \"sh $0 ban IP\""
 			echo "For Automated IP Range Banning Use; \"sh $0 ban range IP\""
@@ -299,9 +300,12 @@ case $1 in
 		echo "Applying Blacklists"
 		ipset -q -R -! < /tmp/malwarelist1.txt
 		rm -rf /tmp/malwarelist*.txt
+		echo "Warning; This May Have Blocked Your Favorite Torrent Website"
+		echo "To Unban It Use; \"sh $0 unban domain URL\""
 		;;
 		
 	whitelist)
+		Purge_Logs
 		if [ -z "$2" ]; then
 			echo "For Automated IP Whitelisting Use; \"sh $0 whitelist IP\""
 			echo "For Automated Domain Whitelisting Use; \"sh $0 whitelist domain URL\""
@@ -442,6 +446,7 @@ case $1 in
 		logger -st Skynet "[IP Banning Started] ... ... ..."
 		insmod xt_set &> /dev/null
 		ipset -q -R  < /jffs/scripts/ipset.txt
+		Purge_Logs
 		Unban_PrivateIP
 		ipset -q -N Whitelist nethash
 		ipset -q -N Blacklist iphash --maxelem 500000
