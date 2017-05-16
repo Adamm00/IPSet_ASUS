@@ -15,6 +15,7 @@ sh /jffs/scripts/firewall *commandhere*
     "banmalware"   # <-- Bans Various Malware Domains  
     "whitelist"    # <-- Add Entry To Whitelist (IP/Range/Domain)  
     "import"       # <-- Import And Merge IPSet Save To Firewall  
+    "deport"       # <-- Remove All IPs From IPSet Save From Firewall
     "disable"      # <-- Disable Firewall  
     "update"       # <-- Update Script To Latest Version (check github for changes)  
     "stats"        # <-- Print/Search Stats Of Recently Banned IPs (Requires debugging enabled)
@@ -60,6 +61,14 @@ Here Are Some Example Whitelist Commands;
 "./jffs/scripts/firewall whitelist domain" This Requires Manual Input (Only Domains Accepted)
 "./jffs/scripts/firewall whitelist domain google.com" This Bans the URL Specified
 
+Here Are Some Example Import Commands;
+"./jffs/scripts/firewall import" This Reads IPSet Save File From /jffs/scripts/ipset2.txt And Saves All IPs To Blacklist
+"./jffs/scripts/firewall import URL" This Reads IPSet Save File From A Custom URL And Saves All IPs To Blacklist
+
+Here Are Some Example Deport Commands;
+"./jffs/scripts/firewall deport" This Reads IPSet Save File From /jffs/scripts/ipset2.txt And Removes All IPs From Blacklist
+"./jffs/scripts/firewall import URL" This Reads IPSet Save File From A Custom URL And Removes All IPs From Blacklist
+
 Here Are Some Example Debug Commands;
 "./jffs/scripts/firewall debug enable" Enable All Debugging To Syslog
 "./jffs/scripts/firewall debug enable newbans" Enable New Ban Debugging To Syslog Only
@@ -79,6 +88,11 @@ Here Are Some Example Stat Commands;
 "./jffs/scripts/firewall stats search port 23" Search All Debug Data For Entries On Port 23
 "./jffs/scripts/firewall stats search port 23 20" Search All Debug Data For Entries On Port 23 With Customiseable Top20 Output
 "./jffs/scripts/firewall stats reset" Reset All Collected Debug Data
+
+Here Are Some Example Startup Commands (for firewall-start);
+"./jffs/scripts/firewall start" Normal Startup With Default Features
+"./jffs/scripts/firewall start noautoban" Startup With Autobanning Disabled
+"./jffs/scripts/firewall start debug" Startup With Debug Mode Enabled (Also Used For Stat Report Generation)
 ```
 
 
