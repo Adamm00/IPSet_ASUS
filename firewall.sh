@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 17/05/2017 -		   Asus Firewall Addition By Adamm v4.0.5				    #
+## - 17/05/2017 -		   Asus Firewall Addition By Adamm v4.0.6				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -597,6 +597,46 @@ case $1 in
 		echo
 		;;
 		
+	install)
+		echo "Installing Skynet $(cat $0 | Filter_Version)"
+		echo "This Will Remove Any Old Install Arguements And Can Be Run Multiple Times"
+		echo "Please Select Installation Mode (Number)"
+		echo "1. Vanilla -           Default Installation"
+		echo "2. NoAuto -            Default Installation Without Autobanning"
+		echo "3. Debug -             Default Installation With Debug Print For Extended Stat Reporting"
+		echo "4. NoAuto & Debug -    Default Installation With No Autobanning And Debug Print"
+		echo
+		read mode
+		case $mode in
+			1)
+			echo "Vanilla Selected"
+			sed -i '\~/jffs/scripts/firewall ~d' /jffs/scripts/firewall-start
+			echo "sh /jffs/scripts/firewall start" >> /jffs/scripts/firewall-start
+			;;
+			2)
+			echo "NoAuto Selected"
+			sed -i '\~/jffs/scripts/firewall ~d' /jffs/scripts/firewall-start
+			echo "sh /jffs/scripts/firewall start noautoban" >> /jffs/scripts/firewall-start
+			;;
+			3)
+			echo "Debug Selected"
+			sed -i '\~/jffs/scripts/firewall ~d' /jffs/scripts/firewall-start
+			echo "sh /jffs/scripts/firewall start debug" >> /jffs/scripts/firewall-start
+			;;
+			4)
+			echo "NoAuto Debug Selected"
+			sed -i '\~/jffs/scripts/firewall ~d' /jffs/scripts/firewall-start
+			echo "sh /jffs/scripts/firewall start noautoban debug" >> /jffs/scripts/firewall-start
+			;;
+			*)
+			echo "Mode Not Recognised - Please Run The Command And Try Again"
+			;;
+		esac
+		echo "Restarting Firewall To Apply Changes"
+		service restart_firewall
+		exit
+		;;
+		
 	uninstall)
 		echo "Uninstalling All Traces Of Skynet"
 		echo "If You Were Experiencing Bugs, Try Update Or Visit The Forums/Github"
@@ -604,8 +644,10 @@ case $1 in
 		echo "Type 'yes' To Continue"
 		read continue
 		if [ "$continue" = "yes" ]; then
+			echo "Uninstalling And Restarting Firewall"
 			sed -i '\~/jffs/scripts/firewall ~d' /jffs/scripts/firewall-start
 			rm -rf /jffs/scripts/ipset.txt /jffs/scripts/ipset2.txt /jffs/scripts/ipset3.txt /jffs/scripts/malwarelist.txt /jffs/scripts/countrylist.txt /jffs/skynet.log /jffs/scripts/firewall
+			service restart_firewall
 			exit
 		fi
 		;;
