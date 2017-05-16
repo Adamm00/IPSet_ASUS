@@ -70,10 +70,8 @@ Here Are Some Example Deport Commands;
 "./jffs/scripts/firewall import URL" This Reads IPSet Save File From A Custom URL And Removes All IPs From Blacklist
 
 Here Are Some Example Debug Commands;
-"./jffs/scripts/firewall debug enable" Enable All Debugging To Syslog
-"./jffs/scripts/firewall debug enable newbans" Enable New Ban Debugging To Syslog Only
-"./jffs/scripts/firewall debug enable blocked" Enable Blocked Packet Debugging To Syslog Only
-"./jffs/scripts/firewall debug disable" Disable Debugging
+"./jffs/scripts/firewall debug enable" Enable Raw Debugging To Syslog
+"./jffs/scripts/firewall debug disable" Disable Raw Debugging
 
 Here Are Some Example Update Commands;
 "./jffs/scripts/firewall update" Standard Update Check - If Nothing Detected Exit
