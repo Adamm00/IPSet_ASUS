@@ -9,7 +9,7 @@ This script is an extra line of defense from malicious attackers (mostly bots) w
 
 sh /jffs/scripts/firewall *commandhere*
 
-    "unban"        # <-- Remove Entry From Blacklist (IP/Range/Domain/All)   
+    "unban"        # <-- Remove Entry From Blacklist (IP/Range/Domain/Country/Malware/All)   
     "save"         # <-- Save Blacklists To /jffs/scripts/ipset.txt
     "ban"          # <-- Adds Entry To Blacklist (IP/Range/Domain/Country)     
     "banmalware"   # <-- Bans Various Malware Domains  
@@ -41,6 +41,8 @@ Here Are Some Example Unban Commands;
 "./jffs/scripts/firewall unban range 8.8.8.8/24" This Unbans the CIDR Block Specified
 "./jffs/scripts/firewall unban domain" This Requires Manual Input (Only Domains Accepted)
 "./jffs/scripts/firewall unban domain google.com" This Unbans the URL Specified
+"./jffs/scripts/firewall unban country" This Unbans Entries Added By The "Ban Country" Feature
+"./jffs/scripts/firewall unban malware" This Unbans Entries Added By The "Ban Malware" Feature
 "./jffs/scripts/firewall unban all" This Unbans All Entries From Both Blacklists
 
 Here Are Some Example Ban Commands;
