@@ -13,7 +13,6 @@ https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/dshield.netset
 https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/malwaredomainlist.ipset
 https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/hphosts_exp.ipset
 https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/hphosts_hjk.ipset
-https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/hphosts_emd.ipset
 https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/hphosts_mmt.ipset
 https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/maxmind_proxy_fraud.ipset
 https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/cybercrime.ipset
