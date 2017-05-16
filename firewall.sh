@@ -33,10 +33,12 @@
 #	  "update"	     # <-- Update Script To Latest Version (check github for changes)
 #	  "start"	     # <-- Initiate Firewall
 #	  "stats"	     # <-- Print/Search Stats Of Recently Banned IPs (Requires debugging enabled)
+#	  "install"      # <-- Install Script (Or Change Boot Args)
+#	  "uninstall"    # <-- Uninstall All Traces Of Script
 ##############################
 
 start_time=$(date +%s)
-cat $0 | head -37
+cat $0 | head -39
 
 Check_Settings () {
 			if [ "$(ipset -v | grep -o v6)" != "v6" ]; then
