@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 17/05/2017 -		   Asus Firewall Addition By Adamm v4.0.3				    #
+## - 17/05/2017 -		   Asus Firewall Addition By Adamm v4.0.4				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -21,11 +21,11 @@
 ##############################
 ###	  Commands	   ###
 ##############################
-#	  "unban"	     # <-- Remove Entry From Blacklist (IP/Range/Domain/All)
+#	  "unban"	     # <-- Remove Entry From Blacklist (IP/Range/Domain/Country/Malware/All)
 #	  "save"	     # <-- Save Blacklists To /jffs/scripts/ipset.txt
 #	  "ban"		     # <-- Adds Entry To Blacklist (IP/Range/Domain/Country)
 #	  "banmalware"	     # <-- Bans Various Malware Domains
-#	  "whitelist"        # <-- Add Entry To Whitelist (IP/Range/Domain)
+#	  "whitelist"        # <-- Add Entry To Whitelist (IP/Range/Domain/Remove)
 #	  "import"	     # <-- Import And Merge IPSet Save To Firewall
 #	  "deport"	     # <-- Remove All IPs From IPSet Save From Firewall
 #	  "disable"	     # <-- Disable Firewall
@@ -335,7 +335,7 @@ case $1 in
 			ipset -A Whitelist $whitelistip
 			ipset -D Blacklist $whitelistip
 			sed -i /$whitelistip/d /jffs/skynet.log
-		elif [ -n "$2" ] && [ "$2" != "domain" ]; then
+		elif [ -n "$2" ] && [ "$2" != "domain" ] && [ "$2" != "remove" ]; then
 			logger -st Skynet "[Adding $2 To Whitelist] ... ... ..."
 			ipset -A Whitelist $2
 			ipset -D Blacklist $2
@@ -358,6 +358,13 @@ case $1 in
 			ipset -D Blacklist $ip
 			sed -i /$ip/d /jffs/skynet.log
 		done
+		elif [ "$2" = "remove" ]; then
+			echo "Removing All Non-Default Whitelist Entries"
+			ipset --flush Whitelist
+			ipset --save > /jffs/scripts/ipset.txt
+			echo "Restarting Firewall"
+			service restart_firewall
+			exit
 		else
 			echo "Command Not Recognised, Please Try Again"
 			exit
@@ -554,11 +561,9 @@ case $1 in
 			grep "DPT=$4 " /jffs/skynet.log | tail -$counter
 			exit
 		elif [ "$2" = "search" ] && [ "$3" = "ip" ]; then
-			if [ -n "$(ipset -L Blacklist | grep $4)" ]; then
-				echo "IP Is Still Banned"
-			else
-				echo "IP Is No Longer Banned"
-			fi
+			ipset test Blacklist $4
+			ipset test BlockedRanges $4
+			echo
 			echo "$4 First Tracked On $(grep "SRC=$4 " /jffs/skynet.log | head -1 | awk '{print $1" "$2" "$3}')"
 			echo "$4 Last Tracked On $(grep "SRC=$4 " /jffs/skynet.log | tail -1 | awk '{print $1" "$2" "$3}')"
 			echo "$(grep "SRC=$4 " /jffs/skynet.log | wc -l) Attempts Total"
