@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 17/05/2017 -		   Asus Firewall Addition By Adamm v4.0.6				    #
+## - 17/05/2017 -		   Asus Firewall Addition By Adamm v4.0.7				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -33,14 +33,15 @@
 #	  "update"	     # <-- Update Script To Latest Version (check github for changes)
 #	  "start"	     # <-- Initiate Firewall
 #	  "stats"	     # <-- Print/Search Stats Of Recently Banned IPs (Requires debugging enabled)
-#	  "install"      # <-- Install Script (Or Change Boot Args)
-#	  "uninstall"    # <-- Uninstall All Traces Of Script
+#	  "install"          # <-- Install Script (Or Change Boot Args)
+#	  "uninstall"        # <-- Uninstall All Traces Of Script
 ##############################
 
 start_time=$(date +%s)
 cat $0 | head -39
 
 Check_Settings () {
+			sh /jffs/scripts/firewall update check &> /dev/null
 			if [ "$(ipset -v | grep -o v6)" != "v6" ]; then
 				echo "IPSet version not supported"
 				exit
