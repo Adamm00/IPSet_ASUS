@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                              				    #
 #													    #
-## - 16/05/2017 -		   Asus Firewall Addition By Adamm v3.9.7				    #
+## - 16/05/2017 -		   Asus Firewall Addition By Adamm v3.9.8				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -149,15 +149,18 @@ Purge_Logs () {
 		}
 		
 Unban_HTTP () {
-		for ip in $(grep -E 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep NEW | grep -oE 'SRC=[0-9,\.]* ' | grep -oE '[0-9,\.]* ')
+		for ip in $(grep -E 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep NEW | grep -oE 'SRC=[0-9,\.]* ' | grep -oE '[0-9,\.]* ' | sort -u)
 			do
-			ipset -D Blacklist $ip
-			logger -st Skynet "[Removing $ip From Blacklist & Adding To Whitelist (false positive detected)]"
-			sed -i /$ip/d /jffs/skynet.log
-			ipset -A Whitelist $ip
+			if [ "$(grep $ip /jffs/skynet.log | grep NEW | wc -l)" = "3" ]; then
+				ipset -q -D Blacklist $ip
+				ipset -q -A Whitelist $ip
+				logger -st Skynet "[Removing $ip From Blacklist & Adding To Whitelist (false positive detected)]"
+				sed -i /$ip/d /jffs/skynet.log
+			else
+				ipset -q -D Blacklist $ip
+			fi
 		done
 		}
-
 
 ############################################################################################################
 # -   unban  / save / ban / banmalware / whitelist / import / disable / debug / update / start / stats   - #
