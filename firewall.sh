@@ -1,15 +1,15 @@
 #!/bin/sh
 #############################################################################################################
-#			       _____ _                     _           ____   				    #
-#			      / ____| |                   | |         |___ \				    # 
-#			     | (___ | | ___   _ _ __   ___| |_  __   __ __) |				    #	
-#			      \___ \| |/ / | | | '_ \ / _ \ __| \ \ / /|__ < 				    #
-#			      ____) |   <| |_| | | | |  __/ |_   \ V / ___) |				    #
-#			     |_____/|_|\_\\__, |_| |_|\___|\__|   \_(_)____/ 				    #
+#			       _____ _                     _           _  _   				    #
+#			      / ____| |                   | |         | || |				    #
+#			     | (___ | | ___   _ _ __   ___| |_  __   _| || |_				    #
+#			      \___ \| |/ / | | | '_ \ / _ \ __| \ \ / /__   _|				    #
+#			      ____) |   <| |_| | | | |  __/ |_   \ V /   | |				    #
+#			     |_____/|_|\_\\__, |_| |_|\___|\__|   \_(_)  |_| 				    #
 #			                   __/ |                             				    #
-# 			                  |___/                              				    #
+# 			                  |___/                               				    #
 #													    #
-## - 16/05/2017 -		   Asus Firewall Addition By Adamm v3.9.9				    #
+## - 17/05/2017 -		   Asus Firewall Addition By Adamm v4.0.0				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -27,6 +27,7 @@
 #	  "banmalware"	     # <-- Bans Various Malware Domains
 #	  "whitelist"        # <-- Add Entry To Whitelist (IP/Range/Domain)
 #	  "import"	     # <-- Import And Merge IPSet Backup To Firewall
+#	  "deport"	     # <-- Remove All IPs From IPSet Backup From Firewall
 #	  "disable"	     # <-- Disable Firewall
 #	  "debug"	     # <-- Enable/Disable Debug Output
 #	  "update"	     # <-- Update Script To Latest Version (check github for changes)
@@ -35,7 +36,7 @@
 ##############################
 
 start_time=$(date +%s)
-cat $0 | head -36
+cat $0 | head -37
 
 Check_Settings () {
 			if [ "$(ipset -v | grep -o v6)" != "v6" ]; then
@@ -69,7 +70,6 @@ Check_Settings () {
 
 Unload_DebugIPTables () {
 		iptables -t raw -D PREROUTING -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options &> /dev/null
-		iptables -D logdrop -m set --match-set Whitelist src -j ACCEPT &> /dev/null
 }
 
 Unload_IPTables () {
@@ -79,6 +79,7 @@ Unload_IPTables () {
 		iptables -t raw -D PREROUTING -m set --match-set Whitelist src -j ACCEPT &> /dev/null
 		iptables -D logdrop -m state --state INVALID -j SET --add-set Blacklist src &> /dev/null
 		iptables -D logdrop -m state --state INVALID -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options &> /dev/null
+		iptables -D logdrop -m set --match-set Whitelist src -j ACCEPT &> /dev/null
 }
 
 Load_IPTables () {
@@ -86,9 +87,8 @@ Load_IPTables () {
 		iptables -t raw -I PREROUTING -m set --match-set BlockedRanges src -j DROP &> /dev/null
 		iptables -t raw -I PREROUTING -m set --match-set Whitelist src -j ACCEPT &> /dev/null
 		if [ "$1" = "noautoban" ]; then
-			echo "No Autoban Specified"
+			logger -st Skynet "[Enabling No-Autoban Mode] ... ... ..."
 		else
-			iptables -I logdrop 4 -m state --state NEW -j LOG --log-prefix "[Other Drop] " --log-tcp-sequence --log-tcp-options --log-ip-options &> /dev/null
 			iptables -I logdrop -m state --state INVALID -j SET --add-set Blacklist src &> /dev/null
 			iptables -I logdrop -m state --state INVALID -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options &> /dev/null
 			iptables -I logdrop -m set --match-set Whitelist src -j ACCEPT &> /dev/null
@@ -146,7 +146,7 @@ Purge_Logs () {
 		cat /tmp/syslog.log | sed '/BLOCKED -/!d' >> /jffs/skynet.log
 		sed -i '/BLOCKED -/d' /tmp/syslog.log
 		sed -i '/Aug  1 1/d' /jffs/skynet.log
-		}
+}
 		
 Unban_HTTP () {
 		for ip in $(grep -E 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep NEW | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | sort -u)
@@ -160,11 +160,16 @@ Unban_HTTP () {
 				ipset -q -D Blacklist $ip
 			fi
 		done
-		}
+}
+		
+Enable_Debug () {
+		logger -st Skynet "[Enabling Raw Debug Output] ... ... ..."
+		iptables -t raw -I PREROUTING 2 -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options &> /dev/null
+}
 
-############################################################################################################
-# -   unban  / save / ban / banmalware / whitelist / import / disable / debug / update / start / stats   - #
-############################################################################################################
+#####################################################################################################################
+# -   unban  / save / ban / banmalware / whitelist / import / deport / disable / debug / update / start / stats   - #
+#####################################################################################################################
 
 
 case $1 in
@@ -408,9 +413,7 @@ case $1 in
 		case $2 in
 			enable)
 				Unload_DebugIPTables
-				logger -st Skynet "[Enabling Raw Debug Output] ... ... ..."
-				iptables -t raw -I PREROUTING 2 -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options &> /dev/null
-				iptables -I logdrop -m set --match-set Whitelist src -j ACCEPT &> /dev/null
+				Enable_Debug
 			;;
 			disable)
 				logger -st Skynet "[Disabling Raw Debug Output] ... ... ..."
@@ -487,6 +490,9 @@ case $1 in
 		Unload_IPTables
 		Unload_DebugIPTables
 		Load_IPTables $2
+		if [ "$2" = "debug" ] || [ "$3" = "debug" ]; then
+			Enable_Debug
+		fi
 		sed -i '/DROP IN=/d' /tmp/syslog.log
 		;;
 	
@@ -496,10 +502,15 @@ case $1 in
 		}
 		Purge_Logs
 		Unban_HTTP
+		if [ -z "$(iptables -L -nt raw | grep LOG)" ]; then
+			echo
+			echo "!!! Debug Mode Is Disabled !!!"
+			echo
+		fi
 		if [ -f /jffs/skynet.log ] && [ "$(wc -l /jffs/skynet.log | awk '{print $1}')" != "0" ]; then
 			echo "Debug Data Detected in /jffs/skynet.log - $(ls -lh /jffs/skynet.log | awk '{print $5}')"
 		else
-			echo "No Debug Data Detected - Make Sure Debug Mode Is Enabled To Compile Stats"
+			echo "No Debug Data Detected - Give This Time To Generate"
 			exit
 		fi
 		if [ ! -n "$(iptables -L -nt raw | grep BLOCKED)" ]; then
