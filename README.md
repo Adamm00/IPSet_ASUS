@@ -13,7 +13,7 @@ sh /jffs/scripts/firewall *commandhere*
     "save"         # <-- Save Blacklists To /jffs/scripts/ipset.txt
     "ban"          # <-- Adds Entry To Blacklist (IP/Range/Domain/Country)     
     "banmalware"   # <-- Bans Various Malware Domains  
-    "whitelist"    # <-- Add Entry To Whitelist (IP/Range/Domain)  
+    "whitelist"    # <-- Add Entry To Whitelist (IP/Range/Domain/Remove)  
     "import"       # <-- Import And Merge IPSet Save To Firewall  
     "deport"       # <-- Remove All IPs From IPSet Save From Firewall
     "disable"      # <-- Disable Firewall  
@@ -62,6 +62,7 @@ Here Are Some Example Whitelist Commands;
 "./jffs/scripts/firewall whitelist IP" This Bans The IP or Range Specified
 "./jffs/scripts/firewall whitelist domain" This Requires Manual Input (Only Domains Accepted)
 "./jffs/scripts/firewall whitelist domain google.com" This Bans the URL Specified
+"./jffs/scripts/firewall whitelist remove" This Removes All Non-Default Entries
 
 Here Are Some Example Import Commands;
 "./jffs/scripts/firewall import" This Reads IPSet Save File From /jffs/scripts/ipset2.txt And Saves All IPs To Blacklist
