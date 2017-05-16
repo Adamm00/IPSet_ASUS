@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 17/05/2017 -		   Asus Firewall Addition By Adamm v4.0.4				    #
+## - 17/05/2017 -		   Asus Firewall Addition By Adamm v4.0.5				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -491,6 +491,7 @@ case $1 in
 
 	start)
 		Check_Settings
+		cru a Firewall_save "0 * * * * /jffs/scripts/firewall save"
 		sed -i '/IP Banning Started/d' /tmp/syslog.log
 		logger -st Skynet "[IP Banning Started] ... ... ..."
 		insmod xt_set &> /dev/null
@@ -501,6 +502,7 @@ case $1 in
 		ipset -q -N Blacklist iphash --maxelem 500000
 		ipset -q -N BlockedRanges nethash
 		ipset -q -A Whitelist 192.168.1.0/24
+		ipset -q -A Whitelist $(nvram get wan0_ipaddr)/32
 		ipset -q -A Whitelist $(nvram get lan_ipaddr)/24
 		ipset -q -A Whitelist $(nvram get wan_dns1_x)/32
 		ipset -q -A Whitelist $(nvram get wan_dns2_x)/32
@@ -593,6 +595,19 @@ case $1 in
 		echo "Top $counter Attackers;"
 		grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | grep -vE $(Filter_PrivateIP) | sort -n | uniq -c | sort -nr | head -$counter | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}'
 		echo
+		;;
+		
+	uninstall)
+		echo "Uninstalling All Traces Of Skynet"
+		echo "If You Were Experiencing Bugs, Try Update Or Visit The Forums/Github"
+		echo "https://github.com/Adamm00/IPSet_ASUS"
+		echo "Type 'yes' To Continue"
+		read continue
+		if [ "$continue" = "yes" ]; then
+			sed -i '\~/jffs/scripts/firewall ~d' /jffs/scripts/firewall-start
+			rm -rf /jffs/scripts/ipset.txt /jffs/scripts/ipset2.txt /jffs/scripts/ipset3.txt /jffs/scripts/malwarelist.txt /jffs/scripts/countrylist.txt /jffs/skynet.log /jffs/scripts/firewall
+			exit
+		fi
 		;;
 		
 	*)
