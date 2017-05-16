@@ -187,7 +187,7 @@ case $1 in
 			logger -st Skynet "[Removing $unbanip From Blacklist] ... ... ..."
 			ipset -D Blacklist $unbanip
 			sed -i /$unbanip/d /jffs/skynet.log
-		elif [ -n "$2" ] && [ "$2" != "domain" ]&& [ "$2" != "range" ] && [ "$2" != "all" ]; then
+		elif [ -n "$2" ] && [ "$2" != "domain" ]&& [ "$2" != "range" ] && [ "$2" != "country" ] && [ "$2" != "malware"] && [ "$2" != "all" ]; then
 			logger -st Skynet "[Removing $2 From Blacklist] ... ... ..."
 			ipset -D Blacklist $2
 			sed -i /$2/d /jffs/skynet.log
