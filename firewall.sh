@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                              				    #
 #													    #
-## - 16/05/2017 -		   Asus Firewall Addition By Adamm v3.9.8				    #
+## - 16/05/2017 -		   Asus Firewall Addition By Adamm v3.9.9				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -293,18 +293,20 @@ case $1 in
 		else
 			echo "To Use A Custom List In Future Use; \"sh $0 banmalware URL\""
 			listurl="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/filter.list"
+			echo "Clearing Previous Bans"
+			sed 's/add/del/g' /jffs/scripts/malwarelist.txt | ipset -q -R -!			
 		fi
 		echo "Downloading Lists"
 		wget -q --no-check-certificate -O /tmp/malwarelist.txt -i $listurl
 		echo "Filtering IPv4 Addresses"
-		grep -vE $(Filter_PrivateIP) /tmp/malwarelist.txt | sed -n "s/\r//;/^$/d;/^[0-9,\.]*$/s/^/add Blacklist /p" | sort -u > /tmp/malwarelist1.txt
+		grep -vE $(Filter_PrivateIP) /tmp/malwarelist.txt | sed -n "s/\r//;/^$/d;/^[0-9,\.]*$/s/^/add Blacklist /p" | sort -u > /jffs/scripts/malwarelist.txt
 		echo "Filtering IPv4 Ranges"
-		grep -vE $(Filter_PrivateIP) /tmp/malwarelist.txt | sed -n "s/\r//;/^$/d;/^[0-9,\.,\/]*$/s/^/add BlockedRanges /p" | grep "/" | sort -u >> /tmp/malwarelist1.txt
+		grep -vE $(Filter_PrivateIP) /tmp/malwarelist.txt | sed -n "s/\r//;/^$/d;/^[0-9,\.,\/]*$/s/^/add BlockedRanges /p" | grep "/" | sort -u >> /jffs/scripts/malwarelist.txt
 		echo "Applying Blacklists"
-		ipset -q -R -! < /tmp/malwarelist1.txt
-		rm -rf /tmp/malwarelist*.txt
+		ipset -q -R -! < /jffs/scripts/malwarelist.txt
+		rm -rf /tmp/malwarelist.txt
 		echo "Warning; This May Have Blocked Your Favorite Torrent Website"
-		echo "To Unban It Use; \"sh $0 unban domain URL\""
+		echo "To Whitelist It Use; \"sh $0 whitelist domain URL\""
 		;;
 		
 	whitelist)
@@ -356,7 +358,7 @@ case $1 in
 			wget -q --no-check-certificate -O /jffs/scripts/ipset2.txt $2
 		else
 			echo "To Download A Custom List Use; \"sh $0 import URL\""
-			echo "Defaulting Blacklist Location To /tmp/ipset2.txt"
+			echo "Defaulting Blacklist Location To /jffs/scripts/ipset2.txt"
 		fi
 		if [ ! -f /jffs/scripts/ipset2.txt ]; then
 			echo "No IPSet Backup Detected - Exiting"
@@ -367,6 +369,29 @@ case $1 in
 		echo "Filtering IPv4 Ranges"
 		grep -v "create" /jffs/scripts/ipset2.txt |  awk '{print $3}' | grep -vE $(Filter_PrivateIP) | sed -n "s/\r//;/^$/d;/^[0-9,\.,\/]*$/s/^/add BlockedRanges /p" | grep "/" >> /tmp/ipset3.txt
 		echo "Importing IPs To Blacklist"
+		ipset -q -R -! < /tmp/ipset3.txt
+		rm -rf /tmp/ipset3.txt
+		;;
+		
+	deport)
+		echo "This Function Only Supports IPSet Generated Save Files And Removes Them ALL From Blacklist"
+		echo "To Save A Specific Set In SSH Use; 'ipset --save Blacklist > /jffs/scripts/ipset2.txt'"
+		if [ -n "$2" ]; then
+			echo "Custom List Detected: $2"
+			wget -q --no-check-certificate -O /jffs/scripts/ipset2.txt $2
+		else
+			echo "To Download A Custom List Use; \"sh $0 import URL\""
+			echo "Defaulting Blacklist Location To /jffs/scripts/ipset2.txt"
+		fi
+		if [ ! -f /jffs/scripts/ipset2.txt ]; then
+			echo "No IPSet Backup Detected - Exiting"
+			exit
+		fi
+		echo "Filtering IPv4 Addresses"
+		grep -v "create" /jffs/scripts/ipset2.txt |  awk '{print $3}' | sed -n "s/\r//;/^$/d;/^[0-9,\.]*$/s/^/del Blacklist /p" > /tmp/ipset3.txt
+		echo "Filtering IPv4 Ranges"
+		grep -v "create" /jffs/scripts/ipset2.txt |  awk '{print $3}' | sed -n "s/\r//;/^$/d;/^[0-9,\.,\/]*$/s/^/del BlockedRanges /p" | grep "/" >> /tmp/ipset3.txt
+		echo "Removing IPs From Blacklist"
 		ipset -q -R -! < /tmp/ipset3.txt
 		rm -rf /tmp/ipset3.txt
 		;;
