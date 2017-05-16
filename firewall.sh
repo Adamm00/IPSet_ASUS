@@ -149,9 +149,9 @@ Purge_Logs () {
 		}
 		
 Unban_HTTP () {
-		for ip in $(grep -E 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep NEW | grep -oE 'SRC=[0-9,\.]* ' | grep -oE '[0-9,\.]* ' | sort -u)
+		for ip in $(grep -E 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep NEW | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | sort -u)
 			do
-			if [ "$(grep $ip /jffs/skynet.log | grep NEW | wc -l)" = "3" ]; then
+			if [ "$(grep $ip /jffs/skynet.log | grep NEW | grep -E 'SPT=80 |SPT=443 ' | wc -l)" = "3" ]; then
 				ipset -q -D Blacklist $ip
 				ipset -q -A Whitelist $ip
 				logger -st Skynet "[Removing $ip From Blacklist & Adding To Whitelist (false positive detected)]"
