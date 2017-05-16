@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 17/05/2017 -		   Asus Firewall Addition By Adamm v4.0.0				    #
+## - 17/05/2017 -		   Asus Firewall Addition By Adamm v4.0.1				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -26,8 +26,8 @@
 #	  "ban"		     # <-- Adds Entry To Blacklist (IP/Range/Domain/Country)
 #	  "banmalware"	     # <-- Bans Various Malware Domains
 #	  "whitelist"        # <-- Add Entry To Whitelist (IP/Range/Domain)
-#	  "import"	     # <-- Import And Merge IPSet Backup To Firewall
-#	  "deport"	     # <-- Remove All IPs From IPSet Backup From Firewall
+#	  "import"	     # <-- Import And Merge IPSet Save To Firewall
+#	  "deport"	     # <-- Remove All IPs From IPSet Save From Firewall
 #	  "disable"	     # <-- Disable Firewall
 #	  "debug"	     # <-- Enable/Disable Debug Output
 #	  "update"	     # <-- Update Script To Latest Version (check github for changes)
@@ -467,6 +467,7 @@ case $1 in
 		if [ "$localver" != "$remotever" ] || [ "$2" = "-f" ]; then
 			logger -st Skynet "[New Version Detected - Updating To $remotever]... ... ..."
 			wget -q --no-check-certificate -O $0 https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh && logger -st Skynet "[Skynet Sucessfully Updated]"
+			service restart_firewall
 			exit
 		fi
 		;;
