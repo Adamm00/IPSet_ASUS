@@ -19,17 +19,18 @@ sh /jffs/scripts/firewall *commandhere*
     "disable"      # <-- Disable Firewall  
     "update"       # <-- Update Script To Latest Version (check github for changes)  
     "stats"        # <-- Print/Search Stats Of Recently Banned IPs (Requires debugging enabled)
+    "install"      # <-- Install Script (Or Change Boot Args)
+    "uninstall     # <-- Uninstall All Traces Of Script
 
 
 ## Installation
 
-Edit these files manually if you have other conflicting scripts, otherwise do the following.
+In your favorite SSH Client;
 
 ```sh
 wget -O /jffs/scripts/firewall https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh
-wget -O /jffs/scripts/firewall-start https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall-start.sh
 chmod +x /jffs/scripts/firewall
-chmod +x /jffs/scripts/firewall-start
+sh /jffs/scripts/firewall install
 ```
 
 ## Help
