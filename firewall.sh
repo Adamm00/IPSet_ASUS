@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 17/05/2017 -		   Asus Firewall Addition By Adamm v4.0.7				    #
+## - 17/05/2017 -		   Asus Firewall Addition By Adamm v4.0.8				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -144,7 +144,7 @@ Unban_PrivateIP () {
 }
 
 Purge_Logs () {
-		find /jffs/skynet.log -mtime +7 -type f -delete &> /dev/null
+		find /jffs/skynet.log -mtime +14 -type f -delete &> /dev/null
 		cat /tmp/syslog.log-1 | sed '/BLOCKED -/!d' >> /jffs/skynet.log &> /dev/null
 		sed -i '/BLOCKED -/d' /tmp/syslog.log-1 &> /dev/null
 		cat /tmp/syslog.log | sed '/BLOCKED -/!d' >> /jffs/skynet.log
@@ -155,7 +155,7 @@ Purge_Logs () {
 Unban_HTTP () {
 		for ip in $(grep -E 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep NEW | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | sort -u)
 			do
-			if [ "$(grep $ip /jffs/skynet.log | grep NEW | grep -E 'SPT=80 |SPT=443 ' | wc -l)" = "3" ]; then
+			if [ "$(grep $ip /jffs/skynet.log | grep NEW | grep -E 'SPT=80 |SPT=443 ' | wc -l)" -ge "2" ]; then
 				ipset -q -D Blacklist $ip
 				ipset -q -A Whitelist $ip
 				logger -st Skynet "[Removing $ip From Blacklist & Adding To Whitelist (false positive detected)]"
@@ -633,6 +633,7 @@ case $1 in
 			;;
 			*)
 			echo "Mode Not Recognised - Please Run The Command And Try Again"
+			exit
 			;;
 		esac
 		echo "Restarting Firewall To Apply Changes"
