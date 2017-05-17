@@ -669,7 +669,7 @@ case $1 in
 			sed -i '\~/jffs/scripts/firewall ~d' /jffs/scripts/firewall-start
 			echo "sh /jffs/scripts/firewall $set1 banmalware # Skynet Firewall Addition" >> /jffs/scripts/firewall-start
 			;;
-			2) 
+			*) 
 			echo "Malware List Updating Disabled"
 			sed -i '\~/jffs/scripts/firewall ~d' /jffs/scripts/firewall-start
 			echo "sh /jffs/scripts/firewall $set1 # Skynet Firewall Addition" >> /jffs/scripts/firewall-start
