@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 18/05/2017 -		   Asus Firewall Addition By Adamm v4.1.1				    #
+## - 18/05/2017 -		   Asus Firewall Addition By Adamm v4.1.2				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -533,6 +533,9 @@ case $1 in
 		if [ "$2" = "debug" ] || [ "$3" = "debug" ]; then
 			Enable_Debug
 		fi
+		if [ "$2" = "banmalware" ] || [ "$3" = "banmalware" ] || [ "$4" = "banmalware" ]; then
+			cru a Firewall_banmalware "25 1 * * 1 sh /jffs/scripts/firewall banmalware"
+		fi
 		sed -i '/DROP IN=/d' /tmp/syslog.log
 		;;
 	
@@ -634,29 +637,45 @@ case $1 in
 		case $mode in
 			1)
 			echo "Vanilla Selected"
-			sed -i '\~/jffs/scripts/firewall ~d' /jffs/scripts/firewall-start
-			echo "sh /jffs/scripts/firewall start # Skynet Firewall Addition" >> /jffs/scripts/firewall-start
+			set1="start"
 			;;
 			2)
 			echo "NoAuto Selected"
-			sed -i '\~/jffs/scripts/firewall ~d' /jffs/scripts/firewall-start
-			echo "sh /jffs/scripts/firewall start noautoban # Skynet Firewall Addition" >> /jffs/scripts/firewall-start
+			set1="start noautoban"
 			;;
 			3)
 			echo "Debug Selected"
-			sed -i '\~/jffs/scripts/firewall ~d' /jffs/scripts/firewall-start
-			echo "sh /jffs/scripts/firewall start debug # Skynet Firewall Addition" >> /jffs/scripts/firewall-start
+			set1="start debug"
 			;;
 			4)
 			echo "NoAuto Debug Selected"
-			sed -i '\~/jffs/scripts/firewall ~d' /jffs/scripts/firewall-start
-			echo "sh /jffs/scripts/firewall start noautoban debug # Skynet Firewall Addition" >> /jffs/scripts/firewall-start
+			set1="start noautoban debug"
 			;;
 			*)
 			echo "Mode Not Recognised - Please Run The Command And Try Again"
 			exit
 			;;
 		esac
+		echo
+		echo "Would You Like To Enable Weekly Malwarelist Updating"
+		echo "1. Yes"
+		echo "2. No"
+		echo "Please Select Option (Number)"
+		read mode2
+		case $mode2 in
+			1) 
+			echo "Malware List Updating Enabled"
+			echo "Malware Updates Scheduled For 1.25am Every Monday"
+			sed -i '\~/jffs/scripts/firewall ~d' /jffs/scripts/firewall-start
+			echo "sh /jffs/scripts/firewall $set1 banmalware # Skynet Firewall Addition" >> /jffs/scripts/firewall-start
+			;;
+			2) 
+			echo "Malware List Updating Disabled"
+			sed -i '\~/jffs/scripts/firewall ~d' /jffs/scripts/firewall-start
+			echo "sh /jffs/scripts/firewall $set1 # Skynet Firewall Addition" >> /jffs/scripts/firewall-start
+			;;
+		esac
+		echo
 		echo "Restarting Firewall To Apply Changes"
 		service restart_firewall
 		exit
