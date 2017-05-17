@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 18/05/2017 -		   Asus Firewall Addition By Adamm v4.0.8				    #
+## - 18/05/2017 -		   Asus Firewall Addition By Adamm v4.0.9				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -583,6 +583,7 @@ case $1 in
 			grep "DPT=$4 " /jffs/skynet.log | tail -$counter
 			exit
 		elif [ "$2" = "search" ] && [ "$3" = "ip" ]; then
+			ipset test Whitelist $4
 			ipset test Blacklist $4
 			ipset test BlockedRanges $4
 			echo
