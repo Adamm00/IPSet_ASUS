@@ -9,11 +9,11 @@ This script is an extra line of defense from malicious attackers (mostly bots) w
 
 sh /jffs/scripts/firewall *commandhere*
 
-    "unban"        # <-- Remove Entry From Blacklist (IP/Range/Domain/Country/Malware/All)   
+    "unban"        # <-- Remove Entry From Blacklist (IP/Range/Domain/Port/Country/Malware/All)   
     "save"         # <-- Save Blacklists To /jffs/scripts/ipset.txt
     "ban"          # <-- Adds Entry To Blacklist (IP/Range/Domain/Country)     
     "banmalware"   # <-- Bans Various Malware Domains  
-    "whitelist"    # <-- Add Entry To Whitelist (IP/Range/Domain/Remove)  
+    "whitelist"    # <-- Add Entry To Whitelist (IP/Range/Domain/Port/Remove)  
     "import"       # <-- Import And Merge IPSet Save To Firewall  
     "deport"       # <-- Remove All IPs From IPSet Save From Firewall
     "disable"      # <-- Disable Firewall  
@@ -42,6 +42,7 @@ Here Are Some Example Unban Commands;
 "./jffs/scripts/firewall unban range 8.8.8.8/24" This Unbans the CIDR Block Specified
 "./jffs/scripts/firewall unban domain" This Requires Manual Input (Only Domains Accepted)
 "./jffs/scripts/firewall unban domain google.com" This Unbans the URL Specified
+"./jffs/scripts/firewall unban port 23" This Unbans All Autobans Based On Traffic From Port 23
 "./jffs/scripts/firewall unban country" This Unbans Entries Added By The "Ban Country" Feature
 "./jffs/scripts/firewall unban malware" This Unbans Entries Added By The "Ban Malware" Feature
 "./jffs/scripts/firewall unban all" This Unbans All Entries From Both Blacklists
@@ -63,6 +64,7 @@ Here Are Some Example Whitelist Commands;
 "./jffs/scripts/firewall whitelist IP" This Bans The IP or Range Specified
 "./jffs/scripts/firewall whitelist domain" This Requires Manual Input (Only Domains Accepted)
 "./jffs/scripts/firewall whitelist domain google.com" This Bans the URL Specified
+"./jffs/scripts/firewall whitelist port 23" This Whitelists All Autobans Based On Traffic From Port 23
 "./jffs/scripts/firewall whitelist remove" This Removes All Non-Default Entries
 
 Here Are Some Example Import Commands;
