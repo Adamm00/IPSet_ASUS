@@ -515,7 +515,7 @@ case $1 in
 		sed -i '/IP Banning Started/d' /tmp/syslog.log
 		logger -st Skynet "[IP Banning Started] ... ... ..."
 		insmod xt_set &> /dev/null
-		ipset -q -R 2> /dev/null < /jffs/scripts/ipset.txt
+		ipset -q -R &> /dev/null < /jffs/scripts/ipset.txt
 		Purge_Logs
 		Unban_PrivateIP
 		ipset -q -N Whitelist nethash
