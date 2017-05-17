@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 17/05/2017 -		   Asus Firewall Addition By Adamm v4.0.8				    #
+## - 18/05/2017 -		   Asus Firewall Addition By Adamm v4.0.8				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -21,9 +21,9 @@
 ##############################
 ###	  Commands	   ###
 ##############################
-#	  "unban"	     # <-- Remove Entry From Blacklist (IP/Range/Domain/Country/Malware/All)
+#	  "unban"	     # <-- Remove Entry From Blacklist (IP/Range/Domain/Port/Country/Malware/All)
 #	  "save"	     # <-- Save Blacklists To /jffs/scripts/ipset.txt
-#	  "ban"		     # <-- Adds Entry To Blacklist (IP/Range/Domain/Country)
+#	  "ban"		     # <-- Adds Entry To Blacklist (IP/Range/Domain/Port/Country)
 #	  "banmalware"	     # <-- Bans Various Malware Domains
 #	  "whitelist"        # <-- Add Entry To Whitelist (IP/Range/Domain/Remove)
 #	  "import"	     # <-- Import And Merge IPSet Save To Firewall
@@ -190,7 +190,7 @@ case $1 in
 			logger -st Skynet "[Removing $unbanip From Blacklist] ... ... ..."
 			ipset -D Blacklist $unbanip
 			sed -i /$unbanip/d /jffs/skynet.log
-		elif [ -n "$2" ] && [ "$2" != "domain" ]&& [ "$2" != "range" ] && [ "$2" != "country" ] && [ "$2" != "malware"] && [ "$2" != "all" ]; then
+		elif [ -n "$2" ] && [ "$2" != "domain" ]&& [ "$2" != "range" ] && [ "$2" != "port" ] && [ "$2" != "country" ] && [ "$2" != "malware"] && [ "$2" != "all" ]; then
 			logger -st Skynet "[Removing $2 From Blacklist] ... ... ..."
 			ipset -D Blacklist $2
 			sed -i /$2/d /jffs/skynet.log
@@ -213,6 +213,14 @@ case $1 in
 			ipset -D Blacklist $ip
 			sed -i /$ip/d /jffs/skynet.log
 		done
+		elif [ "$2" = "port" ] && [ -n "$3" ]; then
+			logger -st Skynet "[Unbanning Autobans Issued On Traffic From Port $3] ... ... ..."
+			for ip in $(grep NEW /jffs/skynet.log | grep "DPT=$3 " | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- )
+				do
+				echo "Unbanning $ip"
+				ipset -D Blacklist $ip
+				sed -i /$ip/d /jffs/skynet.log
+			done
 		elif [ "$2" = "country" ]; then
 			echo "Removing Previous Country Bans"
 			sed 's/add/del/g' /jffs/scripts/countrylist.txt | ipset -q -R -!
@@ -338,7 +346,7 @@ case $1 in
 			ipset -A Whitelist $whitelistip
 			ipset -D Blacklist $whitelistip
 			sed -i /$whitelistip/d /jffs/skynet.log
-		elif [ -n "$2" ] && [ "$2" != "domain" ] && [ "$2" != "remove" ]; then
+		elif [ -n "$2" ] && [ "$2" != "domain" ] && [ "$2" = "port" ] && [ "$2" != "remove" ]; then
 			logger -st Skynet "[Adding $2 To Whitelist] ... ... ..."
 			ipset -A Whitelist $2
 			ipset -D Blacklist $2
@@ -361,6 +369,15 @@ case $1 in
 			ipset -D Blacklist $ip
 			sed -i /$ip/d /jffs/skynet.log
 		done
+		elif [ "$2" = "port" ] && [ -n "$3" ]; then
+			logger -st Skynet "[Whitelisting Autobans Issued On Traffic From Port $3] ... ... ..."
+			for ip in $(grep NEW /jffs/skynet.log | grep "DPT=$3 " | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- )
+				do
+				echo "Whitelisting $ip"
+				ipset -A Whitelist $ip
+				ipset -D Blacklist $ip
+				sed -i /$ip/d /jffs/skynet.log
+			done		
 		elif [ "$2" = "remove" ]; then
 			echo "Removing All Non-Default Whitelist Entries"
 			ipset --flush Whitelist
