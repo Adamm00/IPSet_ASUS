@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 18/05/2017 -		   Asus Firewall Addition By Adamm v4.1.2				    #
+## - 18/05/2017 -		   Asus Firewall Addition By Adamm v4.1.3				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -145,9 +145,9 @@ Unban_PrivateIP () {
 
 Purge_Logs () {
 		find /jffs/skynet.log -mtime +14 -type f -delete &> /dev/null
-		cat /tmp/syslog.log-1 | sed '/BLOCKED -/!d' >> /jffs/skynet.log &> /dev/null
+		cat /tmp/syslog.log-1 2> /dev/null | sed '/BLOCKED -/!d' >> /jffs/skynet.log
 		sed -i '/BLOCKED -/d' /tmp/syslog.log-1 &> /dev/null
-		cat /tmp/syslog.log | sed '/BLOCKED -/!d' >> /jffs/skynet.log
+		cat /tmp/syslog.log 2> /dev/null | sed '/BLOCKED -/!d' >> /jffs/skynet.log
 		sed -i '/BLOCKED -/d' /tmp/syslog.log
 		sed -i '/Aug  1 1/d' /jffs/skynet.log
 }
@@ -515,7 +515,7 @@ case $1 in
 		sed -i '/IP Banning Started/d' /tmp/syslog.log
 		logger -st Skynet "[IP Banning Started] ... ... ..."
 		insmod xt_set &> /dev/null
-		ipset -q -R  < /jffs/scripts/ipset.txt
+		ipset -q -R 2> /dev/null < /jffs/scripts/ipset.txt
 		Purge_Logs
 		Unban_PrivateIP
 		ipset -q -N Whitelist nethash
