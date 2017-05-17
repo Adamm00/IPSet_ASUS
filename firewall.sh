@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 18/05/2017 -		   Asus Firewall Addition By Adamm v4.1.3				    #
+## - 18/05/2017 -		   Asus Firewall Addition By Adamm v4.1.4				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -675,6 +675,7 @@ case $1 in
 			echo "sh /jffs/scripts/firewall $set1 # Skynet Firewall Addition" >> /jffs/scripts/firewall-start
 			;;
 		esac
+		chmod +x /jffs/scripts/firewall-start
 		echo
 		echo "Restarting Firewall To Apply Changes"
 		service restart_firewall
