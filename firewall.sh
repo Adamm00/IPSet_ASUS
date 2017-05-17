@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 18/05/2017 -		   Asus Firewall Addition By Adamm v4.1.4				    #
+## - 18/05/2017 -		   Asus Firewall Addition By Adamm v4.1.5				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -625,6 +625,9 @@ case $1 in
 		;;
 		
 	install)
+		if [ ! -f /jffs/scripts/firewall-start ]; then
+			echo "#!/bin/sh" >> /jffs/scripts/firewall-start
+		fi
 		echo "Installing Skynet $(cat $0 | Filter_Version)"
 		echo "This Will Remove Any Old Install Arguements And Can Be Run Multiple Times"
 		echo "Please Select Installation Mode (Number)"
