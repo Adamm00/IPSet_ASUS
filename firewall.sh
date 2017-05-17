@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 18/05/2017 -		   Asus Firewall Addition By Adamm v4.0.9				    #
+## - 18/05/2017 -		   Asus Firewall Addition By Adamm v4.1.0				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -605,13 +605,13 @@ case $1 in
 		grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -vE $(Filter_DST) | grep -oE 'SPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -$counter | awk '{print $1"x https://www.speedguide.net/port.php?port="$2}'
 		echo
 		echo "Last $counter Unique Connections Blocked;"
-		grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | grep -vE $(Filter_PrivateIP) | uniq -u | tail -$counter | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
+		grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | grep -vE $(Filter_PrivateIP) | sort -u | tail -$counter | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
 		echo
 		echo "Last $counter Autobans;"
 		grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep "NEW BAN" | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | grep -vE $(Filter_PrivateIP) | tail -$counter | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
 		echo
 		echo "Last $counter Unique HTTP(s) Blocks;"
-		grep -E 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | grep -vE $(Filter_PrivateIP) | uniq -u | tail -$counter | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'		
+		grep -E 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | grep -vE $(Filter_PrivateIP) | sort -u | tail -$counter | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'		
 		echo
 		echo "Top $counter HTTP(s) Blocks;"
 		grep -E 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | grep -vE $(Filter_PrivateIP) | sort -n | uniq -c | sort -nr | head -$counter | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}'
@@ -635,22 +635,22 @@ case $1 in
 			1)
 			echo "Vanilla Selected"
 			sed -i '\~/jffs/scripts/firewall ~d' /jffs/scripts/firewall-start
-			echo "sh /jffs/scripts/firewall start" >> /jffs/scripts/firewall-start
+			echo "sh /jffs/scripts/firewall start # Skynet Firewall Addition" >> /jffs/scripts/firewall-start
 			;;
 			2)
 			echo "NoAuto Selected"
 			sed -i '\~/jffs/scripts/firewall ~d' /jffs/scripts/firewall-start
-			echo "sh /jffs/scripts/firewall start noautoban" >> /jffs/scripts/firewall-start
+			echo "sh /jffs/scripts/firewall start noautoban # Skynet Firewall Addition" >> /jffs/scripts/firewall-start
 			;;
 			3)
 			echo "Debug Selected"
 			sed -i '\~/jffs/scripts/firewall ~d' /jffs/scripts/firewall-start
-			echo "sh /jffs/scripts/firewall start debug" >> /jffs/scripts/firewall-start
+			echo "sh /jffs/scripts/firewall start debug # Skynet Firewall Addition" >> /jffs/scripts/firewall-start
 			;;
 			4)
 			echo "NoAuto Debug Selected"
 			sed -i '\~/jffs/scripts/firewall ~d' /jffs/scripts/firewall-start
-			echo "sh /jffs/scripts/firewall start noautoban debug" >> /jffs/scripts/firewall-start
+			echo "sh /jffs/scripts/firewall start noautoban debug # Skynet Firewall Addition" >> /jffs/scripts/firewall-start
 			;;
 			*)
 			echo "Mode Not Recognised - Please Run The Command And Try Again"
