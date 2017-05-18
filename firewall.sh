@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 18/05/2017 -		   Asus Firewall Addition By Adamm v4.1.6				    #
+## - 18/05/2017 -		   Asus Firewall Addition By Adamm v4.1.7				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -46,7 +46,7 @@ Check_Settings () {
 				echo "IPSet version not supported"
 				exit
 			fi
-			
+
 			if [ -d "/opt/bin" ] && [ ! -f /opt/bin/firewall ]; then
 				echo "Enabling /opt/bin Symlink"
 				ln -s /jffs/scripts/firewall /opt/bin
@@ -63,12 +63,12 @@ Check_Settings () {
 				nvram set fw_enable_x=1
 				nvram commit
 			fi
-	
+
 			if [ "$(nvram get fw_log_x)" != "drop" ]; then
 				echo "Enabling Firewall Logging"
 				nvram set fw_log_x=drop
 				nvram commit
-			fi	
+			fi
 }
 
 Unload_DebugIPTables () {
@@ -135,7 +135,7 @@ Unban_PrivateIP () {
 			ipset -D Blacklist $ip
 			sed -i /$ip/d /jffs/skynet.log
 		done
-		
+
 		for ip in $(ipset -L BlockedRanges | grep -E $(Filter_PrivateIP))
 			do
 			ipset -D BlockedRanges $ip
@@ -151,9 +151,9 @@ Purge_Logs () {
 		sed -i '/BLOCKED -/d' /tmp/syslog.log
 		sed -i '/Aug  1 1/d' /jffs/skynet.log
 }
-		
+
 Unban_HTTP () {
-		for ip in $(grep -E 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep NEW | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | sort -u)
+		for ip in $(grep -E 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep NEW | grep -v UNBANNED | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | sort -u)
 			do
 			if [ "$(grep $ip /jffs/skynet.log | grep NEW | grep -E 'SPT=80 |SPT=443 ' | wc -l)" -ge "2" ]; then
 				ipset -q -D Blacklist $ip
@@ -162,10 +162,11 @@ Unban_HTTP () {
 				sed -i /$ip/d /jffs/skynet.log
 			else
 				ipset -q -D Blacklist $ip
+				sed -i "/$ip/ s/$/ UNBANNED/" /jffs/skynet.log
 			fi
 		done
 }
-		
+
 Enable_Debug () {
 		logger -st Skynet "[Enabling Raw Debug Output] ... ... ..."
 		iptables -t raw -I PREROUTING 2 -m set --match-set BlockedRanges src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options &> /dev/null
@@ -320,7 +321,7 @@ case $1 in
 			echo "To Use A Custom List In Future Use; \"sh $0 banmalware URL\""
 			listurl="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/filter.list"
 			echo "Removing Previous Malware Bans"
-			sed 's/add/del/g' /jffs/scripts/malwarelist.txt | ipset -q -R -!			
+			sed 's/add/del/g' /jffs/scripts/malwarelist.txt | ipset -q -R -!
 		fi
 		echo "Downloading Lists"
 		wget -q --no-check-certificate -O /tmp/malwarelist.txt -i $listurl
@@ -334,7 +335,7 @@ case $1 in
 		echo "Warning; This May Have Blocked Your Favorite Torrent Website"
 		echo "To Whitelist It Use; \"sh $0 whitelist domain URL\""
 		;;
-		
+
 	whitelist)
 		Purge_Logs
 		if [ -z "$2" ]; then
@@ -377,7 +378,7 @@ case $1 in
 				ipset -A Whitelist $ip
 				ipset -D Blacklist $ip
 				sed -i /$ip/d /jffs/skynet.log
-			done		
+			done
 		elif [ "$2" = "remove" ]; then
 			echo "Removing All Non-Default Whitelist Entries"
 			ipset --flush Whitelist
@@ -414,7 +415,7 @@ case $1 in
 		ipset -q -R -! < /tmp/ipset3.txt
 		rm -rf /tmp/ipset3.txt
 		;;
-		
+
 	deport)
 		echo "This Function Only Supports IPSet Generated Save Files And Removes Them ALL From Blacklist"
 		echo "To Save A Specific Set In SSH Use; 'ipset --save Blacklist > /jffs/scripts/ipset2.txt'"
@@ -481,7 +482,7 @@ case $1 in
 				ipset -L BlockedRanges &> /dev/null && echo -e $GRN"BlockedRanges IPSet Detected"$NC || echo -e $RED"BlockedRanges IPSet Not Detected"$NC
 				ipset -L Blacklist &> /dev/null && echo -e $GRN"Blacklist IPSet Detected"$NC || echo -e $RED"Blacklist IPSet Not Detected"$NC
 			;;
-			
+
 		*)
 			echo "Error - Use Syntax './jffs/scripts/firewall debug (enable/disable/filter/info)'"
 		esac
@@ -538,7 +539,7 @@ case $1 in
 		fi
 		sed -i '/DROP IN=/d' /tmp/syslog.log
 		;;
-	
+
 	stats)
 		Filter_DST () {
 			echo '(DST=127\.)|(DST=10\.)|(DST=172\.1[6-9]\.)|(DST=172\.2[0-9]\.)|(DST=172\.3[0-1]\.)|(DST=192\.168\.)|(DST=0.)|(DST=169\.254\.)'
@@ -614,7 +615,7 @@ case $1 in
 		grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep "NEW BAN" | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | grep -vE $(Filter_PrivateIP) | tail -$counter | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
 		echo
 		echo "Last $counter Unique HTTP(s) Blocks;"
-		grep -E 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | grep -vE $(Filter_PrivateIP) | awk '!x[$0]++' | tail -$counter | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'		
+		grep -E 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | grep -vE $(Filter_PrivateIP) | awk '!x[$0]++' | tail -$counter | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
 		echo
 		echo "Top $counter HTTP(s) Blocks;"
 		grep -E 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | grep -vE $(Filter_PrivateIP) | sort -n | uniq -c | sort -nr | head -$counter | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}'
@@ -623,7 +624,7 @@ case $1 in
 		grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | grep -vE $(Filter_PrivateIP) | sort -n | uniq -c | sort -nr | head -$counter | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}'
 		echo
 		;;
-		
+
 	install)
 		if [ ! -f /jffs/scripts/firewall-start ]; then
 			echo "#!/bin/sh" > /jffs/scripts/firewall-start
@@ -668,13 +669,13 @@ case $1 in
 		echo "Please Select Option (Number)"
 		read mode2
 		case $mode2 in
-			1) 
+			1)
 			echo "Malware List Updating Enabled"
 			echo "Malware Updates Scheduled For 1.25am Every Monday"
 			sed -i '\~/jffs/scripts/firewall ~d' /jffs/scripts/firewall-start
 			echo "sh /jffs/scripts/firewall $set1 banmalware # Skynet Firewall Addition" >> /jffs/scripts/firewall-start
 			;;
-			*) 
+			*)
 			echo "Malware List Updating Disabled"
 			sed -i '\~/jffs/scripts/firewall ~d' /jffs/scripts/firewall-start
 			echo "sh /jffs/scripts/firewall $set1 # Skynet Firewall Addition" >> /jffs/scripts/firewall-start
@@ -686,10 +687,10 @@ case $1 in
 		service restart_firewall
 		exit
 		;;
-		
+
 	uninstall)
 		echo "Uninstalling All Traces Of Skynet"
-		echo "If You Were Experiencing Bugs, Try Update Or Visit The Forums/Github"
+		echo "If You Were Experiencing Bugs, Try Update Or Visit SNBForums/Github"
 		echo "https://github.com/Adamm00/IPSet_ASUS"
 		echo "Type 'yes' To Continue"
 		read continue
@@ -701,7 +702,7 @@ case $1 in
 			exit
 		fi
 		;;
-		
+
 	*)
         echo "Command Not Recognised, Please Try Again"
 		echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
