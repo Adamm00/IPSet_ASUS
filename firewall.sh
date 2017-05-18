@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 19/05/2017 -		   Asus Firewall Addition By Adamm v4.1.9				    #
+## - 18/05/2017 -		   Asus Firewall Addition By Adamm v4.2.0				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -41,34 +41,46 @@ start_time=$(date +%s)
 cat $0 | head -39
 
 Check_Settings () {
-			sh /jffs/scripts/firewall update check &> /dev/null
-			if [ "$(ipset -v | grep -o v6)" != "v6" ]; then
-				echo "IPSet version not supported"
-				exit
-			fi
+		if [ "$1" = "debug" ] || [ "$2" = "debug" ]; then
+			Enable_Debug
+		fi
+		if [ "$1" = "banmalware" ] || [ "$2" = "banmalware" ] || [ "$3" = "banmalware" ]; then
+			cru a Firewall_banmalware "25 1 * * 1 sh /jffs/scripts/firewall banmalware"
+		fi
+		
+		if [ "$1" = "autoupdate" ] || [ "$2" = "autoupdate" ] || [ "$3" = "autoupdate" ] || [ "$4" = "autoupdate" ]; then
+			cru a Firewall_autoupdate "25 1 * * * sh /jffs/scripts/firewall update"
+		else
+			cru a Firewall_checkupdate "25 2 * * * sh /jffs/scripts/firewall update check"
+		fi
+		
+		if [ "$(ipset -v | grep -o v6)" != "v6" ]; then
+			echo "IPSet version not supported"
+			exit
+		fi
 
-			if [ -d "/opt/bin" ] && [ ! -f /opt/bin/firewall ]; then
-				echo "Enabling /opt/bin Symlink"
-				ln -s /jffs/scripts/firewall /opt/bin
-			fi
+		if [ -d "/opt/bin" ] && [ ! -f /opt/bin/firewall ]; then
+			echo "Enabling /opt/bin Symlink"
+			ln -s /jffs/scripts/firewall /opt/bin
+		fi
 
-			if [ "$(nvram get jffs2_scripts)" != "1" ]; then
-				echo "Enabling Custom JFFS Scripts"
-				nvram set jffs2_scripts=1
-				nvram commit
-			fi
+		if [ "$(nvram get jffs2_scripts)" != "1" ]; then
+			echo "Enabling Custom JFFS Scripts"
+			nvram set jffs2_scripts=1
+			nvram commit
+		fi
 
-			if [ "$(nvram get fw_enable_x)" != "1" ]; then
-				echo "Enabling SPI Firewall"
-				nvram set fw_enable_x=1
-				nvram commit
-			fi
+		if [ "$(nvram get fw_enable_x)" != "1" ]; then
+			echo "Enabling SPI Firewall"
+			nvram set fw_enable_x=1
+			nvram commit
+		fi
 
-			if [ "$(nvram get fw_log_x)" != "drop" ]; then
-				echo "Enabling Firewall Logging"
-				nvram set fw_log_x=drop
-				nvram commit
-			fi
+		if [ "$(nvram get fw_log_x)" != "drop" ]; then
+			echo "Enabling Firewall Logging"
+			nvram set fw_log_x=drop
+			nvram commit
+		fi
 }
 
 Unload_DebugIPTables () {
@@ -511,7 +523,7 @@ case $1 in
 		;;
 
 	start)
-		Check_Settings
+		Check_Settings $2 $3 $4 $5
 		cru a Firewall_save "0 * * * * /jffs/scripts/firewall save"
 		sed -i '/IP Banning Started/d' /tmp/syslog.log
 		logger -st Skynet "[IP Banning Started] ... ... ..."
@@ -532,12 +544,6 @@ case $1 in
 		Unload_IPTables
 		Unload_DebugIPTables
 		Load_IPTables $2
-		if [ "$2" = "debug" ] || [ "$3" = "debug" ]; then
-			Enable_Debug
-		fi
-		if [ "$2" = "banmalware" ] || [ "$3" = "banmalware" ] || [ "$4" = "banmalware" ]; then
-			cru a Firewall_banmalware "25 1 * * 1 sh /jffs/scripts/firewall banmalware"
-		fi
 		sed -i '/DROP IN=/d' /tmp/syslog.log
 		;;
 
@@ -670,18 +676,40 @@ case $1 in
 			1)
 			echo "Malware List Updating Enabled"
 			echo "Malware Updates Scheduled For 1.25am Every Monday"
-			sed -i '\~/jffs/scripts/firewall ~d' /jffs/scripts/firewall-start
-			echo "sh /jffs/scripts/firewall $set1 banmalware # Skynet Firewall Addition" >> /jffs/scripts/firewall-start
+			set2="banmalware"
 			;;
 			*)
 			echo "Malware List Updating Disabled"
+			;;
+		esac
+		echo
+		echo "Would You Like To Enable Daily Auto Script Updating"
+		echo "Skynet By Default Only Checks For Updates But They Are Never Downloaded"
+		echo
+		echo "1. Yes"
+		echo "2. No"
+		echo "Please Select Option (Number)"
+		read mode2
+		case $mode2 in
+			1)
+			echo "Auto Updating Enabled"
+			echo "Skynet Updates Scheduled For 2.25am Daily"
 			sed -i '\~/jffs/scripts/firewall ~d' /jffs/scripts/firewall-start
-			echo "sh /jffs/scripts/firewall $set1 # Skynet Firewall Addition" >> /jffs/scripts/firewall-start
+			echo "sh /jffs/scripts/firewall $set1 $set2 autoupdate # Skynet Firewall Addition" >> /jffs/scripts/firewall-start
+			;;
+			*)
+			echo "Auto Updating Disabled"
+			sed -i '\~/jffs/scripts/firewall ~d' /jffs/scripts/firewall-start
+			echo "sh /jffs/scripts/firewall $set1 $set2 # Skynet Firewall Addition" >> /jffs/scripts/firewall-start
 			;;
 		esac
 		chmod +x /jffs/scripts/firewall-start
 		echo
 		echo "Restarting Firewall To Apply Changes"
+		cru d Firewall_save
+		cru d Firewall_banmalware
+		cru d Firewall_autoupdate
+		cru d Firewall_checkupdate
 		service restart_firewall
 		exit
 		;;
