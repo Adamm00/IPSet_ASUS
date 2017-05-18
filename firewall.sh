@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 18/05/2017 -		   Asus Firewall Addition By Adamm v4.1.9				    #
+## - 19/05/2017 -		   Asus Firewall Addition By Adamm v4.1.9				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -544,7 +544,6 @@ case $1 in
 	stats)
 		Purge_Logs
 		Unban_HTTP
-		Unban_PrivateIP
 		if [ -z "$(iptables -L -nt raw | grep LOG)" ]; then
 			echo
 			echo "!!! Debug Mode Is Disabled !!!"
