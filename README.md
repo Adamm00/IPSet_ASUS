@@ -16,7 +16,8 @@ sh /jffs/scripts/firewall *commandhere*
     "whitelist"    # <-- Add Entry To Whitelist (IP/Range/Domain/Port/Remove)  
     "import"       # <-- Import And Merge IPSet Save To Firewall  
     "deport"       # <-- Remove All IPs From IPSet Save From Firewall
-    "disable"      # <-- Disable Firewall  
+    "disable"      # <-- Disable Firewall
+    "debug"	       # <-- Specific Debug Features (Restart/Disable/Filter/Info)
     "update"       # <-- Update Script To Latest Version (check github for changes)  
     "stats"        # <-- Print/Search Stats Of Recently Banned IPs (Requires debugging enabled)
     "install"      # <-- Install Script (Or Change Boot Args)
@@ -76,8 +77,9 @@ Here Are Some Example Deport Commands;
 "./jffs/scripts/firewall import URL" This Reads IPSet Save File From A Custom URL And Removes All IPs From Blacklist
 
 Here Are Some Example Debug Commands;
-"./jffs/scripts/firewall debug enable" Enable Raw Debugging To Syslog
+"./jffs/scripts/firewall debug restart" Restart Firewall Completely
 "./jffs/scripts/firewall debug disable" Disable Raw Debugging
+"./jffs/scripts/firewall debug info" Print Usefull Debug Info
 
 Here Are Some Example Update Commands;
 "./jffs/scripts/firewall update" Standard Update Check - If Nothing Detected Exit
