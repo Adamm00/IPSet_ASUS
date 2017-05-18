@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 19/05/2017 -		   Asus Firewall Addition By Adamm v4.2.5				    #
+## - 19/05/2017 -		   Asus Firewall Addition By Adamm v4.2.6				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -29,7 +29,7 @@
 #	  "import"	     # <-- Import And Merge IPSet Save To Firewall
 #	  "deport"	     # <-- Remove All IPs From IPSet Save From Firewall
 #	  "disable"	     # <-- Disable Firewall
-#	  "debug"	     # <-- Enable/Disable Debug Output
+#	  "debug"	     # <-- Specific Debug Features (Restart/Disable/Filter/Info)
 #	  "update"	     # <-- Update Script To Latest Version (check github for changes)
 #	  "start"	     # <-- Initiate Firewall
 #	  "stats"	     # <-- Print/Search Stats Of Recently Banned IPs (Requires debugging enabled)
@@ -465,12 +465,13 @@ case $1 in
 
 	debug)
 		case $2 in
-			enable)
-				Unload_DebugIPTables
-				Enable_Debug
+			restart)
+				echo "Restarting Firewall Service"
+				service restart_firewall
+				exit
 			;;
 			disable)
-				logger -st Skynet "[Disabling Raw Debug Output] ... ... ..."
+				logger -st Skynet "[Temporarily Disabling Raw Debug Output] ... ... ..."
 				Unload_DebugIPTables
 				Purge_Logs
 				Unban_HTTP
@@ -559,6 +560,7 @@ case $1 in
 		if [ -z "$(iptables -L -nt raw | grep LOG)" ]; then
 			echo
 			echo "!!! Debug Mode Is Disabled !!!"
+			echo "To Enable Use 'sh $0 install'"
 			echo
 		fi
 		if [ -f /jffs/skynet.log ] && [ "$(wc -l /jffs/skynet.log | awk '{print $1}')" != "0" ]; then
