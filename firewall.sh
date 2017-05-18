@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 18/05/2017 -		   Asus Firewall Addition By Adamm v4.2.0				    #
+## - 18/05/2017 -		   Asus Firewall Addition By Adamm v4.2.1				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -95,6 +95,7 @@ Unload_IPTables () {
 		iptables -t raw -D PREROUTING -m set --match-set Whitelist src -j ACCEPT &> /dev/null
 		iptables -D logdrop -m state --state INVALID -j SET --add-set Blacklist src &> /dev/null
 		iptables -D logdrop -m state --state INVALID -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options &> /dev/null
+		iptables -D logdrop -p tcp -m multiport --sports 80,443 -m state --state INVALID -j DROP
 		iptables -D logdrop -m set --match-set Whitelist src -j ACCEPT &> /dev/null
 }
 
@@ -107,6 +108,7 @@ Load_IPTables () {
 		else
 			iptables -I logdrop -m state --state INVALID -j SET --add-set Blacklist src &> /dev/null
 			iptables -I logdrop -m state --state INVALID -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options &> /dev/null
+			iptables -I logdrop -p tcp -m multiport --sports 80,443 -m state --state INVALID -j DROP
 			iptables -I logdrop -m set --match-set Whitelist src -j ACCEPT &> /dev/null
 		fi
 }
