@@ -241,7 +241,7 @@ case $1 in
 			echo "Removing Previous Malware Bans"
 			sed 's/add/del/g' /jffs/scripts/malwarelist.txt | ipset -q -R -!
 		elif [ "$2" = "all" ]; then
-			nvram set Blacklist=$(expr $(ipset -L Blacklist | wc -l) - 6)
+			nvram set Blacklist=$(expr $(grep "add Blacklist" /jffs/scripts/ipset.txt | wc -l) + $(grep "add BlockedRanges" /jffs/scripts/ipset.txt | wc -l))
 			logger -st Skynet "[Removing All $(nvram get Blacklist) Entries From Blacklist] ... ... ..."
 			ipset --flush Blacklist
 			ipset --flush BlockedRanges
@@ -311,6 +311,7 @@ case $1 in
 			echo "Command Not Recognised, Please Try Again"
 			exit
 		fi
+		ipset --save > /jffs/scripts/ipset.txt
 		;;
 
 	banmalware)
@@ -346,6 +347,7 @@ case $1 in
 		rm -rf /tmp/malwarelist.txt
 		echo "Warning; This May Have Blocked Your Favorite Torrent Website"
 		echo "To Whitelist It Use; \"sh $0 whitelist domain URL\""
+		ipset --save > /jffs/scripts/ipset.txt
 		;;
 
 	whitelist)
@@ -426,6 +428,7 @@ case $1 in
 		echo "Importing IPs To Blacklist"
 		ipset -q -R -! < /tmp/ipset3.txt
 		rm -rf /tmp/ipset3.txt
+		ipset --save > /jffs/scripts/ipset.txt
 		;;
 
 	deport)
@@ -449,6 +452,7 @@ case $1 in
 		echo "Removing IPs From Blacklist"
 		ipset -q -R -! < /tmp/ipset3.txt
 		rm -rf /tmp/ipset3.txt
+		ipset --save > /jffs/scripts/ipset.txt
 		;;
 
 	disable)
