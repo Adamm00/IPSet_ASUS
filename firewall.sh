@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 18/05/2017 -		   Asus Firewall Addition By Adamm v4.2.2				    #
+## - 19/05/2017 -		   Asus Firewall Addition By Adamm v4.2.3				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -41,9 +41,6 @@ start_time=$(date +%s)
 cat $0 | head -39
 
 Check_Settings () {
-		if [ "$1" = "debug" ] || [ "$2" = "debug" ]; then
-			Enable_Debug
-		fi
 		if [ "$1" = "banmalware" ] || [ "$2" = "banmalware" ] || [ "$3" = "banmalware" ]; then
 			cru a Firewall_banmalware "25 1 * * 1 sh /jffs/scripts/firewall banmalware"
 		fi
@@ -181,9 +178,11 @@ Unban_HTTP () {
 }
 
 Enable_Debug () {
-		logger -st Skynet "[Enabling Raw Debug Output] ... ... ..."
-		iptables -t raw -I PREROUTING 2 -m set --match-set BlockedRanges src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options &> /dev/null
-		iptables -t raw -I PREROUTING 4 -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options &> /dev/null
+		if [ "$1" = "debug" ] || [ "$2" = "debug" ]; then
+			logger -st Skynet "[Enabling Raw Debug Output] ... ... ..."
+			iptables -t raw -I PREROUTING 2 -m set --match-set BlockedRanges src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options
+			iptables -t raw -I PREROUTING 4 -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options
+		fi
 }
 
 #####################################################################################################################
@@ -525,6 +524,7 @@ case $1 in
 		;;
 
 	start)
+		echo "SPrinting $1 <1 $2 <2 $3 <3 $4 <4 $5"
 		Check_Settings $2 $3 $4 $5
 		cru a Firewall_save "0 * * * * /jffs/scripts/firewall save"
 		sed -i '/IP Banning Started/d' /tmp/syslog.log
@@ -546,6 +546,7 @@ case $1 in
 		Unload_IPTables
 		Unload_DebugIPTables
 		Load_IPTables $2
+		Enable_Debug $2 $3
 		sed -i '/DROP IN=/d' /tmp/syslog.log
 		;;
 
