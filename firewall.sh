@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 19/05/2017 -		   Asus Firewall Addition By Adamm v4.2.4				    #
+## - 19/05/2017 -		   Asus Firewall Addition By Adamm v4.2.5				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -361,7 +361,7 @@ case $1 in
 			ipset -A Whitelist $whitelistip
 			ipset -D Blacklist $whitelistip
 			sed -i /$whitelistip/d /jffs/skynet.log
-		elif [ -n "$2" ] && [ "$2" != "domain" ] && [ "$2" = "port" ] && [ "$2" != "remove" ]; then
+		elif [ -n "$2" ] && [ "$2" != "domain" ] && [ "$2" != "port" ] && [ "$2" != "remove" ]; then
 			logger -st Skynet "[Adding $2 To Whitelist] ... ... ..."
 			ipset -A Whitelist $2
 			ipset -D Blacklist $2
