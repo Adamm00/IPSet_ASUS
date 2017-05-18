@@ -113,8 +113,8 @@ Load_IPTables () {
 Logging () {
 		OLDIPS=$(nvram get Blacklist)
 		OLDRANGES=$(nvram get BlockedRanges)
-		nvram set Blacklist=$(grep "add Blacklist" /jffs/scripts/ipset.txt | wc -l)
-		nvram set BlockedRanges=$(grep "add BlockedRanges" /jffs/scripts/ipset.txt | wc -l)
+		nvram set Blacklist=$(grep "add Blacklist" /jffs/scripts/ipset.txt 2> /dev/null | wc -l)
+		nvram set BlockedRanges=$(grep "add BlockedRanges" /jffs/scripts/ipset.txt 2> /dev/null | wc -l)
 		NEWIPS=$(nvram get Blacklist)
 		NEWRANGES=$(nvram get BlockedRanges)
 		nvram commit
