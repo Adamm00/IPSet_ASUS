@@ -524,7 +524,6 @@ case $1 in
 		;;
 
 	start)
-		echo "SPrinting $1 <1 $2 <2 $3 <3 $4 <4 $5"
 		Check_Settings $2 $3 $4 $5
 		cru a Firewall_save "0 * * * * /jffs/scripts/firewall save"
 		sed -i '/IP Banning Started/d' /tmp/syslog.log
