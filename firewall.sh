@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 18/05/2017 -		   Asus Firewall Addition By Adamm v4.2.1				    #
+## - 18/05/2017 -		   Asus Firewall Addition By Adamm v4.2.2				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -204,7 +204,7 @@ case $1 in
 			logger -st Skynet "[Removing $unbanip From Blacklist] ... ... ..."
 			ipset -D Blacklist $unbanip
 			sed -i /$unbanip/d /jffs/skynet.log
-		elif [ -n "$2" ] && [ "$2" != "domain" ]&& [ "$2" != "range" ] && [ "$2" != "port" ] && [ "$2" != "country" ] && [ "$2" != "malware"] && [ "$2" != "all" ]; then
+		elif [ -n "$2" ] && [ "$2" != "domain" ] && [ "$2" != "range" ] && [ "$2" != "port" ] && [ "$2" != "country" ] && [ "$2" != "malware" ] && [ "$2" != "all" ]; then
 			logger -st Skynet "[Removing $2 From Blacklist] ... ... ..."
 			ipset -D Blacklist $2
 			sed -i /$2/d /jffs/skynet.log
@@ -238,7 +238,7 @@ case $1 in
 		elif [ "$2" = "country" ]; then
 			echo "Removing Previous Country Bans"
 			sed 's/add/del/g' /jffs/scripts/countrylist.txt | ipset -q -R -!
-		elif ["$2" = "malware" ]; then
+		elif [ "$2" = "malware" ]; then
 			echo "Removing Previous Malware Bans"
 			sed 's/add/del/g' /jffs/scripts/malwarelist.txt | ipset -q -R -!
 		elif [ "$2" = "all" ]; then
@@ -246,7 +246,7 @@ case $1 in
 			logger -st Skynet "[Removing All $(nvram get Blacklist) Entries From Blacklist] ... ... ..."
 			ipset --flush Blacklist
 			ipset --flush BlockedRanges
-			rm -rf /jffs/skynet.log
+			echo "" > /jffs/skynet.log
 		else
 			echo "Command Not Recognised, Please Try Again"
 			exit
