@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 19/05/2017 -		   Asus Firewall Addition By Adamm v4.2.7				    #
+## - 20/05/2017 -		   Asus Firewall Addition By Adamm v4.2.8				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -44,13 +44,13 @@ Check_Settings () {
 		if [ "$1" = "banmalware" ] || [ "$2" = "banmalware" ] || [ "$3" = "banmalware" ]; then
 			cru a Firewall_banmalware "25 1 * * 1 sh /jffs/scripts/firewall banmalware"
 		fi
-		
+
 		if [ "$1" = "autoupdate" ] || [ "$2" = "autoupdate" ] || [ "$3" = "autoupdate" ] || [ "$4" = "autoupdate" ]; then
 			cru a Firewall_autoupdate "25 1 * * * sh /jffs/scripts/firewall update"
 		else
 			cru a Firewall_checkupdate "25 2 * * * sh /jffs/scripts/firewall update check"
 		fi
-		
+
 		if [ "$(ipset -v | grep -o v6)" != "v6" ]; then
 			echo "IPSet version not supported"
 			exit
@@ -163,7 +163,7 @@ Purge_Logs () {
 }
 
 Unban_HTTP () {
-		for ip in $(grep -E 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep NEW | grep -v UNBANNED | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | sort -u)
+		for ip in $(grep -E 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep NEW | grep -v UNBANNED | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sort -u)
 			do
 			if [ "$(grep $ip /jffs/skynet.log | grep NEW | grep -E 'SPT=80 |SPT=443 ' | wc -l)" -ge "2" ]; then
 				ipset -q -D Blacklist $ip
