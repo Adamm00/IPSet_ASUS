@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 19/05/2017 -		   Asus Firewall Addition By Adamm v4.2.9				    #
+## - 19/05/2017 -		   Asus Firewall Addition By Adamm v4.3.0				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -41,6 +41,10 @@ start_time=$(date +%s)
 cat $0 | head -39
 
 Check_Settings () {
+		if [ -f "/jffs/scripts/IPSET_Block.sh" ]; then
+			logger -st Skynet "[IPSet_Block.sh Detected - This script will cause conflicts and does not have saftey checks like Skynet, please uninstall it ASAP]"
+		fi
+
 		if [ "$1" = "banmalware" ] || [ "$2" = "banmalware" ] || [ "$3" = "banmalware" ]; then
 			cru a Firewall_banmalware "25 1 * * 1 sh /jffs/scripts/firewall banmalware"
 		fi
@@ -163,7 +167,7 @@ Purge_Logs () {
 }
 
 Unban_HTTP () {
-		for ip in $(grep -E 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep NEW | grep -v UNBANNED | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sort -u)
+		for ip in $(grep -E 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep NEW | grep -v UNBANNED | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | awk '!x[$0]++')
 			do
 			if [ "$(grep $ip /jffs/skynet.log | grep NEW | grep -E 'SPT=80 |SPT=443 ' | wc -l)" -ge "2" ]; then
 				ipset -q -D Blacklist $ip
@@ -303,7 +307,7 @@ case $1 in
 				wget -q -O - http://www.ipdeny.com/ipblocks/data/countries/$country.zone >> /tmp/countrylist.txt
 			done
 			echo "Filtering IPv4 Ranges"
-			cat /tmp/countrylist.txt | sed -n "s/\r//;/^$/d;/^[0-9,\.,\/]*$/s/^/add BlockedRanges /p" | grep "/" | sort -u >> /jffs/scripts/countrylist.txt
+			cat /tmp/countrylist.txt | sed -n "s/\r//;/^$/d;/^[0-9,\.,\/]*$/s/^/add BlockedRanges /p" | grep "/" | awk '!x[$0]++' >> /jffs/scripts/countrylist.txt
 			echo "Applying Blacklists"
 			ipset -q -R -! < /jffs/scripts/countrylist.txt
 			rm -rf /tmp/countrylist*.txt
@@ -315,7 +319,7 @@ case $1 in
 		;;
 
 	banmalware)
-	if [ "$2" != "-f" ] && [ -f /jffs/scripts/malware-filter ] || [ -f /jffs/scripts/ya-malware-block.sh ]; then
+	if [ "$2" != "-f" ] && [ -f /jffs/scripts/malware-filter ] || [ -f /jffs/scripts/ya-malware-block.sh ] || [ -f /jffs/scripts/ipBLOCKer.sh ]; then
 		echo "Another Malware Filter Script Detected And May Cause Conflicts, Are You Sure You Want To Continue? (yes/no)"
 		echo "To Ignore This Error In Future Use; \"sh $0 banmalware -f\""
 		read continue
@@ -339,9 +343,9 @@ case $1 in
 		echo "Downloading Lists"
 		wget -q --no-check-certificate -O /tmp/malwarelist.txt -i $listurl
 		echo "Filtering IPv4 Addresses"
-		grep -vE $(Filter_PrivateIP) /tmp/malwarelist.txt | sed -n "s/\r//;/^$/d;/^[0-9,\.]*$/s/^/add Blacklist /p" | sort -u > /jffs/scripts/malwarelist.txt
+		grep -vE $(Filter_PrivateIP) /tmp/malwarelist.txt | sed -n "s/\r//;/^$/d;/^[0-9,\.]*$/s/^/add Blacklist /p" | awk '!x[$0]++' > /jffs/scripts/malwarelist.txt
 		echo "Filtering IPv4 Ranges"
-		grep -vE $(Filter_PrivateIP) /tmp/malwarelist.txt | sed -n "s/\r//;/^$/d;/^[0-9,\.,\/]*$/s/^/add BlockedRanges /p" | grep "/" | sort -u >> /jffs/scripts/malwarelist.txt
+		grep -vE $(Filter_PrivateIP) /tmp/malwarelist.txt | sed -n "s/\r//;/^$/d;/^[0-9,\.,\/]*$/s/^/add BlockedRanges /p" | grep "/" | awk '!x[$0]++' >> /jffs/scripts/malwarelist.txt
 		echo "Applying Blacklists"
 		ipset -q -R -! < /jffs/scripts/malwarelist.txt
 		rm -rf /tmp/malwarelist.txt
@@ -580,7 +584,7 @@ case $1 in
 		fi
 		echo "Monitoring From $(awk '{print $1" "$2" "$3}' /jffs/skynet.log | head -1) To $(awk '{print $1" "$2" "$3}' /jffs/skynet.log | tail -1)"
 		echo "$(grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | wc -l) Total Connections Detected"
-		echo "$(grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sort -u | wc -l) Unique IP Connections"
+		echo "$(grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | awk '!x[$0]++' | wc -l) Unique IP Connections"
 		echo "$(grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep "NEW BAN"| wc -l) Autobans Issued"
 		echo
 		counter=10
