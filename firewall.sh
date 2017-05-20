@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 20/05/2017 -		   Asus Firewall Addition By Adamm v4.2.8				    #
+## - 19/05/2017 -		   Asus Firewall Addition By Adamm v4.2.9				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -529,6 +529,7 @@ case $1 in
 		;;
 
 	start)
+		iptables -t raw -F
 		Check_Settings $2 $3 $4 $5
 		cru a Firewall_save "0 * * * * /jffs/scripts/firewall save"
 		sed -i '/IP Banning Started/d' /tmp/syslog.log
@@ -733,6 +734,7 @@ case $1 in
 			echo "Uninstalling And Restarting Firewall"
 			sed -i '\~/jffs/scripts/firewall ~d' /jffs/scripts/firewall-start
 			rm -rf /jffs/scripts/ipset.txt /jffs/scripts/ipset2.txt /jffs/scripts/ipset3.txt /jffs/scripts/malwarelist.txt /jffs/scripts/countrylist.txt /jffs/skynet.log /jffs/scripts/firewall
+			iptables -t raw -F
 			service restart_firewall
 			exit
 		fi
