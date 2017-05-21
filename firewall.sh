@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 19/05/2017 -		   Asus Firewall Addition By Adamm v4.3.0				    #
+## - 19/05/2017 -		   Asus Firewall Addition By Adamm v4.3.1				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -341,14 +341,15 @@ case $1 in
 			sed 's/add/del/g' /jffs/scripts/malwarelist.txt | ipset -q -R -!
 		fi
 		echo "Downloading Lists"
-		wget -q --no-check-certificate -O /tmp/malwarelist.txt -i $listurl
+		wget -q --no-check-certificate $listurl -O /tmp/filter.list
+		wget --no-check-certificate -i /tmp/filter.list -qO- | awk '!x[$0]++' | grep -vE $(Filter_PrivateIP) > /tmp/malwarelist.txt
 		echo "Filtering IPv4 Addresses"
-		grep -vE $(Filter_PrivateIP) /tmp/malwarelist.txt | sed -n "s/\r//;/^$/d;/^[0-9,\.]*$/s/^/add Blacklist /p" | awk '!x[$0]++' > /jffs/scripts/malwarelist.txt
+		sed -n "s/\r//;/^$/d;/^[0-9,\.]*$/s/^/add Blacklist /p" /tmp/malwarelist.txt > /jffs/scripts/malwarelist.txt
 		echo "Filtering IPv4 Ranges"
-		grep -vE $(Filter_PrivateIP) /tmp/malwarelist.txt | sed -n "s/\r//;/^$/d;/^[0-9,\.,\/]*$/s/^/add BlockedRanges /p" | grep "/" | awk '!x[$0]++' >> /jffs/scripts/malwarelist.txt
+		sed -n "s/\r//;/^$/d;/^[0-9,\.,\/]*$/s/^/add BlockedRanges /p" /tmp/malwarelist.txt | grep "/" >> /jffs/scripts/malwarelist.txt
 		echo "Applying Blacklists"
 		ipset -q -R -! < /jffs/scripts/malwarelist.txt
-		rm -rf /tmp/malwarelist.txt
+		rm -rf /tmp/malwarelist.txt /tmp/filter.list
 		echo "Warning; This May Have Blocked Your Favorite Torrent Website"
 		echo "To Whitelist It Use; \"sh $0 whitelist domain URL\""
 		ipset --save > /jffs/scripts/ipset.txt
