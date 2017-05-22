@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 22/05/2017 -		   Asus Firewall Addition By Adamm v4.3.3				    #
+## - 23/05/2017 -		   Asus Firewall Addition By Adamm v4.3.4				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -199,6 +199,7 @@ case $1 in
 		elif [ "$2" = "range" ] && [ -n "$3" ]; then
 			logger -st Skynet "[Removing $3 From Blacklist] ... ... ..."
 			ipset -D BlockedRanges $3
+			sed -i "\~$3~d" /jffs/skynet.log
 		elif [ "$2" = "domain" ] && [ -z "$3" ]; then
 			echo "Input Domain To Unban"
 			read unbandomain
@@ -234,7 +235,7 @@ case $1 in
 			logger -st Skynet "[Removing All $(nvram get Blacklist) Entries From Blacklist] ... ... ..."
 			ipset --flush Blacklist
 			ipset --flush BlockedRanges
-			> /jffs/skynet.log
+			rm -rf /jffs/skynet.log
 		else
 			echo "Command Not Recognised, Please Try Again"
 			exit
@@ -349,12 +350,12 @@ case $1 in
 			logger -st Skynet "[Adding $whitelistip To Whitelist] ... ... ..."
 			ipset -A Whitelist $whitelistip
 			ipset -D Blacklist $whitelistip
-			sed -i /$whitelistip/d /jffs/skynet.log
+			sed -i "\~$whitelistip~d" /jffs/skynet.log
 		elif [ -n "$2" ] && [ "$2" != "domain" ] && [ "$2" != "port" ] && [ "$2" != "remove" ]; then
 			logger -st Skynet "[Adding $2 To Whitelist] ... ... ..."
 			ipset -A Whitelist $2
 			ipset -D Blacklist $2
-			sed -i /$2/d /jffs/skynet.log
+			sed -i "\~$2~d" /jffs/skynet.log
 		elif [ "$2" = "domain" ] && [ -z "$3" ];then
 			echo "Input Domain To Whitelist"
 			read whitelistdomain
@@ -558,7 +559,7 @@ case $1 in
 			echo "Only New Bans Being Tracked (enable debug mode for connection tracking)"
 		fi
 		if [ "$2" = "reset" ]; then
-			> /jffs/skynet.log
+			rm -rf /jffs/skynet.log
 			echo "Stat Data Reset"
 			exit
 		fi
