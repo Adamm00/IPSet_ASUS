@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 22/05/2017 -		   Asus Firewall Addition By Adamm v4.3.2				    #
+## - 22/05/2017 -		   Asus Firewall Addition By Adamm v4.3.3				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -166,21 +166,6 @@ Purge_Logs () {
 		sed -i '/Aug  1 1/d' /jffs/skynet.log
 }
 
-Unban_HTTP () {
-		for ip in $(grep -E 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep NEW | grep -v UNBANNED | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | awk '!x[$0]++')
-			do
-			if [ "$(grep $ip /jffs/skynet.log | grep NEW | grep -E 'SPT=80 |SPT=443 ' | wc -l)" -ge "2" ]; then
-				ipset -q -D Blacklist $ip
-				ipset -q -A Whitelist $ip
-				logger -st Skynet "[Removing $ip From Blacklist & Adding To Whitelist (false positive detected)]"
-				sed -i /$ip/d /jffs/skynet.log
-			else
-				ipset -q -D Blacklist $ip
-				sed -i "/$ip/ s/$/ UNBANNED/" /jffs/skynet.log
-			fi
-		done
-}
-
 Enable_Debug () {
 		if [ "$1" = "debug" ] || [ "$2" = "debug" ]; then
 			logger -st Skynet "[Enabling Raw Debug Output] ... ... ..."
@@ -261,7 +246,6 @@ case $1 in
 		echo "[Saving Blacklists] ... ... ..."
 		Purge_Logs
 		Unban_PrivateIP
-		Unban_HTTP
 		ipset --save > /jffs/scripts/ipset.txt
 		sed -i '/USER admin pid .*firewall/d' /tmp/syslog.log
 		;;
@@ -465,7 +449,6 @@ case $1 in
 		Unload_IPTables
 		Unload_DebugIPTables
 		Purge_Logs
-		Unban_HTTP
 	;;
 
 	debug)
@@ -479,12 +462,10 @@ case $1 in
 				logger -st Skynet "[Temporarily Disabling Raw Debug Output] ... ... ..."
 				Unload_DebugIPTables
 				Purge_Logs
-				Unban_HTTP
 			;;
 			filter)
 				echo "Unbanning False Positives"
 				Unban_PrivateIP
-				Unban_HTTP
 			;;
 			info)
 				RED='\033[0;31m'
@@ -543,7 +524,6 @@ case $1 in
 		ipset -q -R &> /dev/null < /jffs/scripts/ipset.txt
 		Purge_Logs
 		Unban_PrivateIP
-		Unban_HTTP
 		ipset -q -N Whitelist nethash
 		ipset -q -N Blacklist iphash --maxelem 500000
 		ipset -q -N BlockedRanges nethash
@@ -562,7 +542,6 @@ case $1 in
 
 	stats)
 		Purge_Logs
-		Unban_HTTP
 		if [ -z "$(iptables -L -nt raw | grep LOG)" ]; then
 			echo
 			echo "!!! Debug Mode Is Disabled !!!"
@@ -579,7 +558,7 @@ case $1 in
 			echo "Only New Bans Being Tracked (enable debug mode for connection tracking)"
 		fi
 		if [ "$2" = "reset" ]; then
-			rm -rf /jffs/skynet.log
+			> /jffs/skynet.log
 			echo "Stat Data Reset"
 			exit
 		fi
@@ -589,10 +568,12 @@ case $1 in
 		echo "$(grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep "NEW BAN"| wc -l) Autobans Issued"
 		echo
 		counter=10
-		if [ -n "$2" ] && [ "$2" != "search" ] && [ "$3" -eq "$3" ] 2>/dev/null; then
+		if [ -n "$2" ] && [ "$2" != "search" ] && [ "$2" -eq "$2" ] 2>/dev/null; then
 			counter=$2
 		elif [ -n "$5" ] && [ "$5" -eq "$5" ] 2>/dev/null; then
 			counter=$5
+		elif [ "$3" = "autobans" ] && [ "$4" -eq "$4" ] 2>/dev/null; then
+			counter=$4
 		fi
 		if [ "$2" = "tcp" ] || [ "$3" = "tcp" ]; then
 			proto=TCP
@@ -626,6 +607,16 @@ case $1 in
 			echo
 			echo "$counter Most Recent Attacks From $4;"
 			grep "SRC=$4 " /jffs/skynet.log | tail -$counter
+			exit
+		elif [ "$2" = "search" ] && [ "$3" = "autobans" ]; then
+			echo "First Autoban Issued On $(grep "NEW BAN" /jffs/skynet.log | head -1 | awk '{print $1" "$2" "$3}')"
+			echo "Last Autoban Issued On $(grep "NEW BAN" /jffs/skynet.log | tail -1 | awk '{print $1" "$2" "$3}')"
+			echo
+			echo "First Autoban Issued;"
+			grep "NEW BAN" /jffs/skynet.log | head -1
+			echo
+			echo "$counter Most Recent Autobans;"
+			grep "NEW BAN" /jffs/skynet.log | tail -$counter
 			exit
 		fi
 		echo "Top $counter Ports Attacked; (This may pick up false positives from applications like uTorrent or Apple Devices)"
