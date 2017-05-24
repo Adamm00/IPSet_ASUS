@@ -159,11 +159,12 @@ Unban_PrivateIP () {
 
 Purge_Logs () {
 		find /jffs/skynet.log -mtime +14 -type f -delete &> /dev/null
+		sed -i '/Aug  1 1/d' /tmp/syslog.log-1
+		sed -i '/Aug  1 1/d' /tmp/syslog.log
 		cat /tmp/syslog.log-1 2> /dev/null | sed '/BLOCKED -/!d' >> /jffs/skynet.log
 		sed -i '/BLOCKED -/d' /tmp/syslog.log-1 &> /dev/null
 		cat /tmp/syslog.log 2> /dev/null | sed '/BLOCKED -/!d' >> /jffs/skynet.log
 		sed -i '/BLOCKED -/d' /tmp/syslog.log
-		sed -i '/Aug  1 1/d' /jffs/skynet.log
 }
 
 Enable_Debug () {
