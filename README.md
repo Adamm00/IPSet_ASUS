@@ -89,6 +89,8 @@ Here Are Some Example Update Commands;
 Here Are Some Example Stat Commands;
 "sh /jffs/scripts/firewall stats" Compile Stats With Default Top10 Output
 "sh /jffs/scripts/firewall stats 20" Compile Stats With Customiseable Top20 Output
+"sh /jffs/scripts/firewall stats tcp" Compile Stats Showing Only TCP Entries
+"sh /jffs/scripts/firewall stats tcp 20" Compile Stats Showing Only TCP Entries With Customiseable Top20 Output
 "sh /jffs/scripts/firewall stats search ip 8.8.8.8" Search All Debug Data For Entries On 8.8.8.8
 "sh /jffs/scripts/firewall stats search ip 8.8.8.8 20" Search All Debug Data For Entries On 8.8.8.8 With Customiseable Top20 Output
 "sh /jffs/scripts/firewall stats search port 23" Search All Debug Data For Entries On Port 23
