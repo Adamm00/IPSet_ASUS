@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 23/05/2017 -		   Asus Firewall Addition By Adamm v4.3.4				    #
+## - 24/05/2017 -		   Asus Firewall Addition By Adamm v4.3.5				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -38,7 +38,7 @@
 ##############################
 
 start_time=$(date +%s)
-cat $0 | head -39
+head -39 $0
 
 Check_Settings () {
 		if [ -f "/jffs/scripts/IPSET_Block.sh" ]; then
@@ -117,8 +117,8 @@ Load_IPTables () {
 Logging () {
 		OLDIPS=$(nvram get Blacklist)
 		OLDRANGES=$(nvram get BlockedRanges)
-		nvram set Blacklist=$(grep "add Blacklist" /jffs/scripts/ipset.txt 2> /dev/null | wc -l)
-		nvram set BlockedRanges=$(grep "add BlockedRanges" /jffs/scripts/ipset.txt 2> /dev/null | wc -l)
+		nvram set Blacklist=$(grep -o "d Black" /jffs/scripts/ipset.txt 2> /dev/null | wc -l)
+		nvram set BlockedRanges=$(grep -o "d Block" /jffs/scripts/ipset.txt 2> /dev/null | wc -l)
 		NEWIPS=$(nvram get Blacklist)
 		NEWRANGES=$(nvram get BlockedRanges)
 		nvram commit
@@ -222,7 +222,7 @@ case $1 in
 				do
 				echo "Unbanning $ip"
 				ipset -D Blacklist $ip
-				sed -i /$ip/d /jffs/skynet.log
+				sed -i "/DPT=$3/d" /jffs/skynet.log
 			done
 		elif [ "$2" = "country" ]; then
 			echo "Removing Previous Country Bans"
@@ -231,7 +231,7 @@ case $1 in
 			echo "Removing Previous Malware Bans"
 			sed 's/add/del/g' /jffs/scripts/malwarelist.txt | ipset -q -R -!
 		elif [ "$2" = "all" ]; then
-			nvram set Blacklist=$(expr $(grep "add Blacklist" /jffs/scripts/ipset.txt | wc -l) + $(grep "add BlockedRanges" /jffs/scripts/ipset.txt | wc -l))
+			nvram set Blacklist=$(expr $(grep -o "d Black" /jffs/scripts/ipset.txt | wc -l) + $(grep -o "d Block" /jffs/scripts/ipset.txt | wc -l))
 			logger -st Skynet "[Removing All $(nvram get Blacklist) Entries From Blacklist] ... ... ..."
 			ipset --flush Blacklist
 			ipset --flush BlockedRanges
@@ -586,7 +586,7 @@ case $1 in
 		if [ "$2" = "search" ] && [ "$3" = "port" ]; then
 			echo "Port $4 First Tracked On $(grep "DPT=$4 " /jffs/skynet.log | head -1 | awk '{print $1" "$2" "$3}')"
 			echo "Port $4 Last Tracked On $(grep "DPT=$4 " /jffs/skynet.log | tail -1 | awk '{print $1" "$2" "$3}')"
-			echo "$(grep "DPT=$4 " /jffs/skynet.log | wc -l) Attempts Total"
+			echo "$(grep -o "DPT=$4 " /jffs/skynet.log | wc -l) Attempts Total"
 			echo
 			echo "First Attack Tracked On Port $4;"
 			grep "DPT=$4 " /jffs/skynet.log | head -1
@@ -601,7 +601,7 @@ case $1 in
 			echo
 			echo "$4 First Tracked On $(grep "SRC=$4 " /jffs/skynet.log | head -1 | awk '{print $1" "$2" "$3}')"
 			echo "$4 Last Tracked On $(grep "SRC=$4 " /jffs/skynet.log | tail -1 | awk '{print $1" "$2" "$3}')"
-			echo "$(grep "SRC=$4 " /jffs/skynet.log | wc -l) Attempts Total"
+			echo "$(grep -o "SRC=$4 " /jffs/skynet.log | wc -l) Attempts Total"
 			echo
 			echo "First Attack Tracked From $4;"
 			grep "SRC=$4 " /jffs/skynet.log | head -1
