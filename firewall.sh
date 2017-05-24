@@ -232,7 +232,7 @@ case $1 in
 			echo "Removing Previous Malware Bans"
 			sed 's/add/del/g' /jffs/scripts/malwarelist.txt | ipset -q -R -!
 		elif [ "$2" = "all" ]; then
-			nvram set Blacklist=$(expr $(grep -o "d Black" /jffs/scripts/ipset.txt | wc -l) + $(grep -o "d Block" /jffs/scripts/ipset.txt | wc -l))
+			nvram set Blacklist=$(expr $(grep -oc "d Black" /jffs/scripts/ipset.txt) + $(grep -oc "d Block" /jffs/scripts/ipset.txt))
 			logger -st Skynet "[Removing All $(nvram get Blacklist) Entries From Blacklist] ... ... ..."
 			ipset --flush Blacklist
 			ipset --flush BlockedRanges
@@ -565,9 +565,9 @@ case $1 in
 			exit
 		fi
 		echo "Monitoring From $(awk '{print $1" "$2" "$3}' /jffs/skynet.log | head -1) To $(awk '{print $1" "$2" "$3}' /jffs/skynet.log | tail -1)"
-		echo "$(grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | wc -l) Total Connections Detected"
+		echo "$(grep -vcE 'SPT=80 |SPT=443 ' /jffs/skynet.log) Total Connections Detected"
 		echo "$(grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | awk '!x[$0]++' | wc -l) Unique IP Connections"
-		echo "$(grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep "NEW BAN"| wc -l) Autobans Issued"
+		echo "$(grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -c "NEW BAN") Autobans Issued"
 		echo
 		counter=10
 		if [ -n "$2" ] && [ "$2" != "search" ] && [ "$2" -eq "$2" ] 2>/dev/null; then
@@ -587,7 +587,7 @@ case $1 in
 		if [ "$2" = "search" ] && [ "$3" = "port" ]; then
 			echo "Port $4 First Tracked On $(grep "DPT=$4 " /jffs/skynet.log | head -1 | awk '{print $1" "$2" "$3}')"
 			echo "Port $4 Last Tracked On $(grep "DPT=$4 " /jffs/skynet.log | tail -1 | awk '{print $1" "$2" "$3}')"
-			echo "$(grep -o "DPT=$4 " /jffs/skynet.log | wc -l) Attempts Total"
+			echo "$(grep -oc "DPT=$4 " /jffs/skynet.log) Attempts Total"
 			echo
 			echo "First Attack Tracked On Port $4;"
 			grep "DPT=$4 " /jffs/skynet.log | head -1
@@ -602,7 +602,7 @@ case $1 in
 			echo
 			echo "$4 First Tracked On $(grep "SRC=$4 " /jffs/skynet.log | head -1 | awk '{print $1" "$2" "$3}')"
 			echo "$4 Last Tracked On $(grep "SRC=$4 " /jffs/skynet.log | tail -1 | awk '{print $1" "$2" "$3}')"
-			echo "$(grep -o "SRC=$4 " /jffs/skynet.log | wc -l) Attempts Total"
+			echo "$(grep -oc "SRC=$4 " /jffs/skynet.log) Attempts Total"
 			echo
 			echo "First Attack Tracked From $4;"
 			grep "SRC=$4 " /jffs/skynet.log | head -1
