@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 24/05/2017 -		   Asus Firewall Addition By Adamm v4.3.5				    #
+## - 24/05/2017 -		   Asus Firewall Addition By Adamm v4.3.6				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -117,8 +117,8 @@ Load_IPTables () {
 Logging () {
 		OLDIPS=$(nvram get Blacklist)
 		OLDRANGES=$(nvram get BlockedRanges)
-		nvram set Blacklist=$(grep -o "d Black" /jffs/scripts/ipset.txt 2> /dev/null | wc -l)
-		nvram set BlockedRanges=$(grep -o "d Block" /jffs/scripts/ipset.txt 2> /dev/null | wc -l)
+		nvram set Blacklist=$(grep -oc "d Black" /jffs/scripts/ipset.txt 2> /dev/null)
+		nvram set BlockedRanges=$(grep -oc "d Black" /jffs/scripts/ipset.txt 2> /dev/null)
 		NEWIPS=$(nvram get Blacklist)
 		NEWRANGES=$(nvram get BlockedRanges)
 		nvram commit
