@@ -118,7 +118,7 @@ Logging () {
 		OLDIPS=$(nvram get Blacklist)
 		OLDRANGES=$(nvram get BlockedRanges)
 		nvram set Blacklist=$(grep -oc "d Black" /jffs/scripts/ipset.txt 2> /dev/null)
-		nvram set BlockedRanges=$(grep -oc "d Black" /jffs/scripts/ipset.txt 2> /dev/null)
+		nvram set BlockedRanges=$(grep -oc "d Block" /jffs/scripts/ipset.txt 2> /dev/null)
 		NEWIPS=$(nvram get Blacklist)
 		NEWRANGES=$(nvram get BlockedRanges)
 		nvram commit
