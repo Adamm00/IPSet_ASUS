@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 24/05/2017 -		   Asus Firewall Addition By Adamm v4.3.6				    #
+## - 25/05/2017 -		   Asus Firewall Addition By Adamm v4.3.7				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -68,19 +68,16 @@ Check_Settings () {
 		if [ "$(nvram get jffs2_scripts)" != "1" ]; then
 			echo "Enabling Custom JFFS Scripts"
 			nvram set jffs2_scripts=1
-			nvram commit
 		fi
 
 		if [ "$(nvram get fw_enable_x)" != "1" ]; then
 			echo "Enabling SPI Firewall"
 			nvram set fw_enable_x=1
-			nvram commit
 		fi
 
 		if [ "$(nvram get fw_log_x)" != "drop" ]; then
 			echo "Enabling Firewall Logging"
 			nvram set fw_log_x=drop
-			nvram commit
 		fi
 }
 
@@ -158,7 +155,7 @@ Unban_PrivateIP () {
 }
 
 Purge_Logs () {
-		find /jffs/skynet.log -mtime +14 -type f -delete &> /dev/null
+		find /jffs/skynet.log -size +7M -type f -delete
 		sed -i '/Aug  1 1/d' /tmp/syslog.log-1
 		sed -i '/Aug  1 1/d' /tmp/syslog.log
 		cat /tmp/syslog.log-1 2> /dev/null | sed '/BLOCKED -/!d' >> /jffs/skynet.log
