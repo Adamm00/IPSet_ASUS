@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 25/05/2017 -		   Asus Firewall Addition By Adamm v4.3.7				    #
+## - 25/05/2017 -		   Asus Firewall Addition By Adamm v4.3.8				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -29,7 +29,7 @@
 #	  "import"	     # <-- Import And Merge IPSet Save To Firewall
 #	  "deport"	     # <-- Remove All IPs From IPSet Save From Firewall
 #	  "disable"	     # <-- Disable Firewall
-#	  "debug"	     # <-- Specific Debug Features (Restart/Disable/Filter/Info)
+#	  "debug"	     # <-- Specific Debug Features (Restart/Disable/Watch/Info)
 #	  "update"	     # <-- Update Script To Latest Version (check github for changes)
 #	  "start"	     # <-- Initiate Firewall
 #	  "stats"	     # <-- Print/Search Stats Of Recently Banned IPs (Requires debugging enabled)
@@ -146,11 +146,11 @@ Filter_SRC () {
 }
 
 Unban_PrivateIP () {
-		for ip in $(grep -E $(Filter_SRC) /jffs/skynet.log | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- )
+		for ip in $(grep -E $(Filter_SRC) /tmp/syslog.log | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- )
 			do
 			ipset -D Blacklist $ip
 			ipset -D BlockedRanges $ip
-			sed -i /SRC=$ip/d /jffs/skynet.log
+			sed -i /SRC=$ip/d /tmp/syslog.log
 		done
 }
 
@@ -243,8 +243,8 @@ case $1 in
 
 	save)
 		echo "[Saving Blacklists] ... ... ..."
-		Purge_Logs
 		Unban_PrivateIP
+		Purge_Logs
 		ipset --save > /jffs/scripts/ipset.txt
 		sed -i '/USER admin pid .*firewall/d' /tmp/syslog.log
 		;;
@@ -462,9 +462,10 @@ case $1 in
 				Unload_DebugIPTables
 				Purge_Logs
 			;;
-			filter)
-				echo "Unbanning False Positives"
-				Unban_PrivateIP
+			watch)
+				echo "Watching Logs For Debug Entries (ctrl +c) To Stop"
+				echo
+				tail -f /tmp/syslog.log | grep BLOCKED
 			;;
 			info)
 				RED='\033[0;31m'
@@ -521,8 +522,8 @@ case $1 in
 		logger -st Skynet "[IP Banning Started] ... ... ..."
 		insmod xt_set &> /dev/null
 		ipset -q -R &> /dev/null < /jffs/scripts/ipset.txt
-		Purge_Logs
 		Unban_PrivateIP
+		Purge_Logs
 		ipset -q -N Whitelist nethash
 		ipset -q -N Blacklist iphash --maxelem 500000
 		ipset -q -N BlockedRanges nethash
