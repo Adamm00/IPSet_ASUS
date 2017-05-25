@@ -121,8 +121,8 @@ Logging () {
 		nvram commit
 		HITS1=$(iptables -vL -nt raw | grep -v "LOG" | grep "Blacklist src" | awk '{print $1}')
 		HITS2=$(iptables -vL -nt raw | grep -v "LOG" | grep "BlockedRanges src" | awk '{print $1}')
-		start_time=$(expr $(date +%s) - $start_time)
-		logger -st Skynet "[Complete] $NEWIPS IPs / $NEWRANGES Ranges banned. $(expr $NEWIPS - $OLDIPS) New IPs / $(expr $NEWRANGES - $OLDRANGES) New Ranges Banned. $HITS1 IP / $HITS2 Range Connections Blocked! [$(echo $start_time)s]"
+		start_time=$(($(date +%s) - $start_time))
+		logger -st Skynet "[Complete] $NEWIPS IPs / $NEWRANGES Ranges banned. $(($NEWIPS - $OLDIPS)) New IPs / $(($NEWRANGES - $OLDRANGES)) New Ranges Banned. $HITS1 IP / $HITS2 Range Connections Blocked! ["$start_time"s]"
 }
 
 Domain_Lookup () {
@@ -229,7 +229,7 @@ case $1 in
 			echo "Removing Previous Malware Bans"
 			sed 's/add/del/g' /jffs/scripts/malwarelist.txt | ipset -q -R -!
 		elif [ "$2" = "all" ]; then
-			nvram set Blacklist=$(expr $(grep -oc "d Black" /jffs/scripts/ipset.txt) + $(grep -oc "d Block" /jffs/scripts/ipset.txt))
+			nvram set Blacklist=$(($(grep -oc "d Black" /jffs/scripts/ipset.txt) + $(grep -oc "d Block" /jffs/scripts/ipset.txt)))
 			logger -st Skynet "[Removing All $(nvram get Blacklist) Entries From Blacklist] ... ... ..."
 			ipset --flush Blacklist
 			ipset --flush BlockedRanges
