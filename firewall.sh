@@ -463,6 +463,7 @@ case $1 in
 				Purge_Logs
 			;;
 			watch)
+				Purge_Logs
 				echo "Watching Logs For Debug Entries (ctrl +c) To Stop"
 				echo
 				tail -f /tmp/syslog.log | grep BLOCKED
