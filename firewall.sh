@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 25/05/2017 -		   Asus Firewall Addition By Adamm v4.3.8				    #
+## - 25/05/2017 -		   Asus Firewall Addition By Adamm v4.3.9				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -55,7 +55,7 @@ Check_Settings () {
 			cru a Firewall_checkupdate "25 2 * * * sh /jffs/scripts/firewall update check"
 		fi
 
-		if [ "$(ipset -v | grep -o v6)" != "v6" ]; then
+		if [ "$(ipset -v | grep -Fo v6)" != "v6" ]; then
 			echo "IPSet version not supported"
 			exit
 		fi
@@ -114,13 +114,13 @@ Load_IPTables () {
 Logging () {
 		OLDIPS=$(nvram get Blacklist)
 		OLDRANGES=$(nvram get BlockedRanges)
-		nvram set Blacklist=$(grep -oc "d Black" /jffs/scripts/ipset.txt 2> /dev/null)
-		nvram set BlockedRanges=$(grep -oc "d Block" /jffs/scripts/ipset.txt 2> /dev/null)
+		nvram set Blacklist=$(grep -Foc "d Black" /jffs/scripts/ipset.txt 2> /dev/null)
+		nvram set BlockedRanges=$(grep -Foc "d Block" /jffs/scripts/ipset.txt 2> /dev/null)
 		NEWIPS=$(nvram get Blacklist)
 		NEWRANGES=$(nvram get BlockedRanges)
 		nvram commit
-		HITS1=$(iptables -vL -nt raw | grep -v "LOG" | grep "Blacklist src" | awk '{print $1}')
-		HITS2=$(iptables -vL -nt raw | grep -v "LOG" | grep "BlockedRanges src" | awk '{print $1}')
+		HITS1=$(iptables -vL -nt raw | grep -Fv "LOG" | grep -F "Blacklist src" | awk '{print $1}')
+		HITS2=$(iptables -vL -nt raw | grep -Fv "LOG" | grep -F "BlockedRanges src" | awk '{print $1}')
 		start_time=$(($(date +%s) - $start_time))
 		logger -st Skynet "[Complete] $NEWIPS IPs / $NEWRANGES Ranges banned. $(($NEWIPS - $OLDIPS)) New IPs / $(($NEWRANGES - $OLDRANGES)) New Ranges Banned. $HITS1 IP / $HITS2 Range Connections Blocked! ["$start_time"s]"
 }
@@ -216,7 +216,7 @@ case $1 in
 		done
 		elif [ "$2" = "port" ] && [ -n "$3" ]; then
 			logger -st Skynet "[Unbanning Autobans Issued On Traffic From Port $3] ... ... ..."
-			for ip in $(grep NEW /jffs/skynet.log | grep "DPT=$3 " | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- )
+			for ip in $(grep -F "NEW" /jffs/skynet.log | grep -F "DPT=$3 " | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- )
 				do
 				echo "Unbanning $ip"
 				ipset -D Blacklist $ip
@@ -229,7 +229,7 @@ case $1 in
 			echo "Removing Previous Malware Bans"
 			sed 's/add/del/g' /jffs/scripts/malwarelist.txt | ipset -q -R -!
 		elif [ "$2" = "all" ]; then
-			nvram set Blacklist=$(($(grep -oc "d Black" /jffs/scripts/ipset.txt) + $(grep -oc "d Block" /jffs/scripts/ipset.txt)))
+			nvram set Blacklist=$(($(grep -Foc "d Black" /jffs/scripts/ipset.txt) + $(grep -Foc "d Block" /jffs/scripts/ipset.txt)))
 			logger -st Skynet "[Removing All $(nvram get Blacklist) Entries From Blacklist] ... ... ..."
 			ipset --flush Blacklist
 			ipset --flush BlockedRanges
@@ -290,7 +290,7 @@ case $1 in
 				wget -q -O - http://www.ipdeny.com/ipblocks/data/countries/$country.zone >> /tmp/countrylist.txt
 			done
 			echo "Filtering IPv4 Ranges"
-			cat /tmp/countrylist.txt | sed -n "s/\r//;/^$/d;/^[0-9,\.,\/]*$/s/^/add BlockedRanges /p" | grep "/" | awk '!x[$0]++' >> /jffs/scripts/countrylist.txt
+			cat /tmp/countrylist.txt | sed -n "s/\r//;/^$/d;/^[0-9,\.,\/]*$/s/^/add BlockedRanges /p" | grep -F "/" | awk '!x[$0]++' >> /jffs/scripts/countrylist.txt
 			echo "Applying Blacklists"
 			ipset -q -R -! < /jffs/scripts/countrylist.txt
 			rm -rf /tmp/countrylist*.txt
@@ -329,7 +329,7 @@ case $1 in
 		echo "Filtering IPv4 Addresses"
 		sed -n "s/\r//;/^$/d;/^[0-9,\.]*$/s/^/add Blacklist /p" /tmp/malwarelist.txt > /jffs/scripts/malwarelist.txt
 		echo "Filtering IPv4 Ranges"
-		sed -n "s/\r//;/^$/d;/^[0-9,\.,\/]*$/s/^/add BlockedRanges /p" /tmp/malwarelist.txt | grep "/" >> /jffs/scripts/malwarelist.txt
+		sed -n "s/\r//;/^$/d;/^[0-9,\.,\/]*$/s/^/add BlockedRanges /p" /tmp/malwarelist.txt | grep -F "/" >> /jffs/scripts/malwarelist.txt
 		echo "Applying Blacklists"
 		ipset -q -R -! < /jffs/scripts/malwarelist.txt
 		rm -rf /tmp/malwarelist.txt /tmp/filter.list
@@ -374,7 +374,7 @@ case $1 in
 		done
 		elif [ "$2" = "port" ] && [ -n "$3" ]; then
 			logger -st Skynet "[Whitelisting Autobans Issued On Traffic From Port $3] ... ... ..."
-			for ip in $(grep NEW /jffs/skynet.log | grep "DPT=$3 " | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- )
+			for ip in $(grep -F "NEW" /jffs/skynet.log | grep -F "DPT=$3 " | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- )
 				do
 				echo "Whitelisting $ip"
 				ipset -A Whitelist $ip
@@ -410,9 +410,9 @@ case $1 in
 			exit
 		fi
 		echo "Filtering IPv4 Addresses"
-		grep -v "create" /jffs/scripts/ipset2.txt |  awk '{print $3}' | grep -vE $(Filter_PrivateIP) | sed -n "s/\r//;/^$/d;/^[0-9,\.]*$/s/^/add Blacklist /p" > /tmp/ipset3.txt
+		grep -Fv "create" /jffs/scripts/ipset2.txt |  awk '{print $3}' | grep -vE $(Filter_PrivateIP) | sed -n "s/\r//;/^$/d;/^[0-9,\.]*$/s/^/add Blacklist /p" > /tmp/ipset3.txt
 		echo "Filtering IPv4 Ranges"
-		grep -v "create" /jffs/scripts/ipset2.txt |  awk '{print $3}' | grep -vE $(Filter_PrivateIP) | sed -n "s/\r//;/^$/d;/^[0-9,\.,\/]*$/s/^/add BlockedRanges /p" | grep "/" >> /tmp/ipset3.txt
+		grep -Fv "create" /jffs/scripts/ipset2.txt |  awk '{print $3}' | grep -vE $(Filter_PrivateIP) | sed -n "s/\r//;/^$/d;/^[0-9,\.,\/]*$/s/^/add BlockedRanges /p" | grep -F "/" >> /tmp/ipset3.txt
 		echo "Importing IPs To Blacklist"
 		ipset -q -R -! < /tmp/ipset3.txt
 		rm -rf /tmp/ipset3.txt
@@ -434,9 +434,9 @@ case $1 in
 			exit
 		fi
 		echo "Filtering IPv4 Addresses"
-		grep -v "create" /jffs/scripts/ipset2.txt |  awk '{print $3}' | sed -n "s/\r//;/^$/d;/^[0-9,\.]*$/s/^/del Blacklist /p" > /tmp/ipset3.txt
+		grep -Fv "create" /jffs/scripts/ipset2.txt |  awk '{print $3}' | sed -n "s/\r//;/^$/d;/^[0-9,\.]*$/s/^/del Blacklist /p" > /tmp/ipset3.txt
 		echo "Filtering IPv4 Ranges"
-		grep -v "create" /jffs/scripts/ipset2.txt |  awk '{print $3}' | sed -n "s/\r//;/^$/d;/^[0-9,\.,\/]*$/s/^/del BlockedRanges /p" | grep "/" >> /tmp/ipset3.txt
+		grep -Fv "create" /jffs/scripts/ipset2.txt |  awk '{print $3}' | sed -n "s/\r//;/^$/d;/^[0-9,\.,\/]*$/s/^/del BlockedRanges /p" | grep -F "/" >> /tmp/ipset3.txt
 		echo "Removing IPs From Blacklist"
 		ipset -q -R -! < /tmp/ipset3.txt
 		rm -rf /tmp/ipset3.txt
@@ -466,7 +466,7 @@ case $1 in
 				Purge_Logs
 				echo "Watching Logs For Debug Entries (ctrl +c) To Stop"
 				echo
-				tail -f /tmp/syslog.log | grep BLOCKED
+				tail -f /tmp/syslog.log | grep -F "BLOCKED"
 			;;
 			info)
 				RED='\033[0;31m'
@@ -477,12 +477,12 @@ case $1 in
 				iptables --version
 				ipset -v
 				echo "FW Version: $(nvram get buildno)_$(nvram get extendno)"
-				grep "firewall start" /jffs/scripts/firewall-start &> /dev/null && echo -e $GRN"Startup Entry Detected"$NC || echo -e $GRN"Startup Entry Not Detected"$NC
-				cru l | grep firewall &> /dev/null && echo -e $GRN"Cronjob Detected"$NC || echo -e $GRN"Cronjob Not Detected"$NC
-				iptables -L | grep LOG | grep BAN &> /dev/null && echo -e $GRN"Autobanning Enabled"$NC || echo -e $RED"Autobanning Disabled"$NC
-				iptables -vL -nt raw | grep Whitelist &> /dev/null && echo -e $GRN"Whitelist IPTable Detected"$NC || echo -e $RED"Whitelist IPTable Not Detected"$NC
-				iptables -vL -nt raw | grep -v "LOG" | grep BlockedRanges &> /dev/null && echo -e $GRN"BlockedRanges IPTable Detected"$NC || echo -e $RED"BlockedRanges IPTable Not Detected"$NC
-				iptables -vL -nt raw | grep -v "LOG" | grep Blacklist &> /dev/null && echo -e $GRN"Blacklist IPTable Detected"$NC || echo -e $RED"Blacklist IPTable Not Detected"$NC
+				grep -F "firewall start" /jffs/scripts/firewall-start &> /dev/null && echo -e $GRN"Startup Entry Detected"$NC || echo -e $GRN"Startup Entry Not Detected"$NC
+				cru l | grep -F "firewall" &> /dev/null && echo -e $GRN"Cronjob Detected"$NC || echo -e $GRN"Cronjob Not Detected"$NC
+				iptables -L | grep -F "LOG" | grep -F "BAN" &> /dev/null && echo -e $GRN"Autobanning Enabled"$NC || echo -e $RED"Autobanning Disabled"$NC
+				iptables -vL -nt raw | grep -F "Whitelist" &> /dev/null && echo -e $GRN"Whitelist IPTable Detected"$NC || echo -e $RED"Whitelist IPTable Not Detected"$NC
+				iptables -vL -nt raw | grep -v "LOG" | grep -F "BlockedRanges" &> /dev/null && echo -e $GRN"BlockedRanges IPTable Detected"$NC || echo -e $RED"BlockedRanges IPTable Not Detected"$NC
+				iptables -vL -nt raw | grep -v "LOG" | grep -F "Blacklist" &> /dev/null && echo -e $GRN"Blacklist IPTable Detected"$NC || echo -e $RED"Blacklist IPTable Not Detected"$NC
 				ipset -L Whitelist &> /dev/null && echo -e $GRN"Whitelist IPSet Detected"$NC || echo -e $RED"Whitelist IPSet Not Detected"$NC
 				ipset -L BlockedRanges &> /dev/null && echo -e $GRN"BlockedRanges IPSet Detected"$NC || echo -e $RED"BlockedRanges IPSet Not Detected"$NC
 				ipset -L Blacklist &> /dev/null && echo -e $GRN"Blacklist IPSet Detected"$NC || echo -e $RED"Blacklist IPSet Not Detected"$NC
@@ -543,7 +543,7 @@ case $1 in
 
 	stats)
 		Purge_Logs
-		if [ -z "$(iptables -L -nt raw | grep LOG)" ]; then
+		if [ -z "$(iptables -L -nt raw | grep -F "LOG")" ]; then
 			echo
 			echo "!!! Debug Mode Is Disabled !!!"
 			echo "To Enable Use 'sh $0 install'"
@@ -555,7 +555,7 @@ case $1 in
 			echo "No Debug Data Detected - Give This Time To Generate"
 			exit
 		fi
-		if [ ! -n "$(iptables -L -nt raw | grep BLOCKED)" ]; then
+		if [ ! -n "$(iptables -L -nt raw | grep -F "BLOCKED")" ]; then
 			echo "Only New Bans Being Tracked (enable debug mode for connection tracking)"
 		fi
 		if [ "$2" = "reset" ]; then
@@ -566,7 +566,7 @@ case $1 in
 		echo "Monitoring From $(awk '{print $1" "$2" "$3}' /jffs/skynet.log | head -1) To $(awk '{print $1" "$2" "$3}' /jffs/skynet.log | tail -1)"
 		echo "$(grep -vcE 'SPT=80 |SPT=443 ' /jffs/skynet.log) Total Connections Detected"
 		echo "$(grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | awk '!x[$0]++' | wc -l) Unique IP Connections"
-		echo "$(grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -c "NEW BAN") Autobans Issued"
+		echo "$(grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -Fc "NEW BAN") Autobans Issued"
 		echo
 		counter=10
 		if [ -n "$2" ] && [ "$2" != "search" ] && [ "$2" -eq "$2" ] 2>/dev/null; then
@@ -584,69 +584,69 @@ case $1 in
 			proto=ICMP	
 		fi	
 		if [ "$2" = "search" ] && [ "$3" = "port" ]; then
-			echo "Port $4 First Tracked On $(grep "DPT=$4 " /jffs/skynet.log | head -1 | awk '{print $1" "$2" "$3}')"
-			echo "Port $4 Last Tracked On $(grep "DPT=$4 " /jffs/skynet.log | tail -1 | awk '{print $1" "$2" "$3}')"
-			echo "$(grep -oc "DPT=$4 " /jffs/skynet.log) Attempts Total"
+			echo "Port $4 First Tracked On $(grep -F "DPT=$4 " /jffs/skynet.log | head -1 | awk '{print $1" "$2" "$3}')"
+			echo "Port $4 Last Tracked On $(grep -F "DPT=$4 " /jffs/skynet.log | tail -1 | awk '{print $1" "$2" "$3}')"
+			echo "$(grep -Foc "DPT=$4 " /jffs/skynet.log) Attempts Total"
 			echo
 			echo "First Attack Tracked On Port $4;"
-			grep "DPT=$4 " /jffs/skynet.log | head -1
+			grep -F "DPT=$4 " /jffs/skynet.log | head -1
 			echo
 			echo "$counter Most Recent Attacks On Port $4;";
-			grep "DPT=$4 " /jffs/skynet.log | tail -$counter
+			grep -F "DPT=$4 " /jffs/skynet.log | tail -$counter
 			exit
 		elif [ "$2" = "search" ] && [ "$3" = "ip" ]; then
 			ipset test Whitelist $4
 			ipset test Blacklist $4
 			ipset test BlockedRanges $4
 			echo
-			echo "$4 First Tracked On $(grep "SRC=$4 " /jffs/skynet.log | head -1 | awk '{print $1" "$2" "$3}')"
-			echo "$4 Last Tracked On $(grep "SRC=$4 " /jffs/skynet.log | tail -1 | awk '{print $1" "$2" "$3}')"
-			echo "$(grep -oc "SRC=$4 " /jffs/skynet.log) Attempts Total"
+			echo "$4 First Tracked On $(grep -F "SRC=$4 " /jffs/skynet.log | head -1 | awk '{print $1" "$2" "$3}')"
+			echo "$4 Last Tracked On $(grep -F "SRC=$4 " /jffs/skynet.log | tail -1 | awk '{print $1" "$2" "$3}')"
+			echo "$(grep -Foc "SRC=$4 " /jffs/skynet.log) Attempts Total"
 			echo
 			echo "First Attack Tracked From $4;"
-			grep "SRC=$4 " /jffs/skynet.log | head -1
+			grep -F "SRC=$4 " /jffs/skynet.log | head -1
 			echo
 			echo "$counter Most Recent Attacks From $4;"
-			grep "SRC=$4 " /jffs/skynet.log | tail -$counter
+			grep -F "SRC=$4 " /jffs/skynet.log | tail -$counter
 			exit
 		elif [ "$2" = "search" ] && [ "$3" = "autobans" ]; then
-			echo "First Autoban Issued On $(grep "NEW BAN" /jffs/skynet.log | head -1 | awk '{print $1" "$2" "$3}')"
-			echo "Last Autoban Issued On $(grep "NEW BAN" /jffs/skynet.log | tail -1 | awk '{print $1" "$2" "$3}')"
+			echo "First Autoban Issued On $(grep -F "NEW BAN" /jffs/skynet.log | head -1 | awk '{print $1" "$2" "$3}')"
+			echo "Last Autoban Issued On $(grep -F "NEW BAN" /jffs/skynet.log | tail -1 | awk '{print $1" "$2" "$3}')"
 			echo
 			echo "First Autoban Issued;"
-			grep "NEW BAN" /jffs/skynet.log | head -1
+			grep -F "NEW BAN" /jffs/skynet.log | head -1
 			echo
 			echo "$counter Most Recent Autobans;"
-			grep "NEW BAN" /jffs/skynet.log | tail -$counter
+			grep -F "NEW BAN" /jffs/skynet.log | tail -$counter
 			exit
 		fi
 		echo "Top $counter Ports Attacked; (This may pick up false positives from applications like uTorrent or Apple Devices)"
-		grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep "$proto" | grep -oE 'DPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -$counter | awk '{print $1"x https://www.speedguide.net/port.php?port="$2}'
+		grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -F "$proto" | grep -oE 'DPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -$counter | awk '{print $1"x https://www.speedguide.net/port.php?port="$2}'
 		echo
 		echo "Top $counter Attacker Source Ports;"
-		grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep "$proto" | grep -oE 'SPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -$counter | awk '{print $1"x https://www.speedguide.net/port.php?port="$2}'
+		grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -F "$proto" | grep -oE 'SPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -$counter | awk '{print $1"x https://www.speedguide.net/port.php?port="$2}'
 		echo
 		echo "Last $counter Unique Connections Blocked;"
-		grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep "$proto" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | awk '!x[$0]++' | tail -$counter | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
+		grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -F "$proto" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | awk '!x[$0]++' | tail -$counter | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
 		echo
 		echo "Last $counter Autobans;"
-		grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep "$proto" | grep "NEW BAN" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | tail -$counter | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
+		grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -F "$proto" | grep -F "NEW BAN" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | tail -$counter | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
 		echo
 		echo "Last $counter Unique HTTP(s) Blocks;"
-		grep -E 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep "$proto" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | awk '!x[$0]++' | tail -$counter | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
+		grep -E 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -F "$proto" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | awk '!x[$0]++' | tail -$counter | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
 		echo
 		echo "Top $counter HTTP(s) Blocks;"
-		grep -E 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep "$proto" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -$counter | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}'
+		grep -E 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -F "$proto" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -$counter | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}'
 		echo
 		echo "Top $counter Attackers;"
-		grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep "$proto" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -$counter | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}'
+		grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -F "$proto" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -$counter | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}'
 		echo
 		;;
 
 	install)
 		if [ ! -f /jffs/scripts/firewall-start ]; then
 			echo "#!/bin/sh" > /jffs/scripts/firewall-start
-		elif [ -f /jffs/scripts/firewall-start ] && [ -z "$(grep "#!/bin" /jffs/scripts/firewall-start)" ]; then
+		elif [ -f /jffs/scripts/firewall-start ] && [ -z "$(grep -F "#!/bin" /jffs/scripts/firewall-start)" ]; then
 			sed -i '1s~^~#!/bin/sh\n~' /jffs/scripts/firewall-start
 		fi
 		echo "Installing Skynet $(cat $0 | Filter_Version)"
