@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 25/05/2017 -		   Asus Firewall Addition By Adamm v4.3.9				    #
+## - 26/05/2017 -		   Asus Firewall Addition By Adamm v4.4.0				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -39,6 +39,8 @@
 
 start_time=$(date +%s)
 head -39 $0
+export LC_ALL=C
+#set -x
 
 Check_Settings () {
 		if [ -f "/jffs/scripts/IPSET_Block.sh" ]; then
@@ -563,7 +565,7 @@ case $1 in
 			echo "Stat Data Reset"
 			exit
 		fi
-		echo "Monitoring From $(awk '{print $1" "$2" "$3}' /jffs/skynet.log | head -1) To $(awk '{print $1" "$2" "$3}' /jffs/skynet.log | tail -1)"
+		echo "Monitoring From $(head -1 /jffs/skynet.log | awk '{print $1" "$2" "$3}') To $(tail -1 /jffs/skynet.log | awk '{print $1" "$2" "$3}')"
 		echo "$(grep -vcE 'SPT=80 |SPT=443 ' /jffs/skynet.log) Total Connections Detected"
 		echo "$(grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | awk '!x[$0]++' | wc -l) Unique IP Connections"
 		echo "$(grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -Fc "NEW BAN") Autobans Issued"
