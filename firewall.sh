@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 26/05/2017 -		   Asus Firewall Addition By Adamm v4.4.1				    #
+## - 26/05/2017 -		   Asus Firewall Addition By Adamm v4.4.2				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -478,23 +478,22 @@ case $1 in
 				tail -f /tmp/syslog.log | grep -F "BLOCKED"
 			;;
 			info)
-				RED='\033[0;31m'
-				GRN='\033[0;32m'
-				NC='\033[0m'
+				RED="printf \e[0;31m%-6s\e[m\n"
+				GRN="printf \e[0;32m%-6s\e[m\n"
 				echo "Router Model: $(uname -n)"
 				echo "Skynet Version: $(Filter_Version "$0") ($(Filter_Date "$0"))"
 				iptables --version
 				ipset -v
 				echo "FW Version: $(nvram get buildno)_$(nvram get extendno)"
-				grep -F "firewall start" /jffs/scripts/firewall-start >/dev/null 2>&1 && echo -e "$GRN"Startup Entry Detected"$NC" || echo -e "$RED"Startup Entry Not Detected"$NC"
-				cru l | grep -F "firewall" >/dev/null 2>&1 && echo -e "$GRN"Cronjob Detected"$NC" || echo -e "$RED"Cronjob Not Detected"$NC"
-				iptables -L | grep -F "LOG" | grep -F "BAN" >/dev/null 2>&1 && echo -e "$GRN"Autobanning Enabled"$NC" || echo -e "$RED"Autobanning Disabled"$NC"
-				iptables -vL -nt raw | grep -F "Whitelist" >/dev/null 2>&1 && echo -e "$GRN"Whitelist IPTable Detected"$NC" || echo -e "$RED"Whitelist IPTable Not Detected"$NC"
-				iptables -vL -nt raw | grep -v "LOG" | grep -F "BlockedRanges" >/dev/null 2>&1 && echo -e "$GRN"BlockedRanges IPTable Detected"$NC" || echo -e "$RED"BlockedRanges IPTable Not Detected"$NC"
-				iptables -vL -nt raw | grep -v "LOG" | grep -F "Blacklist" >/dev/null 2>&1 && echo -e "$GRN"Blacklist IPTable Detected"$NC" || echo -e "$RED"Blacklist IPTable Not Detected"$NC"
-				ipset -L Whitelist >/dev/null 2>&1 && echo -e "$GRN"Whitelist IPSet Detected"$NC" || echo -e "$RED"Whitelist IPSet Not Detected"$NC"
-				ipset -L BlockedRanges >/dev/null 2>&1 && echo -e "$GRN"BlockedRanges IPSet Detected"$NC" || echo -e "$RED"BlockedRanges IPSet Not Detected"$NC"
-				ipset -L Blacklist >/dev/null 2>&1 && echo -e "$GRN"Blacklist IPSet Detected"$NC" || echo -e "$RED"Blacklist IPSet Not Detected"$NC"
+				grep -F "firewall start" /jffs/scripts/firewall-start >/dev/null 2>&1 && $GRN "Startup Entry Detected" || $RED "Startup Entry Not Detected"
+				cru l | grep -F "firewall" >/dev/null 2>&1 && $GRN "Cronjob Detected" || $RED "Cronjob Not Detected"
+				iptables -L | grep -F "LOG" | grep -F "BAN" >/dev/null 2>&1 && $GRN "Autobanning Enabled" || $RED "Autobanning Disabled"
+				iptables -vL -nt raw | grep -F "Whitelist" >/dev/null 2>&1 && $GRN "Whitelist IPTable Detected" || $RED "Whitelist IPTable Not Detected"
+				iptables -vL -nt raw | grep -v "LOG" | grep -F "BlockedRanges" >/dev/null 2>&1 && $GRN "BlockedRanges IPTable Detected" || $RED "BlockedRanges IPTable Not Detected"
+				iptables -vL -nt raw | grep -v "LOG" | grep -F "Blacklist" >/dev/null 2>&1 && $GRN "Blacklist IPTable Detected" || $RED "Blacklist IPTable Not Detected"
+				ipset -L Whitelist >/dev/null 2>&1 && $GRN "Whitelist IPSet Detected" || $RED "Whitelist IPSet Not Detected"
+				ipset -L BlockedRanges >/dev/null 2>&1 && $GRN "BlockedRanges IPSet Detected" || $RED "BlockedRanges IPSet Not Detected"
+				ipset -L Blacklist >/dev/null 2>&1 && $GRN "Blacklist IPSet Detected" || $RED "Blacklist IPSet Not Detected"
 			;;
 
 		*)
