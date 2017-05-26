@@ -335,6 +335,9 @@ case $1 in
 		echo "Applying Blacklists"
 		ipset -q -R -! < /jffs/scripts/malwarelist.txt
 		rm -rf /tmp/malwarelist.txt /tmp/filter.list
+		if [ -f /home/root/ab-solution.sh ]; then
+			ipset -q -A Whitelist 213.230.210.230 # AB-Solution Host File
+		fi
 		echo "Warning; This May Have Blocked Your Favorite Torrent Website"
 		echo "To Whitelist It Use; \"sh $0 whitelist domain URL\""
 		ipset --save > /jffs/scripts/ipset.txt
