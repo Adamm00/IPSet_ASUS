@@ -574,9 +574,9 @@ case $1 in
 			exit
 		fi
 		echo "Monitoring From $(head -1 /jffs/skynet.log | awk '{print $1" "$2" "$3}') To $(tail -1 /jffs/skynet.log | awk '{print $1" "$2" "$3}')"
-		echo "$(grep -vcE 'SPT=80 |SPT=443 ' /jffs/skynet.log) Total Connections Detected"
-		echo "$(grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | awk '!x[$0]++' | wc -l) Unique IP Connections"
-		echo "$(grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -Fc "NEW BAN") Autobans Issued"
+		echo "$(wc -l /jffs/skynet.log) Total Connections Detected"
+		echo "$(wc -l /jffs/skynet.log | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | awk '!x[$0]++' | wc -l) Unique IP Connections"
+		echo "$(wc -l /jffs/skynet.log | grep -Fc "NEW BAN") Autobans Issued"
 		echo
 		counter=10
 		if [ -n "$2" ] && [ "$2" != "search" ] && [ "$2" -eq "$2" ] 2>/dev/null; then
