@@ -243,7 +243,8 @@ case $1 in
 			logger -st Skynet "[Removing All $(nvram get Blacklist) Entries From Blacklist] ... ... ..."
 			ipset --flush Blacklist
 			ipset --flush BlockedRanges
-			rm -rf /jffs/skynet.log /jffs/scripts/countrylist.txt /jffs/scripts/malwarelist.txt
+			rm -rf /jffs/scripts/countrylist.txt /jffs/scripts/malwarelist.txt
+			> /jffs/skynet.log
 		else
 			echo "Command Not Recognised, Please Try Again"
 			exit
@@ -571,7 +572,7 @@ case $1 in
 			echo "Only New Bans Being Tracked (enable debug mode for connection tracking)"
 		fi
 		if [ "$2" = "reset" ]; then
-			rm -rf /jffs/skynet.log
+			> /jffs/skynet.log
 			echo "Stat Data Reset"
 			exit
 		fi
