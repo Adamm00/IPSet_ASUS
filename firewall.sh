@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 27/05/2017 -		   Asus Firewall Addition By Adamm v4.4.4				    #
+## - 27/05/2017 -		   Asus Firewall Addition By Adamm v4.4.5				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -161,10 +161,12 @@ Unban_PrivateIP () {
 }
 
 Purge_Logs () {
-		find /jffs/skynet.log -size +7M -type f -delete
-		sed -i '/Aug  1 1/d' /tmp/syslog.log-1
+		if [ "$(ls -l /jffs/skynet.log | awk '{print $5}')" -ge "7000000" ]; then
+			rm -rf /jffs/skynet.log
+		fi
+		sed -i '/Aug  1 1/d' /tmp/syslog.log-1 >/dev/null 2>&1
 		sed -i '/Aug  1 1/d' /tmp/syslog.log
-		sed '/BLOCKED -/!d' /tmp/syslog.log-1 >> /jffs/skynet.log
+		sed '/BLOCKED -/!d' /tmp/syslog.log-1 >> /jffs/skynet.log >/dev/null 2>&1
 		sed -i '/BLOCKED -/d' /tmp/syslog.log-1 >/dev/null 2>&1
 		sed '/BLOCKED -/!d' /tmp/syslog.log >> /jffs/skynet.log
 		sed -i '/BLOCKED -/d' /tmp/syslog.log
