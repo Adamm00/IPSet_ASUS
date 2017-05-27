@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 27/05/2017 -		   Asus Firewall Addition By Adamm v4.4.5				    #
+## - 28/05/2017 -		   Asus Firewall Addition By Adamm v4.4.6				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -533,7 +533,7 @@ case $1 in
 		cru a Firewall_save "0 * * * * /jffs/scripts/firewall save"
 		sed -i '/IP Banning Started/d' /tmp/syslog.log
 		logger -st Skynet "[IP Banning Started] ... ... ..."
-		insmod xt_set >/dev/null 2>&1
+		modprobe xt_set >/dev/null 2>&1
 		ipset -q -R >/dev/null 2>&1 < /jffs/scripts/ipset.txt
 		Unban_PrivateIP
 		Purge_Logs
