@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 27/05/2017 -		   Asus Firewall Addition By Adamm v4.4.3				    #
+## - 27/05/2017 -		   Asus Firewall Addition By Adamm v4.4.4				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -574,9 +574,9 @@ case $1 in
 			exit
 		fi
 		echo "Monitoring From $(head -1 /jffs/skynet.log | awk '{print $1" "$2" "$3}') To $(tail -1 /jffs/skynet.log | awk '{print $1" "$2" "$3}')"
-		echo "$(wc -l /jffs/skynet.log) Total Connections Detected"
-		echo "$(wc -l /jffs/skynet.log | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | awk '!x[$0]++' | wc -l) Unique IP Connections"
-		echo "$(wc -l /jffs/skynet.log | grep -Fc "NEW BAN") Autobans Issued"
+		echo "$(wc -l /jffs/skynet.log | awk '{print $1}') Total Connections Detected"
+		echo "$(grep -oE ' SRC=[0-9,\.]* ' /jffs/skynet.log | cut -c 6- | awk '!x[$0]++' | wc -l) Unique IP Connections"
+		echo "$(grep -Fc "NEW BAN" /jffs/skynet.log | wc -l) Autobans Issued"
 		echo
 		counter=10
 		if [ -n "$2" ] && [ "$2" != "search" ] && [ "$2" -eq "$2" ] 2>/dev/null; then
@@ -630,7 +630,7 @@ case $1 in
 			grep -F "NEW BAN" /jffs/skynet.log | tail -"$counter"
 			exit
 		fi
-		echo "Top $counter Ports Attacked; (This may pick up false positives from applications like uTorrent or Apple Devices)"
+		echo "Top $counter Ports Attacked; (Torrent Clients May Cause Excess Hits In Debug Mode)"
 		grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -F "$proto" | grep -oE 'DPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://www.speedguide.net/port.php?port="$2}'
 		echo
 		echo "Top $counter Attacker Source Ports;"
