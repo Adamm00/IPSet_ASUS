@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 26/05/2017 -		   Asus Firewall Addition By Adamm v4.4.2				    #
+## - 27/05/2017 -		   Asus Firewall Addition By Adamm v4.4.3				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -156,7 +156,7 @@ Unban_PrivateIP () {
 			do
 			ipset -D Blacklist "$ip"
 			ipset -D BlockedRanges "$ip"
-			sed -i /"SRC=$ip"/d /tmp/syslog.log
+			sed -i "/SRC=${ip}/d" /tmp/syslog.log
 		done
 }
 
@@ -195,11 +195,11 @@ case $1 in
 			read -r unbanip
 			logger -st Skynet "[Removing $unbanip From Blacklist] ... ... ..."
 			ipset -D Blacklist "$unbanip"
-			sed -i /"$unbanip"/d /jffs/skynet.log
+			sed -i "/$unbanip/d" /jffs/skynet.log
 		elif [ -n "$2" ] && [ "$2" != "domain" ] && [ "$2" != "range" ] && [ "$2" != "port" ] && [ "$2" != "country" ] && [ "$2" != "malware" ] && [ "$2" != "all" ]; then
 			logger -st Skynet "[Removing $2 From Blacklist] ... ... ..."
 			ipset -D Blacklist "$2"
-			sed -i /"$2"/d /jffs/skynet.log
+			sed -i "/$2/d" /jffs/skynet.log
 		elif [ "$2" = "range" ] && [ -n "$3" ]; then
 			logger -st Skynet "[Removing $3 From Blacklist] ... ... ..."
 			ipset -D BlockedRanges "$3"
@@ -211,14 +211,14 @@ case $1 in
 			for ip in $(Domain_Lookup "$unbandomain")
 				do
 				ipset -D Blacklist "$ip"
-				sed -i /"$ip"/d /jffs/skynet.log
+				sed -i "/$ip/d" /jffs/skynet.log
 			done
 		elif [ "$2" = "domain" ] && [ -n "$3" ]; then
 		logger -st Skynet "[Removing $3 From Blacklist] ... ... ..."
 		for ip in $(Domain_Lookup "$3")
 			do
 			ipset -D Blacklist "$ip"
-			sed -i /"$ip"/d /jffs/skynet.log
+			sed -i "/$ip/d" /jffs/skynet.log
 		done
 		elif [ "$2" = "port" ] && [ -n "$3" ]; then
 			logger -st Skynet "[Unbanning Autobans Issued On Traffic From Port $3] ... ... ..."
@@ -226,14 +226,16 @@ case $1 in
 				do
 				echo "Unbanning $ip"
 				ipset -D Blacklist "$ip"
-				sed -i /"DPT=$3"/d /jffs/skynet.log
 			done
+			sed -i "/DPT=${3} /d" /jffs/skynet.log
 		elif [ "$2" = "country" ]; then
 			echo "Removing Previous Country Bans"
 			sed 's/add/del/g' /jffs/scripts/countrylist.txt | ipset -q -R -!
+			rm -rf /jffs/scripts/countrylist.txt
 		elif [ "$2" = "malware" ]; then
 			echo "Removing Previous Malware Bans"
 			sed 's/add/del/g' /jffs/scripts/malwarelist.txt | ipset -q -R -!
+			rm -rf /jffs/scripts/malwarelist.txt
 		elif [ "$2" = "all" ]; then
 			nvram set Blacklist=$(($(grep -Foc "d Black" /jffs/scripts/ipset.txt) + $(grep -Foc "d Block" /jffs/scripts/ipset.txt)))
 			logger -st Skynet "[Removing All $(nvram get Blacklist) Entries From Blacklist] ... ... ..."
@@ -371,7 +373,7 @@ case $1 in
 				do
 				ipset -A Whitelist "$ip"
 				ipset -D Blacklist "$ip"
-				sed -i /"$ip"/d /jffs/skynet.log
+				sed -i "/$ip/d" /jffs/skynet.log
 			done
 		elif [ "$2" = "domain" ] && [ -n "$3" ]; then
 		logger -st Skynet "[Adding $3 To Whitelist] ... ... ..."
@@ -379,7 +381,7 @@ case $1 in
 			do
 			ipset -A Whitelist "$ip"
 			ipset -D Blacklist "$ip"
-			sed -i /"$ip"/d /jffs/skynet.log
+			sed -i "/$ip/d" /jffs/skynet.log
 		done
 		elif [ "$2" = "port" ] && [ -n "$3" ]; then
 			logger -st Skynet "[Whitelisting Autobans Issued On Traffic From Port $3] ... ... ..."
@@ -388,7 +390,7 @@ case $1 in
 				echo "Whitelisting $ip"
 				ipset -A Whitelist "$ip"
 				ipset -D Blacklist "$ip"
-				sed -i /"$ip"/d /jffs/skynet.log
+				sed -i "/$ip/d" /jffs/skynet.log
 			done
 		elif [ "$2" = "remove" ]; then
 			echo "Removing All Non-Default Whitelist Entries"
@@ -589,8 +591,8 @@ case $1 in
 		elif [ "$2" = "udp" ] || [ "$3" = "udp" ]; then
 			proto=UDP
 		elif [ "$2" = "icmp" ] || [ "$3" = "icmp" ]; then
-			proto=ICMP	
-		fi	
+			proto=ICMP
+		fi
 		if [ "$2" = "search" ] && [ "$3" = "port" ]; then
 			echo "Port $4 First Tracked On $(grep -F "DPT=$4 " /jffs/skynet.log | head -1 | awk '{print $1" "$2" "$3}')"
 			echo "Port $4 Last Tracked On $(grep -F "DPT=$4 " /jffs/skynet.log | tail -1 | awk '{print $1" "$2" "$3}')"
