@@ -576,7 +576,7 @@ case $1 in
 		echo "Monitoring From $(head -1 /jffs/skynet.log | awk '{print $1" "$2" "$3}') To $(tail -1 /jffs/skynet.log | awk '{print $1" "$2" "$3}')"
 		echo "$(wc -l /jffs/skynet.log | awk '{print $1}') Total Connections Detected"
 		echo "$(grep -oE ' SRC=[0-9,\.]* ' /jffs/skynet.log | cut -c 6- | awk '!x[$0]++' | wc -l) Unique IP Connections"
-		echo "$(grep -Fc "NEW BAN" /jffs/skynet.log | wc -l) Autobans Issued"
+		echo "$(grep -Fc "NEW BAN" /jffs/skynet.log) Autobans Issued"
 		echo
 		counter=10
 		if [ -n "$2" ] && [ "$2" != "search" ] && [ "$2" -eq "$2" ] 2>/dev/null; then
