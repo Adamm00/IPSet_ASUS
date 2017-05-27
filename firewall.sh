@@ -241,7 +241,7 @@ case $1 in
 			logger -st Skynet "[Removing All $(nvram get Blacklist) Entries From Blacklist] ... ... ..."
 			ipset --flush Blacklist
 			ipset --flush BlockedRanges
-			rm -rf /jffs/skynet.log
+			rm -rf /jffs/skynet.log /jffs/scripts/countrylist.txt /jffs/scripts/malwarelist.txt
 		else
 			echo "Command Not Recognised, Please Try Again"
 			exit
