@@ -4,12 +4,9 @@ https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/firehol_level2
 https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/firehol_level3.netset
 https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/feodo.ipset
 https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/palevo.ipset
-https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/sslbl.ipset
-https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/zeus_badips.ipset
 https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/bambenek_c2.ipset
 https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/spamhaus_drop.netset
 https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/spamhaus_edrop.netset
-https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/dshield.netset
 https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/malwaredomainlist.ipset
 https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/hphosts_exp.ipset
 https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/hphosts_hjk.ipset
@@ -19,7 +16,6 @@ https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/cybercrime.ips
 https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/bbcan177_ms1.netset
 https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/bbcan177_ms3.netset
 https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/dyndns_ponmocup.ipset
-https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/malc0de.ipset
 https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/ransomware_feed.ipset
 https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/ransomware_rw.ipset
 https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/ransomware_cryptowall_ps.ipset
@@ -30,5 +26,4 @@ https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/et_botcc.ipset
 https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/blocklist_de_bots.ipset
 https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/blocklist_de_ssh.ipset
 https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/blocklist_de_strongips.ipset
-https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/ciarmy.ipset
 https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/alienvault_reputation.ipset
