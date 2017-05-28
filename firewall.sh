@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 28/05/2017 -		   Asus Firewall Addition By Adamm v4.4.6				    #
+## - 28/05/2017 -		   Asus Firewall Addition By Adamm v4.4.7				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 ###################################################################################################################
 ###			       ----- Make Sure To Edit The Following Files -----				  #
@@ -335,15 +335,14 @@ case $1 in
 			sed 's/add/del/g' /jffs/scripts/malwarelist.txt | ipset -q -R -!
 		fi
 		echo "Downloading Lists"
-		wget -q --no-check-certificate $listurl -O /tmp/filter.list
-		wget --no-check-certificate -i /tmp/filter.list -qO- | awk '!x[$0]++' | grep -vE "$(Filter_PrivateIP)" > /tmp/malwarelist.txt
+		wget $listurl -qO- | wget -i- -qO- | awk '!x[$0]++' | grep -vE "$(Filter_PrivateIP)" > /tmp/malwarelist.txt
 		echo "Filtering IPv4 Addresses"
 		sed -n "s/\r//;/^$/d;/^[0-9,\.]*$/s/^/add Blacklist /p" /tmp/malwarelist.txt > /jffs/scripts/malwarelist.txt
 		echo "Filtering IPv4 Ranges"
 		sed -n "s/\r//;/^$/d;/^[0-9,\.,\/]*$/s/^/add BlockedRanges /p" /tmp/malwarelist.txt | grep -F "/" >> /jffs/scripts/malwarelist.txt
 		echo "Applying Blacklists"
 		ipset -q -R -! < /jffs/scripts/malwarelist.txt
-		rm -rf /tmp/malwarelist.txt /tmp/filter.list
+		rm -rf /tmp/malwarelist.txt
 		if [ -f /home/root/ab-solution.sh ]; then
 			ipset -q -A Whitelist 213.230.210.230 # AB-Solution Host File
 		fi
@@ -596,7 +595,7 @@ case $1 in
 		elif [ "$2" = "icmp" ] || [ "$3" = "icmp" ]; then
 			proto=ICMP
 		fi
-		if [ "$2" = "search" ] && [ "$3" = "port" ]; then
+		if [ "$2" = "search" ] && [ "$3" = "port" ] && [ -n "$4" ]; then
 			echo "Port $4 First Tracked On $(grep -F "DPT=$4 " /jffs/skynet.log | head -1 | awk '{print $1" "$2" "$3}')"
 			echo "Port $4 Last Tracked On $(grep -F "DPT=$4 " /jffs/skynet.log | tail -1 | awk '{print $1" "$2" "$3}')"
 			echo "$(grep -Foc "DPT=$4 " /jffs/skynet.log) Attempts Total"
@@ -607,7 +606,7 @@ case $1 in
 			echo "$counter Most Recent Attacks On Port $4;";
 			grep -F "DPT=$4 " /jffs/skynet.log | tail -"$counter"
 			exit
-		elif [ "$2" = "search" ] && [ "$3" = "ip" ]; then
+		elif [ "$2" = "search" ] && [ "$3" = "ip" ] && [ -n "$4" ]; then
 			ipset test Whitelist "$4"
 			ipset test Blacklist "$4"
 			ipset test BlockedRanges "$4"
@@ -621,6 +620,12 @@ case $1 in
 			echo
 			echo "$counter Most Recent Attacks From $4;"
 			grep -F "SRC=$4 " /jffs/skynet.log | tail -"$counter"
+			exit
+		elif [ "$2" = "search" ] && [ "$3" = "malware" ] && [ -n "$4" ]; then
+			wget https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/filter.list -qO- | tr -d '\r' | while IFS= read -r url
+				do
+				wget "$url" -qO- | grep -qF "$4" && echo "IP Found In $url"
+			done
 			exit
 		elif [ "$2" = "search" ] && [ "$3" = "autobans" ]; then
 			echo "First Autoban Issued On $(grep -F "NEW BAN" /jffs/skynet.log | head -1 | awk '{print $1" "$2" "$3}')"
