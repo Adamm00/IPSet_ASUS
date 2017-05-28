@@ -600,7 +600,7 @@ case $1 in
 			echo "Port $4 Last Tracked On $(grep -F "DPT=$4 " /jffs/skynet.log | tail -1 | awk '{print $1" "$2" "$3}')"
 			echo "$(grep -Foc "DPT=$4 " /jffs/skynet.log) Attempts Total"
 			echo "$(grep -F "DPT=$4 " /jffs/skynet.log | grep -oE ' SRC=[0-9,\.]* ' | awk '!x[$0]++' | wc -l) Unique IPs"
-			echo "$(grep -Fo "DPT=$4 " /jffs/skynet.log | grep -cF NEW) Autobans From This Port"
+			echo "$(grep -F "DPT=$4 " /jffs/skynet.log | grep -cF NEW) Autobans From This Port"
 			echo
 			echo "First Attack Tracked On Port $4;"
 			grep -F "DPT=$4 " /jffs/skynet.log | head -1
