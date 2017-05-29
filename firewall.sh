@@ -249,6 +249,7 @@ case $1 in
 			echo "Command Not Recognised, Please Try Again"
 			exit
 		fi
+		echo "Saving Changes"
 		ipset --save > /jffs/scripts/ipset.txt
 		;;
 
@@ -309,6 +310,7 @@ case $1 in
 			echo "Command Not Recognised, Please Try Again"
 			exit
 		fi
+		echo "Saving Changes"
 		ipset --save > /jffs/scripts/ipset.txt
 		;;
 
@@ -348,6 +350,7 @@ case $1 in
 		fi
 		echo "Warning; This May Have Blocked Your Favorite Website"
 		echo "To Whitelist It Use; \"sh $0 whitelist domain URL\""
+		echo "Saving Changes"
 		ipset --save > /jffs/scripts/ipset.txt
 		;;
 
@@ -397,6 +400,7 @@ case $1 in
 		elif [ "$2" = "remove" ]; then
 			echo "Removing All Non-Default Whitelist Entries"
 			ipset --flush Whitelist
+			echo "Saving Changes"
 			ipset --save > /jffs/scripts/ipset.txt
 			echo "Restarting Firewall"
 			service restart_firewall
@@ -405,6 +409,7 @@ case $1 in
 			echo "Command Not Recognised, Please Try Again"
 			exit
 		fi
+		echo "Saving Changes"
 		ipset --save > /jffs/scripts/ipset.txt
 		;;
 
@@ -429,6 +434,7 @@ case $1 in
 		echo "Importing IPs To Blacklist"
 		ipset -q -R -! < /tmp/ipset3.txt
 		rm -rf /tmp/ipset3.txt
+		echo "Saving Changes"
 		ipset --save > /jffs/scripts/ipset.txt
 		;;
 
@@ -453,6 +459,7 @@ case $1 in
 		echo "Removing IPs From Blacklist"
 		ipset -q -R -! < /tmp/ipset3.txt
 		rm -rf /tmp/ipset3.txt
+		echo "Saving Changes"
 		ipset --save > /jffs/scripts/ipset.txt
 		;;
 
