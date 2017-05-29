@@ -39,8 +39,12 @@ export LC_ALL=C
 #set -x
 
 Check_Settings () {
+		if [ -z "$(grep -F "Skynet" /jffs/scripts/firewall-start)" ]; then
+			logger -st Skynet "[Installation Not Detected - Please Use Install Command To Continue]"
+			exit
+		fi
 		if [ -f "/jffs/scripts/IPSET_Block.sh" ]; then
-			logger -st Skynet "[IPSet_Block.sh Detected - This script will cause conflicts and does not have saftey checks like Skynet, please uninstall it ASAP]"
+			logger -st Skynet "[IPSet_Block.sh Detected - This Script Will Cause Conflicts And Does Not Have Saftey Checks Like Skynet, Please Uninstall It ASAP]"
 		fi
 
 		if [ "$1" = "banmalware" ] || [ "$2" = "banmalware" ] || [ "$3" = "banmalware" ]; then
@@ -54,7 +58,7 @@ Check_Settings () {
 		fi
 
 		if [ "$(ipset -v | grep -Fo v6)" != "v6" ]; then
-			echo "IPSet version not supported"
+			echo "IPSet Version Not Supported"
 			exit
 		fi
 
@@ -497,7 +501,7 @@ case $1 in
 			;;
 
 		*)
-			echo "Error - Use Syntax './jffs/scripts/firewall debug (enable/disable/filter/info)'"
+			echo "Error - Use Syntax './jffs/scripts/firewall debug (restart/disable/watch/info)'"
 		esac
 		;;
 
