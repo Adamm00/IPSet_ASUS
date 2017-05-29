@@ -9,14 +9,10 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 29/05/2017 -		   Asus Firewall Addition By Adamm v4.4.7				    #
+## - 29/05/2017 -		   Asus Firewall Addition By Adamm v4.4.8				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
-###################################################################################################################
-###			       ----- Make Sure To Edit The Following Files -----				  #
-### /jffs/scripts/firewall-start			         <-- Sets up cronjob/initial execution		  #
-### /jffs/scripts/firewall					 <-- Blacklists IP's From /jffs/scripts/ipset.txt #
-### /jffs/scripts/ipset.txt					 <-- Banned IP List/IPSet Rules			  #
-###################################################################################################################
+#############################################################################################################
+
 
 ##############################
 ###	  Commands	   ###
@@ -37,7 +33,7 @@
 #	  "uninstall"        # <-- Uninstall All Traces Of Script
 ##############################
 
-head -39 "$0"
+head -35 "$0"
 start_time=$(date +%s)
 export LC_ALL=C
 #set -x
@@ -506,8 +502,10 @@ case $1 in
 		;;
 
 	update)
+		remoteurl="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh"
+		curl -s --connect-timeout 5 "$remoteurl" | grep -qF "Adamm" || { logger -st Skynet "[404 Error Detected - Stopping Update]" ; exit; }
 		localver="$(Filter_Version "$0")"
-		remotever="$(wget https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh -qO- | Filter_Version)"
+		remotever="$(wget "$remoteurl" -qO- | Filter_Version)"
 		if [ "$localver" = "$remotever" ] && [ "$2" != "-f" ]; then
 			echo "To Use Only Check For Update Use; \"sh $0 update check\""
 			echo "To Force Update Use; \"sh $0 update -f\""
@@ -521,7 +519,7 @@ case $1 in
 		fi
 		if [ "$localver" != "$remotever" ] || [ "$2" = "-f" ]; then
 			logger -st Skynet "[New Version Detected - Updating To $remotever]... ... ..."
-			wget https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh -qO "$0" && logger -st Skynet "[Skynet Sucessfully Updated - Restarting Firewall]"
+			wget "$remoteurl" -qO "$0" && logger -st Skynet "[Skynet Sucessfully Updated - Restarting Firewall]"
 			service restart_firewall
 			exit
 		fi
