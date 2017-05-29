@@ -21,7 +21,7 @@
 #	  "save"	     # <-- Save Blacklists To /jffs/scripts/ipset.txt
 #	  "ban"		     # <-- Adds Entry To Blacklist (IP/Range/Domain/Port/Country)
 #	  "banmalware"	     # <-- Bans Various Malware Domains
-#	  "whitelist"        # <-- Add Entry To Whitelist (IP/Range/Domain/Remove)
+#	  "whitelist"        # <-- Add Entry To Whitelist (IP/Range/Domain/Port/Remove)
 #	  "import"	     # <-- Import And Merge IPSet Save To Firewall
 #	  "deport"	     # <-- Remove All IPs From IPSet Save From Firewall
 #	  "disable"	     # <-- Disable Firewall
@@ -298,7 +298,7 @@ case $1 in
 			echo "Downloading Lists"
 			for country in $3
 			do
-				wget http://www.ipdeny.com/ipblocks/data/countries/"$country".zone -qO /tmp/countrylist.txt
+				wget http://www.ipdeny.com/ipblocks/data/countries/"$country".zone -qO- >> /tmp/countrylist.txt
 			done
 			echo "Filtering IPv4 Ranges"
 			sed -n "s/\r//;/^$/d;/^[0-9,\.,\/]*$/s/^/add BlockedRanges /p" /tmp/countrylist.txt | grep -F "/" | awk '!x[$0]++' >> /jffs/scripts/countrylist.txt
@@ -630,7 +630,7 @@ case $1 in
 				do
 				wget "$url" -qO /tmp/malwarelist.txt
 				grep -qF "$4" /tmp/malwarelist.txt && echo "$4 Found In $url"
-				grep -Fv "$4" /tmp/malwarelist.txt | grep -qF "$(echo $4 | cut -d '.' -f1-3)." && echo "$4 Possible CIDR Match In $url"
+				grep -Fv "$4" /tmp/malwarelist.txt | grep -qF "$(echo "$4" | cut -d '.' -f1-3)." && echo "$4 Possible CIDR Match In $url"
 			done
 			rm -rf /tmp/malwarelist.txt
 			Logging
