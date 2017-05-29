@@ -3,7 +3,6 @@ http://www.abuseat.org/iotcc.txt
 https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/firehol_level2.netset
 https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/firehol_level3.netset
 https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/feodo.ipset
-https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/palevo.ipset
 https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/bambenek_c2.ipset
 https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/spamhaus_drop.netset
 https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/spamhaus_edrop.netset
