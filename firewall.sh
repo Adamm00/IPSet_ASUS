@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 29/05/2017 -		   Asus Firewall Addition By Adamm v4.5.1				    #
+## - 29/05/2017 -		   Asus Firewall Addition By Adamm v4.5.2				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -38,9 +38,19 @@ start_time=$(date +%s)
 export LC_ALL=C
 #set -x
 
+Check_Lock () {
+		if [ -f /tmp/skynet.lock ]; then
+			logger -st Skynet "[Lock File Detected - Exiting]"
+			exit
+		else 
+			touch /tmp/skynet.lock
+		fi
+}			
+
 Check_Settings () {
 		if [ -z "$(grep -F "Skynet" /jffs/scripts/firewall-start)" ]; then
 			logger -st Skynet "[Installation Not Detected - Please Use Install Command To Continue]"
+			rm -rf /tmp/skynet.lock
 			exit
 		fi
 		if [ -f "/jffs/scripts/IPSET_Block.sh" ]; then
@@ -59,6 +69,7 @@ Check_Settings () {
 
 		if [ "$(ipset -v | grep -Fo v6)" != "v6" ]; then
 			echo "IPSet Version Not Supported"
+			rm -rf /tmp/skynet.lock
 			exit
 		fi
 
@@ -174,7 +185,7 @@ Purge_Logs () {
 
 Enable_Debug () {
 		if [ "$1" = "debug" ] || [ "$2" = "debug" ]; then
-			logger -st Skynet "[Enabling Raw Debug Output] ... ... ..."
+			echo "Enabling Raw Debug Output"
 			iptables -t raw -I PREROUTING 2 -m set --match-set BlockedRanges src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
 			iptables -t raw -I PREROUTING 4 -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
 		fi
@@ -537,6 +548,7 @@ case $1 in
 		;;
 
 	start)
+		Check_Lock
 		iptables -t raw -F
 		Check_Settings "$2" "$3" "$4" "$5"
 		cru a Firewall_save "0 * * * * /jffs/scripts/firewall save"
@@ -560,6 +572,7 @@ case $1 in
 		Load_IPTables "$2"
 		Enable_Debug "$2" "$3"
 		sed -i '/DROP IN=/d' /tmp/syslog.log
+		rm -rf /tmp/skynet.lock
 		;;
 
 	stats)
