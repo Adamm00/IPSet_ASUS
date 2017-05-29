@@ -11,13 +11,13 @@ sh /jffs/scripts/firewall *commandhere*
 
     "unban"        # <-- Remove Entry From Blacklist (IP/Range/Domain/Port/Country/Malware/All)   
     "save"         # <-- Save Blacklists To /jffs/scripts/ipset.txt
-    "ban"          # <-- Adds Entry To Blacklist (IP/Range/Domain/Country)     
+    "ban"          # <-- Adds Entry To Blacklist (IP/Range/Domain/Port/Country)     
     "banmalware"   # <-- Bans Various Malware Domains  
     "whitelist"    # <-- Add Entry To Whitelist (IP/Range/Domain/Port/Remove)  
     "import"       # <-- Import And Merge IPSet Save To Firewall  
     "deport"       # <-- Remove All IPs From IPSet Save From Firewall
     "disable"      # <-- Disable Firewall
-    "debug"	       # <-- Specific Debug Features (Restart/Disable/Filter/Info)
+    "debug"	       # <-- Specific Debug Features (Restart/Disable/Watch/Info)
     "update"       # <-- Update Script To Latest Version (check github for changes)  
     "stats"        # <-- Print/Search Stats Of Recently Banned IPs (Requires debugging enabled)
     "install"      # <-- Install Script (Or Change Boot Args)
@@ -74,11 +74,12 @@ Here Are Some Example Import Commands;
 
 Here Are Some Example Deport Commands;
 "sh /jffs/scripts/firewall deport" This Reads IPSet Save File From /jffs/scripts/ipset2.txt And Removes All IPs From Blacklist
-"sh /jffs/scripts/firewall import URL" This Reads IPSet Save File From A Custom URL And Removes All IPs From Blacklist
+"sh /jffs/scripts/firewall deport URL" This Reads IPSet Save File From A Custom URL And Removes All IPs From Blacklist
 
 Here Are Some Example Debug Commands;
 "sh /jffs/scripts/firewall debug restart" Restart Firewall Completely
 "sh /jffs/scripts/firewall debug disable" Disable Raw Debugging
+"sh /jffs/scripts/firewall debug watch" Show Debug Entries As They Appear
 "sh /jffs/scripts/firewall debug info" Print Usefull Debug Info
 
 Here Are Some Example Update Commands;
@@ -91,16 +92,12 @@ Here Are Some Example Stat Commands;
 "sh /jffs/scripts/firewall stats 20" Compile Stats With Customiseable Top20 Output
 "sh /jffs/scripts/firewall stats tcp" Compile Stats Showing Only TCP Entries
 "sh /jffs/scripts/firewall stats tcp 20" Compile Stats Showing Only TCP Entries With Customiseable Top20 Output
-"sh /jffs/scripts/firewall stats search ip 8.8.8.8" Search All Debug Data For Entries On 8.8.8.8
-"sh /jffs/scripts/firewall stats search ip 8.8.8.8 20" Search All Debug Data For Entries On 8.8.8.8 With Customiseable Top20 Output
 "sh /jffs/scripts/firewall stats search port 23" Search All Debug Data For Entries On Port 23
 "sh /jffs/scripts/firewall stats search port 23 20" Search All Debug Data For Entries On Port 23 With Customiseable Top20 Output
+"sh /jffs/scripts/firewall stats search ip 8.8.8.8" Search All Debug Data For Entries On 8.8.8.8
+"sh /jffs/scripts/firewall stats search ip 8.8.8.8 20" Search All Debug Data For Entries On 8.8.8.8 With Customiseable Top20 Output
+"sh /jffs/scripts/firewall stats search malware 8.8.8.8" Search Malwarelists For Specified IP
 "sh /jffs/scripts/firewall stats reset" Reset All Collected Debug Data
-
-Here Are Some Example Startup Commands (for firewall-start);
-"sh /jffs/scripts/firewall start" Normal Startup With Default Features
-"sh /jffs/scripts/firewall start noautoban" Startup With Autobanning Disabled
-"sh /jffs/scripts/firewall start debug" Startup With Debug Mode Enabled (Also Used For Stat Report Generation)
 ```
 
 
