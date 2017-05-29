@@ -298,7 +298,7 @@ case $1 in
 			echo "Downloading Lists"
 			for country in $3
 			do
-				wget -q -O - http://www.ipdeny.com/ipblocks/data/countries/"$country".zone >> /tmp/countrylist.txt
+				wget http://www.ipdeny.com/ipblocks/data/countries/"$country".zone -qO /tmp/countrylist.txt
 			done
 			echo "Filtering IPv4 Ranges"
 			sed -n "s/\r//;/^$/d;/^[0-9,\.,\/]*$/s/^/add BlockedRanges /p" /tmp/countrylist.txt | grep -F "/" | awk '!x[$0]++' >> /jffs/scripts/countrylist.txt
@@ -413,7 +413,7 @@ case $1 in
 		echo "To Save A Specific Set In SSH Use; 'ipset --save Blacklist > /jffs/scripts/ipset2.txt'"
 		if [ -n "$2" ]; then
 			echo "Custom List Detected: $2"
-			wget -q --no-check-certificate -O /jffs/scripts/ipset2.txt "$2"
+			wget --no-check-certificate -qO /jffs/scripts/ipset2.txt "$2"
 		else
 			echo "To Download A Custom List Use; \"sh $0 import URL\""
 			echo "Defaulting Blacklist Location To /jffs/scripts/ipset2.txt"
@@ -437,7 +437,7 @@ case $1 in
 		echo "To Save A Specific Set In SSH Use; 'ipset --save Blacklist > /jffs/scripts/ipset2.txt'"
 		if [ -n "$2" ]; then
 			echo "Custom List Detected: $2"
-			wget -q --no-check-certificate -O /jffs/scripts/ipset2.txt "$2"
+			wget --no-check-certificate -qO /jffs/scripts/ipset2.txt "$2"
 		else
 			echo "To Download A Custom List Use; \"sh $0 import URL\""
 			echo "Defaulting Blacklist Location To /jffs/scripts/ipset2.txt"
@@ -507,7 +507,7 @@ case $1 in
 
 	update)
 		localver="$(Filter_Version "$0")"
-		remotever="$(wget -q -O - https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh | Filter_Version)"
+		remotever="$(wget https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh -qO- | Filter_Version)"
 		if [ "$localver" = "$remotever" ] && [ "$2" != "-f" ]; then
 			echo "To Use Only Check For Update Use; \"sh $0 update check\""
 			echo "To Force Update Use; \"sh $0 update -f\""
@@ -521,7 +521,7 @@ case $1 in
 		fi
 		if [ "$localver" != "$remotever" ] || [ "$2" = "-f" ]; then
 			logger -st Skynet "[New Version Detected - Updating To $remotever]... ... ..."
-			wget -q --no-check-certificate -O "$0" https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh && logger -st Skynet "[Skynet Sucessfully Updated - Restarting Firewall]"
+			wget https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh -qO "$0" && logger -st Skynet "[Skynet Sucessfully Updated - Restarting Firewall]"
 			service restart_firewall
 			exit
 		fi
