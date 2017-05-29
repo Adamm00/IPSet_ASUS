@@ -29,7 +29,7 @@ sh /jffs/scripts/firewall *commandhere*
 In your favorite SSH Client;
 
 ```sh
-wget -O /jffs/scripts/firewall https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh
+/usr/sbin/wget -O /jffs/scripts/firewall https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh
 chmod +x /jffs/scripts/firewall
 sh /jffs/scripts/firewall install
 ```
@@ -62,7 +62,7 @@ Here Are Some Example Banmalware Commands;
 
 Here Are Some Example Whitelist Commands;
 "sh /jffs/scripts/firewall whitelist" This Requires Manual Input (Only IPs accepted)
-"sh /jffs/scripts/firewall whitelist IP" This Bans The IP or Range Specified
+"sh /jffs/scripts/firewall whitelist 8.8.8.8" This Bans The IP or Range Specified
 "sh /jffs/scripts/firewall whitelist domain" This Requires Manual Input (Only Domains Accepted)
 "sh /jffs/scripts/firewall whitelist domain google.com" This Bans the URL Specified
 "sh /jffs/scripts/firewall whitelist port 23" This Whitelists All Autobans Based On Traffic From Port 23
