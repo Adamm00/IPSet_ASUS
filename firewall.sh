@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 29/05/2017 -		   Asus Firewall Addition By Adamm v4.5.0				    #
+## - 29/05/2017 -		   Asus Firewall Addition By Adamm v4.5.1				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -323,7 +323,6 @@ case $1 in
 			exit
 		fi
 	fi
-		echo "Banning Known Malware IPs"
 		if  [ -n "$2" ] && [ "$2" != "-f" ]; then
 			listurl=$2
 			echo "Custom List Detected: $2"
@@ -333,9 +332,10 @@ case $1 in
 		else
 			echo "To Use A Custom List In Future Use; \"sh $0 banmalware URL\""
 			listurl="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/filter.list"
-			echo "Removing Previous Malware Bans"
-			sed 's/add/del/g' /jffs/scripts/malwarelist.txt | ipset -q -R -!
 		fi
+		curl -s --connect-timeout 5 "$listurl" | grep -qF "http" || { logger -st Skynet "[404 Error Detected - Stopping Banmalware]" ; exit; }
+		echo "Removing Previous Malware Bans"
+		sed 's/add/del/g' /jffs/scripts/malwarelist.txt | ipset -q -R -!
 		echo "Downloading Lists"
 		wget $listurl -qO- | wget -i- -qO- | awk '!x[$0]++' | grep -vE "$(Filter_PrivateIP)" > /tmp/malwarelist.txt
 		echo "Filtering IPv4 Addresses"
