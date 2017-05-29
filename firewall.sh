@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 29/05/2017 -		   Asus Firewall Addition By Adamm v4.5.2				    #
+## - 29/05/2017 -		   Asus Firewall Addition By Adamm v4.5.3				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -310,7 +310,7 @@ case $1 in
 			echo "Downloading Lists"
 			for country in $3
 			do
-				wget http://www.ipdeny.com/ipblocks/data/countries/"$country".zone -qO- >> /tmp/countrylist.txt
+				wget --no-check-certificate http://www.ipdeny.com/ipblocks/data/countries/"$country".zone -qO- >> /tmp/countrylist.txt
 			done
 			echo "Filtering IPv4 Ranges"
 			sed -n "s/\r//;/^$/d;/^[0-9,\.,\/]*$/s/^/add BlockedRanges /p" /tmp/countrylist.txt | grep -F "/" | awk '!x[$0]++' >> /jffs/scripts/countrylist.txt
@@ -348,7 +348,7 @@ case $1 in
 		echo "Removing Previous Malware Bans"
 		sed 's/add/del/g' /jffs/scripts/malwarelist.txt | ipset -q -R -!
 		echo "Downloading Lists"
-		wget $listurl -qO- | wget -i- -qO- | awk '!x[$0]++' | grep -vE "$(Filter_PrivateIP)" > /tmp/malwarelist.txt
+		wget --no-check-certificate $listurl -qO- | wget --no-check-certificate -i- -qO- | awk '!x[$0]++' | grep -vE "$(Filter_PrivateIP)" > /tmp/malwarelist.txt
 		echo "Filtering IPv4 Addresses"
 		sed -n "s/\r//;/^$/d;/^[0-9,\.]*$/s/^/add Blacklist /p" /tmp/malwarelist.txt > /jffs/scripts/malwarelist.txt
 		echo "Filtering IPv4 Ranges"
@@ -527,7 +527,7 @@ case $1 in
 		remoteurl="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh"
 		curl -s --connect-timeout 5 "$remoteurl" | grep -qF "Adamm" || { logger -st Skynet "[404 Error Detected - Stopping Update]" ; exit; }
 		localver="$(Filter_Version "$0")"
-		remotever="$(wget "$remoteurl" -qO- | Filter_Version)"
+		remotever="$(wget --no-check-certificate "$remoteurl" -qO- | Filter_Version)"
 		if [ "$localver" = "$remotever" ] && [ "$2" != "-f" ]; then
 			echo "To Use Only Check For Update Use; \"sh $0 update check\""
 			echo "To Force Update Use; \"sh $0 update -f\""
@@ -541,7 +541,7 @@ case $1 in
 		fi
 		if [ "$localver" != "$remotever" ] || [ "$2" = "-f" ]; then
 			logger -st Skynet "[New Version Detected - Updating To $remotever]... ... ..."
-			wget "$remoteurl" -qO "$0" && logger -st Skynet "[Skynet Sucessfully Updated - Restarting Firewall]"
+			wget --no-check-certificate "$remoteurl" -qO "$0" && logger -st Skynet "[Skynet Sucessfully Updated - Restarting Firewall]"
 			service restart_firewall
 			exit
 		fi
@@ -646,9 +646,9 @@ case $1 in
 			grep -F "SRC=$4 " /jffs/skynet.log | tail -"$counter"
 			exit
 		elif [ "$2" = "search" ] && [ "$3" = "malware" ] && [ -n "$4" ]; then
-			wget https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/filter.list -qO- | while IFS= read -r url
+			wget --no-check-certificate https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/filter.list -qO- | while IFS= read -r url
 				do
-				wget "$url" -qO /tmp/malwarelist.txt
+				wget --no-check-certificate "$url" -qO /tmp/malwarelist.txt
 				grep -qF "$4" /tmp/malwarelist.txt && echo "$4 Found In $url"
 				grep -Fv "$4" /tmp/malwarelist.txt | grep -qF "$(echo "$4" | cut -d '.' -f1-3)." && echo "$4 Possible CIDR Match In $url"
 			done
