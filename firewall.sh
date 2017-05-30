@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 29/05/2017 -		   Asus Firewall Addition By Adamm v4.5.3				    #
+## - 30/05/2017 -		   Asus Firewall Addition By Adamm v4.5.4				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -650,7 +650,7 @@ case $1 in
 				do
 				/usr/sbin/wget "$url" -qO /tmp/malwarelist.txt
 				grep -qF "$4" /tmp/malwarelist.txt && echo "$4 Found In $url"
-				grep -Fv "$4" /tmp/malwarelist.txt | grep -qF "$(echo "$4" | cut -d '.' -f1-3)." && echo "$4 Possible CIDR Match In $url"
+				grep -Fv "$4" /tmp/malwarelist.txt | grep -F "/" | grep -qF "$(echo "$4" | cut -d '.' -f1-3)." && echo "$4 Possible CIDR Match In $url"
 			done
 			rm -rf /tmp/malwarelist.txt
 			Logging
