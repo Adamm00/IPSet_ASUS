@@ -30,7 +30,7 @@
 #	  "start"	     # <-- Initiate Firewall
 #	  "stats"	     # <-- Print/Search Stats Of Recently Banned IPs (Requires debugging enabled)
 #	  "install"          # <-- Install Script (Or Change Boot Args)
-#	  "uninstall"        # <-- Uninstall All Traces Of Script
+#	  "uninstall"        # <-- Uninstall All Traces Of Skynet
 ##############################
 
 head -35 "$0"
@@ -514,12 +514,12 @@ case $1 in
 				iptables --version
 				ipset -v
 				echo "FW Version: $(nvram get buildno)_$(nvram get extendno)"
-				grep -F "/jffs/scripts/firewall start" /jffs/scripts/firewall-start >/dev/null 2>&1 && $GRN "Startup Entry Detected" || $RED "Startup Entry Not Detected"
-				cru l | grep -F "firewall" >/dev/null 2>&1 && $GRN "Cronjob Detected" || $RED "Cronjob Not Detected"
-				iptables -L | grep -F "LOG" | grep -F "BAN" >/dev/null 2>&1 && $GRN "Autobanning Enabled" || $RED "Autobanning Disabled"
+				grep -qF "/jffs/scripts/firewall start" /jffs/scripts/firewall-start >/dev/null 2>&1 && $GRN "Startup Entry Detected" || $RED "Startup Entry Not Detected"
+				cru l | grep -qF "firewall" >/dev/null 2>&1 && $GRN "Cronjob Detected" || $RED "Cronjob Not Detected"
+				iptables -L | grep -F "LOG" | grep -qF "BAN" >/dev/null 2>&1 && $GRN "Autobanning Enabled" || $RED "Autobanning Disabled"
 				iptables -vL -nt raw | grep -F "Whitelist" >/dev/null 2>&1 && $GRN "Whitelist IPTable Detected" || $RED "Whitelist IPTable Not Detected"
-				iptables -vL -nt raw | grep -v "LOG" | grep -F "BlockedRanges" >/dev/null 2>&1 && $GRN "BlockedRanges IPTable Detected" || $RED "BlockedRanges IPTable Not Detected"
-				iptables -vL -nt raw | grep -v "LOG" | grep -F "Blacklist" >/dev/null 2>&1 && $GRN "Blacklist IPTable Detected" || $RED "Blacklist IPTable Not Detected"
+				iptables -vL -nt raw | grep -v "LOG" | grep -qF "BlockedRanges" >/dev/null 2>&1 && $GRN "BlockedRanges IPTable Detected" || $RED "BlockedRanges IPTable Not Detected"
+				iptables -vL -nt raw | grep -v "LOG" | grep -qF "Blacklist" >/dev/null 2>&1 && $GRN "Blacklist IPTable Detected" || $RED "Blacklist IPTable Not Detected"
 				ipset -L -n Whitelist >/dev/null 2>&1 && $GRN "Whitelist IPSet Detected" || $RED "Whitelist IPSet Not Detected"
 				ipset -L -n BlockedRanges >/dev/null 2>&1 && $GRN "BlockedRanges IPSet Detected" || $RED "BlockedRanges IPSet Not Detected"
 				ipset -L -n Blacklist >/dev/null 2>&1 && $GRN "Blacklist IPSet Detected" || $RED "Blacklist IPSet Not Detected"
@@ -657,7 +657,7 @@ case $1 in
 				do
 				/usr/sbin/wget "$url" -qO /tmp/malwarelist.txt
 				grep -qF "$4" /tmp/malwarelist.txt && echo "$4 Found In $url"
-				grep -Fv "$4" /tmp/malwarelist.txt | grep -F "/" | grep -qF "$(echo "$4" | cut -d '.' -f1-3)." && echo "$4 Possible CIDR Match In $url"
+				grep -F "/" /tmp/malwarelist.txt | grep -qF "$(echo "$4" | cut -d '.' -f1-3)." && echo "$4 Possible CIDR Match In $url"
 			done
 			rm -rf /tmp/malwarelist.txt
 			Logging
