@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 30/05/2017 -		   Asus Firewall Addition By Adamm v4.5.6				    #
+## - 31/05/2017 -		   Asus Firewall Addition By Adamm v4.5.7				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -48,7 +48,7 @@ Check_Lock () {
 }			
 
 Check_Settings () {
-		if [ -z "$(grep -F "Skynet" /jffs/scripts/firewall-start)" ]; then
+		if ! grep -qF "Skynet" /jffs/scripts/firewall-start; then
 			logger -st Skynet "[Installation Not Detected - Please Use Install Command To Continue]"
 			rm -rf /tmp/skynet.lock
 			exit
@@ -95,32 +95,32 @@ Check_Settings () {
 }
 
 Unload_DebugIPTables () {
-		iptables -t raw -D PREROUTING -i $(nvram get wan0_ifname) -m set --match-set BlockedRanges src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
-		iptables -t raw -D PREROUTING -i $(nvram get wan0_ifname) -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
+		iptables -t raw -D PREROUTING -i "$(nvram get wan0_ifname)" -m set --match-set BlockedRanges src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
+		iptables -t raw -D PREROUTING -i "$(nvram get wan0_ifname)" -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
 }
 
 Unload_IPTables () {
 		iptables -D logdrop -m state --state NEW -j LOG --log-prefix "DROP " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
-		iptables -t raw -D PREROUTING -i $(nvram get wan0_ifname) -m set --match-set Blacklist src -j DROP >/dev/null 2>&1
-		iptables -t raw -D PREROUTING -i $(nvram get wan0_ifname) -m set --match-set BlockedRanges src -j DROP >/dev/null 2>&1
-		iptables -t raw -D PREROUTING -i $(nvram get wan0_ifname) -m set --match-set Whitelist src -j ACCEPT >/dev/null 2>&1
-		iptables -D logdrop -i $(nvram get wan0_ifname) -m state --state INVALID -j SET --add-set Blacklist src >/dev/null 2>&1
-		iptables -D logdrop -i $(nvram get wan0_ifname) -m state --state INVALID -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
-		iptables -D logdrop -i $(nvram get wan0_ifname) -p tcp -m multiport --sports 80,443,143,993,110,995,25,465 -m state --state INVALID -j DROP
-		iptables -D logdrop -i $(nvram get wan0_ifname) -m set --match-set Whitelist src -j ACCEPT >/dev/null 2>&1
+		iptables -t raw -D PREROUTING -i "$(nvram get wan0_ifname)" -m set --match-set Blacklist src -j DROP >/dev/null 2>&1
+		iptables -t raw -D PREROUTING -i "$(nvram get wan0_ifname)" -m set --match-set BlockedRanges src -j DROP >/dev/null 2>&1
+		iptables -t raw -D PREROUTING -i "$(nvram get wan0_ifname)" -m set --match-set Whitelist src -j ACCEPT >/dev/null 2>&1
+		iptables -D logdrop -i "$(nvram get wan0_ifname)" -m state --state INVALID -j SET --add-set Blacklist src >/dev/null 2>&1
+		iptables -D logdrop -i "$(nvram get wan0_ifname)" -m state --state INVALID -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
+		iptables -D logdrop -i "$(nvram get wan0_ifname)" -p tcp -m multiport --sports 80,443,143,993,110,995,25,465 -m state --state INVALID -j DROP
+		iptables -D logdrop -i "$(nvram get wan0_ifname)" -m set --match-set Whitelist src -j ACCEPT >/dev/null 2>&1
 }
 
 Load_IPTables () {
-		iptables -t raw -I PREROUTING -i $(nvram get wan0_ifname) -m set --match-set Blacklist src -j DROP >/dev/null 2>&1
-		iptables -t raw -I PREROUTING -i $(nvram get wan0_ifname) -m set --match-set BlockedRanges src -j DROP >/dev/null 2>&1
-		iptables -t raw -I PREROUTING -i $(nvram get wan0_ifname) -m set --match-set Whitelist src -j ACCEPT >/dev/null 2>&1
+		iptables -t raw -I PREROUTING -i "$(nvram get wan0_ifname)" -m set --match-set Blacklist src -j DROP >/dev/null 2>&1
+		iptables -t raw -I PREROUTING -i "$(nvram get wan0_ifname)" -m set --match-set BlockedRanges src -j DROP >/dev/null 2>&1
+		iptables -t raw -I PREROUTING -i "$(nvram get wan0_ifname)" -m set --match-set Whitelist src -j ACCEPT >/dev/null 2>&1
 		if [ "$1" = "noautoban" ]; then
 			logger -st Skynet "[Enabling No-Autoban Mode] ... ... ..."
 		else
-			iptables -I logdrop -i $(nvram get wan0_ifname) -m state --state INVALID -j SET --add-set Blacklist src >/dev/null 2>&1
-			iptables -I logdrop -i $(nvram get wan0_ifname) -m state --state INVALID -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
-			iptables -I logdrop -i $(nvram get wan0_ifname) -p tcp -m multiport --sports 80,443,143,993,110,995,25,465 -m state --state INVALID -j DROP
-			iptables -I logdrop -i $(nvram get wan0_ifname) -m set --match-set Whitelist src -j ACCEPT >/dev/null 2>&1
+			iptables -I logdrop -i "$(nvram get wan0_ifname)" -m state --state INVALID -j SET --add-set Blacklist src >/dev/null 2>&1
+			iptables -I logdrop -i "$(nvram get wan0_ifname)" -m state --state INVALID -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
+			iptables -I logdrop -i "$(nvram get wan0_ifname)" -p tcp -m multiport --sports 80,443,143,993,110,995,25,465 -m state --state INVALID -j DROP
+			iptables -I logdrop -i "$(nvram get wan0_ifname)" -m set --match-set Whitelist src -j ACCEPT >/dev/null 2>&1
 		fi
 }
 
@@ -186,8 +186,8 @@ Purge_Logs () {
 Enable_Debug () {
 		if [ "$1" = "debug" ] || [ "$2" = "debug" ]; then
 			echo "Enabling Raw Debug Output"
-			iptables -t raw -I PREROUTING 2 -i $(nvram get wan0_ifname) -m set --match-set BlockedRanges src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
-			iptables -t raw -I PREROUTING 4 -i $(nvram get wan0_ifname) -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
+			iptables -t raw -I PREROUTING 2 -i "$(nvram get wan0_ifname)" -m set --match-set BlockedRanges src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
+			iptables -t raw -I PREROUTING 4 -i "$(nvram get wan0_ifname)" -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
 		fi
 }
 
@@ -205,16 +205,16 @@ case $1 in
 			echo "For Automated Domain Unbanning Use; \"sh $0 unban domain URL\""
 			echo "To Unban All Domains Use; \"sh $0 unban all\""
 			echo "Input IP To Unban"
-			read -r unbanip
-			logger -st Skynet "[Removing $unbanip From Blacklist] ... ... ..."
-			ipset -D Blacklist "$unbanip"
-			sed -i "/$unbanip/d" /jffs/skynet.log
+			read -r ip
+			echo "Unbanning $ip"
+			ipset -D Blacklist "$ip"
+			sed -i "/$ip/d" /jffs/skynet.log
 		elif [ -n "$2" ] && [ "$2" != "domain" ] && [ "$2" != "range" ] && [ "$2" != "port" ] && [ "$2" != "country" ] && [ "$2" != "malware" ] && [ "$2" != "all" ]; then
-			logger -st Skynet "[Removing $2 From Blacklist] ... ... ..."
+			echo "Unbanning $2"
 			ipset -D Blacklist "$2"
 			sed -i "/$2/d" /jffs/skynet.log
 		elif [ "$2" = "range" ] && [ -n "$3" ]; then
-			logger -st Skynet "[Removing $3 From Blacklist] ... ... ..."
+			echo "Unbanning $3"
 			ipset -D BlockedRanges "$3"
 			sed -i "\~$3~d" /jffs/skynet.log
 		elif [ "$2" = "domain" ] && [ -z "$3" ]; then
@@ -223,6 +223,7 @@ case $1 in
 			logger -st Skynet "[Removing $unbandomain From Blacklist] ... ... ..."
 			for ip in $(Domain_Lookup "$unbandomain")
 				do
+				echo "Unbanning $ip"
 				ipset -D Blacklist "$ip"
 				sed -i "/$ip/d" /jffs/skynet.log
 			done
@@ -230,6 +231,7 @@ case $1 in
 		logger -st Skynet "[Removing $3 From Blacklist] ... ... ..."
 		for ip in $(Domain_Lookup "$3")
 			do
+			echo "Unbanning $ip"
 			ipset -D Blacklist "$ip"
 			sed -i "/$ip/d" /jffs/skynet.log
 		done
@@ -255,7 +257,7 @@ case $1 in
 			ipset --flush Blacklist
 			ipset --flush BlockedRanges
 			rm -rf /jffs/scripts/countrylist.txt /jffs/scripts/malwarelist.txt
-			> /jffs/skynet.log
+			true > /jffs/skynet.log
 		else
 			echo "Command Not Recognised, Please Try Again"
 			exit
@@ -280,14 +282,14 @@ case $1 in
 			echo "For Automated Domain Banning Use; \"sh $0 ban domain URL\""
 			echo "For Automated Country Banning Use; \"sh $0 ban country zone\""
 			echo "Input IP To Ban"
-			read -r banip
-			logger -st Skynet "[Adding $banip To Blacklist] ... ... ..."
-			ipset -A Blacklist "$banip"
+			read -r ip
+			echo "Banning $ip"
+			ipset -A Blacklist "$ip"
 		elif [ -n "$2" ] && [ "$2" != "range" ] && [ "$2" != "domain" ] && [ "$2" != "country" ] && [ "$2" != "countrylist" ]; then
-			logger -st Skynet "[Adding $2 To Blacklist] ... ... ..."
+			echo "Banning $2"
 			ipset -A Blacklist "$2"
 		elif [ "$2" = "range" ] && [ -n "$3" ]; then
-			logger -st Skynet "[Adding $3 To Blacklist] ... ... ..."
+			echo "Banning $3"
 			ipset -A BlockedRanges "$3"
 		elif [ "$2" = "domain" ] && [ -z "$3" ]; then
 			echo "Input Domain To Blacklist"
@@ -295,12 +297,14 @@ case $1 in
 			logger -st Skynet "[Adding $bandomain To Blacklist] ... ... ..."
 			for ip in $(Domain_Lookup "$bandomain")
 				do
+				echo "Banning $ip"
 				ipset -A Blacklist "$ip"
 			done
 		elif [ "$2" = "domain" ] && [ -n "$3" ]; then
 		logger -st Skynet "[Adding $3 To Blacklist] ... ... ..."
 		for ip in $(Domain_Lookup "$3")
 			do
+			echo "Banning $ip"
 			ipset -A Blacklist "$ip"
 		done
 		elif [ "$2" = "country" ] && [ -n "$3" ]; then
@@ -371,13 +375,13 @@ case $1 in
 			echo "For Automated IP Whitelisting Use; \"sh $0 whitelist IP\""
 			echo "For Automated Domain Whitelisting Use; \"sh $0 whitelist domain URL\""
 			echo "Input IP To Whitelist"
-			read -r whitelistip
-			logger -st Skynet "[Adding $whitelistip To Whitelist] ... ... ..."
-			ipset -A Whitelist "$whitelistip"
-			ipset -D Blacklist "$whitelistip"
-			sed -i "\~$whitelistip~d" /jffs/skynet.log
+			read -r ip
+			echo "Whitelisting $ip"
+			ipset -A Whitelist "$ip"
+			ipset -D Blacklist "$ip"
+			sed -i "\~$ip~d" /jffs/skynet.log
 		elif [ -n "$2" ] && [ "$2" != "domain" ] && [ "$2" != "port" ] && [ "$2" != "remove" ]; then
-			logger -st Skynet "[Adding $2 To Whitelist] ... ... ..."
+			echo "Whitelisting $2"
 			ipset -A Whitelist "$2"
 			ipset -D Blacklist "$2"
 			sed -i "\~$2~d" /jffs/skynet.log
@@ -387,6 +391,7 @@ case $1 in
 			logger -st Skynet "[Adding $whitelistdomain To Whitelist] ... ... ..."
 			for ip in $(Domain_Lookup "$whitelistdomain")
 				do
+				echo "Whitelisting $ip"
 				ipset -A Whitelist "$ip"
 				ipset -D Blacklist "$ip"
 				sed -i "/$ip/d" /jffs/skynet.log
@@ -395,6 +400,7 @@ case $1 in
 		logger -st Skynet "[Adding $3 To Whitelist] ... ... ..."
 		for ip in $(Domain_Lookup "$3")
 			do
+			echo "Whitelisting $ip"
 			ipset -A Whitelist "$ip"
 			ipset -D Blacklist "$ip"
 			sed -i "/$ip/d" /jffs/skynet.log
@@ -594,7 +600,7 @@ case $1 in
 			echo "Only New Bans Being Tracked (enable debug mode for connection tracking)"
 		fi
 		if [ "$2" = "reset" ]; then
-			> /jffs/skynet.log
+			true > /jffs/skynet.log
 			echo "Stat Data Reset"
 			exit
 		fi
