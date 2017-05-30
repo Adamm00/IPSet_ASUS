@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 30/05/2017 -		   Asus Firewall Addition By Adamm v4.5.4				    #
+## - 30/05/2017 -		   Asus Firewall Addition By Adamm v4.5.5				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -95,32 +95,32 @@ Check_Settings () {
 }
 
 Unload_DebugIPTables () {
-		iptables -t raw -D PREROUTING -m set --match-set BlockedRanges src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
-		iptables -t raw -D PREROUTING -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
+		iptables -t raw -D PREROUTING -i $(nvram get wan0_ifname) -m set --match-set BlockedRanges src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
+		iptables -t raw -D PREROUTING -i $(nvram get wan0_ifname) -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
 }
 
 Unload_IPTables () {
 		iptables -D logdrop -m state --state NEW -j LOG --log-prefix "DROP " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
-		iptables -t raw -D PREROUTING -m set --match-set Blacklist src -j DROP >/dev/null 2>&1
-		iptables -t raw -D PREROUTING -m set --match-set BlockedRanges src -j DROP >/dev/null 2>&1
-		iptables -t raw -D PREROUTING -m set --match-set Whitelist src -j ACCEPT >/dev/null 2>&1
-		iptables -D logdrop -m state --state INVALID -j SET --add-set Blacklist src >/dev/null 2>&1
-		iptables -D logdrop -m state --state INVALID -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
-		iptables -D logdrop -p tcp -m multiport --sports 80,443 -m state --state INVALID -j DROP
-		iptables -D logdrop -m set --match-set Whitelist src -j ACCEPT >/dev/null 2>&1
+		iptables -t raw -D PREROUTING -i $(nvram get wan0_ifname) -m set --match-set Blacklist src -j DROP >/dev/null 2>&1
+		iptables -t raw -D PREROUTING -i $(nvram get wan0_ifname) -m set --match-set BlockedRanges src -j DROP >/dev/null 2>&1
+		iptables -t raw -D PREROUTING -i $(nvram get wan0_ifname) -m set --match-set Whitelist src -j ACCEPT >/dev/null 2>&1
+		iptables -D logdrop -i $(nvram get wan0_ifname) -m state --state INVALID -j SET --add-set Blacklist src >/dev/null 2>&1
+		iptables -D logdrop -i $(nvram get wan0_ifname) -m state --state INVALID -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
+		iptables -D logdrop -i $(nvram get wan0_ifname) -p tcp -m multiport --sports 80,443 -m state --state INVALID -j DROP
+		iptables -D logdrop -i $(nvram get wan0_ifname) -m set --match-set Whitelist src -j ACCEPT >/dev/null 2>&1
 }
 
 Load_IPTables () {
-		iptables -t raw -I PREROUTING -m set --match-set Blacklist src -j DROP >/dev/null 2>&1
-		iptables -t raw -I PREROUTING -m set --match-set BlockedRanges src -j DROP >/dev/null 2>&1
-		iptables -t raw -I PREROUTING -m set --match-set Whitelist src -j ACCEPT >/dev/null 2>&1
+		iptables -t raw -I PREROUTING -i $(nvram get wan0_ifname) -m set --match-set Blacklist src -j DROP >/dev/null 2>&1
+		iptables -t raw -I PREROUTING -i $(nvram get wan0_ifname) -m set --match-set BlockedRanges src -j DROP >/dev/null 2>&1
+		iptables -t raw -I PREROUTING -i $(nvram get wan0_ifname) -m set --match-set Whitelist src -j ACCEPT >/dev/null 2>&1
 		if [ "$1" = "noautoban" ]; then
 			logger -st Skynet "[Enabling No-Autoban Mode] ... ... ..."
 		else
-			iptables -I logdrop -m state --state INVALID -j SET --add-set Blacklist src >/dev/null 2>&1
-			iptables -I logdrop -m state --state INVALID -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
-			iptables -I logdrop -p tcp -m multiport --sports 80,443 -m state --state INVALID -j DROP
-			iptables -I logdrop -m set --match-set Whitelist src -j ACCEPT >/dev/null 2>&1
+			iptables -I logdrop -i $(nvram get wan0_ifname) -m state --state INVALID -j SET --add-set Blacklist src >/dev/null 2>&1
+			iptables -I logdrop -i $(nvram get wan0_ifname) -m state --state INVALID -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
+			iptables -I logdrop -i $(nvram get wan0_ifname) -p tcp -m multiport --sports 80,443 -m state --state INVALID -j DROP
+			iptables -I logdrop -i $(nvram get wan0_ifname) -m set --match-set Whitelist src -j ACCEPT >/dev/null 2>&1
 		fi
 }
 
@@ -186,8 +186,8 @@ Purge_Logs () {
 Enable_Debug () {
 		if [ "$1" = "debug" ] || [ "$2" = "debug" ]; then
 			echo "Enabling Raw Debug Output"
-			iptables -t raw -I PREROUTING 2 -m set --match-set BlockedRanges src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
-			iptables -t raw -I PREROUTING 4 -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
+			iptables -t raw -I PREROUTING 2 -i $(nvram get wan0_ifname) -m set --match-set BlockedRanges src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
+			iptables -t raw -I PREROUTING 4 -i $(nvram get wan0_ifname) -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
 		fi
 }
 
@@ -485,6 +485,7 @@ case $1 in
 		case $2 in
 			restart)
 				echo "Restarting Firewall Service"
+				rm -rf /tmp/skynet.lock
 				service restart_firewall
 				exit
 			;;
