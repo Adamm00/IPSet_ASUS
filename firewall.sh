@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 30/05/2017 -		   Asus Firewall Addition By Adamm v4.5.5				    #
+## - 30/05/2017 -		   Asus Firewall Addition By Adamm v4.5.6				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -106,7 +106,7 @@ Unload_IPTables () {
 		iptables -t raw -D PREROUTING -i $(nvram get wan0_ifname) -m set --match-set Whitelist src -j ACCEPT >/dev/null 2>&1
 		iptables -D logdrop -i $(nvram get wan0_ifname) -m state --state INVALID -j SET --add-set Blacklist src >/dev/null 2>&1
 		iptables -D logdrop -i $(nvram get wan0_ifname) -m state --state INVALID -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
-		iptables -D logdrop -i $(nvram get wan0_ifname) -p tcp -m multiport --sports 80,443 -m state --state INVALID -j DROP
+		iptables -D logdrop -i $(nvram get wan0_ifname) -p tcp -m multiport --sports 80,443,143,993,110,995,25,465 -m state --state INVALID -j DROP
 		iptables -D logdrop -i $(nvram get wan0_ifname) -m set --match-set Whitelist src -j ACCEPT >/dev/null 2>&1
 }
 
@@ -119,7 +119,7 @@ Load_IPTables () {
 		else
 			iptables -I logdrop -i $(nvram get wan0_ifname) -m state --state INVALID -j SET --add-set Blacklist src >/dev/null 2>&1
 			iptables -I logdrop -i $(nvram get wan0_ifname) -m state --state INVALID -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
-			iptables -I logdrop -i $(nvram get wan0_ifname) -p tcp -m multiport --sports 80,443 -m state --state INVALID -j DROP
+			iptables -I logdrop -i $(nvram get wan0_ifname) -p tcp -m multiport --sports 80,443,143,993,110,995,25,465 -m state --state INVALID -j DROP
 			iptables -I logdrop -i $(nvram get wan0_ifname) -m set --match-set Whitelist src -j ACCEPT >/dev/null 2>&1
 		fi
 }
