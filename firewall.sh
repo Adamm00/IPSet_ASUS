@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 31/05/2017 -		   Asus Firewall Addition By Adamm v4.5.7				    #
+## - 31/05/2017 -		   Asus Firewall Addition By Adamm v4.5.8				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -284,13 +284,13 @@ case $1 in
 			echo "Input IP To Ban"
 			read -r ip
 			echo "Banning $ip"
-			ipset -A Blacklist "$ip"
+			ipset -A Blacklist "$ip" && echo "$(date "+%B %d %H:%M:%S") Skynet: [Manual Ban] TYPE=Single SRC=$ip "  >> /jffs/skynet.log
 		elif [ -n "$2" ] && [ "$2" != "range" ] && [ "$2" != "domain" ] && [ "$2" != "country" ] && [ "$2" != "countrylist" ]; then
 			echo "Banning $2"
-			ipset -A Blacklist "$2"
+			ipset -A Blacklist "$2" && echo "$(date "+%B %d %H:%M:%S") Skynet: [Manual Ban] TYPE=Single SRC=$2 " >> /jffs/skynet.log
 		elif [ "$2" = "range" ] && [ -n "$3" ]; then
 			echo "Banning $3"
-			ipset -A BlockedRanges "$3"
+			ipset -A BlockedRanges "$3" && echo "$(date "+%B %d %H:%M:%S") Skynet: [Manual Ban] TYPE=Range SRC=$3 " >> /jffs/skynet.log
 		elif [ "$2" = "domain" ] && [ -z "$3" ]; then
 			echo "Input Domain To Blacklist"
 			read -r bandomain
@@ -298,14 +298,14 @@ case $1 in
 			for ip in $(Domain_Lookup "$bandomain")
 				do
 				echo "Banning $ip"
-				ipset -A Blacklist "$ip"
+				ipset -A Blacklist "$ip" && echo "$(date "+%B %d %H:%M:%S") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$bandomain " >> /jffs/skynet.log
 			done
 		elif [ "$2" = "domain" ] && [ -n "$3" ]; then
 		logger -st Skynet "[Adding $3 To Blacklist] ... ... ..."
 		for ip in $(Domain_Lookup "$3")
 			do
 			echo "Banning $ip"
-			ipset -A Blacklist "$ip"
+			ipset -A Blacklist "$ip" && echo "$(date "+%B %d %H:%M:%S") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$3 " >> /jffs/skynet.log
 		done
 		elif [ "$2" = "country" ] && [ -n "$3" ]; then
 			echo "Removing Previous Country Bans"
@@ -605,9 +605,10 @@ case $1 in
 			exit
 		fi
 		echo "Monitoring From $(head -1 /jffs/skynet.log | awk '{print $1" "$2" "$3}') To $(tail -1 /jffs/skynet.log | awk '{print $1" "$2" "$3}')"
-		echo "$(wc -l /jffs/skynet.log | awk '{print $1}') Total Connections Detected"
+		echo "$(wc -l /jffs/skynet.log | awk '{print $1}') Total Events Detected"
 		echo "$(grep -oE ' SRC=[0-9,\.]* ' /jffs/skynet.log | cut -c 6- | awk '!x[$0]++' | wc -l) Unique IP Connections"
 		echo "$(grep -Fc "NEW BAN" /jffs/skynet.log) Autobans Issued"
+		echo "$(grep -Fc "Manual Ban" /jffs/skynet.log) Manual Bans Issued"
 		echo
 		counter=10
 		if [ -n "$2" ] && [ "$2" != "search" ] && [ "$2" -eq "$2" ] 2>/dev/null; then
@@ -615,6 +616,8 @@ case $1 in
 		elif [ -n "$5" ] && [ "$5" -eq "$5" ] 2>/dev/null; then
 			counter=$5
 		elif [ "$3" = "autobans" ] && [ "$4" -eq "$4" ] 2>/dev/null; then
+			counter=$4
+		elif [ "$3" = "manualbans" ] && [ "$4" -eq "$4" ] 2>/dev/null; then
 			counter=$4
 		fi
 		if [ "$2" = "tcp" ] || [ "$3" = "tcp" ]; then
@@ -672,6 +675,16 @@ case $1 in
 			echo "$counter Most Recent Autobans;"
 			grep -F "NEW BAN" /jffs/skynet.log | tail -"$counter"
 			exit
+		elif [ "$2" = "search" ] && [ "$3" = "manualbans" ]; then
+			echo "First Autoban Issued On $(grep -F "Manual Ban" /jffs/skynet.log | head -1 | awk '{print $1" "$2" "$3}')"
+			echo "Last Autoban Issued On $(grep -F "Manual Ban" /jffs/skynet.log | tail -1 | awk '{print $1" "$2" "$3}')"
+			echo
+			echo "First Manual Ban Issued;"
+			grep -F "Manual Ban" /jffs/skynet.log | head -1
+			echo
+			echo "$counter Most Recent Manual Bans;"
+			grep -F "Manual Ban" /jffs/skynet.log | tail -"$counter"
+			exit
 		fi
 		echo "Top $counter Ports Attacked; (Torrent Clients May Cause Excess Hits In Debug Mode)"
 		grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -F "$proto" | grep -oE 'DPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://www.speedguide.net/port.php?port="$2}'
@@ -684,6 +697,9 @@ case $1 in
 		echo
 		echo "Last $counter Autobans;"
 		grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -F "$proto" | grep -F "NEW BAN" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
+		echo
+		echo "Last $counter Manual Bans;"
+		grep -F "Manual Ban" /jffs/skynet.log | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
 		echo
 		echo "Last $counter Unique HTTP(s) Blocks;"
 		grep -E 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -F "$proto" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | awk '!x[$0]++' | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
