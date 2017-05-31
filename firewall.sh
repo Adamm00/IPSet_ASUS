@@ -284,13 +284,13 @@ case $1 in
 			echo "Input IP To Ban"
 			read -r ip
 			echo "Banning $ip"
-			ipset -A Blacklist "$ip" && echo "$(date "+%B %d %H:%M:%S") Skynet: [Manual Ban] TYPE=Single SRC=$ip "  >> /jffs/skynet.log
+			ipset -A Blacklist "$ip" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Single SRC=$ip "  >> /jffs/skynet.log
 		elif [ -n "$2" ] && [ "$2" != "range" ] && [ "$2" != "domain" ] && [ "$2" != "country" ] && [ "$2" != "countrylist" ]; then
 			echo "Banning $2"
-			ipset -A Blacklist "$2" && echo "$(date "+%B %d %H:%M:%S") Skynet: [Manual Ban] TYPE=Single SRC=$2 " >> /jffs/skynet.log
+			ipset -A Blacklist "$2" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Single SRC=$2 " >> /jffs/skynet.log
 		elif [ "$2" = "range" ] && [ -n "$3" ]; then
 			echo "Banning $3"
-			ipset -A BlockedRanges "$3" && echo "$(date "+%B %d %H:%M:%S") Skynet: [Manual Ban] TYPE=Range SRC=$3 " >> /jffs/skynet.log
+			ipset -A BlockedRanges "$3" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Range SRC=$3 " >> /jffs/skynet.log
 		elif [ "$2" = "domain" ] && [ -z "$3" ]; then
 			echo "Input Domain To Blacklist"
 			read -r bandomain
@@ -298,14 +298,14 @@ case $1 in
 			for ip in $(Domain_Lookup "$bandomain")
 				do
 				echo "Banning $ip"
-				ipset -A Blacklist "$ip" && echo "$(date "+%B %d %H:%M:%S") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$bandomain " >> /jffs/skynet.log
+				ipset -A Blacklist "$ip" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$bandomain " >> /jffs/skynet.log
 			done
 		elif [ "$2" = "domain" ] && [ -n "$3" ]; then
 		logger -st Skynet "[Adding $3 To Blacklist] ... ... ..."
 		for ip in $(Domain_Lookup "$3")
 			do
 			echo "Banning $ip"
-			ipset -A Blacklist "$ip" && echo "$(date "+%B %d %H:%M:%S") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$3 " >> /jffs/skynet.log
+			ipset -A Blacklist "$ip" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$3 " >> /jffs/skynet.log
 		done
 		elif [ "$2" = "country" ] && [ -n "$3" ]; then
 			echo "Removing Previous Country Bans"
