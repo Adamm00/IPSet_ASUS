@@ -676,8 +676,8 @@ case $1 in
 			grep -F "NEW BAN" /jffs/skynet.log | tail -"$counter"
 			exit
 		elif [ "$2" = "search" ] && [ "$3" = "manualbans" ]; then
-			echo "First Autoban Issued On $(grep -F "Manual Ban" /jffs/skynet.log | head -1 | awk '{print $1" "$2" "$3}')"
-			echo "Last Autoban Issued On $(grep -F "Manual Ban" /jffs/skynet.log | tail -1 | awk '{print $1" "$2" "$3}')"
+			echo "First Manual Ban Issued On $(grep -F "Manual Ban" /jffs/skynet.log | head -1 | awk '{print $1" "$2" "$3}')"
+			echo "Last Manual Ban Issued On $(grep -F "Manual Ban" /jffs/skynet.log | tail -1 | awk '{print $1" "$2" "$3}')"
 			echo
 			echo "First Manual Ban Issued;"
 			grep -F "Manual Ban" /jffs/skynet.log | head -1
