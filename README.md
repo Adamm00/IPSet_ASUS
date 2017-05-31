@@ -97,6 +97,8 @@ Here Are Some Example Stat Commands;
 "sh /jffs/scripts/firewall stats search ip 8.8.8.8" Search All Debug Data For Entries On 8.8.8.8
 "sh /jffs/scripts/firewall stats search ip 8.8.8.8 20" Search All Debug Data For Entries On 8.8.8.8 With Customiseable Top20 Output
 "sh /jffs/scripts/firewall stats search malware 8.8.8.8" Search Malwarelists For Specified IP
+"sh /jffs/scripts/firewall stats search autobans" Search For All Autobans
+"sh /jffs/scripts/firewall stats search manualbans" Search For All Manual Bans
 "sh /jffs/scripts/firewall stats reset" Reset All Collected Debug Data
 ```
 
