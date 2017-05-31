@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 31/05/2017 -		   Asus Firewall Addition By Adamm v4.5.8				    #
+## - 01/06/2017 -		   Asus Firewall Addition By Adamm v4.5.8				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -314,7 +314,7 @@ case $1 in
 			echo "Downloading Lists"
 			for country in $3
 			do
-				/usr/sbin/wget http://www.ipdeny.com/ipblocks/data/countries/"$country".zone -qO- >> /tmp/countrylist.txt
+				/usr/sbin/wget http://ipdeny.com/ipblocks/data/aggregated/"$country"-aggregated.zone -qO- >> /tmp/countrylist.txt
 			done
 			echo "Filtering IPv4 Ranges"
 			sed -n "s/\r//;/^$/d;/^[0-9,\.,\/]*$/s/^/add BlockedRanges /p" /tmp/countrylist.txt | grep -F "/" | awk '!x[$0]++' >> /jffs/scripts/countrylist.txt
