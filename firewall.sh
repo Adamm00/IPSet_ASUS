@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 01/06/2017 -		   Asus Firewall Addition By Adamm v4.5.8				    #
+## - 01/06/2017 -		   Asus Firewall Addition By Adamm v4.5.9				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -236,13 +236,13 @@ case $1 in
 			sed -i "/$ip/d" /jffs/skynet.log
 		done
 		elif [ "$2" = "port" ] && [ -n "$3" ]; then
-			logger -st Skynet "[Unbanning Autobans Issued On Traffic From Port $3] ... ... ..."
-			grep -F "NEW" /jffs/skynet.log | grep -F "DPT=$3 " | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | while IFS= read -r ip
+			logger -st Skynet "[Unbanning Autobans Issued On Traffic From Source/Destination Port $3] ... ... ..."
+			grep -F "NEW" /jffs/skynet.log | grep -F "PT=$3 " | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | while IFS= read -r ip
 				do
 				echo "Unbanning $ip"
 				ipset -D Blacklist "$ip"
 			done
-			sed -i "/DPT=${3} /d" /jffs/skynet.log
+			sed -i "/PT=${3} /d" /jffs/skynet.log
 		elif [ "$2" = "country" ]; then
 			echo "Removing Previous Country Bans"
 			sed 's/add/del/g' /jffs/scripts/countrylist.txt | ipset -q -R -!
