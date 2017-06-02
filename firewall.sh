@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 02/06/2017 -		   Asus Firewall Addition By Adamm v4.6.0				    #
+## - 02/06/2017 -		   Asus Firewall Addition By Adamm v4.6.1				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -17,7 +17,7 @@
 ##############################
 ###	  Commands	   ###
 ##############################
-#	  "unban"	     # <-- Remove Entry From Blacklist (IP/Range/Domain/Port/Country/Malware/All)
+#	  "unban"	     # <-- Remove Entry From Blacklist (IP/Range/Domain/Port/Country/Malware/All/Nomanual)
 #	  "save"	     # <-- Save Blacklists To /jffs/scripts/ipset.txt
 #	  "ban"		     # <-- Adds Entry To Blacklist (IP/Range/Domain/Port/Country)
 #	  "banmalware"	     # <-- Bans Various Malware Domains
@@ -155,15 +155,15 @@ Filter_Date () {
 }
 
 Filter_PrivateIP () {
-		echo '(^127\.)|(^10\.)|(^172\.1[6-9]\.)|(^172\.2[0-9]\.)|(^172\.3[0-1]\.)|(^192\.168\.)|(^0.)|(^169\.254\.)'
+		grep -vE '(^127\.)|(^10\.)|(^172\.1[6-9]\.)|(^172\.2[0-9]\.)|(^172\.3[0-1]\.)|(^192\.168\.)|(^0.)|(^169\.254\.)'
 }
 
-Filter_SRC () {
-		echo '(SRC=127\.)|(SRC=10\.)|(SRC=172\.1[6-9]\.)|(SRC=172\.2[0-9]\.)|(SRC=172\.3[0-1]\.)|(SRC=192\.168\.)|(SRC=0.)|(SRC=169\.254\.)'
+Filter_PrivateSRC () {
+		grep -E '(SRC=127\.)|(SRC=10\.)|(SRC=172\.1[6-9]\.)|(SRC=172\.2[0-9]\.)|(SRC=172\.3[0-1]\.)|(SRC=192\.168\.)|(SRC=0.)|(SRC=169\.254\.)'
 }
 
 Unban_PrivateIP () {
-		grep -E "$(Filter_SRC)" /tmp/syslog.log | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | while IFS= read -r ip
+		Filter_PrivateSRC /tmp/syslog.log | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | while IFS= read -r ip
 			do
 			ipset -D Blacklist "$ip"
 			ipset -D BlockedRanges "$ip"
@@ -194,6 +194,10 @@ Enable_Debug () {
 		fi
 }
 
+Is_IP () {
+		grep -qE '[0-9,\.]*'
+}
+
 #####################################################################################################################
 # -   unban  / save / ban / banmalware / whitelist / import / deport / disable / debug / update / start / stats   - #
 #####################################################################################################################
@@ -212,7 +216,7 @@ case $1 in
 			echo "Unbanning $ip"
 			ipset -D Blacklist "$ip"
 			sed -i "/$ip/d" /jffs/skynet.log
-		elif [ -n "$2" ] && [ "$2" != "domain" ] && [ "$2" != "range" ] && [ "$2" != "port" ] && [ "$2" != "country" ] && [ "$2" != "malware" ] && [ "$2" != "all" ] && [ "$2" != "nomanual" ]; then
+		elif echo "$2" | Is_IP; then
 			echo "Unbanning $2"
 			ipset -D Blacklist "$2"
 			sed -i "/$2/d" /jffs/skynet.log
@@ -281,7 +285,7 @@ case $1 in
 		;;
 
 	save)
-		echo "[Saving Blacklists] ... ... ..."
+		echo "Saving Changes"
 		Unban_PrivateIP
 		Purge_Logs
 		ipset --save > /jffs/scripts/ipset.txt
@@ -299,7 +303,7 @@ case $1 in
 			read -r ip
 			echo "Banning $ip"
 			ipset -A Blacklist "$ip" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Single SRC=$ip "  >> /jffs/skynet.log
-		elif [ -n "$2" ] && [ "$2" != "range" ] && [ "$2" != "domain" ] && [ "$2" != "country" ] && [ "$2" != "countrylist" ]; then
+		elif echo "$2" | Is_IP; then
 			echo "Banning $2"
 			ipset -A Blacklist "$2" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Single SRC=$2 " >> /jffs/skynet.log
 		elif [ "$2" = "range" ] && [ -n "$3" ]; then
@@ -368,7 +372,7 @@ case $1 in
 			sed 's/add/del/g' /jffs/scripts/malwarelist.txt | ipset -q -R -!
 		fi
 		echo "Downloading Lists"
-		/usr/sbin/wget $listurl -qO- | /usr/sbin/wget -i- -qO- | awk '!x[$0]++' | grep -vE "$(Filter_PrivateIP)" > /tmp/malwarelist.txt
+		/usr/sbin/wget $listurl -qO- | /usr/sbin/wget -i- -qO- | awk '!x[$0]++' | Filter_PrivateIP > /tmp/malwarelist.txt
 		echo "Filtering IPv4 Addresses"
 		sed -n "s/\r//;/^$/d;/^[0-9,\.]*$/s/^/add Blacklist /p" /tmp/malwarelist.txt > /jffs/scripts/malwarelist.txt
 		echo "Filtering IPv4 Ranges"
@@ -396,7 +400,7 @@ case $1 in
 			ipset -A Whitelist "$ip"
 			ipset -D Blacklist "$ip"
 			sed -i "\~$ip~d" /jffs/skynet.log
-		elif [ -n "$2" ] && [ "$2" != "domain" ] && [ "$2" != "port" ] && [ "$2" != "remove" ]; then
+		elif echo "$2" | Is_IP; then
 			echo "Whitelisting $2"
 			ipset -A Whitelist "$2"
 			ipset -D Blacklist "$2"
@@ -461,9 +465,9 @@ case $1 in
 			exit
 		fi
 		echo "Filtering IPv4 Addresses"
-		grep -Fv "create" /jffs/scripts/ipset2.txt |  awk '{print $3}' | grep -vE "$(Filter_PrivateIP)" | sed -n "s/\r//;/^$/d;/^[0-9,\.]*$/s/^/add Blacklist /p" > /tmp/ipset3.txt
+		grep -Fv "create" /jffs/scripts/ipset2.txt |  awk '{print $3}' | Filter_PrivateIP | sed -n "s/\r//;/^$/d;/^[0-9,\.]*$/s/^/add Blacklist /p" > /tmp/ipset3.txt
 		echo "Filtering IPv4 Ranges"
-		grep -Fv "create" /jffs/scripts/ipset2.txt |  awk '{print $3}' | grep -vE "$(Filter_PrivateIP)" | sed -n "s/\r//;/^$/d;/^[0-9,\.,\/]*$/s/^/add BlockedRanges /p" | grep -F "/" >> /tmp/ipset3.txt
+		grep -Fv "create" /jffs/scripts/ipset2.txt |  awk '{print $3}' | Filter_PrivateIP | sed -n "s/\r//;/^$/d;/^[0-9,\.,\/]*$/s/^/add BlockedRanges /p" | grep -F "/" >> /tmp/ipset3.txt
 		echo "Importing IPs To Blacklist"
 		ipset -q -R -! < /tmp/ipset3.txt
 		rm -rf /tmp/ipset3.txt
