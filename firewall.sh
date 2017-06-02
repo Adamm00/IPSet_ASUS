@@ -172,9 +172,9 @@ Unban_PrivateIP () {
 }
 
 Purge_Logs () {
-		if [ "$(ls -l /jffs/skynet.log | awk '{print $5}')" -ge "7000000" ]; then
+		if [ "$(du /jffs/skynet.log | awk '{print $1}')" -ge "7000" ]; then
 			sed -i '/BLOCKED - RAW/d' /jffs/skynet.log
-			if [ "$(ls -l /jffs/skynet.log | awk '{print $5}')" -ge "3000000" ]; then
+			if [ "$(du /jffs/skynet.log | awk '{print $1}')" -ge "3000" ]; then
 				true > /jffs/skynet.log
 			fi
 		fi
@@ -611,7 +611,7 @@ case $1 in
 			echo
 		fi
 		if [ -f /jffs/skynet.log ] && [ "$(wc -l /jffs/skynet.log | awk '{print $1}')" != "0" ]; then
-			echo "Debug Data Detected in /jffs/skynet.log - $(ls -lh /jffs/skynet.log | awk '{print $5}')"
+			echo "Debug Data Detected in /jffs/skynet.log - $(du -h /jffs/skynet.log | awk '{print $1}')"
 		else
 			echo "No Debug Data Detected - Give This Time To Generate"
 			exit
