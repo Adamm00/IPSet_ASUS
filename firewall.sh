@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 02/06/2017 -		   Asus Firewall Addition By Adamm v4.5.9				    #
+## - 02/06/2017 -		   Asus Firewall Addition By Adamm v4.6.0				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -212,7 +212,7 @@ case $1 in
 			echo "Unbanning $ip"
 			ipset -D Blacklist "$ip"
 			sed -i "/$ip/d" /jffs/skynet.log
-		elif [ -n "$2" ] && [ "$2" != "domain" ] && [ "$2" != "range" ] && [ "$2" != "port" ] && [ "$2" != "country" ] && [ "$2" != "malware" ] && [ "$2" != "all" ]; then
+		elif [ -n "$2" ] && [ "$2" != "domain" ] && [ "$2" != "range" ] && [ "$2" != "port" ] && [ "$2" != "country" ] && [ "$2" != "malware" ] && [ "$2" != "all" ] && [ "$2" != "nomanual" ]; then
 			echo "Unbanning $2"
 			ipset -D Blacklist "$2"
 			sed -i "/$2/d" /jffs/skynet.log
@@ -261,6 +261,17 @@ case $1 in
 			ipset --flush BlockedRanges
 			rm -rf /jffs/scripts/countrylist.txt /jffs/scripts/malwarelist.txt
 			true > /jffs/skynet.log
+		elif [ "$2" = "nomanual" ]; then
+			grep -F "Manual" /jffs/skynet.log > /tmp/ban.log
+			ipset --flush Blacklist
+			ipset --flush BlockedRanges
+			rm -rf /jffs/scripts/countrylist.txt /jffs/scripts/malwarelist.txt
+			awk '{print $8}' /tmp/ban.log | cut -c 5- | while IFS= read -r ip
+				do
+				ipset -q -A Blacklist "$(echo "$ip" | grep -v "/")"
+				ipset -q -A BlockedRanges "$(echo "$ip" | grep "/")"
+			done
+			mv /tmp/ban.log /jffs/skynet.log
 		else
 			echo "Command Not Recognised, Please Try Again"
 			exit
@@ -352,8 +363,10 @@ case $1 in
 			listurl="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/filter.list"
 		fi
 		curl -s --connect-timeout 5 "$listurl" | grep -qF "http" || { logger -st Skynet "[404 Error Detected - Stopping Banmalware]" ; exit; }
-		echo "Removing Previous Malware Bans"
-		sed 's/add/del/g' /jffs/scripts/malwarelist.txt | ipset -q -R -!
+		if [ -f /jffs/scripts/malwarelist.txt ]; then
+			echo "Removing Previous Malware Bans"
+			sed 's/add/del/g' /jffs/scripts/malwarelist.txt | ipset -q -R -!
+		fi
 		echo "Downloading Lists"
 		/usr/sbin/wget $listurl -qO- | /usr/sbin/wget -i- -qO- | awk '!x[$0]++' | grep -vE "$(Filter_PrivateIP)" > /tmp/malwarelist.txt
 		echo "Filtering IPv4 Addresses"
@@ -609,7 +622,7 @@ case $1 in
 		fi
 		echo "Monitoring From $(head -1 /jffs/skynet.log | awk '{print $1" "$2" "$3}') To $(tail -1 /jffs/skynet.log | awk '{print $1" "$2" "$3}')"
 		echo "$(wc -l /jffs/skynet.log | awk '{print $1}') Total Events Detected"
-		echo "$(grep -oE ' SRC=[0-9,\.]* ' /jffs/skynet.log | cut -c 6- | awk '!x[$0]++' | wc -l) Unique IP Connections"
+		echo "$(grep -oE ' SRC=[0-9,\.]* ' /jffs/skynet.log | cut -c 6- | awk '!x[$0]++' | wc -l) Unique IPs"
 		echo "$(grep -Fc "NEW BAN" /jffs/skynet.log) Autobans Issued"
 		echo "$(grep -Fc "Manual Ban" /jffs/skynet.log) Manual Bans Issued"
 		echo
@@ -696,7 +709,7 @@ case $1 in
 		grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -F "$proto" | grep -oE 'SPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://www.speedguide.net/port.php?port="$2}'
 		echo
 		echo "Last $counter Unique Connections Blocked;"
-		grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -F "$proto" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | awk '!x[$0]++' | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
+		grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -Fv "Manual" | grep -F "$proto" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | awk '!x[$0]++' | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
 		echo
 		echo "Last $counter Autobans;"
 		grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -F "$proto" | grep -F "NEW BAN" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
@@ -711,7 +724,7 @@ case $1 in
 		grep -E 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -F "$proto" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}'
 		echo
 		echo "Top $counter Attackers;"
-		grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -F "$proto" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}'
+		grep -vE 'SPT=80 |SPT=443 ' /jffs/skynet.log | grep -Fv "Manual" | grep -F "$proto" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}'
 		echo
 		;;
 
