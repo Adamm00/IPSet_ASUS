@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 03/06/2017 -		   Asus Firewall Addition By Adamm v4.6.3				    #
+## - 04/06/2017 -		   Asus Firewall Addition By Adamm v4.6.4				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -336,6 +336,7 @@ case $1 in
 			do
 				/usr/sbin/wget http://ipdeny.com/ipblocks/data/aggregated/"$country"-aggregated.zone -qO- >> /tmp/countrylist.txt
 			done
+			echo "$(wc -l /tmp/countrylist.txt | awk '{print $1}') Entries Collected"
 			echo "Filtering IPv4 Ranges"
 			sed -n "s/\r//;/^$/d;/^[0-9,\.,\/]*$/s/^/add BlockedRanges /p" /tmp/countrylist.txt | grep -F "/" | awk '!x[$0]++' >> /jffs/scripts/countrylist.txt
 			echo "Applying Blacklists"
