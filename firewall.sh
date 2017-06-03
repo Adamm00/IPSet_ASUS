@@ -326,8 +326,10 @@ case $1 in
 			ipset -A Blacklist "$ip" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$3 " >> /jffs/skynet.log
 		done
 		elif [ "$2" = "country" ] && [ -n "$3" ]; then
-			echo "Removing Previous Country Bans"
-			sed 's/add/del/g' /jffs/scripts/countrylist.txt | ipset -q -R -!
+			if [ -f /jffs/scripts/countrylist.txt ]; then
+				echo "Removing Previous Country Bans"
+				sed 's/add/del/g' /jffs/scripts/countrylist.txt | ipset -q -R -!
+			fi
 			echo "Banning Known IP Ranges For $3"
 			echo "Downloading Lists"
 			for country in $3
