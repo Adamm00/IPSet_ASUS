@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 04/06/2017 -		   Asus Firewall Addition By Adamm v4.6.4				    #
+## - 04/06/2017 -		   Asus Firewall Addition By Adamm v4.6.5				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -338,7 +338,7 @@ case $1 in
 			done
 			echo "$(wc -l /tmp/countrylist.txt | awk '{print $1}') Entries Collected"
 			echo "Filtering IPv4 Ranges"
-			sed -n "s/\r//;/^$/d;/^[0-9,\.,\/]*$/s/^/add BlockedRanges /p" /tmp/countrylist.txt | grep -F "/" | awk '!x[$0]++' >> /jffs/scripts/countrylist.txt
+			sed -n "s/\r//;/^$/d;/^[0-9,\.,\/]*$/s/^/add BlockedRanges /p" /tmp/countrylist.txt | grep -F "/" | awk '!x[$0]++' > /jffs/scripts/countrylist.txt
 			echo "Applying Blacklists"
 			ipset -q -R -! < /jffs/scripts/countrylist.txt
 			rm -rf /tmp/countrylist*.txt
