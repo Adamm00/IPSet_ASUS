@@ -139,7 +139,7 @@ Logging () {
 }
 
 Domain_Lookup () {
-		nslookup "$1" | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" | awk 'NR>2'
+		nslookup "$1" | grep -woE '([0-9]{1,3}\.){3}[0-9]{1,3}' | awk 'NR>2'
 }
 
 Filter_Version () {
@@ -199,7 +199,7 @@ Enable_Debug () {
 }
 
 Is_IP () {
-		grep -qE '^[0-9,\.]*$'
+		grep -wqE '([0-9]{1,3}\.){3}[0-9]{1,3}'
 }
 
 #####################################################################################################################
@@ -466,9 +466,9 @@ case $1 in
 			exit
 		fi
 		echo "Filtering IPv4 Addresses"
-		grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}$' /tmp/ipset2.txt | Filter_PrivateIP | awk '{print "add Blacklist " $1}' > /tmp/ipset3.txt
+		grep -woE '([0-9]{1,3}\.){3}[0-9]{1,3}' /tmp/ipset2.txt | Filter_PrivateIP | awk '{print "add Blacklist " $1}' > /tmp/ipset3.txt
 		echo "Filtering IPv4 Ranges"
-		grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}\/[0-9]{1,2}$' /tmp/ipset2.txt | Filter_PrivateIP | awk '{print "add BlockedRanges " $1}' >> /tmp/ipset3.txt
+		grep -woE '([0-9]{1,3}\.){3}[0-9]{1,3}\/[0-9]{1,2}' /tmp/ipset2.txt | Filter_PrivateIP | awk '{print "add BlockedRanges " $1}' >> /tmp/ipset3.txt
 		echo "Adding IPs To Blacklist"
 		ipset -q -R -! < /tmp/ipset3.txt
 		rm -rf /tmp/ipset2.txt /tmp/ipset3.txt
@@ -486,9 +486,9 @@ case $1 in
 			exit
 		fi
 		echo "Filtering IPv4 Addresses"
-		grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}$' /tmp/ipset2.txt | Filter_PrivateIP | awk '{print "del Blacklist " $1}' > /tmp/ipset3.txt
+		grep -woE '([0-9]{1,3}\.){3}[0-9]{1,3}' /tmp/ipset2.txt | Filter_PrivateIP | awk '{print "del Blacklist " $1}' > /tmp/ipset3.txt
 		echo "Filtering IPv4 Ranges"
-		grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}\/[0-9]{1,2}$' /tmp/ipset2.txt | Filter_PrivateIP | awk '{print "del BlockedRanges " $1}' >> /tmp/ipset3.txt
+		grep -woE '([0-9]{1,3}\.){3}[0-9]{1,3}\/[0-9]{1,2}' /tmp/ipset2.txt | Filter_PrivateIP | awk '{print "del BlockedRanges " $1}' >> /tmp/ipset3.txt
 		echo "Removing IPs From Blacklist"
 		ipset -q -R -! < /tmp/ipset3.txt
 		rm -rf /tmp/ipset2.txt /tmp/ipset3.txt
@@ -822,7 +822,7 @@ case $1 in
 		if [ "$continue" = "yes" ]; then
 			echo "Uninstalling And Restarting Firewall"
 			sed -i '\~/jffs/scripts/firewall ~d' /jffs/scripts/firewall-start
-			rm -rf /jffs/scripts/ipset.txt /jffs/scripts/ipset2.txt /jffs/scripts/ipset3.txt /jffs/scripts/malwarelist.txt /jffs/scripts/countrylist.txt /jffs/skynet.log /jffs/scripts/firewall
+			rm -rf /jffs/scripts/ipset.txt /tmp/ipset2.txt /tmp/ipset3.txt /jffs/scripts/malwarelist.txt /jffs/scripts/countrylist.txt /jffs/skynet.log /jffs/scripts/firewall
 			iptables -t raw -F
 			service restart_firewall
 			exit
