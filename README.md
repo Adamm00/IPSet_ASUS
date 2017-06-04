@@ -72,7 +72,7 @@ Here Are Some Example Import Commands;
 "sh /jffs/scripts/firewall import URL" This Bans All IPs From URL
 
 Here Are Some Example Deport Commands;
-"sh /jffs/scripts/firewall import URL" This Unbans All IPs From URL
+"sh /jffs/scripts/firewall deport URL" This Unbans All IPs From URL
 
 Here Are Some Example Debug Commands;
 "sh /jffs/scripts/firewall debug restart" Restart Firewall Completely
