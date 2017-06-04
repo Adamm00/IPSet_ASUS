@@ -460,16 +460,16 @@ case $1 in
 		echo "This Function Extracts All IPs And Adds Them ALL To Blacklist"
 		if [ -n "$2" ]; then
 			echo "Custom List Detected: $2"
-			wget "$2" --no-check-certificate -qO- | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" > /tmp/ipset2.txt
+			wget "$2" --no-check-certificate -qO /tmp/ipset2.txt
 		elif [ -z "$2"]; then
 			echo "No List URL Specified - Exiting"
 			exit
 		fi
 		echo "Filtering IPv4 Addresses"
-		Filter_PrivateIP /tmp/ipset2.txt | sed -n "s/\r//;/^$/d;/^[0-9,\.]*$/s/^/add Blacklist /p" > /tmp/ipset3.txt
+		grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}$' /tmp/ipset2.txt | Filter_PrivateIP | awk '{print "add Blacklist " $1}' > /tmp/ipset3.txt
 		echo "Filtering IPv4 Ranges"
-		Filter_PrivateIP /tmp/ipset2.txt | sed -n "s/\r//;/^$/d;/^[0-9,\.,\/]*$/s/^/add BlockedRanges /p" | grep -F "/" >> /tmp/ipset3.txt
-		echo "Importing IPs To Blacklist"
+		grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}\/[0-9]{1,2}$' /tmp/ipset2.txt | Filter_PrivateIP | awk '{print "add BlockedRanges " $1}' >> /tmp/ipset3.txt
+		echo "Adding IPs To Blacklist"
 		ipset -q -R -! < /tmp/ipset3.txt
 		rm -rf /tmp/ipset2.txt /tmp/ipset3.txt
 		echo "Saving Changes"
@@ -480,15 +480,15 @@ case $1 in
 		echo "This Function Extracts All IPs And Removes Them ALL From Blacklist"
 		if [ -n "$2" ]; then
 			echo "Custom List Detected: $2"
-			wget "$2" --no-check-certificate -qO- | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" > /tmp/ipset2.txt
+			wget "$2" --no-check-certificate -qO /tmp/ipset2.txt
 		elif [ -z "$2"]; then
 			echo "No List URL Specified - Exiting"
 			exit
 		fi
 		echo "Filtering IPv4 Addresses"
-		Filter_PrivateIP /tmp/ipset2.txt | sed -n "s/\r//;/^$/d;/^[0-9,\.]*$/s/^/del Blacklist /p" > /tmp/ipset3.txt
+		grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}$' /tmp/ipset2.txt | Filter_PrivateIP | awk '{print "del Blacklist " $1}' > /tmp/ipset3.txt
 		echo "Filtering IPv4 Ranges"
-		Filter_PrivateIP /tmp/ipset2.txt | sed -n "s/\r//;/^$/d;/^[0-9,\.,\/]*$/s/^/del BlockedRanges /p" | grep -F "/" >> /tmp/ipset3.txt
+		grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}\/[0-9]{1,2}$' /tmp/ipset2.txt | Filter_PrivateIP | awk '{print "del BlockedRanges " $1}' >> /tmp/ipset3.txt
 		echo "Removing IPs From Blacklist"
 		ipset -q -R -! < /tmp/ipset3.txt
 		rm -rf /tmp/ipset2.txt /tmp/ipset3.txt
