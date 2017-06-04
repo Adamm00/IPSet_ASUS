@@ -14,8 +14,8 @@ sh /jffs/scripts/firewall *commandhere*
     "ban"          # <-- Adds Entry To Blacklist (IP/Range/Domain/Port/Country)     
     "banmalware"   # <-- Bans Various Malware Domains  
     "whitelist"    # <-- Add Entry To Whitelist (IP/Range/Domain/Port/Remove)  
-    "import"       # <-- Import And Merge IPSet Save To Firewall  
-    "deport"       # <-- Remove All IPs From IPSet Save From Firewall
+    "import"       # <-- Bans All IPs From URL  
+    "deport"       # <-- Unbans All IPs From URL
     "disable"      # <-- Disable Firewall
     "debug"	       # <-- Specific Debug Features (Restart/Disable/Watch/Info)
     "update"       # <-- Update Script To Latest Version (check github for changes)  
@@ -69,12 +69,10 @@ Here Are Some Example Whitelist Commands;
 "sh /jffs/scripts/firewall whitelist remove" This Removes All Non-Default Entries
 
 Here Are Some Example Import Commands;
-"sh /jffs/scripts/firewall import" This Reads IPSet Save File From /jffs/scripts/ipset2.txt And Saves All IPs To Blacklist
-"sh /jffs/scripts/firewall import URL" This Reads IPSet Save File From A Custom URL And Saves All IPs To Blacklist
+"sh /jffs/scripts/firewall import URL" This Bans All IPs From URL
 
 Here Are Some Example Deport Commands;
-"sh /jffs/scripts/firewall deport" This Reads IPSet Save File From /jffs/scripts/ipset2.txt And Removes All IPs From Blacklist
-"sh /jffs/scripts/firewall deport URL" This Reads IPSet Save File From A Custom URL And Removes All IPs From Blacklist
+"sh /jffs/scripts/firewall import URL" This Unbans All IPs From URL
 
 Here Are Some Example Debug Commands;
 "sh /jffs/scripts/firewall debug restart" Restart Firewall Completely
