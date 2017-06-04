@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 04/06/2017 -		   Asus Firewall Addition By Adamm v4.6.6				    #
+## - 04/06/2017 -		   Asus Firewall Addition By Adamm v4.6.7				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -461,7 +461,7 @@ case $1 in
 		if [ -n "$2" ]; then
 			echo "Custom List Detected: $2"
 			wget "$2" --no-check-certificate -qO /tmp/ipset2.txt
-		elif [ -z "$2"]; then
+		elif [ -z "$2" ]; then
 			echo "No List URL Specified - Exiting"
 			exit
 		fi
@@ -481,7 +481,7 @@ case $1 in
 		if [ -n "$2" ]; then
 			echo "Custom List Detected: $2"
 			wget "$2" --no-check-certificate -qO /tmp/ipset2.txt
-		elif [ -z "$2"]; then
+		elif [ -z "$2" ]; then
 			echo "No List URL Specified - Exiting"
 			exit
 		fi
