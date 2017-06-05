@@ -165,10 +165,9 @@ Filter_PrivateSRC () {
 Unban_PrivateIP () {
 		Filter_PrivateSRC /tmp/syslog.log | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | while IFS= read -r ip
 			do
-			ipset -A Whitelist "$ip"
-			ipset -D Blacklist "$ip"
-			ipset -D BlockedRanges "$ip"
-			sed -i "/SRC=${ip}/d" /tmp/syslog.log
+			ipset -q -A Whitelist "$ip"
+			ipset -q -D Blacklist "$ip"
+			sed -i "/SRC=${ip} /d" /tmp/syslog.log
 		done
 }
 
@@ -216,15 +215,15 @@ case $1 in
 			read -r ip
 			echo "Unbanning $ip"
 			ipset -D Blacklist "$ip"
-			sed -i "/$ip/d" /jffs/skynet.log
+			sed -i "\~$ip ~d" /jffs/skynet.log
 		elif echo "$2" | Is_IP; then
 			echo "Unbanning $2"
 			ipset -D Blacklist "$2"
-			sed -i "/$2/d" /jffs/skynet.log
+			sed -i "\~$2 ~d" /jffs/skynet.log
 		elif [ "$2" = "range" ] && [ -n "$3" ]; then
 			echo "Unbanning $3"
 			ipset -D BlockedRanges "$3"
-			sed -i "\~$3~d" /jffs/skynet.log
+			sed -i "\~$3 ~d" /jffs/skynet.log
 		elif [ "$2" = "domain" ] && [ -z "$3" ]; then
 			echo "Input Domain To Unban"
 			read -r unbandomain
@@ -233,7 +232,7 @@ case $1 in
 				do
 				echo "Unbanning $ip"
 				ipset -D Blacklist "$ip"
-				sed -i "/$ip/d" /jffs/skynet.log
+				sed -i "\~$ip ~d" /jffs/skynet.log
 			done
 		elif [ "$2" = "domain" ] && [ -n "$3" ]; then
 		logger -st Skynet "[Removing $3 From Blacklist] ... ... ..."
@@ -241,7 +240,7 @@ case $1 in
 			do
 			echo "Unbanning $ip"
 			ipset -D Blacklist "$ip"
-			sed -i "/$ip/d" /jffs/skynet.log
+			sed -i "\~$ip ~d" /jffs/skynet.log
 		done
 		elif [ "$2" = "port" ] && [ -n "$3" ]; then
 			logger -st Skynet "[Unbanning Autobans Issued On Traffic From Source/Destination Port $3] ... ... ..."
@@ -402,12 +401,12 @@ case $1 in
 			echo "Whitelisting $ip"
 			ipset -A Whitelist "$ip"
 			ipset -D Blacklist "$ip"
-			sed -i "\~$ip~d" /jffs/skynet.log
+			sed -i "\~$ip ~d" /jffs/skynet.log
 		elif echo "$2" | Is_IP; then
 			echo "Whitelisting $2"
 			ipset -A Whitelist "$2"
 			ipset -D Blacklist "$2"
-			sed -i "\~$2~d" /jffs/skynet.log
+			sed -i "\~$2 ~d" /jffs/skynet.log
 		elif [ "$2" = "domain" ] && [ -z "$3" ];then
 			echo "Input Domain To Whitelist"
 			read -r whitelistdomain
@@ -417,7 +416,7 @@ case $1 in
 				echo "Whitelisting $ip"
 				ipset -A Whitelist "$ip"
 				ipset -D Blacklist "$ip"
-				sed -i "/$ip/d" /jffs/skynet.log
+				sed -i "\~$ip ~d" /jffs/skynet.log
 			done
 		elif [ "$2" = "domain" ] && [ -n "$3" ]; then
 		logger -st Skynet "[Adding $3 To Whitelist] ... ... ..."
@@ -426,7 +425,7 @@ case $1 in
 			echo "Whitelisting $ip"
 			ipset -A Whitelist "$ip"
 			ipset -D Blacklist "$ip"
-			sed -i "/$ip/d" /jffs/skynet.log
+			sed -i "\~$ip ~d" /jffs/skynet.log
 		done
 		elif [ "$2" = "port" ] && [ -n "$3" ]; then
 			logger -st Skynet "[Whitelisting Autobans Issued On Traffic From Port $3] ... ... ..."
@@ -435,7 +434,7 @@ case $1 in
 				echo "Whitelisting $ip"
 				ipset -A Whitelist "$ip"
 				ipset -D Blacklist "$ip"
-				sed -i "/$ip/d" /jffs/skynet.log
+				sed -i "\~$ip ~d" /jffs/skynet.log
 			done
 		elif [ "$2" = "remove" ]; then
 			echo "Removing All Non-Default Whitelist Entries"
