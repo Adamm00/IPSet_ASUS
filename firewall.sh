@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 05/06/2017 -		   Asus Firewall Addition By Adamm v4.7.1				    #
+## - 05/06/2017 -		   Asus Firewall Addition By Adamm v4.7.2				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -38,8 +38,8 @@ start_time=$(date +%s)
 export LC_ALL=C
 
 if grep -F "/jffs/scripts/firewall " /jffs/scripts/firewall-start | grep -qF "usb"; then
-	location="/tmp/mnt/$(nvram get usb_path_sda1_label)/skynet"
-	if [ ! -d "/tmp/mnt/$(nvram get usb_path_sda1_label)" ]; then
+	location="$(mount | grep sda1 | awk '{print $3}')/skynet"
+	if [ ! -d "$(mount | grep sda1 | awk '{print $3}')" ]; then
 		logger -st Skynet "[ERROR] !!! - USB Mode Selected But sda1 Not Found - Please Fix Immediately - !!!"
 	fi
 else
@@ -115,7 +115,7 @@ Unload_IPTables () {
 		iptables -t raw -D PREROUTING -i "$(nvram get wan0_ifname)" -m set --match-set Whitelist src -j ACCEPT >/dev/null 2>&1
 		iptables -D logdrop -i "$(nvram get wan0_ifname)" -m state --state INVALID -j SET --add-set Blacklist src >/dev/null 2>&1
 		iptables -D logdrop -i "$(nvram get wan0_ifname)" -m state --state INVALID -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
-		iptables -D logdrop -i "$(nvram get wan0_ifname)" -p tcp -m multiport --sports 80,443,143,993,110,995,25,465 -m state --state INVALID -j DROP
+		iptables -D logdrop -i "$(nvram get wan0_ifname)" -p tcp -m multiport --sports 80,443,143,993,110,995,25,465 -m state --state INVALID -j DROP >/dev/null 2>&1
 		iptables -D logdrop -i "$(nvram get wan0_ifname)" -m set --match-set Whitelist src -j ACCEPT >/dev/null 2>&1
 }
 
@@ -128,7 +128,7 @@ Load_IPTables () {
 		else
 			iptables -I logdrop -i "$(nvram get wan0_ifname)" -m state --state INVALID -j SET --add-set Blacklist src >/dev/null 2>&1
 			iptables -I logdrop -i "$(nvram get wan0_ifname)" -m state --state INVALID -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
-			iptables -I logdrop -i "$(nvram get wan0_ifname)" -p tcp -m multiport --sports 80,443,143,993,110,995,25,465 -m state --state INVALID -j DROP
+			iptables -I logdrop -i "$(nvram get wan0_ifname)" -p tcp -m multiport --sports 80,443,143,993,110,995,25,465 -m state --state INVALID -j DROP >/dev/null 2>&1
 			iptables -I logdrop -i "$(nvram get wan0_ifname)" -m set --match-set Whitelist src -j ACCEPT >/dev/null 2>&1
 		fi
 }
@@ -581,14 +581,13 @@ case $1 in
 
 	start)
 		Check_Lock
-		sleep 10
 		iptables -t raw -F
 		Check_Settings "$2" "$3" "$4" "$5"
 		cru a Firewall_save "0 * * * * /jffs/scripts/firewall save"
 		sed -i '/IP Banning Started/d' /tmp/syslog.log
 		logger -st Skynet "[IP Banning Started] ... ... ..."
 		modprobe xt_set >/dev/null 2>&1
-		ipset -q -R >/dev/null 2>&1 < $location/scripts/ipset.txt
+		ipset -R < $location/scripts/ipset.txt
 		Unban_PrivateIP
 		Purge_Logs
 		ipset -q -N Whitelist nethash
@@ -831,7 +830,7 @@ case $1 in
 			mv "/jffs/scripts/countrylist.txt" "/tmp/mnt/$(nvram get usb_path_sda1_label)/skynet/scripts/" >/dev/null 2>&1
 			mv "/jffs/skynet.log" "/tmp/mnt/$(nvram get usb_path_sda1_label)/skynet/" >/dev/null 2>&1
 			sed -i '\~/jffs/scripts/firewall ~d' /jffs/scripts/firewall-start
-			echo "sh /jffs/scripts/firewall $set1 $set2 $set3 usb # Skynet Firewall Addition" >> /jffs/scripts/firewall-start
+			echo "sleep 10; sh /jffs/scripts/firewall $set1 $set2 $set3 usb # Skynet Firewall Addition" >> /jffs/scripts/firewall-start
 			;;
 			*)
 			echo "JFFS Installation Selected"
@@ -841,7 +840,7 @@ case $1 in
 			mv "/tmp/mnt/$(nvram get usb_path_sda1_label)/skynet/scripts/countrylist.txt" "/jffs/scripts/" >/dev/null 2>&1
 			mv "/tmp/mnt/$(nvram get usb_path_sda1_label)/skynet/skynet.log" "/jffs/" >/dev/null 2>&1
 			sed -i '\~/jffs/scripts/firewall ~d' /jffs/scripts/firewall-start
-			echo "sh /jffs/scripts/firewall $set1 $set2 $set3 # Skynet Firewall Addition" >> /jffs/scripts/firewall-start
+			echo "sleep 10; sh /jffs/scripts/firewall $set1 $set2 $set3 # Skynet Firewall Addition" >> /jffs/scripts/firewall-start
 			;;
 		esac
 		chmod +x /jffs/scripts/firewall-start
@@ -864,7 +863,7 @@ case $1 in
 		if [ "$continue" = "yes" ]; then
 			echo "Uninstalling And Restarting Firewall"
 			sed -i '\~/jffs/scripts/firewall ~d' /jffs/scripts/firewall-start
-			rm -rf $location/scripts/ipset.txt /tmp/ipset2.txt /tmp/ipset3.txt $location/scripts/malwarelist.txt $location/scripts/countrylist.txt $location/skynet.log /jffs/scripts/firewall /tmp/mnt/$(nvram get usb_path_sda1_label)/skynet
+			rm -rf "$location/scripts/ipset.txt" "$location/scripts/malwarelist.txt" "$location/scripts/countrylist.txt" "$location/skynet.log" "/jffs/scripts/firewall" "/tmp/mnt/$(nvram get usb_path_sda1_label)/skynet"
 			iptables -t raw -F
 			service restart_firewall
 			exit
