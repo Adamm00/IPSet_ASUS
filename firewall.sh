@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 05/06/2017 -		   Asus Firewall Addition By Adamm v4.7.0				    #
+## - 05/06/2017 -		   Asus Firewall Addition By Adamm v4.7.1				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -361,7 +361,7 @@ case $1 in
 		;;
 
 	banmalware)
-	if [ "$2" != "-f" ] && [ -f $location/scripts/malware-filter ] || [ -f $location/scripts/ya-malware-block.sh ] || [ -f $location/scripts/ipBLOCKer.sh ]; then
+	if [ "$2" != "-f" ] && [ -f /jffs/scripts/malware-filter ] || [ -f /jffs/scripts/ya-malware-block.sh ] || [ -f /jffs/scripts/ipBLOCKer.sh ]; then
 		echo "Another Malware Filter Script Detected And May Cause Conflicts, Are You Sure You Want To Continue? (yes/no)"
 		echo "To Ignore This Error In Future Use; \"sh $0 banmalware -f\""
 		read -r continue
@@ -580,8 +580,8 @@ case $1 in
 		;;
 
 	start)
-		sleep 10
 		Check_Lock
+		sleep 10
 		iptables -t raw -F
 		Check_Settings "$2" "$3" "$4" "$5"
 		cru a Firewall_save "0 * * * * /jffs/scripts/firewall save"
