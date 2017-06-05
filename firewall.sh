@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 04/06/2017 -		   Asus Firewall Addition By Adamm v4.6.7				    #
+## - 05/06/2017 -		   Asus Firewall Addition By Adamm v4.6.8				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -165,6 +165,7 @@ Filter_PrivateSRC () {
 Unban_PrivateIP () {
 		Filter_PrivateSRC /tmp/syslog.log | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | while IFS= read -r ip
 			do
+			ipset -A Whitelist "$ip"
 			ipset -D Blacklist "$ip"
 			ipset -D BlockedRanges "$ip"
 			sed -i "/SRC=${ip}/d" /tmp/syslog.log
