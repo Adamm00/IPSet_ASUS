@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 05/06/2017 -		   Asus Firewall Addition By Adamm v4.7.2				    #
+## - 06/06/2017 -		   Asus Firewall Addition By Adamm v4.7.3				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -38,9 +38,9 @@ start_time=$(date +%s)
 export LC_ALL=C
 
 if grep -F "/jffs/scripts/firewall " /jffs/scripts/firewall-start | grep -qF "usb"; then
-	location="$(mount | grep sda1 | awk '{print $3}')/skynet"
-	if [ ! -d "$(mount | grep sda1 | awk '{print $3}')" ]; then
-		logger -st Skynet "[ERROR] !!! - USB Mode Selected But sda1 Not Found - Please Fix Immediately - !!!"
+	location="$(grep -ow "usb=.*" /jffs/scripts/firewall-start | awk '{print $1}' | cut -c 5-)/skynet"
+	if [ ! -d "$location" ]; then
+		logger -st Skynet "[ERROR] !!! - USB Mode Selected But Chosen Device Not Found - Please Fix Immediately - !!!"
 	fi
 else
 	location="/jffs"
@@ -809,36 +809,52 @@ case $1 in
 			;;
 		esac
 		echo
-		echo "Would You Like To Install Skynet To USB? (sda1)"
+		echo "Where Would You Like To Install Skynet?"
 		echo "Skynet By Default Is Installed To JFFS"
 		echo
-		echo "1. Yes"
-		echo "2. No"
+		echo "1. JFFS"
+		echo "2. USB"
 		echo "Please Select Option (Number)"
 		read -r mode4
 		case $mode4 in
-			1)
+			2)
+			echo
 			echo "USB Installation Selected"
-			if [ ! -d "/tmp/mnt/$(nvram get usb_path_sda1_label)" ]; then
-				echo "USB Mode Selected But sda1 Not Found - Exiting Installation"
+			echo "Compadible Devices To Install Are;"
+			mount | grep -E 'ext2|ext3|ext4' | awk '{print $1}' | cut -d"/" -f3
+			echo
+			echo "Please Type Device Selection"
+			read -r device
+			if ! mount | grep -E 'ext2|ext3|ext4' | grep -q "$device "; then
+				echo "Error - Input Not Recognised, Exiting Installation"
 				exit
 			fi
-			mkdir -p "/tmp/mnt/$(nvram get usb_path_sda1_label)/skynet"
-			mkdir -p "/tmp/mnt/$(nvram get usb_path_sda1_label)/skynet/scripts"
-			mv "/jffs/scripts/ipset.txt" "/tmp/mnt/$(nvram get usb_path_sda1_label)/skynet/scripts/" >/dev/null 2>&1
-			mv "/jffs/scripts/malwarelist.txt" "/tmp/mnt/$(nvram get usb_path_sda1_label)/skynet/scripts/" >/dev/null 2>&1
-			mv "/jffs/scripts/countrylist.txt" "/tmp/mnt/$(nvram get usb_path_sda1_label)/skynet/scripts/" >/dev/null 2>&1
-			mv "/jffs/skynet.log" "/tmp/mnt/$(nvram get usb_path_sda1_label)/skynet/" >/dev/null 2>&1
+			mkdir -p "/tmp/mnt/$(nvram get usb_path_"${device}"_label)/skynet"
+			mkdir -p "/tmp/mnt/$(nvram get usb_path_"${device}"_label)/skynet/scripts"
+			touch "/tmp/mnt/$(nvram get usb_path_"${device}"_label)/skynet/rwtest"
+			if [ ! -f "/tmp/mnt/$(nvram get usb_path_"${device}"_label)/skynet/rwtest" ]; then
+				echo "Writing To $device Failed - Exiting Installation"
+				exit
+			else
+				rm -rf "/tmp/mnt/$(nvram get usb_path_"${device}"_label)/skynet/rwtest"
+			fi
+			mv "/jffs/scripts/ipset.txt" "/tmp/mnt/$(nvram get usb_path_"${device}"_label)/skynet/scripts/" >/dev/null 2>&1
+			mv "/jffs/scripts/malwarelist.txt" "/tmp/mnt/$(nvram get usb_path_"${device}"_label)/skynet/scripts/" >/dev/null 2>&1
+			mv "/jffs/scripts/countrylist.txt" "/tmp/mnt/$(nvram get usb_path_"${device}"_label)/skynet/scripts/" >/dev/null 2>&1
+			mv "/jffs/skynet.log" "/tmp/mnt/$(nvram get usb_path_"${device}"_label)/skynet/" >/dev/null 2>&1
 			sed -i '\~/jffs/scripts/firewall ~d' /jffs/scripts/firewall-start
-			echo "sleep 10; sh /jffs/scripts/firewall $set1 $set2 $set3 usb # Skynet Firewall Addition" >> /jffs/scripts/firewall-start
+			echo "sleep 10; sh /jffs/scripts/firewall $set1 $set2 $set3 usb=/tmp/mnt/$(nvram get usb_path_"${device}"_label) # Skynet Firewall Addition" >> /jffs/scripts/firewall-start
 			;;
 			*)
 			echo "JFFS Installation Selected"
 			mkdir -p "/jffs/scripts"
-			mv "/tmp/mnt/$(nvram get usb_path_sda1_label)/skynet/scripts/ipset.txt" "/jffs/scripts/"  >/dev/null 2>&1
-			mv "/tmp/mnt/$(nvram get usb_path_sda1_label)/skynet/scripts/malwarelist.txt" "/jffs/scripts/" >/dev/null 2>&1
-			mv "/tmp/mnt/$(nvram get usb_path_sda1_label)/skynet/scripts/countrylist.txt" "/jffs/scripts/" >/dev/null 2>&1
-			mv "/tmp/mnt/$(nvram get usb_path_sda1_label)/skynet/skynet.log" "/jffs/" >/dev/null 2>&1
+			if grep -q "usb=.*" /jffs/scripts/firewall-start; then
+				location=$(grep -ow "usb=.*" /jffs/scripts/firewall-start | awk '{print $1}' | cut -c 5-)
+				mv "$location/skynet/scripts/ipset.txt" "/jffs/scripts/"  >/dev/null 2>&1
+				mv "$location/skynet/scripts/malwarelist.txt" "/jffs/scripts/" >/dev/null 2>&1
+				mv "$location/skynet/scripts/countrylist.txt" "/jffs/scripts/" >/dev/null 2>&1
+				mv "$location/skynet/skynet.log" "/jffs/" >/dev/null 2>&1
+			fi
 			sed -i '\~/jffs/scripts/firewall ~d' /jffs/scripts/firewall-start
 			echo "sleep 10; sh /jffs/scripts/firewall $set1 $set2 $set3 # Skynet Firewall Addition" >> /jffs/scripts/firewall-start
 			;;
