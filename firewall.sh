@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 06/06/2017 -		   Asus Firewall Addition By Adamm v4.7.4				    #
+## - 06/06/2017 -		   Asus Firewall Addition By Adamm v4.7.5				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -37,7 +37,7 @@ head -35 "$0"
 start_time=$(date +%s)
 export LC_ALL=C
 
-if grep -F "/jffs/scripts/firewall " /jffs/scripts/firewall-start | grep -qF "usb"; then
+if grep -F "Skynet" /jffs/scripts/firewall-start | grep -qF "usb"; then
 	location="$(grep -ow "usb=.*" /jffs/scripts/firewall-start | awk '{print $1}' | cut -c 5-)/skynet"
 	if [ ! -d "$location" ]; then
 		logger -st Skynet "[ERROR] !!! - USB Mode Selected But Chosen Device Not Found - Please Fix Immediately - !!!"
@@ -823,39 +823,38 @@ case $1 in
 			echo
 			echo "USB Installation Selected"
 			echo "Compadible Devices To Install Are;"
-			mount | grep -E 'ext2|ext3|ext4' | awk '{print $1}' | cut -d"/" -f3
+			mount | grep -E 'ext2|ext3|ext4' | awk '{print $3" - ("$1")"}'
 			echo
-			echo "Please Type Device Selection"
+			echo "Please Type Device Label - eg /tmp/mnt/Main"
 			read -r device
-			if ! mount | grep -E 'ext2|ext3|ext4' | grep -q "$device "; then
+			if ! mount | grep -E 'ext2|ext3|ext4' | awk '{print " "$3" "}' | grep -wq " $device "; then
 				echo "Error - Input Not Recognised, Exiting Installation"
 				exit
 			fi
-			mkdir -p "/tmp/mnt/$(nvram get usb_path_"${device}"_label)/skynet"
-			mkdir -p "/tmp/mnt/$(nvram get usb_path_"${device}"_label)/skynet/scripts"
-			touch "/tmp/mnt/$(nvram get usb_path_"${device}"_label)/skynet/rwtest"
-			if [ ! -f "/tmp/mnt/$(nvram get usb_path_"${device}"_label)/skynet/rwtest" ]; then
+			mkdir -p "${device}/skynet"
+			mkdir -p "${device}/skynet/scripts"
+			touch "${device}/skynet/rwtest"
+			if [ ! -f "${device}/skynet/rwtest" ]; then
 				echo "Writing To $device Failed - Exiting Installation"
 				exit
 			else
-				rm -rf "/tmp/mnt/$(nvram get usb_path_"${device}"_label)/skynet/rwtest"
+				rm -rf "${device}/skynet/rwtest"
 			fi
-			mv "/jffs/scripts/ipset.txt" "/tmp/mnt/$(nvram get usb_path_"${device}"_label)/skynet/scripts/" >/dev/null 2>&1
-			mv "/jffs/scripts/malwarelist.txt" "/tmp/mnt/$(nvram get usb_path_"${device}"_label)/skynet/scripts/" >/dev/null 2>&1
-			mv "/jffs/scripts/countrylist.txt" "/tmp/mnt/$(nvram get usb_path_"${device}"_label)/skynet/scripts/" >/dev/null 2>&1
-			mv "/jffs/skynet.log" "/tmp/mnt/$(nvram get usb_path_"${device}"_label)/skynet/" >/dev/null 2>&1
+			mv "/jffs/scripts/ipset.txt" "${device}/skynet/scripts/" >/dev/null 2>&1
+			mv "/jffs/scripts/malwarelist.txt" "${device}/skynet/scripts/" >/dev/null 2>&1
+			mv "/jffs/scripts/countrylist.txt" "${device}/skynet/scripts/" >/dev/null 2>&1
+			mv "/jffs/skynet.log" "${device}/skynet/" >/dev/null 2>&1
 			sed -i '\~/jffs/scripts/firewall ~d' /jffs/scripts/firewall-start
-			echo "sleep 10; sh /jffs/scripts/firewall $set1 $set2 $set3 usb=/tmp/mnt/$(nvram get usb_path_"${device}"_label) # Skynet Firewall Addition" >> /jffs/scripts/firewall-start
+			echo "sleep 10; sh /jffs/scripts/firewall $set1 $set2 $set3 usb=${device} # Skynet Firewall Addition" >> /jffs/scripts/firewall-start
 			;;
 			*)
 			echo "JFFS Installation Selected"
 			mkdir -p "/jffs/scripts"
 			if grep -q "usb=.*" /jffs/scripts/firewall-start; then
-				location=$(grep -ow "usb=.*" /jffs/scripts/firewall-start | awk '{print $1}' | cut -c 5-)
-				mv "$location/skynet/scripts/ipset.txt" "/jffs/scripts/"  >/dev/null 2>&1
-				mv "$location/skynet/scripts/malwarelist.txt" "/jffs/scripts/" >/dev/null 2>&1
-				mv "$location/skynet/scripts/countrylist.txt" "/jffs/scripts/" >/dev/null 2>&1
-				mv "$location/skynet/skynet.log" "/jffs/" >/dev/null 2>&1
+				mv "$location/scripts/ipset.txt" "/jffs/scripts/"  >/dev/null 2>&1
+				mv "$location/scripts/malwarelist.txt" "/jffs/scripts/" >/dev/null 2>&1
+				mv "$location/scripts/countrylist.txt" "/jffs/scripts/" >/dev/null 2>&1
+				mv "$location/skynet.log" "/jffs/" >/dev/null 2>&1
 			fi
 			sed -i '\~/jffs/scripts/firewall ~d' /jffs/scripts/firewall-start
 			echo "sleep 10; sh /jffs/scripts/firewall $set1 $set2 $set3 # Skynet Firewall Addition" >> /jffs/scripts/firewall-start
