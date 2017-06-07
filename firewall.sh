@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 06/06/2017 -		   Asus Firewall Addition By Adamm v4.7.5				    #
+## - 07/06/2017 -		   Asus Firewall Addition By Adamm v4.7.6				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -44,6 +44,13 @@ if grep -F "Skynet" /jffs/scripts/firewall-start | grep -qF "usb"; then
 	fi
 else
 	location="/jffs"
+fi
+
+
+if nvram get wan0_pppoe_ifname | grep -qF "ppp0"; then
+	iface="ppp0"
+else
+	iface=$(nvram get wan0_ifname)
 fi
 
 
@@ -104,32 +111,32 @@ Check_Settings () {
 }
 
 Unload_DebugIPTables () {
-		iptables -t raw -D PREROUTING -i "$(nvram get wan0_ifname)" -m set --match-set BlockedRanges src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
-		iptables -t raw -D PREROUTING -i "$(nvram get wan0_ifname)" -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
+		iptables -t raw -D PREROUTING -i "$iface" -m set --match-set BlockedRanges src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
+		iptables -t raw -D PREROUTING -i "$iface" -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
 }
 
 Unload_IPTables () {
 		iptables -D logdrop -m state --state NEW -j LOG --log-prefix "DROP " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
-		iptables -t raw -D PREROUTING -i "$(nvram get wan0_ifname)" -m set --match-set Blacklist src -j DROP >/dev/null 2>&1
-		iptables -t raw -D PREROUTING -i "$(nvram get wan0_ifname)" -m set --match-set BlockedRanges src -j DROP >/dev/null 2>&1
-		iptables -t raw -D PREROUTING -i "$(nvram get wan0_ifname)" -m set --match-set Whitelist src -j ACCEPT >/dev/null 2>&1
-		iptables -D logdrop -i "$(nvram get wan0_ifname)" -m state --state INVALID -j SET --add-set Blacklist src >/dev/null 2>&1
-		iptables -D logdrop -i "$(nvram get wan0_ifname)" -m state --state INVALID -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
-		iptables -D logdrop -i "$(nvram get wan0_ifname)" -p tcp -m multiport --sports 80,443,143,993,110,995,25,465 -m state --state INVALID -j DROP >/dev/null 2>&1
-		iptables -D logdrop -i "$(nvram get wan0_ifname)" -m set --match-set Whitelist src -j ACCEPT >/dev/null 2>&1
+		iptables -t raw -D PREROUTING -i "$iface" -m set --match-set Blacklist src -j DROP >/dev/null 2>&1
+		iptables -t raw -D PREROUTING -i "$iface" -m set --match-set BlockedRanges src -j DROP >/dev/null 2>&1
+		iptables -t raw -D PREROUTING -i "$iface" -m set --match-set Whitelist src -j ACCEPT >/dev/null 2>&1
+		iptables -D logdrop -i "$iface" -m state --state INVALID -j SET --add-set Blacklist src >/dev/null 2>&1
+		iptables -D logdrop -i "$iface" -m state --state INVALID -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
+		iptables -D logdrop -i "$iface" -p tcp -m multiport --sports 80,443,143,993,110,995,25,465 -m state --state INVALID -j DROP >/dev/null 2>&1
+		iptables -D logdrop -i "$iface" -m set --match-set Whitelist src -j ACCEPT >/dev/null 2>&1
 }
 
 Load_IPTables () {
-		iptables -t raw -I PREROUTING -i "$(nvram get wan0_ifname)" -m set --match-set Blacklist src -j DROP >/dev/null 2>&1
-		iptables -t raw -I PREROUTING -i "$(nvram get wan0_ifname)" -m set --match-set BlockedRanges src -j DROP >/dev/null 2>&1
-		iptables -t raw -I PREROUTING -i "$(nvram get wan0_ifname)" -m set --match-set Whitelist src -j ACCEPT >/dev/null 2>&1
+		iptables -t raw -I PREROUTING -i "$iface" -m set --match-set Blacklist src -j DROP >/dev/null 2>&1
+		iptables -t raw -I PREROUTING -i "$iface" -m set --match-set BlockedRanges src -j DROP >/dev/null 2>&1
+		iptables -t raw -I PREROUTING -i "$iface" -m set --match-set Whitelist src -j ACCEPT >/dev/null 2>&1
 		if [ "$1" = "noautoban" ]; then
 			logger -st Skynet "[Enabling No-Autoban Mode] ... ... ..."
 		else
-			iptables -I logdrop -i "$(nvram get wan0_ifname)" -m state --state INVALID -j SET --add-set Blacklist src >/dev/null 2>&1
-			iptables -I logdrop -i "$(nvram get wan0_ifname)" -m state --state INVALID -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
-			iptables -I logdrop -i "$(nvram get wan0_ifname)" -p tcp -m multiport --sports 80,443,143,993,110,995,25,465 -m state --state INVALID -j DROP >/dev/null 2>&1
-			iptables -I logdrop -i "$(nvram get wan0_ifname)" -m set --match-set Whitelist src -j ACCEPT >/dev/null 2>&1
+			iptables -I logdrop -i "$iface" -m state --state INVALID -j SET --add-set Blacklist src >/dev/null 2>&1
+			iptables -I logdrop -i "$iface" -m state --state INVALID -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
+			iptables -I logdrop -i "$iface" -p tcp -m multiport --sports 80,443,143,993,110,995,25,465 -m state --state INVALID -j DROP >/dev/null 2>&1
+			iptables -I logdrop -i "$iface" -m set --match-set Whitelist src -j ACCEPT >/dev/null 2>&1
 		fi
 }
 
@@ -198,8 +205,8 @@ Purge_Logs () {
 Enable_Debug () {
 		if [ "$1" = "debug" ] || [ "$2" = "debug" ]; then
 			echo "Enabling Raw Debug Output"
-			iptables -t raw -I PREROUTING 2 -i "$(nvram get wan0_ifname)" -m set --match-set BlockedRanges src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
-			iptables -t raw -I PREROUTING 4 -i "$(nvram get wan0_ifname)" -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
+			iptables -t raw -I PREROUTING 2 -i "$iface" -m set --match-set BlockedRanges src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
+			iptables -t raw -I PREROUTING 4 -i "$iface" -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
 		fi
 }
 
