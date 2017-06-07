@@ -543,7 +543,7 @@ case $1 in
 				GRN="printf \e[0;32m%-6s\e[m\n"
 				echo "Router Model: $(uname -n)"
 				echo "Skynet Version: $(Filter_Version "$0") ($(Filter_Date "$0"))"
-				iptables --version
+				echo "$(iptables --version) - ($iface)"
 				ipset -v
 				echo "FW Version: $(nvram get buildno)_$(nvram get extendno)"
 				echo "Install Dir; $location"
