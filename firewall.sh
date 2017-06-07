@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 07/06/2017 -		   Asus Firewall Addition By Adamm v4.7.6				    #
+## - 08/06/2017 -		   Asus Firewall Addition By Adamm v4.7.7				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -56,7 +56,7 @@ fi
 
 Check_Lock () {
 		if [ -f /tmp/skynet.lock ]; then
-			logger -st Skynet "[Lock File Detected - Exiting]"
+			logger -st Skynet "[INFO] Lock File Detected - Exiting"
 			exit
 		else 
 			touch /tmp/skynet.lock
@@ -65,12 +65,12 @@ Check_Lock () {
 
 Check_Settings () {
 		if ! grep -qF "Skynet" /jffs/scripts/firewall-start; then
-			logger -st Skynet "[Installation Not Detected - Please Use Install Command To Continue]"
+			logger -st Skynet "[ERROR] Installation Not Detected - Please Use Install Command To Continue"
 			rm -rf /tmp/skynet.lock
 			exit
 		fi
 		if [ -f "/jffs/scripts/IPSET_Block.sh" ]; then
-			logger -st Skynet "[IPSet_Block.sh Detected - This Script Will Cause Conflicts And Does Not Have Saftey Checks Like Skynet, Please Uninstall It ASAP]"
+			logger -st Skynet "[ERROR] IPSet_Block.sh Detected - This Script Will Cause Conflicts And Does Not Have Saftey Checks Like Skynet, Please Uninstall It ASAP"
 		fi
 
 		if [ "$1" = "banmalware" ] || [ "$2" = "banmalware" ] || [ "$3" = "banmalware" ]; then
@@ -84,7 +84,7 @@ Check_Settings () {
 		fi
 
 		if [ "$(ipset -v | grep -Fo v6)" != "v6" ]; then
-			echo "IPSet Version Not Supported"
+			logger -st Skynet "[ERROR] IPSet Version Not Supported"
 			rm -rf /tmp/skynet.lock
 			exit
 		fi
@@ -104,7 +104,7 @@ Check_Settings () {
 			nvram set fw_enable_x=1
 		fi
 
-		if [ "$(nvram get fw_log_x)" != "drop" ]; then
+		if [ "$(nvram get fw_log_x)" != "drop" ] || [ "$(nvram get fw_log_x)" != "both" ]; then
 			echo "Enabling Firewall Logging"
 			nvram set fw_log_x=drop
 		fi
@@ -131,7 +131,7 @@ Load_IPTables () {
 		iptables -t raw -I PREROUTING -i "$iface" -m set --match-set BlockedRanges src -j DROP >/dev/null 2>&1
 		iptables -t raw -I PREROUTING -i "$iface" -m set --match-set Whitelist src -j ACCEPT >/dev/null 2>&1
 		if [ "$1" = "noautoban" ]; then
-			logger -st Skynet "[Enabling No-Autoban Mode] ... ... ..."
+			logger -st Skynet "[INFO] Enabling No-Autoban Mode ... ... ..."
 		else
 			iptables -I logdrop -i "$iface" -m state --state INVALID -j SET --add-set Blacklist src >/dev/null 2>&1
 			iptables -I logdrop -i "$iface" -m state --state INVALID -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
@@ -205,8 +205,10 @@ Purge_Logs () {
 Enable_Debug () {
 		if [ "$1" = "debug" ] || [ "$2" = "debug" ]; then
 			echo "Enabling Raw Debug Output"
-			iptables -t raw -I PREROUTING 2 -i "$iface" -m set --match-set BlockedRanges src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
-			iptables -t raw -I PREROUTING 4 -i "$iface" -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
+			pos1=$(iptables --line -vL -nt raw | grep -F "BlockedRanges" | grep -F "DROP" | awk '{print $1}')
+			iptables -t raw -I PREROUTING "$pos1" -i "$iface" -m set --match-set BlockedRanges src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
+			pos2=$(iptables --line -vL -nt raw | grep -F Blacklist | grep -F "DROP" | awk '{print $1}')
+			iptables -t raw -I PREROUTING "$pos2" -i "$iface" -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
 		fi
 }
 
@@ -243,7 +245,7 @@ case $1 in
 		elif [ "$2" = "domain" ] && [ -z "$3" ]; then
 			echo "Input Domain To Unban"
 			read -r unbandomain
-			logger -st Skynet "[Removing $unbandomain From Blacklist] ... ... ..."
+			logger -st Skynet "[INFO] Removing $unbandomain From Blacklist ... ... ..."
 			for ip in $(Domain_Lookup "$unbandomain")
 				do
 				echo "Unbanning $ip"
@@ -251,7 +253,7 @@ case $1 in
 				sed -i "\~$ip ~d" $location/skynet.log
 			done
 		elif [ "$2" = "domain" ] && [ -n "$3" ]; then
-		logger -st Skynet "[Removing $3 From Blacklist] ... ... ..."
+		logger -st Skynet "[INFO] Removing $3 From Blacklist ... ... ..."
 		for ip in $(Domain_Lookup "$3")
 			do
 			echo "Unbanning $ip"
@@ -259,7 +261,7 @@ case $1 in
 			sed -i "\~$ip ~d" $location/skynet.log
 		done
 		elif [ "$2" = "port" ] && [ -n "$3" ]; then
-			logger -st Skynet "[Unbanning Autobans Issued On Traffic From Source/Destination Port $3] ... ... ..."
+			logger -st Skynet "[INFO] Unbanning Autobans Issued On Traffic From Source/Destination Port $3 ... ... ..."
 			grep -F "NEW" $location/skynet.log | grep -F "PT=$3 " | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | while IFS= read -r ip
 				do
 				echo "Unbanning $ip"
@@ -276,7 +278,7 @@ case $1 in
 			rm -rf $location/scripts/malwarelist.txt
 		elif [ "$2" = "all" ]; then
 			nvram set Blacklist=$(($(grep -Foc "d Black" $location/scripts/ipset.txt) + $(grep -Foc "d Block" $location/scripts/ipset.txt)))
-			logger -st Skynet "[Removing All $(nvram get Blacklist) Entries From Blacklist] ... ... ..."
+			logger -st Skynet "[INFO] Removing All $(nvram get Blacklist) Entries From Blacklist ... ... ..."
 			ipset --flush Blacklist
 			ipset --flush BlockedRanges
 			rm -rf $location/scripts/countrylist.txt $location/scripts/malwarelist.txt
@@ -330,14 +332,14 @@ case $1 in
 		elif [ "$2" = "domain" ] && [ -z "$3" ]; then
 			echo "Input Domain To Blacklist"
 			read -r bandomain
-			logger -st Skynet "[Adding $bandomain To Blacklist] ... ... ..."
+			logger -st Skynet "[INFO] Adding $bandomain To Blacklist ... ... ..."
 			for ip in $(Domain_Lookup "$bandomain")
 				do
 				echo "Banning $ip"
 				ipset -A Blacklist "$ip" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$bandomain " >> $location/skynet.log
 			done
 		elif [ "$2" = "domain" ] && [ -n "$3" ]; then
-		logger -st Skynet "[Adding $3 To Blacklist] ... ... ..."
+		logger -st Skynet "[INFO] Adding $3 To Blacklist ... ... ..."
 		for ip in $(Domain_Lookup "$3")
 			do
 			echo "Banning $ip"
@@ -386,7 +388,7 @@ case $1 in
 			echo "To Use A Custom List In Future Use; \"sh $0 banmalware URL\""
 			listurl="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/filter.list"
 		fi
-		curl -s --connect-timeout 5 "$listurl" | grep -qF "http" || { logger -st Skynet "[404 Error Detected - Stopping Banmalware]" ; exit; }
+		curl -s --connect-timeout 5 "$listurl" | grep -qF "http" || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Banmalware" ; exit; }
 		if [ -f $location/scripts/malwarelist.txt ]; then
 			echo "Removing Previous Malware Bans"
 			sed 's/add/del/g' $location/scripts/malwarelist.txt | ipset -q -R -!
@@ -430,7 +432,7 @@ case $1 in
 		elif [ "$2" = "domain" ] && [ -z "$3" ];then
 			echo "Input Domain To Whitelist"
 			read -r whitelistdomain
-			logger -st Skynet "[Adding $whitelistdomain To Whitelist] ... ... ..."
+			logger -st Skynet "[INFO] Adding $whitelistdomain To Whitelist ... ... ..."
 			for ip in $(Domain_Lookup "$whitelistdomain")
 				do
 				echo "Whitelisting $ip"
@@ -439,7 +441,7 @@ case $1 in
 				sed -i "\~$ip ~d" $location/skynet.log
 			done
 		elif [ "$2" = "domain" ] && [ -n "$3" ]; then
-		logger -st Skynet "[Adding $3 To Whitelist] ... ... ..."
+		logger -st Skynet "[INFO] Adding $3 To Whitelist ... ... ..."
 		for ip in $(Domain_Lookup "$3")
 			do
 			echo "Whitelisting $ip"
@@ -448,7 +450,7 @@ case $1 in
 			sed -i "\~$ip ~d" $location/skynet.log
 		done
 		elif [ "$2" = "port" ] && [ -n "$3" ]; then
-			logger -st Skynet "[Whitelisting Autobans Issued On Traffic From Port $3] ... ... ..."
+			logger -st Skynet "[INFO] Whitelisting Autobans Issued On Traffic From Port $3 ... ... ..."
 			grep -F "NEW" $location/skynet.log | grep -F "DPT=$3 " | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | while IFS= read -r ip
 				do
 				echo "Whitelisting $ip"
@@ -513,7 +515,7 @@ case $1 in
 		;;
 
 	disable)
-		logger -st Skynet "[Disabling Skynet] ... ... ..."
+		logger -st Skynet "[INFO] Disabling Skynet ... ... ..."
 		Unload_IPTables
 		Unload_DebugIPTables
 		Purge_Logs
@@ -528,7 +530,7 @@ case $1 in
 				exit
 			;;
 			disable)
-				logger -st Skynet "[Temporarily Disabling Raw Debug Output] ... ... ..."
+				logger -st Skynet "[INFO] Temporarily Disabling Raw Debug Output ... ... ..."
 				Unload_DebugIPTables
 				Purge_Logs
 			;;
@@ -566,23 +568,23 @@ case $1 in
 
 	update)
 		remoteurl="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh"
-		curl -s --connect-timeout 5 "$remoteurl" | grep -qF "Adamm" || { logger -st Skynet "[404 Error Detected - Stopping Update]" ; exit; }
+		curl -s --connect-timeout 5 "$remoteurl" | grep -qF "Adamm" || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Update" ; exit; }
 		localver="$(Filter_Version "$0")"
 		remotever="$(/usr/sbin/wget "$remoteurl" -qO- | Filter_Version)"
 		if [ "$localver" = "$remotever" ] && [ "$2" != "-f" ]; then
 			echo "To Use Only Check For Update Use; \"sh $0 update check\""
 			echo "To Force Update Use; \"sh $0 update -f\""
-			logger -st Skynet "[Skynet Up To Date - $localver]"
+			logger -st Skynet "[INFO] Skynet Up To Date - $localver"
 			exit
 		elif [ "$localver" != "$remotever" ] && [ "$2" = "check" ]; then
-			logger -st Skynet "[Skynet Update Detected - $remotever]"
+			logger -st Skynet "[INFO] Skynet Update Detected - $remotever"
 			exit
 		elif [ "$2" = "-f" ]; then
-			logger -st Skynet "[Forcing Update]"
+			logger -st Skynet "[INFO] Forcing Update"
 		fi
 		if [ "$localver" != "$remotever" ] || [ "$2" = "-f" ]; then
-			logger -st Skynet "[New Version Detected - Updating To $remotever]... ... ..."
-			/usr/sbin/wget "$remoteurl" -qO "$0" && logger -st Skynet "[Skynet Sucessfully Updated - Restarting Firewall]"
+			logger -st Skynet "[INFO] New Version Detected - Updating To $remotever... ... ..."
+			/usr/sbin/wget "$remoteurl" -qO "$0" && logger -st Skynet "[INFO] Skynet Sucessfully Updated - Restarting Firewall"
 			service restart_firewall
 			exit
 		fi
@@ -590,11 +592,10 @@ case $1 in
 
 	start)
 		Check_Lock
-		iptables -t raw -F
 		Check_Settings "$2" "$3" "$4" "$5"
 		cru a Firewall_save "0 * * * * /jffs/scripts/firewall save"
-		sed -i '/IP Banning Started/d' /tmp/syslog.log
-		logger -st Skynet "[IP Banning Started] ... ... ..."
+		sed -i '/Startup Initiated/d' /tmp/syslog.log
+		logger -st Skynet "[INFO] Startup Initiated ... ... ..."
 		modprobe xt_set >/dev/null 2>&1
 		ipset -R < $location/scripts/ipset.txt
 		Unban_PrivateIP
