@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 08/06/2017 -		   Asus Firewall Addition By Adamm v4.7.7				    #
+## - 08/06/2017 -		   Asus Firewall Addition By Adamm v4.7.8				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -34,7 +34,7 @@
 ##############################
 
 head -35 "$0"
-start_time=$(date +%s)
+start_time="$(date +%s)"
 export LC_ALL=C
 
 if grep -F "Skynet" /jffs/scripts/firewall-start | grep -qF "usb"; then
@@ -50,12 +50,12 @@ fi
 if nvram get wan0_pppoe_ifname | grep -qF "ppp0"; then
 	iface="ppp0"
 else
-	iface=$(nvram get wan0_ifname)
+	iface="$(nvram get wan0_ifname)"
 fi
 
 
 Check_Lock () {
-		if [ -f /tmp/skynet.lock ]; then
+		if [ -f "/tmp/skynet.lock" ]; then
 			logger -st Skynet "[INFO] Lock File Detected - Exiting"
 			exit
 		else 
@@ -89,7 +89,7 @@ Check_Settings () {
 			exit
 		fi
 
-		if [ -d "/opt/bin" ] && [ ! -f /opt/bin/firewall ]; then
+		if [ -d "/opt/bin" ] && [ ! -f "/opt/bin/firewall" ]; then
 			echo "Enabling /opt/bin Symlink"
 			ln -s /jffs/scripts/firewall /opt/bin
 		fi
@@ -141,17 +141,17 @@ Load_IPTables () {
 }
 
 Logging () {
-		OLDIPS=$(nvram get Blacklist)
-		OLDRANGES=$(nvram get BlockedRanges)
+		oldips="$(nvram get Blacklist)"
+		oldranges="$(nvram get BlockedRanges)"
 		nvram set Blacklist="$(grep -Foc "d Black" $location/scripts/ipset.txt 2> /dev/null)"
 		nvram set BlockedRanges="$(grep -Foc "d Block" $location/scripts/ipset.txt 2> /dev/null)"
-		NEWIPS=$(nvram get Blacklist)
-		NEWRANGES=$(nvram get BlockedRanges)
+		newips="$(nvram get Blacklist)"
+		newranges="$(nvram get BlockedRanges)"
 		nvram commit
-		HITS1=$(iptables -vL -nt raw | grep -Fv "LOG" | grep -F "Blacklist src" | awk '{print $1}')
-		HITS2=$(iptables -vL -nt raw | grep -Fv "LOG" | grep -F "BlockedRanges src" | awk '{print $1}')
-		start_time=$(($(date +%s) - start_time))
-		logger -st Skynet "[Complete] $NEWIPS IPs / $NEWRANGES Ranges banned. $((NEWIPS - OLDIPS)) New IPs / $((NEWRANGES - OLDRANGES)) New Ranges Banned. $HITS1 IP / $HITS2 Range Connections Blocked! [${start_time}s]"
+		hits1="$(iptables -vL -nt raw | grep -Fv "LOG" | grep -F "Blacklist src" | awk '{print $1}')"
+		hits2="$(iptables -vL -nt raw | grep -Fv "LOG" | grep -F "BlockedRanges src" | awk '{print $1}')"
+		start_time="$(($(date +%s) - start_time))"
+		logger -st Skynet "[Complete] $newips IPs / $newranges Ranges banned. $((newips - oldips)) New IPs / $((newranges - oldranges)) New Ranges Banned. $hits1 IP / $hits2 Range Connections Blocked! [${start_time}s]"
 }
 
 Domain_Lookup () {
@@ -189,25 +189,25 @@ Unban_PrivateIP () {
 
 Purge_Logs () {
 		if [ "$(du $location/skynet.log | awk '{print $1}')" -ge "7000" ]; then
-			sed -i '/BLOCKED - RAW/d' $location/skynet.log
+			sed -i '/BLOCKED - RAW/d' "$location/skynet.log"
 			if [ "$(du $location/skynet.log | awk '{print $1}')" -ge "3000" ]; then
-				true > $location/skynet.log
+				true > "$location/skynet.log"
 			fi
 		fi
 		sed -i '/Aug  1 1/d' /tmp/syslog.log-1 >/dev/null 2>&1
 		sed -i '/Aug  1 1/d' /tmp/syslog.log
-		sed '/BLOCKED -/!d' /tmp/syslog.log-1 >> $location/skynet.log >/dev/null 2>&1
+		sed '/BLOCKED -/!d' /tmp/syslog.log-1 >> "$location/skynet.log" >/dev/null 2>&1
 		sed -i '/BLOCKED -/d' /tmp/syslog.log-1 >/dev/null 2>&1
-		sed '/BLOCKED -/!d' /tmp/syslog.log >> $location/skynet.log
+		sed '/BLOCKED -/!d' /tmp/syslog.log >> "$location/skynet.log"
 		sed -i '/BLOCKED -/d' /tmp/syslog.log
 }
 
 Enable_Debug () {
 		if [ "$1" = "debug" ] || [ "$2" = "debug" ]; then
 			echo "Enabling Raw Debug Output"
-			pos1=$(iptables --line -vL -nt raw | grep -F "BlockedRanges" | grep -F "DROP" | awk '{print $1}')
+			pos1="$(iptables --line -L PREROUTING -nt raw | grep -F "BlockedRanges" | grep -F "DROP" | awk '{print $1}')"
 			iptables -t raw -I PREROUTING "$pos1" -i "$iface" -m set --match-set BlockedRanges src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
-			pos2=$(iptables --line -vL -nt raw | grep -F Blacklist | grep -F "DROP" | awk '{print $1}')
+			pos2="$(iptables --line -L PREROUTING -nt raw | grep -F Blacklist | grep -F "DROP" | awk '{print $1}')"
 			iptables -t raw -I PREROUTING "$pos2" -i "$iface" -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
 		fi
 }
@@ -221,7 +221,7 @@ Is_IP () {
 #####################################################################################################################
 
 
-case $1 in
+case "$1" in
 	unban)
 		Purge_Logs
 		if [ -z "$2" ]; then
@@ -233,15 +233,15 @@ case $1 in
 			read -r ip
 			echo "Unbanning $ip"
 			ipset -D Blacklist "$ip"
-			sed -i "\~$ip ~d" $location/skynet.log
+			sed -i "\~$ip ~d" "$location/skynet.log"
 		elif echo "$2" | Is_IP; then
 			echo "Unbanning $2"
 			ipset -D Blacklist "$2"
-			sed -i "\~$2 ~d" $location/skynet.log
+			sed -i "\~$2 ~d" "$location/skynet.log"
 		elif [ "$2" = "range" ] && [ -n "$3" ]; then
 			echo "Unbanning $3"
 			ipset -D BlockedRanges "$3"
-			sed -i "\~$3 ~d" $location/skynet.log
+			sed -i "\~$3 ~d" "$location/skynet.log"
 		elif [ "$2" = "domain" ] && [ -z "$3" ]; then
 			echo "Input Domain To Unban"
 			read -r unbandomain
@@ -250,7 +250,7 @@ case $1 in
 				do
 				echo "Unbanning $ip"
 				ipset -D Blacklist "$ip"
-				sed -i "\~$ip ~d" $location/skynet.log
+				sed -i "\~$ip ~d" "$location/skynet.log"
 			done
 		elif [ "$2" = "domain" ] && [ -n "$3" ]; then
 		logger -st Skynet "[INFO] Removing $3 From Blacklist ... ... ..."
@@ -258,48 +258,47 @@ case $1 in
 			do
 			echo "Unbanning $ip"
 			ipset -D Blacklist "$ip"
-			sed -i "\~$ip ~d" $location/skynet.log
+			sed -i "\~$ip ~d" "$location/skynet.log"
 		done
 		elif [ "$2" = "port" ] && [ -n "$3" ]; then
 			logger -st Skynet "[INFO] Unbanning Autobans Issued On Traffic From Source/Destination Port $3 ... ... ..."
-			grep -F "NEW" $location/skynet.log | grep -F "PT=$3 " | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | while IFS= read -r ip
+			grep -F "NEW" "$location/skynet.log" | grep -F "PT=$3 " | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | while IFS= read -r ip
 				do
 				echo "Unbanning $ip"
 				ipset -D Blacklist "$ip"
 			done
-			sed -i "/PT=${3} /d" $location/skynet.log
+			sed -i "/PT=${3} /d" "$location/skynet.log"
 		elif [ "$2" = "country" ]; then
 			echo "Removing Previous Country Bans"
-			sed 's/add/del/g' $location/scripts/countrylist.txt | ipset -q -R -!
-			rm -rf $location/scripts/countrylist.txt
+			sed 's/add/del/g' "$location/scripts/countrylist.txt" | ipset -q -R -!
+			rm -rf "$location/scripts/countrylist.txt"
 		elif [ "$2" = "malware" ]; then
 			echo "Removing Previous Malware Bans"
-			sed 's/add/del/g' $location/scripts/malwarelist.txt | ipset -q -R -!
-			rm -rf $location/scripts/malwarelist.txt
+			sed 's/add/del/g' "$location/scripts/malwarelist.txt" | ipset -q -R -!
+			rm -rf "$location/scripts/malwarelist.txt"
 		elif [ "$2" = "all" ]; then
-			nvram set Blacklist=$(($(grep -Foc "d Black" $location/scripts/ipset.txt) + $(grep -Foc "d Block" $location/scripts/ipset.txt)))
+			nvram set Blacklist="$(($(grep -Foc "d Black" $location/scripts/ipset.txt) + $(grep -Foc "d Block" $location/scripts/ipset.txt)))"
 			logger -st Skynet "[INFO] Removing All $(nvram get Blacklist) Entries From Blacklist ... ... ..."
 			ipset --flush Blacklist
 			ipset --flush BlockedRanges
-			rm -rf $location/scripts/countrylist.txt $location/scripts/malwarelist.txt
-			true > $location/skynet.log
+			rm -rf "$location/scripts/countrylist.txt" "$location/scripts/malwarelist.txt"
+			true > "$location/skynet.log"
 		elif [ "$2" = "nomanual" ]; then
-			grep -F "Manual" $location/skynet.log > /tmp/ban.log
+			sed -i '/Manual /!d' "$location/skynet.log"
 			ipset --flush Blacklist
 			ipset --flush BlockedRanges
-			rm -rf $location/scripts/countrylist.txt $location/scripts/malwarelist.txt
-			awk '{print $8}' /tmp/ban.log | cut -c 5- | while IFS= read -r ip
+			rm -rf "$location/scripts/countrylist.txt" "$location/scripts/malwarelist.txt"
+			awk '{print $8}' "$location/skynet.log" | cut -c 5- | while IFS= read -r ip
 				do
-				ipset -q -A Blacklist "$(echo "$ip" | grep -v "/")"
-				ipset -q -A BlockedRanges "$(echo "$ip" | grep "/")"
+				ipset -q -A Blacklist "$(echo "$ip" | grep -Fv "/")"
+				ipset -q -A BlockedRanges "$(echo "$ip" | grep -F "/")"
 			done
-			mv /tmp/ban.log $location/skynet.log
 		else
 			echo "Command Not Recognised, Please Try Again"
 			exit
 		fi
 		echo "Saving Changes"
-		ipset --save > $location/scripts/ipset.txt
+		ipset --save > "$location/scripts/ipset.txt"
 		;;
 
 	save)
@@ -307,7 +306,7 @@ case $1 in
 		echo "Saving Changes"
 		Unban_PrivateIP
 		Purge_Logs
-		ipset --save > $location/scripts/ipset.txt
+		ipset --save > "$location/scripts/ipset.txt"
 		sed -i '/USER admin pid .*firewall/d' /tmp/syslog.log
 		rm -rf /tmp/skynet.lock
 		;;
@@ -322,13 +321,13 @@ case $1 in
 			echo "Input IP To Ban"
 			read -r ip
 			echo "Banning $ip"
-			ipset -A Blacklist "$ip" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Single SRC=$ip "  >> $location/skynet.log
+			ipset -A Blacklist "$ip" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Single SRC=$ip "  >> "$location/skynet.log"
 		elif echo "$2" | Is_IP; then
 			echo "Banning $2"
-			ipset -A Blacklist "$2" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Single SRC=$2 " >> $location/skynet.log
+			ipset -A Blacklist "$2" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Single SRC=$2 " >> "$location/skynet.log"
 		elif [ "$2" = "range" ] && [ -n "$3" ]; then
 			echo "Banning $3"
-			ipset -A BlockedRanges "$3" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Range SRC=$3 " >> $location/skynet.log
+			ipset -A BlockedRanges "$3" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Range SRC=$3 " >> "$location/skynet.log"
 		elif [ "$2" = "domain" ] && [ -z "$3" ]; then
 			echo "Input Domain To Blacklist"
 			read -r bandomain
@@ -336,19 +335,19 @@ case $1 in
 			for ip in $(Domain_Lookup "$bandomain")
 				do
 				echo "Banning $ip"
-				ipset -A Blacklist "$ip" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$bandomain " >> $location/skynet.log
+				ipset -A Blacklist "$ip" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$bandomain " >> "$location/skynet.log"
 			done
 		elif [ "$2" = "domain" ] && [ -n "$3" ]; then
 		logger -st Skynet "[INFO] Adding $3 To Blacklist ... ... ..."
 		for ip in $(Domain_Lookup "$3")
 			do
 			echo "Banning $ip"
-			ipset -A Blacklist "$ip" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$3 " >> $location/skynet.log
+			ipset -A Blacklist "$ip" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$3 " >> "$location/skynet.log"
 		done
 		elif [ "$2" = "country" ] && [ -n "$3" ]; then
-			if [ -f $location/scripts/countrylist.txt ]; then
+			if [ -f "$location/scripts/countrylist.txt" ]; then
 				echo "Removing Previous Country Bans"
-				sed 's/add/del/g' $location/scripts/countrylist.txt | ipset -q -R -!
+				sed 's/add/del/g' "$location/scripts/countrylist.txt" | ipset -q -R -!
 			fi
 			echo "Banning Known IP Ranges For $3"
 			echo "Downloading Lists"
@@ -357,20 +356,20 @@ case $1 in
 				/usr/sbin/wget http://ipdeny.com/ipblocks/data/aggregated/"$country"-aggregated.zone -qO- >> /tmp/countrylist.txt
 			done
 			echo "Filtering IPv4 Ranges"
-			sed -n "s/\r//;/^$/d;/^[0-9,\.,\/]*$/s/^/add BlockedRanges /p" /tmp/countrylist.txt | grep -F "/" | awk '!x[$0]++' > $location/scripts/countrylist.txt
+			sed -n "s/\r//;/^$/d;/^[0-9,\.,\/]*$/s/^/add BlockedRanges /p" /tmp/countrylist.txt | grep -F "/" | awk '!x[$0]++' > "$location/scripts/countrylist.txt"
 			echo "Applying Blacklists"
-			ipset -q -R -! < $location/scripts/countrylist.txt
+			ipset -q -R -! < "$location/scripts/countrylist.txt"
 			rm -rf /tmp/countrylist*.txt
 		else
 			echo "Command Not Recognised, Please Try Again"
 			exit
 		fi
 		echo "Saving Changes"
-		ipset --save > $location/scripts/ipset.txt
+		ipset --save > "$location/scripts/ipset.txt"
 		;;
 
 	banmalware)
-	if [ "$2" != "-f" ] && [ -f /jffs/scripts/malware-filter ] || [ -f /jffs/scripts/ya-malware-block.sh ] || [ -f /jffs/scripts/ipBLOCKer.sh ]; then
+	if [ "$2" != "-f" ] && [ -f "/jffs/scripts/malware-filter" ] || [ -f "/jffs/scripts/ya-malware-block.sh" ] || [ -f "/jffs/scripts/ipBLOCKer.sh" ]; then
 		echo "Another Malware Filter Script Detected And May Cause Conflicts, Are You Sure You Want To Continue? (yes/no)"
 		echo "To Ignore This Error In Future Use; \"sh $0 banmalware -f\""
 		read -r continue
@@ -379,37 +378,37 @@ case $1 in
 		fi
 	fi
 		if  [ -n "$2" ] && [ "$2" != "-f" ]; then
-			listurl=$2
+			listurl="$2"
 			echo "Custom List Detected: $2"
 		elif [ -n "$3" ]; then
-			listurl=$3
+			listurl="$3"
 			echo "Custom List Detected: $3"
 		else
 			echo "To Use A Custom List In Future Use; \"sh $0 banmalware URL\""
 			listurl="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/filter.list"
 		fi
 		curl -s --connect-timeout 5 "$listurl" | grep -qF "http" || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Banmalware" ; exit; }
-		if [ -f $location/scripts/malwarelist.txt ]; then
+		if [ -f "$location/scripts/malwarelist.txt" ]; then
 			echo "Removing Previous Malware Bans"
-			sed 's/add/del/g' $location/scripts/malwarelist.txt | ipset -q -R -!
+			sed 's/add/del/g' "$location/scripts/malwarelist.txt" | ipset -q -R -!
 		fi
 		Check_Lock
 		echo "Downloading Lists"
-		/usr/sbin/wget $listurl -qO- | /usr/sbin/wget -i- -qO- | awk '!x[$0]++' | Filter_PrivateIP > /tmp/malwarelist.txt
+		/usr/sbin/wget "$listurl" -qO- | /usr/sbin/wget -i- -qO- | awk '!x[$0]++' | Filter_PrivateIP > /tmp/malwarelist.txt
 		echo "Filtering IPv4 Addresses"
-		sed -n "s/\r//;/^$/d;/^[0-9,\.]*$/s/^/add Blacklist /p" /tmp/malwarelist.txt > $location/scripts/malwarelist.txt
+		sed -n "s/\r//;/^$/d;/^[0-9,\.]*$/s/^/add Blacklist /p" /tmp/malwarelist.txt > "$location/scripts/malwarelist.txt"
 		echo "Filtering IPv4 Ranges"
-		sed -n "s/\r//;/^$/d;/^[0-9,\.,\/]*$/s/^/add BlockedRanges /p" /tmp/malwarelist.txt | grep -F "/" >> $location/scripts/malwarelist.txt
+		sed -n "s/\r//;/^$/d;/^[0-9,\.,\/]*$/s/^/add BlockedRanges /p" /tmp/malwarelist.txt | grep -F "/" >> "$location/scripts/malwarelist.txt"
 		echo "Applying Blacklists"
-		ipset -q -R -! < $location/scripts/malwarelist.txt
+		ipset -q -R -! < "$location/scripts/malwarelist.txt"
 		rm -rf /tmp/malwarelist.txt
-		if [ -f /home/root/ab-solution.sh ]; then
+		if [ -f "/home/root/ab-solution.sh" ]; then
 			ipset -q -A Whitelist 213.230.210.230 # AB-Solution Host File
 		fi
 		echo "Warning; This May Have Blocked Your Favorite Website"
 		echo "To Whitelist It Use; \"sh $0 whitelist domain URL\""
 		echo "Saving Changes"
-		ipset --save > $location/scripts/ipset.txt
+		ipset --save > "$location/scripts/ipset.txt"
 		rm -rf /tmp/skynet.lock
 		;;
 
@@ -423,12 +422,12 @@ case $1 in
 			echo "Whitelisting $ip"
 			ipset -A Whitelist "$ip"
 			ipset -D Blacklist "$ip"
-			sed -i "\~$ip ~d" $location/skynet.log
+			sed -i "\~$ip ~d" "$location/skynet.log"
 		elif echo "$2" | Is_IP; then
 			echo "Whitelisting $2"
 			ipset -A Whitelist "$2"
 			ipset -D Blacklist "$2"
-			sed -i "\~$2 ~d" $location/skynet.log
+			sed -i "\~$2 ~d" "$location/skynet.log"
 		elif [ "$2" = "domain" ] && [ -z "$3" ];then
 			echo "Input Domain To Whitelist"
 			read -r whitelistdomain
@@ -438,7 +437,7 @@ case $1 in
 				echo "Whitelisting $ip"
 				ipset -A Whitelist "$ip"
 				ipset -D Blacklist "$ip"
-				sed -i "\~$ip ~d" $location/skynet.log
+				sed -i "\~$ip ~d" "$location/skynet.log"
 			done
 		elif [ "$2" = "domain" ] && [ -n "$3" ]; then
 		logger -st Skynet "[INFO] Adding $3 To Whitelist ... ... ..."
@@ -447,22 +446,22 @@ case $1 in
 			echo "Whitelisting $ip"
 			ipset -A Whitelist "$ip"
 			ipset -D Blacklist "$ip"
-			sed -i "\~$ip ~d" $location/skynet.log
+			sed -i "\~$ip ~d" "$location/skynet.log"
 		done
 		elif [ "$2" = "port" ] && [ -n "$3" ]; then
 			logger -st Skynet "[INFO] Whitelisting Autobans Issued On Traffic From Port $3 ... ... ..."
-			grep -F "NEW" $location/skynet.log | grep -F "DPT=$3 " | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | while IFS= read -r ip
+			grep -F "NEW" "$location/skynet.log" | grep -F "DPT=$3 " | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | while IFS= read -r ip
 				do
 				echo "Whitelisting $ip"
 				ipset -A Whitelist "$ip"
 				ipset -D Blacklist "$ip"
-				sed -i "\~$ip ~d" $location/skynet.log
+				sed -i "\~$ip ~d" "$location/skynet.log"
 			done
 		elif [ "$2" = "remove" ]; then
 			echo "Removing All Non-Default Whitelist Entries"
 			ipset --flush Whitelist
 			echo "Saving Changes"
-			ipset --save > $location/scripts/ipset.txt
+			ipset --save > "$location/scripts/ipset.txt"
 			echo "Restarting Firewall"
 			service restart_firewall
 			exit
@@ -471,7 +470,7 @@ case $1 in
 			exit
 		fi
 		echo "Saving Changes"
-		ipset --save > $location/scripts/ipset.txt
+		ipset --save > "$location/scripts/ipset.txt"
 		;;
 
 	import)
@@ -491,7 +490,7 @@ case $1 in
 		ipset -q -R -! < /tmp/ipset3.txt
 		rm -rf /tmp/ipset2.txt /tmp/ipset3.txt
 		echo "Saving Changes"
-		ipset --save > $location/scripts/ipset.txt
+		ipset --save > "$location/scripts/ipset.txt"
 		;;
 
 	deport)
@@ -511,7 +510,7 @@ case $1 in
 		ipset -q -R -! < /tmp/ipset3.txt
 		rm -rf /tmp/ipset2.txt /tmp/ipset3.txt
 		echo "Saving Changes"
-		ipset --save > $location/scripts/ipset.txt
+		ipset --save > "$location/scripts/ipset.txt"
 		;;
 
 	disable)
@@ -522,10 +521,11 @@ case $1 in
 	;;
 
 	debug)
-		case $2 in
+		case "$2" in
 			restart)
 				echo "Restarting Firewall Service"
 				rm -rf /tmp/skynet.lock
+				iptables -t raw -F
 				service restart_firewall
 				exit
 			;;
@@ -552,10 +552,10 @@ case $1 in
 				grep -qF "/jffs/scripts/firewall start" /jffs/scripts/firewall-start >/dev/null 2>&1 && $GRN "Startup Entry Detected" || $RED "Startup Entry Not Detected"
 				cru l | grep -qF "firewall" >/dev/null 2>&1 && $GRN "Cronjob Detected" || $RED "Cronjob Not Detected"
 				iptables -L | grep -F "LOG" | grep -qF "BAN" >/dev/null 2>&1 && $GRN "Autobanning Enabled" || $RED "Autobanning Disabled"
-				iptables -vL -nt raw | grep -qF "RAW" >/dev/null 2>&1 && $GRN "Debug Mode Enabled" || $RED "Debug Mode Disabled"
-				iptables -vL -nt raw | grep -F "Whitelist" >/dev/null 2>&1 && $GRN "Whitelist IPTable Detected" || $RED "Whitelist IPTable Not Detected"
-				iptables -vL -nt raw | grep -v "LOG" | grep -qF "BlockedRanges" >/dev/null 2>&1 && $GRN "BlockedRanges IPTable Detected" || $RED "BlockedRanges IPTable Not Detected"
-				iptables -vL -nt raw | grep -v "LOG" | grep -qF "Blacklist" >/dev/null 2>&1 && $GRN "Blacklist IPTable Detected" || $RED "Blacklist IPTable Not Detected"
+				iptables -L -nt raw | grep -qF "RAW" >/dev/null 2>&1 && $GRN "Debug Mode Enabled" || $RED "Debug Mode Disabled"
+				iptables -L -nt raw | grep -F "Whitelist" >/dev/null 2>&1 && $GRN "Whitelist IPTable Detected" || $RED "Whitelist IPTable Not Detected"
+				iptables -L -nt raw | grep -v "LOG" | grep -qF "BlockedRanges" >/dev/null 2>&1 && $GRN "BlockedRanges IPTable Detected" || $RED "BlockedRanges IPTable Not Detected"
+				iptables -L -nt raw | grep -v "LOG" | grep -qF "Blacklist" >/dev/null 2>&1 && $GRN "Blacklist IPTable Detected" || $RED "Blacklist IPTable Not Detected"
 				ipset -L -n Whitelist >/dev/null 2>&1 && $GRN "Whitelist IPSet Detected" || $RED "Whitelist IPSet Not Detected"
 				ipset -L -n BlockedRanges >/dev/null 2>&1 && $GRN "BlockedRanges IPSet Detected" || $RED "BlockedRanges IPSet Not Detected"
 				ipset -L -n Blacklist >/dev/null 2>&1 && $GRN "Blacklist IPSet Detected" || $RED "Blacklist IPSet Not Detected"
@@ -597,7 +597,7 @@ case $1 in
 		sed -i '/Startup Initiated/d' /tmp/syslog.log
 		logger -st Skynet "[INFO] Startup Initiated ... ... ..."
 		modprobe xt_set >/dev/null 2>&1
-		ipset -R < $location/scripts/ipset.txt
+		ipset -R < "$location/scripts/ipset.txt"
 		Unban_PrivateIP
 		Purge_Logs
 		ipset -q -N Whitelist nethash
@@ -625,17 +625,14 @@ case $1 in
 			echo "To Enable Use 'sh $0 install'"
 			echo
 		fi
-		if [ -f $location/skynet.log ] && [ "$(wc -l $location/skynet.log | awk '{print $1}')" != "0" ]; then
+		if [ -f "$location/skynet.log" ] && [ "$(wc -l $location/skynet.log | awk '{print $1}')" != "0" ]; then
 			echo "Debug Data Detected in $location/skynet.log - $(du -h $location/skynet.log | awk '{print $1}')"
 		else
 			echo "No Debug Data Detected - Give This Time To Generate"
 			exit
 		fi
-		if ! iptables -L -nt raw | grep -qF "BLOCKED"; then
-			echo "Only New Bans Being Tracked (enable debug mode for connection tracking)"
-		fi
 		if [ "$2" = "reset" ]; then
-			true > $location/skynet.log
+			true > "$location/skynet.log"
 			echo "Stat Data Reset"
 			exit
 		fi
@@ -647,13 +644,13 @@ case $1 in
 		echo
 		counter=10
 		if [ -n "$2" ] && [ "$2" != "search" ] && [ "$2" -eq "$2" ] 2>/dev/null; then
-			counter=$2
+			counter="$2"
 		elif [ -n "$5" ] && [ "$5" -eq "$5" ] 2>/dev/null; then
-			counter=$5
+			counter="$5"
 		elif [ "$3" = "autobans" ] && [ "$4" -eq "$4" ] 2>/dev/null; then
-			counter=$4
+			counter="$4"
 		elif [ "$3" = "manualbans" ] && [ "$4" -eq "$4" ] 2>/dev/null; then
-			counter=$4
+			counter="$4"
 		fi
 		if [ "$2" = "tcp" ] || [ "$3" = "tcp" ]; then
 			proto=TCP
@@ -670,10 +667,10 @@ case $1 in
 			echo "$(grep -F "DPT=$4 " $location/skynet.log | grep -cF NEW) Autobans From This Port"
 			echo
 			echo "First Attack Tracked On Port $4;"
-			grep -F "DPT=$4 " $location/skynet.log | head -1
+			grep -F "DPT=$4 " "$location/skynet.log" | head -1
 			echo
 			echo "$counter Most Recent Attacks On Port $4;";
-			grep -F "DPT=$4 " $location/skynet.log | tail -"$counter"
+			grep -F "DPT=$4 " "$location/skynet.log" | tail -"$counter"
 			exit
 		elif [ "$2" = "search" ] && [ "$3" = "ip" ] && [ -n "$4" ]; then
 			ipset test Whitelist "$4"
@@ -685,10 +682,10 @@ case $1 in
 			echo "$(grep -Foc "SRC=$4 " $location/skynet.log) Attempts Total"
 			echo
 			echo "First Attack Tracked From $4;"
-			grep -F "SRC=$4 " $location/skynet.log | head -1
+			grep -F "SRC=$4 " "$location/skynet.log" | head -1
 			echo
 			echo "$counter Most Recent Attacks From $4;"
-			grep -F "SRC=$4 " $location/skynet.log | tail -"$counter"
+			grep -F "SRC=$4 " "$location/skynet.log" | tail -"$counter"
 			exit
 		elif [ "$2" = "search" ] && [ "$3" = "malware" ] && [ -n "$4" ]; then
 			/usr/sbin/wget https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/filter.list -qO- | while IFS= read -r url
@@ -705,52 +702,52 @@ case $1 in
 			echo "Last Autoban Issued On $(grep -F "NEW BAN" $location/skynet.log | tail -1 | awk '{print $1" "$2" "$3}')"
 			echo
 			echo "First Autoban Issued;"
-			grep -F "NEW BAN" $location/skynet.log | head -1
+			grep -F "NEW BAN" "$location/skynet.log" | head -1
 			echo
 			echo "$counter Most Recent Autobans;"
-			grep -F "NEW BAN" $location/skynet.log | tail -"$counter"
+			grep -F "NEW BAN" "$location/skynet.log" | tail -"$counter"
 			exit
 		elif [ "$2" = "search" ] && [ "$3" = "manualbans" ]; then
 			echo "First Manual Ban Issued On $(grep -F "Manual Ban" $location/skynet.log | head -1 | awk '{print $1" "$2" "$3}')"
 			echo "Last Manual Ban Issued On $(grep -F "Manual Ban" $location/skynet.log | tail -1 | awk '{print $1" "$2" "$3}')"
 			echo
 			echo "First Manual Ban Issued;"
-			grep -F "Manual Ban" $location/skynet.log | head -1
+			grep -F "Manual Ban" "$location/skynet.log" | head -1
 			echo
 			echo "$counter Most Recent Manual Bans;"
-			grep -F "Manual Ban" $location/skynet.log | tail -"$counter"
+			grep -F "Manual Ban" "$location/skynet.log" | tail -"$counter"
 			exit
 		fi
 		echo "Top $counter Ports Attacked; (Torrent Clients May Cause Excess Hits In Debug Mode)"
-		grep -vE 'SPT=80 |SPT=443 ' $location/skynet.log | grep -F "$proto" | grep -oE 'DPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://www.speedguide.net/port.php?port="$2}'
+		grep -vE 'SPT=80 |SPT=443 ' "$location/skynet.log" | grep -F "$proto" | grep -oE 'DPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://www.speedguide.net/port.php?port="$2}'
 		echo
 		echo "Top $counter Attacker Source Ports;"
-		grep -vE 'SPT=80 |SPT=443 ' $location/skynet.log | grep -F "$proto" | grep -oE 'SPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://www.speedguide.net/port.php?port="$2}'
+		grep -vE 'SPT=80 |SPT=443 ' "$location/skynet.log" | grep -F "$proto" | grep -oE 'SPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://www.speedguide.net/port.php?port="$2}'
 		echo
 		echo "Last $counter Unique Connections Blocked;"
-		grep -vE 'SPT=80 |SPT=443 ' $location/skynet.log | grep -Fv "Manual" | grep -F "$proto" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | awk '!x[$0]++' | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
+		grep -vE 'SPT=80 |SPT=443 ' "$location/skynet.log" | grep -Fv "Manual" | grep -F "$proto" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | awk '!x[$0]++' | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
 		echo
 		echo "Last $counter Autobans;"
-		grep -vE 'SPT=80 |SPT=443 ' $location/skynet.log | grep -F "$proto" | grep -F "NEW BAN" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
+		grep -vE 'SPT=80 |SPT=443 ' "$location/skynet.log" | grep -F "$proto" | grep -F "NEW BAN" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
 		echo
 		echo "Last $counter Manual Bans;"
-		grep -F "Manual Ban" $location/skynet.log | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
+		grep -F "Manual Ban" "$location/skynet.log" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
 		echo
 		echo "Last $counter Unique HTTP(s) Blocks;"
-		grep -E 'SPT=80 |SPT=443 ' $location/skynet.log | grep -F "$proto" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | awk '!x[$0]++' | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
+		grep -E 'SPT=80 |SPT=443 ' "$location/skynet.log" | grep -F "$proto" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | awk '!x[$0]++' | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
 		echo
 		echo "Top $counter HTTP(s) Blocks;"
-		grep -E 'SPT=80 |SPT=443 ' $location/skynet.log | grep -F "$proto" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}'
+		grep -E 'SPT=80 |SPT=443 ' "$location/skynet.log" | grep -F "$proto" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}'
 		echo
 		echo "Top $counter Attackers;"
-		grep -vE 'SPT=80 |SPT=443 ' $location/skynet.log | grep -Fv "Manual" | grep -F "$proto" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}'
+		grep -vE 'SPT=80 |SPT=443 ' "$location/skynet.log" | grep -Fv "Manual" | grep -F "$proto" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}'
 		echo
 		;;
 
 	install)
-		if [ ! -f /jffs/scripts/firewall-start ]; then
+		if [ ! -f "/jffs/scripts/firewall-start" ]; then
 			echo "#!/bin/sh" > /jffs/scripts/firewall-start
-		elif [ -f /jffs/scripts/firewall-start ] && ! grep -qF "#!/bin" /jffs/scripts/firewall-start; then
+		elif [ -f "/jffs/scripts/firewall-start" ] && ! grep -qF "#!/bin" /jffs/scripts/firewall-start; then
 			sed -i '1s~^~#!/bin/sh\n~' /jffs/scripts/firewall-start
 		fi
 		echo "Installing Skynet $(Filter_Version "$0")"
@@ -762,7 +759,7 @@ case $1 in
 		echo "4. NoAuto & Debug -    Default Installation With No Autobanning And Debug Print"
 		echo
 		read -r mode
-		case $mode in
+		case "$mode" in
 			1)
 			echo "Vanilla Selected"
 			set1="start"
@@ -790,7 +787,7 @@ case $1 in
 		echo "2. No"
 		echo "Please Select Option (Number)"
 		read -r mode2
-		case $mode2 in
+		case "$mode2" in
 			1)
 			echo "Malware List Updating Enabled"
 			echo "Malware Updates Scheduled For 1.25am Every Monday"
@@ -808,7 +805,7 @@ case $1 in
 		echo "2. No"
 		echo "Please Select Option (Number)"
 		read -r mode3
-		case $mode3 in
+		case "$mode3" in
 			1)
 			echo "Auto Updating Enabled"
 			echo "Skynet Updates Scheduled For 2.25am Daily"
@@ -826,7 +823,7 @@ case $1 in
 		echo "2. USB"
 		echo "Please Select Option (Number)"
 		read -r mode4
-		case $mode4 in
+		case "$mode4" in
 			2)
 			echo
 			echo "USB Installation Selected"
@@ -875,6 +872,7 @@ case $1 in
 		cru d Firewall_banmalware
 		cru d Firewall_autoupdate
 		cru d Firewall_checkupdate
+		iptables -t raw -F
 		service restart_firewall
 		exit
 		;;
