@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 08/06/2017 -		   Asus Firewall Addition By Adamm v4.7.8				    #
+## - 08/06/2017 -		   Asus Firewall Addition By Adamm v4.7.9				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -113,6 +113,8 @@ Check_Settings () {
 Unload_DebugIPTables () {
 		iptables -t raw -D PREROUTING -i "$iface" -m set --match-set BlockedRanges src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
 		iptables -t raw -D PREROUTING -i "$iface" -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
+		iptables -t raw -D OUTPUT -m set --match-set BlockedRanges src -j LOG --log-prefix "[BLOCKED - OUTPUT] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
+		iptables -t raw -D OUTPUT -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - OUTPUT] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
 }
 
 Unload_IPTables () {
@@ -120,6 +122,9 @@ Unload_IPTables () {
 		iptables -t raw -D PREROUTING -i "$iface" -m set --match-set Blacklist src -j DROP >/dev/null 2>&1
 		iptables -t raw -D PREROUTING -i "$iface" -m set --match-set BlockedRanges src -j DROP >/dev/null 2>&1
 		iptables -t raw -D PREROUTING -i "$iface" -m set --match-set Whitelist src -j ACCEPT >/dev/null 2>&1
+		iptables -t raw -D OUTPUT -m set --match-set Blacklist dst -j DROP >/dev/null 2>&1
+		iptables -t raw -D OUTPUT -m set --match-set BlockedRanges dst -j DROP >/dev/null 2>&1
+		iptables -t raw -D OUTPUT -m set --match-set Whitelist dst -j ACCEPT >/dev/null 2>&1		
 		iptables -D logdrop -i "$iface" -m state --state INVALID -j SET --add-set Blacklist src >/dev/null 2>&1
 		iptables -D logdrop -i "$iface" -m state --state INVALID -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
 		iptables -D logdrop -i "$iface" -p tcp -m multiport --sports 80,443,143,993,110,995,25,465 -m state --state INVALID -j DROP >/dev/null 2>&1
@@ -130,6 +135,9 @@ Load_IPTables () {
 		iptables -t raw -I PREROUTING -i "$iface" -m set --match-set Blacklist src -j DROP >/dev/null 2>&1
 		iptables -t raw -I PREROUTING -i "$iface" -m set --match-set BlockedRanges src -j DROP >/dev/null 2>&1
 		iptables -t raw -I PREROUTING -i "$iface" -m set --match-set Whitelist src -j ACCEPT >/dev/null 2>&1
+		iptables -t raw -I OUTPUT -m set --match-set Blacklist dst -j DROP >/dev/null 2>&1
+		iptables -t raw -I OUTPUT -m set --match-set BlockedRanges dst -j DROP >/dev/null 2>&1
+		iptables -t raw -I OUTPUT -m set --match-set Whitelist dst -j ACCEPT >/dev/null 2>&1
 		if [ "$1" = "noautoban" ]; then
 			logger -st Skynet "[INFO] Enabling No-Autoban Mode ... ... ..."
 		else
@@ -190,6 +198,7 @@ Unban_PrivateIP () {
 Purge_Logs () {
 		if [ "$(du $location/skynet.log | awk '{print $1}')" -ge "7000" ]; then
 			sed -i '/BLOCKED - RAW/d' "$location/skynet.log"
+			sed -i '/BLOCKED - OUTPUT/d' "$location/skynet.log"
 			if [ "$(du $location/skynet.log | awk '{print $1}')" -ge "3000" ]; then
 				true > "$location/skynet.log"
 			fi
@@ -209,6 +218,11 @@ Enable_Debug () {
 			iptables -t raw -I PREROUTING "$pos1" -i "$iface" -m set --match-set BlockedRanges src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
 			pos2="$(iptables --line -L PREROUTING -nt raw | grep -F Blacklist | grep -F "DROP" | awk '{print $1}')"
 			iptables -t raw -I PREROUTING "$pos2" -i "$iface" -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
+
+			pos3="$(iptables --line -L OUTPUT -nt raw | grep -F "BlockedRanges" | grep -F "DROP" | awk '{print $1}')"
+			iptables -t raw -I OUTPUT "$pos3" -m set --match-set BlockedRanges dst -j LOG --log-prefix "[BLOCKED - OUTPUT] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
+			pos4="$(iptables --line -L OUTPUT -nt raw | grep -F Blacklist | grep -F "DROP" | awk '{print $1}')"
+			iptables -t raw -I OUTPUT "$pos4" -m set --match-set Blacklist dst -j LOG --log-prefix "[BLOCKED - OUTPUT] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
 		fi
 }
 
@@ -530,7 +544,7 @@ case "$1" in
 				exit
 			;;
 			disable)
-				logger -st Skynet "[INFO] Temporarily Disabling Raw Debug Output ... ... ..."
+				logger -st Skynet "[INFO] Temporarily Disabling Debug Output ... ... ..."
 				Unload_DebugIPTables
 				Purge_Logs
 			;;
