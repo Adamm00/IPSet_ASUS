@@ -610,8 +610,8 @@ case "$1" in
 		cru a Firewall_save "0 * * * * /jffs/scripts/firewall save"
 		sed -i '/Startup Initiated/d' /tmp/syslog.log
 		logger -st Skynet "[INFO] Startup Initiated ... ... ..."
-		modprobe xt_set >/dev/null 2>&1
-		ipset -R < "$location/scripts/ipset.txt"
+		modprobe xt_set
+		ipset -R -! < "$location/scripts/ipset.txt"
 		Unban_PrivateIP
 		Purge_Logs
 		ipset -q -N Whitelist nethash
