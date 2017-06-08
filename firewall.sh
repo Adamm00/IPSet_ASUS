@@ -422,7 +422,7 @@ case "$1" in
 			ipset -q -A Whitelist 213.230.210.230 # AB-Solution Host File
 		fi
 		echo "Warning; This May Have Blocked Your Favorite Website"
-		echo "To Whitelist It Use; \"sh $0 whitelist domain URL\""
+		echo "For Whitelisting Domains Use; \"sh $0 whitelist domain URL\""
 		echo "Saving Changes"
 		ipset --save > "$location/scripts/ipset.txt"
 		rm -rf /tmp/skynet.lock
@@ -734,14 +734,17 @@ case "$1" in
 			grep -F "Manual Ban" "$location/skynet.log" | tail -"$counter"
 			exit
 		fi
-		echo "Top $counter Ports Attacked; (Torrent Clients May Cause Excess Hits In Debug Mode)"
-		grep -vE 'DPT=80 |DPT=443 ' "$location/skynet.log" | grep -F "$proto" | grep -oE 'DPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://www.speedguide.net/port.php?port="$2}'
+		echo "Top $counter Targeted Ports (Inbound); (Torrent Clients May Cause Excess Hits In Debug Mode)"
+		grep -vE 'DPT=80 |DPT=443 ' "$location/skynet.log" | grep -F "$proto" | grep -F "INBOUND" | grep -oE 'DPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://www.speedguide.net/port.php?port="$2}'
 		echo
-		echo "Top $counter Attacker Source Ports;"
-		grep -vE 'DPT=80 |DPT=443 ' "$location/skynet.log" | grep -F "$proto" | grep -oE 'SPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://www.speedguide.net/port.php?port="$2}'
+		echo "Top $counter Source Ports (Inbound);"
+		grep -vE 'DPT=80 |DPT=443 ' "$location/skynet.log" | grep -F "$proto" | grep -F "INBOUND" | grep -oE 'SPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://www.speedguide.net/port.php?port="$2}'
 		echo
-		echo "Last $counter Unique Connections Blocked;"
-		grep -vE 'DPT=80 |DPT=443 ' "$location/skynet.log" | grep -Fv "Manual" | grep -F "$proto" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | awk '!x[$0]++' | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
+		echo "Last $counter Unique Connections Blocked (Inbound);"
+		grep -vE 'DPT=80 |DPT=443 ' "$location/skynet.log" | grep -F "INBOUND" | grep -F "$proto" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | awk '!x[$0]++' | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
+		echo
+		echo "Last $counter Unique Connections Blocked (Outbound);"
+		grep -vE 'DPT=80 |DPT=443 ' "$location/skynet.log" | grep -F "OUTBOUND" | grep -F "$proto" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | awk '!x[$0]++' | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
 		echo
 		echo "Last $counter Autobans;"
 		grep -vE 'DPT=80 |DPT=443 ' "$location/skynet.log" | grep -F "$proto" | grep -F "NEW BAN" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
@@ -755,8 +758,11 @@ case "$1" in
 		echo "Top $counter HTTP(s) Blocks;"
 		grep -E 'DPT=80 |DPT=443 ' "$location/skynet.log" | grep -F "$proto" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}'
 		echo
-		echo "Top $counter Attackers;"
-		grep -vE 'DPT=80 |DPT=443 ' "$location/skynet.log" | grep -Fv "Manual" | grep -F "$proto" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}'
+		echo "Top $counter Blocks (Inbound);"
+		grep -vE 'DPT=80 |DPT=443 ' "$location/skynet.log" | grep -F "INBOUND" | grep -F "$proto" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}'
+		echo
+		echo "Top $counter Blocks (Outbound);"
+		grep -vE 'DPT=80 |DPT=443 ' "$location/skynet.log" | grep -F "OUTBOUND" | grep -F "$proto" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}'
 		echo
 		;;
 
