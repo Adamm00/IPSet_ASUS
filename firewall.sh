@@ -156,8 +156,8 @@ Logging () {
 		newips="$(nvram get Blacklist)"
 		newranges="$(nvram get BlockedRanges)"
 		nvram commit
-		hits1="$(iptables -vL -nt raw | grep -Fv "LOG" | grep -F "Blacklist src" | awk '{print $1}')"
-		hits2="$(iptables -vL -nt raw | grep -Fv "LOG" | grep -F "BlockedRanges src" | awk '{print $1}')"
+		hits1="$(($(iptables -vL -nt raw | grep -Fv "LOG" | grep -F "Blacklist src" | awk '{print $1}') + $(iptables -vL -nt raw | grep -Fv "LOG" | grep -F "Blacklist dst" | awk '{print $1}')))"
+		hits2="$(($(iptables -vL -nt raw | grep -Fv "LOG" | grep -F "BlockedRanges src" | awk '{print $1}') + $(iptables -vL -nt raw | grep -Fv "LOG" | grep -F "BlockedRanges dst" | awk '{print $1}')))"
 		start_time="$(($(date +%s) - start_time))"
 		logger -st Skynet "[Complete] $newips IPs / $newranges Ranges banned. $((newips - oldips)) New IPs / $((newranges - oldranges)) New Ranges Banned. $hits1 IP / $hits2 Range Connections Blocked! [${start_time}s]"
 }
