@@ -749,7 +749,7 @@ case "$1" in
 		grep -F "INBOUND" "$location/skynet.log" | grep -F "$proto" | grep -oE 'SPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://www.speedguide.net/port.php?port="$2}'
 		echo
 		echo "Last $counter Unique Connections Blocked (Inbound);"
-		grep -F "INBOUND" "$location/skynet.log" | grep -vE 'DPT=80 |DPT=443 ' | grep -F "$proto"  | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | awk '!x[$0]++' | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
+		grep -F "INBOUND" "$location/skynet.log" | grep -F "$proto"  | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | awk '!x[$0]++' | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
 		echo
 		echo "Last $counter Unique Connections Blocked (Outbound);"
 		grep -F "OUTBOUND" "$location/skynet.log" | grep -vE 'DPT=80 |DPT=443 ' | grep -F "$proto" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | awk '!x[$0]++' | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
@@ -761,10 +761,10 @@ case "$1" in
 		grep -F "Manual Ban" "$location/skynet.log" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
 		echo
 		echo "Last $counter Unique HTTP(s) Blocks;"
-		grep -E 'DPT=80 |DPT=443 ' "$location/skynet.log" | grep -F "Outbound" | grep -F "$proto" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | awk '!x[$0]++' | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
+		grep -E 'DPT=80 |DPT=443 ' "$location/skynet.log" | grep -F "OUTBOUND" | grep -F "$proto" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | awk '!x[$0]++' | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
 		echo
 		echo "Top $counter HTTP(s) Blocks;"
-		grep -E 'DPT=80 |DPT=443 ' "$location/skynet.log" | grep -F "Outbound" | grep -F "$proto" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}'
+		grep -E 'DPT=80 |DPT=443 ' "$location/skynet.log" | grep -F "OUTBOUND" | grep -F "$proto" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}'
 		echo
 		echo "Top $counter Blocks (Inbound);"
 		grep -F "INBOUND" "$location/skynet.log" | grep -F "$proto" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}'
