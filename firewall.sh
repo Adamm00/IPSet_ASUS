@@ -714,7 +714,7 @@ case "$1" in
 			echo
 			echo "$4 First Tracked On $(grep -F "=$4 " $location/skynet.log | head -1 | awk '{print $1" "$2" "$3}')"
 			echo "$4 Last Tracked On $(grep -F "=$4 " $location/skynet.log | tail -1 | awk '{print $1" "$2" "$3}')"
-			echo "$(grep -Foc "SRC=$4 " $location/skynet.log) Attempts Total"
+			echo "$(grep -Foc "=$4 " $location/skynet.log) Attempts Total"
 			echo
 			echo "First Attack Tracked From $4;"
 			grep -F "=$4 " "$location/skynet.log" | head -1
