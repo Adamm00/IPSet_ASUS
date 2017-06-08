@@ -1,5 +1,5 @@
 # Skynet - Asus Firewall Addition
-Lightweight firewall addition for ARM based ASUS Routers using IPSet as seen on [SmallNetBuilder](https://www.snbforums.com/threads/how-to-dynamically-ban-malicious-ips-using-ipset-adamm-version.16798/)
+Lightweight firewall addition for ARM based ASUS Routers using IPSet as seen on [SmallNetBuilder](https://www.snbforums.com/threads/skynet-asus-firewall-addition-dynamic-malware-country-manual-ip-blocking.16798/)
 
 
 This script is an extra line of defense from malicious attackers (mostly bots) who repeatedly probe for vunelerabilities and easy to use IPSet functionality to block anything you desire.
@@ -10,16 +10,17 @@ This script is an extra line of defense from malicious attackers (mostly bots) w
 sh /jffs/scripts/firewall *commandhere*
 
     "unban"        # <-- Remove Entry From Blacklist (IP/Range/Domain/Port/Country/Malware/All)   
-    "save"         # <-- Save Blacklists To /jffs/scripts/ipset.txt
     "ban"          # <-- Adds Entry To Blacklist (IP/Range/Domain/Port/Country)     
     "banmalware"   # <-- Bans Various Malware Domains  
     "whitelist"    # <-- Add Entry To Whitelist (IP/Range/Domain/Port/Remove)  
     "import"       # <-- Bans All IPs From URL  
     "deport"       # <-- Unbans All IPs From URL
+    "save"         # <-- Save Blacklists To /jffs/scripts/ipset.txt
+    "start"        # <-- Initiate Firewall
     "disable"      # <-- Disable Firewall
-    "debug"	       # <-- Specific Debug Features (Restart/Disable/Watch/Info)
-    "update"       # <-- Update Script To Latest Version (check github for changes)  
-    "stats"        # <-- Print/Search Stats Of Recently Banned IPs (Requires debugging enabled)
+    "update"       # <-- Update Script To Latest Version (check github for changes)
+    "debug"	       # <-- Debug Features (Restart/Disable/Watch/Info)  
+    "stats"        # <-- Show/Search Stats Of Banned IPs (Requires debugging enabled)
     "install"      # <-- Install Script (Or Change Boot Args)
     "uninstall     # <-- Uninstall All Traces Of Script
 
