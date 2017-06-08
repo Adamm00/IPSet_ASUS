@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 09/06/2017 -		   Asus Firewall Addition By Adamm v4.8.4				    #
+## - 09/06/2017 -		   Asus Firewall Addition By Adamm v4.8.5				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -151,12 +151,10 @@ Unload_DebugIPTables () {
 
 Load_DebugIPTables () {
 		if [ "$1" = "debug" ] || [ "$2" = "debug" ]; then
-			echo "Enabling Debug Output"
 			pos1="$(iptables --line -L PREROUTING -nt raw | grep -F "BlockedRanges src" | grep -F "DROP" | awk '{print $1}')"
 			iptables -t raw -I PREROUTING "$pos1" -i "$iface" -m set --match-set BlockedRanges src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
 			pos2="$(iptables --line -L PREROUTING -nt raw | grep -F "Blacklist src" | grep -F "DROP" | awk '{print $1}')"
 			iptables -t raw -I PREROUTING "$pos2" -i "$iface" -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
-
 			pos3="$(iptables --line -L PREROUTING -nt raw | grep -F "BlockedRanges dst" | grep -F "DROP" | awk '{print $1}')"
 			iptables -t raw -I PREROUTING "$pos3" -i br0 -m set --match-set BlockedRanges dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
 			pos4="$(iptables --line -L PREROUTING -nt raw | grep -F "Blacklist dst" | grep -F "DROP" | awk '{print $1}')"
@@ -588,7 +586,7 @@ case "$1" in
 		fi
 		if [ "$localver" != "$remotever" ] || [ "$2" = "-f" ]; then
 			logger -st Skynet "[INFO] New Version Detected - Updating To $remotever... ... ..."
-			sed 's/RAW/INBOUND/g' "$location/skynet.log"		# Remove After Adjustment Period
+			sed -i 's/RAW/INBOUND/g' "$location/skynet.log"		# Remove After Adjustment Period
 			/usr/sbin/wget "$remoteurl" -qO "$0" && logger -st Skynet "[INFO] Skynet Sucessfully Updated - Restarting Firewall"
 			iptables -t raw -F
 			service restart_firewall
