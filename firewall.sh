@@ -600,6 +600,7 @@ case "$1" in
 		fi
 		if [ "$localver" != "$remotever" ] || [ "$2" = "-f" ]; then
 			logger -st Skynet "[INFO] New Version Detected - Updating To $remotever... ... ..."
+			sed 's/RAW/INBOUND/g' "$location/skynet.log"		# Remove After Adjustment Period
 			/usr/sbin/wget "$remoteurl" -qO "$0" && logger -st Skynet "[INFO] Skynet Sucessfully Updated - Restarting Firewall"
 			service restart_firewall
 			exit
