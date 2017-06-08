@@ -735,28 +735,28 @@ case "$1" in
 			exit
 		fi
 		echo "Top $counter Ports Attacked; (Torrent Clients May Cause Excess Hits In Debug Mode)"
-		grep -vE 'SPT=80 |SPT=443 |DPT=80 |DPT=443 ' "$location/skynet.log" | grep -F "$proto" | grep -oE 'DPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://www.speedguide.net/port.php?port="$2}'
+		grep -vE 'PT=80 |PT=443 ' "$location/skynet.log" | grep -F "$proto" | grep -oE 'DPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://www.speedguide.net/port.php?port="$2}'
 		echo
 		echo "Top $counter Attacker Source Ports;"
-		grep -vE 'SPT=80 |SPT=443 |DPT=80 |DPT=443 ' "$location/skynet.log" | grep -F "$proto" | grep -oE 'SPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://www.speedguide.net/port.php?port="$2}'
+		grep -vE 'PT=80 |PT=443 ' "$location/skynet.log" | grep -F "$proto" | grep -oE 'SPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://www.speedguide.net/port.php?port="$2}'
 		echo
 		echo "Last $counter Unique Connections Blocked;"
-		grep -vE 'SPT=80 |SPT=443 |DPT=80 |DPT=443 ' "$location/skynet.log" | grep -Fv "Manual" | grep -F "$proto" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | awk '!x[$0]++' | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
+		grep -vE 'PT=80 |PT=443 ' "$location/skynet.log" | grep -Fv "Manual" | grep -F "$proto" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | awk '!x[$0]++' | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
 		echo
 		echo "Last $counter Autobans;"
-		grep -vE 'SPT=80 |SPT=443 |DPT=80 |DPT=443 ' "$location/skynet.log" | grep -F "$proto" | grep -F "NEW BAN" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
+		grep -vE 'PT=80 |PT=443 ' "$location/skynet.log" | grep -F "$proto" | grep -F "NEW BAN" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
 		echo
 		echo "Last $counter Manual Bans;"
 		grep -F "Manual Ban" "$location/skynet.log" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
 		echo
 		echo "Last $counter Unique HTTP(s) Blocks;"
-		grep -E 'SPT=80 |SPT=443 |DPT=80 |DPT=443 ' "$location/skynet.log" | grep -F "$proto" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | awk '!x[$0]++' | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
+		grep -E 'PT=80 |PT=443 ' "$location/skynet.log" | grep -F "$proto" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | awk '!x[$0]++' | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
 		echo
 		echo "Top $counter HTTP(s) Blocks;"
-		grep -E 'SPT=80 |SPT=443 |DPT=80 |DPT=443 ' "$location/skynet.log" | grep -F "$proto" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}'
+		grep -E 'PT=80 |PT=443 ' "$location/skynet.log" | grep -F "$proto" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}'
 		echo
 		echo "Top $counter Attackers;"
-		grep -vE 'SPT=80 |SPT=443 |DPT=80 |DPT=443 ' "$location/skynet.log" | grep -Fv "Manual" | grep -F "$proto" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}'
+		grep -vE 'PT=80 |PT=443 ' "$location/skynet.log" | grep -Fv "Manual" | grep -F "$proto" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}'
 		echo
 		;;
 
