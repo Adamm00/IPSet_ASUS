@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 08/06/2017 -		   Asus Firewall Addition By Adamm v4.8.0				    #
+## - 08/06/2017 -		   Asus Firewall Addition By Adamm v4.8.1				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -58,10 +58,10 @@ Check_Lock () {
 		if [ -f "/tmp/skynet.lock" ]; then
 			logger -st Skynet "[INFO] Lock File Detected - Exiting"
 			exit
-		else 
+		else
 			touch /tmp/skynet.lock
 		fi
-}			
+}
 
 Check_Settings () {
 		if ! grep -qF "Skynet" /jffs/scripts/firewall-start; then
@@ -111,10 +111,11 @@ Check_Settings () {
 }
 
 Unload_DebugIPTables () {
-		iptables -t raw -D PREROUTING -i "$iface" -m set --match-set BlockedRanges src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
-		iptables -t raw -D PREROUTING -i "$iface" -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
-		iptables -t raw -D OUTPUT -o "$iface" -m set --match-set BlockedRanges src -j LOG --log-prefix "[BLOCKED - OUTPUT] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
-		iptables -t raw -D OUTPUT -o "$iface" -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - OUTPUT] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
+		iptables -t raw -D PREROUTING -i "$iface" -m set --match-set BlockedRanges src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
+		iptables -t raw -D PREROUTING -i "$iface" -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
+		iptables -t raw -D PREROUTING -i br0 -m set --match-set BlockedRanges dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
+		iptables -t raw -D PREROUTING -i br0 -m set --match-set Blacklist dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
+
 }
 
 Unload_IPTables () {
@@ -122,9 +123,9 @@ Unload_IPTables () {
 		iptables -t raw -D PREROUTING -i "$iface" -m set --match-set Blacklist src -j DROP >/dev/null 2>&1
 		iptables -t raw -D PREROUTING -i "$iface" -m set --match-set BlockedRanges src -j DROP >/dev/null 2>&1
 		iptables -t raw -D PREROUTING -i "$iface" -m set --match-set Whitelist src -j ACCEPT >/dev/null 2>&1
-		iptables -t raw -D OUTPUT -o "$iface" -m set --match-set Blacklist dst -j DROP >/dev/null 2>&1
-		iptables -t raw -D OUTPUT -o "$iface" -m set --match-set BlockedRanges dst -j DROP >/dev/null 2>&1
-		iptables -t raw -D OUTPUT -o "$iface" -m set --match-set Whitelist dst -j ACCEPT >/dev/null 2>&1		
+		iptables -t raw -D PREROUTING -i br0 -m set --match-set Blacklist dst -j DROP >/dev/null 2>&1
+		iptables -t raw -D PREROUTING -i br0 -m set --match-set BlockedRanges dst -j DROP >/dev/null 2>&1
+		iptables -t raw -D PREROUTING -i br0 -m set --match-set Whitelist dst -j ACCEPT >/dev/null 2>&1
 		iptables -D logdrop -i "$iface" -m state --state INVALID -j SET --add-set Blacklist src >/dev/null 2>&1
 		iptables -D logdrop -i "$iface" -m state --state INVALID -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
 		iptables -D logdrop -i "$iface" -p tcp -m multiport --sports 80,443,143,993,110,995,25,465 -m state --state INVALID -j DROP >/dev/null 2>&1
@@ -135,9 +136,9 @@ Load_IPTables () {
 		iptables -t raw -I PREROUTING -i "$iface" -m set --match-set Blacklist src -j DROP >/dev/null 2>&1
 		iptables -t raw -I PREROUTING -i "$iface" -m set --match-set BlockedRanges src -j DROP >/dev/null 2>&1
 		iptables -t raw -I PREROUTING -i "$iface" -m set --match-set Whitelist src -j ACCEPT >/dev/null 2>&1
-		iptables -t raw -I OUTPUT -o "$iface" -m set --match-set Blacklist dst -j DROP >/dev/null 2>&1
-		iptables -t raw -I OUTPUT -o "$iface" -m set --match-set BlockedRanges dst -j DROP >/dev/null 2>&1
-		iptables -t raw -I OUTPUT -o "$iface" -m set --match-set Whitelist dst -j ACCEPT >/dev/null 2>&1
+		iptables -t raw -I PREROUTING -i br0 -m set --match-set Blacklist dst -j DROP >/dev/null 2>&1
+		iptables -t raw -I PREROUTING -i br0 -m set --match-set BlockedRanges dst -j DROP >/dev/null 2>&1
+		iptables -t raw -I PREROUTING -i br0 -m set --match-set Whitelist dst -j ACCEPT >/dev/null 2>&1
 		if [ "$1" = "noautoban" ]; then
 			logger -st Skynet "[INFO] Enabling No-Autoban Mode ... ... ..."
 		else
@@ -197,8 +198,9 @@ Unban_PrivateIP () {
 
 Purge_Logs () {
 		if [ "$(du $location/skynet.log | awk '{print $1}')" -ge "7000" ]; then
-			sed -i '/BLOCKED - RAW/d' "$location/skynet.log"
-			sed -i '/BLOCKED - OUTPUT/d' "$location/skynet.log"
+			sed -i '/BLOCKED - RAW/d' "$location/skynet.log"		# Remove After Adjustment Period
+			sed -i '/BLOCKED - INBOUND/d' "$location/skynet.log"
+			sed -i '/BLOCKED - OUTBOUND/d' "$location/skynet.log"
 			if [ "$(du $location/skynet.log | awk '{print $1}')" -ge "3000" ]; then
 				true > "$location/skynet.log"
 			fi
@@ -213,16 +215,16 @@ Purge_Logs () {
 
 Enable_Debug () {
 		if [ "$1" = "debug" ] || [ "$2" = "debug" ]; then
-			echo "Enabling Raw Debug Output"
-			pos1="$(iptables --line -L PREROUTING -nt raw | grep -F "BlockedRanges" | grep -F "DROP" | awk '{print $1}')"
-			iptables -t raw -I PREROUTING "$pos1" -i "$iface" -m set --match-set BlockedRanges src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
-			pos2="$(iptables --line -L PREROUTING -nt raw | grep -F Blacklist | grep -F "DROP" | awk '{print $1}')"
-			iptables -t raw -I PREROUTING "$pos2" -i "$iface" -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - RAW] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
+			echo "Enabling Debug Output"
+			pos1="$(iptables --line -L PREROUTING -nt raw | grep -F "BlockedRanges src" | grep -F "DROP" | awk '{print $1}')"
+			iptables -t raw -I PREROUTING "$pos1" -i "$iface" -m set --match-set BlockedRanges src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
+			pos2="$(iptables --line -L PREROUTING -nt raw | grep -F "Blacklist src" | grep -F "DROP" | awk '{print $1}')"
+			iptables -t raw -I PREROUTING "$pos2" -i "$iface" -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
 
-			pos3="$(iptables --line -L OUTPUT -nt raw | grep -F "BlockedRanges" | grep -F "DROP" | awk '{print $1}')"
-			iptables -t raw -I OUTPUT "$pos3" -o "$iface" -m set --match-set BlockedRanges dst -j LOG --log-prefix "[BLOCKED - OUTPUT] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
-			pos4="$(iptables --line -L OUTPUT -nt raw | grep -F Blacklist | grep -F "DROP" | awk '{print $1}')"
-			iptables -t raw -I OUTPUT "$pos4" -o "$iface" -m set --match-set Blacklist dst -j LOG --log-prefix "[BLOCKED - OUTPUT] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
+			pos3="$(iptables --line -L PREROUTING -nt raw | grep -F "BlockedRanges dst" | grep -F "DROP" | awk '{print $1}')"
+			iptables -t raw -I PREROUTING "$pos3" -i br0 -m set --match-set BlockedRanges dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
+			pos4="$(iptables --line -L PREROUTING -nt raw | grep -F "Blacklist dst" | grep -F "DROP" | awk '{print $1}')"
+			iptables -t raw -I PREROUTING "$pos4" -i br0 -m set --match-set Blacklist dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
 		fi
 }
 
@@ -566,7 +568,7 @@ case "$1" in
 				grep -qF "/jffs/scripts/firewall start" /jffs/scripts/firewall-start >/dev/null 2>&1 && $GRN "Startup Entry Detected" || $RED "Startup Entry Not Detected"
 				cru l | grep -qF "firewall" >/dev/null 2>&1 && $GRN "Cronjob Detected" || $RED "Cronjob Not Detected"
 				iptables -L | grep -F "LOG" | grep -qF "BAN" >/dev/null 2>&1 && $GRN "Autobanning Enabled" || $RED "Autobanning Disabled"
-				iptables -L -nt raw | grep -qF "RAW" >/dev/null 2>&1 && $GRN "Debug Mode Enabled" || $RED "Debug Mode Disabled"
+				iptables -L -nt raw | grep -qF "BLOCKED -" >/dev/null 2>&1 && $GRN "Debug Mode Enabled" || $RED "Debug Mode Disabled"
 				iptables -L -nt raw | grep -F "Whitelist" >/dev/null 2>&1 && $GRN "Whitelist IPTable Detected" || $RED "Whitelist IPTable Not Detected"
 				iptables -L -nt raw | grep -v "LOG" | grep -qF "BlockedRanges" >/dev/null 2>&1 && $GRN "BlockedRanges IPTable Detected" || $RED "BlockedRanges IPTable Not Detected"
 				iptables -L -nt raw | grep -v "LOG" | grep -qF "Blacklist" >/dev/null 2>&1 && $GRN "Blacklist IPTable Detected" || $RED "Blacklist IPTable Not Detected"
@@ -733,28 +735,28 @@ case "$1" in
 			exit
 		fi
 		echo "Top $counter Ports Attacked; (Torrent Clients May Cause Excess Hits In Debug Mode)"
-		grep -vE 'SPT=80 |SPT=443 ' "$location/skynet.log" | grep -F "$proto" | grep -oE 'DPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://www.speedguide.net/port.php?port="$2}'
+		grep -vE 'SPT=80 |SPT=443 |DPT=80 |DPT=443 ' "$location/skynet.log" | grep -F "$proto" | grep -oE 'DPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://www.speedguide.net/port.php?port="$2}'
 		echo
 		echo "Top $counter Attacker Source Ports;"
-		grep -vE 'SPT=80 |SPT=443 ' "$location/skynet.log" | grep -F "$proto" | grep -oE 'SPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://www.speedguide.net/port.php?port="$2}'
+		grep -vE 'SPT=80 |SPT=443 |DPT=80 |DPT=443 ' "$location/skynet.log" | grep -F "$proto" | grep -oE 'SPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://www.speedguide.net/port.php?port="$2}'
 		echo
 		echo "Last $counter Unique Connections Blocked;"
-		grep -vE 'SPT=80 |SPT=443 ' "$location/skynet.log" | grep -Fv "Manual" | grep -F "$proto" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | awk '!x[$0]++' | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
+		grep -vE 'SPT=80 |SPT=443 |DPT=80 |DPT=443 ' "$location/skynet.log" | grep -Fv "Manual" | grep -F "$proto" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | awk '!x[$0]++' | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
 		echo
 		echo "Last $counter Autobans;"
-		grep -vE 'SPT=80 |SPT=443 ' "$location/skynet.log" | grep -F "$proto" | grep -F "NEW BAN" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
+		grep -vE 'SPT=80 |SPT=443 |DPT=80 |DPT=443 ' "$location/skynet.log" | grep -F "$proto" | grep -F "NEW BAN" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
 		echo
 		echo "Last $counter Manual Bans;"
 		grep -F "Manual Ban" "$location/skynet.log" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
 		echo
 		echo "Last $counter Unique HTTP(s) Blocks;"
-		grep -E 'SPT=80 |SPT=443 ' "$location/skynet.log" | grep -F "$proto" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | awk '!x[$0]++' | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
+		grep -E 'SPT=80 |SPT=443 |DPT=80 |DPT=443 ' "$location/skynet.log" | grep -F "$proto" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | awk '!x[$0]++' | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
 		echo
 		echo "Top $counter HTTP(s) Blocks;"
-		grep -E 'SPT=80 |SPT=443 ' "$location/skynet.log" | grep -F "$proto" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}'
+		grep -E 'SPT=80 |SPT=443 |DPT=80 |DPT=443 ' "$location/skynet.log" | grep -F "$proto" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}'
 		echo
 		echo "Top $counter Attackers;"
-		grep -vE 'SPT=80 |SPT=443 ' "$location/skynet.log" | grep -Fv "Manual" | grep -F "$proto" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}'
+		grep -vE 'SPT=80 |SPT=443 |DPT=80 |DPT=443 ' "$location/skynet.log" | grep -Fv "Manual" | grep -F "$proto" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}'
 		echo
 		;;
 
