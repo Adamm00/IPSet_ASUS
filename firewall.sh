@@ -631,6 +631,7 @@ case "$1" in
 			restart)
 				echo "Restarting Firewall Service"
 				rm -rf /tmp/skynet.lock
+				Unload_Cron
 				iptables -t raw -F
 				service restart_firewall
 				exit
