@@ -179,6 +179,10 @@ Unload_Cron () {
 		cru d Skynet_banmalware
 		cru d Skynet_autoupdate
 		cru d Skynet_checkupdate
+		cru d Firewall_save		# Remove After Adjustment Period
+		cru d Firewall_banmalware		# Remove After Adjustment Period
+		cru d Firewall_autoupdate		# Remove After Adjustment Period
+		cru d Firewall_checkupdate		# Remove After Adjustment Period
 }
 
 Is_IP () {
