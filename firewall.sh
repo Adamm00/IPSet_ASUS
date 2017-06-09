@@ -694,7 +694,7 @@ case "$1" in
 		fi
 		echo "Monitoring From $(head -1 $location/skynet.log | awk '{print $1" "$2" "$3}') To $(tail -1 $location/skynet.log | awk '{print $1" "$2" "$3}')"
 		echo "$(wc -l $location/skynet.log | awk '{print $1}') Total Events Detected"
-		echo "$(grep -oE ' SRC=[0-9,\.]* ' $location/skynet.log | cut -c 6- | awk '!x[$0]++' | wc -l) Unique IPs"
+		echo "$(printf "%s\n%s" "$(grep -F "INBOUND" $location/skynet.log | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6-)" "$(grep -F "OUTBOUND" $location/skynet.log | grep -oE ' DST=[0-9,\.]* ' | cut -c 6-)" | awk '!x[$0]++' | wc -l) Unique IPs"
 		echo "$(grep -Fc "NEW BAN" $location/skynet.log) Autobans Issued"
 		echo "$(grep -Fc "Manual Ban" $location/skynet.log) Manual Bans Issued"
 		echo
