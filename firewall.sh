@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 09/06/2017 -		   Asus Firewall Addition By Adamm v4.8.6				    #
+## - 09/06/2017 -		   Asus Firewall Addition By Adamm v4.8.7				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -142,7 +142,7 @@ Load_IPTables () {
 		else
 			iptables -I logdrop -i "$iface" -m state --state INVALID -j SET --add-set Blacklist src >/dev/null 2>&1
 			iptables -I logdrop -i "$iface" -m state --state INVALID -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
-			iptables -I logdrop -p tcp --tcp-flags ALL RST,ACK -j ACCEPT >/dev/null 2>&1        
+			iptables -I logdrop -p tcp --tcp-flags ALL RST,ACK -j ACCEPT >/dev/null 2>&1
 			iptables -I logdrop -p tcp --tcp-flags ALL RST -j ACCEPT >/dev/null 2>&1
 			iptables -I logdrop -p tcp --tcp-flags ALL FIN,ACK -j ACCEPT >/dev/null 2>&1
 			iptables -I logdrop -p tcp --tcp-flags ALL ACK,PSH,FIN -j ACCEPT >/dev/null 2>&1
@@ -174,6 +174,13 @@ Load_DebugIPTables () {
 		fi
 }
 
+Unload_Cron () {
+		cru d Skynet_save
+		cru d Skynet_banmalware
+		cru d Skynet_autoupdate
+		cru d Skynet_checkupdate
+}
+
 Is_IP () {
 		grep -wqE '([0-9]{1,3}\.){3}[0-9]{1,3}'
 }
@@ -199,15 +206,25 @@ Filter_PrivateIP () {
 }
 
 Filter_PrivateSRC () {
-		grep -E '(SRC=127\.)|(SRC=10\.)|(SRC=172\.1[6-9]\.)|(SRC=172\.2[0-9]\.)|(SRC=172\.3[0-1]\.)|(SRC=192\.168\.)|(SRC=0.)|(SRC=169\.254\.)' "$1"
+		grep -E '(SRC=127\.)|(SRC=10\.)|(SRC=172\.1[6-9]\.)|(SRC=172\.2[0-9]\.)|(SRC=172\.3[0-1]\.)|(SRC=192\.168\.)|(SRC=0.)|(SRC=169\.254\.)'
+}
+
+Filter_PrivateDST () {
+		grep -E '(SRC=127\.)|(SRC=10\.)|(SRC=172\.1[6-9]\.)|(SRC=172\.2[0-9]\.)|(SRC=172\.3[0-1]\.)|(SRC=192\.168\.)|(SRC=0.)|(SRC=169\.254\.)'
 }
 
 Unban_PrivateIP () {
-		Filter_PrivateSRC /tmp/syslog.log | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | while IFS= read -r ip
+		grep -F "INBOUND" /tmp/syslog.log | Filter_PrivateSRC | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | while IFS= read -r ip
 			do
 			ipset -q -A Whitelist "$ip"
 			ipset -q -D Blacklist "$ip"
 			sed -i "/SRC=${ip} /d" /tmp/syslog.log
+		done
+		grep -F "OUTBOUND" /tmp/syslog.log |  Filter_PrivateDST | grep -oE 'DST=[0-9,\.]* ' | cut -c 5- | while IFS= read -r ip
+			do
+			ipset -q -A Whitelist "$ip"
+			ipset -q -D Blacklist "$ip"
+			sed -i "/DST=${ip} /d" /tmp/syslog.log
 		done
 }
 
@@ -541,6 +558,7 @@ case "$1" in
 
 	start)
 		Check_Lock
+		Unload_Cron
 		Check_Settings "$2" "$3" "$4" "$5"
 		cru a Skynet_save "0 * * * * /jffs/scripts/firewall save"
 		sed -i '/Startup Initiated/d' /tmp/syslog.log
@@ -573,10 +591,7 @@ case "$1" in
 		Unload_IPTables
 		Unload_DebugIPTables
 		Purge_Logs
-		cru d Skynet_save
-		cru d Skynet_banmalware
-		cru d Skynet_autoupdate
-		cru d Skynet_checkupdate
+		Unload_Cron
 		exit
 	;;
 
@@ -599,6 +614,7 @@ case "$1" in
 		if [ "$localver" != "$remotever" ] || [ "$2" = "-f" ]; then
 			logger -st Skynet "[INFO] New Version Detected - Updating To $remotever... ... ..."
 			sed -i 's/RAW/INBOUND/g' "$location/skynet.log"		# Remove After Adjustment Period
+			Unload_Cron
 			/usr/sbin/wget "$remoteurl" -qO "$0" && logger -st Skynet "[INFO] Skynet Sucessfully Updated - Restarting Firewall"
 			iptables -t raw -F
 			service restart_firewall
@@ -636,7 +652,7 @@ case "$1" in
 				echo "FW Version: $(nvram get buildno)_$(nvram get extendno)"
 				echo "Install Dir; $location"
 				grep -qF "/jffs/scripts/firewall start" /jffs/scripts/firewall-start >/dev/null 2>&1 && $GRN "Startup Entry Detected" || $RED "Startup Entry Not Detected"
-				cru l | grep -qF "Skynet" >/dev/null 2>&1 && $GRN "Cronjobs Detected" || $RED "Cronjob Not Detected"
+				cru l | grep -qF "Skynet" >/dev/null 2>&1 && $GRN "Cronjobs Detected" || $RED "Cronjobs Not Detected"
 				iptables -L | grep -F "LOG" | grep -qF "BAN" >/dev/null 2>&1 && $GRN "Autobanning Enabled" || $RED "Autobanning Disabled"
 				iptables -L -nt raw | grep -qF "BLOCKED -" >/dev/null 2>&1 && $GRN "Debug Mode Enabled" || $RED "Debug Mode Disabled"
 				iptables -L -nt raw | grep -F "Whitelist" >/dev/null 2>&1 && $GRN "Whitelist IPTable Detected" || $RED "Whitelist IPTable Not Detected"
@@ -909,10 +925,7 @@ case "$1" in
 		chmod +x /jffs/scripts/firewall-start
 		echo
 		echo "Restarting Firewall To Apply Changes"
-		cru d Skynet_save
-		cru d Skynet_banmalware
-		cru d Skynet_autoupdate
-		cru d Skynet_checkupdate
+		Unload_Cron
 		iptables -t raw -F
 		service restart_firewall
 		exit
@@ -926,8 +939,9 @@ case "$1" in
 		read -r continue
 		if [ "$continue" = "yes" ]; then
 			echo "Uninstalling And Restarting Firewall"
+			Unload_Cron
 			sed -i '\~/jffs/scripts/firewall ~d' /jffs/scripts/firewall-start
-			rm -rf "$location/scripts/ipset.txt" "$location/scripts/malwarelist.txt" "$location/scripts/countrylist.txt" "$location/skynet.log" "/jffs/scripts/firewall" "/tmp/mnt/$(nvram get usb_path_sda1_label)/skynet"
+			rm -rf "$location/scripts/ipset.txt" "$location/scripts/malwarelist.txt" "$location/scripts/countrylist.txt" "$location/skynet.log" "/jffs/scripts/firewall"
 			iptables -t raw -F
 			service restart_firewall
 			exit
