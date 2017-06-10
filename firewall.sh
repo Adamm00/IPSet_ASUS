@@ -57,7 +57,7 @@ fi
 Kill_Lock () {
 		if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(cat /tmp/skynet.lock)" ]; then
 			logger -st Skynet "[INFO] Killing Locked Processes (pid=$(cat /tmp/skynet.lock))"
-			logger -st Skynet "[INFO] $(ps | awk '$1 == '"$(cat /tmp/skynet.lock)"'')"
+			logger -st Skynet "[INFO] $(ps | awk -v pid="$(cat /tmp/skynet.lock)" '$1 == pid')"
 			kill "$(cat /tmp/skynet.lock)"
 			rm -rf /tmp/skynet.lock
 		fi
