@@ -419,7 +419,6 @@ case "$1" in
 		conflicting_scripts="(malware-filter|privacy-filter|ipBLOCKer.sh|ya-malware-block.sh|iblocklist-loader.sh)$"
 		if find / | grep -E "$conflicting_scripts" >/dev/null 2>&1; then
 			logger -st Skynet "[ERROR] Conflicting Malware Script Detected; $(find / | grep -E "$conflicting_scripts" | xargs)"
-			exit
 		fi
 		if [ -n "$2" ]; then
 			listurl="$2"
