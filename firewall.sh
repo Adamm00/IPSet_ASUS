@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 10/06/2017 -		   Asus Firewall Addition By Adamm v4.9.0				    #
+## - 10/06/2017 -		   Asus Firewall Addition By Adamm v4.9.1				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -57,6 +57,7 @@ fi
 Kill_Lock () {
 		if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(cat /tmp/skynet.lock)" ]; then
 			logger -st Skynet "[INFO] Killing Locked Processes (pid=$(cat /tmp/skynet.lock))"
+			logger -st Skynet "[INFO] $(ps | awk '$1 == '"$(cat /tmp/skynet.lock)"'')"
 			kill "$(cat /tmp/skynet.lock)"
 			rm -rf /tmp/skynet.lock
 		fi
@@ -696,7 +697,7 @@ case "$1" in
 			echo "To Enable Use 'sh $0 install'"
 			echo
 		fi
-		if [ -f "$location/skynet.log" ] && [ "$(wc -l $location/skynet.log | awk '{print $1}')" != "0" ]; then
+		if [ -s "$location/skynet.log" ]; then
 			echo "Debug Data Detected in $location/skynet.log - $(du -h $location/skynet.log | awk '{print $1}')"
 		else
 			echo "No Debug Data Detected - Give This Time To Generate"
@@ -920,7 +921,7 @@ case "$1" in
 			mkdir -p "${device}/skynet"
 			mkdir -p "${device}/skynet/scripts"
 			touch "${device}/skynet/rwtest"
-			if [ ! -f "${device}/skynet/rwtest" ]; then
+			if [ ! -w "${device}/skynet/rwtest" ]; then
 				echo "Writing To $device Failed - Exiting Installation"
 				rm -rf /tmp/skynet.lock
 				exit
