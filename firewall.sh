@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 10/06/2017 -		   Asus Firewall Addition By Adamm v4.9.1				    #
+## - 11/06/2017 -		   Asus Firewall Addition By Adamm v4.9.2				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -78,8 +78,8 @@ Check_Settings () {
 			rm -rf /tmp/skynet.lock
 			exit
 		fi
-		if [ -f "/jffs/scripts/IPSET_Block.sh" ]; then
-			logger -st Skynet "[ERROR] IPSet_Block.sh Detected - This Script Will Cause Conflicts And Does Not Have Saftey Checks Like Skynet, Please Uninstall It ASAP"
+		if find / | grep -F "IPSet_Block.sh" >/dev/null 2>&1; then
+			logger -st Skynet "[ERROR] $(find / | grep -F "IPSet_Block.sh") Detected - This Script Will Cause Conflicts! Please Uninstall It ASAP"
 		fi
 
 		if [ "$1" = "banmalware" ] || [ "$2" = "banmalware" ] || [ "$3" = "banmalware" ]; then
@@ -281,10 +281,10 @@ case "$1" in
 	unban)
 		Purge_Logs
 		if [ -z "$2" ]; then
-			echo "For Automated IP Unbanning Use; \"sh $0 unban IP\""
-			echo "For Automated IP Range Unbanning Use; \"sh $0 unban range IP\""
-			echo "For Automated Domain Unbanning Use; \"sh $0 unban domain URL\""
-			echo "To Unban All Domains Use; \"sh $0 unban all\""
+			echo "For Automated IP Unbanning Use; ( sh $0 unban IP )"
+			echo "For Automated IP Range Unbanning Use; ( sh $0 unban range IP )"
+			echo "For Automated Domain Unbanning Use; ( sh $0 unban domain URL )"
+			echo "To Unban All Domains Use; ( sh $0 unban all )"
 			echo "Input IP To Unban"
 			read -r ip
 			echo "Unbanning $ip"
@@ -361,10 +361,10 @@ case "$1" in
 	ban)
 		Purge_Logs
 		if [ -z "$2" ]; then
-			echo "For Automated IP Banning Use; \"sh $0 ban IP\""
-			echo "For Automated IP Range Banning Use; \"sh $0 ban range IP\""
-			echo "For Automated Domain Banning Use; \"sh $0 ban domain URL\""
-			echo "For Automated Country Banning Use; \"sh $0 ban country zone\""
+			echo "For Automated IP Banning Use; ( sh $0 ban IP )"
+			echo "For Automated IP Range Banning Use; ( sh $0 ban range IP )"
+			echo "For Automated Domain Banning Use; ( sh $0 ban domain URL )"
+			echo "For Automated Country Banning Use; ( sh $0 ban country zone )"
 			echo "Input IP To Ban"
 			read -r ip
 			echo "Banning $ip"
@@ -416,22 +416,16 @@ case "$1" in
 		;;
 
 	banmalware)
-	if [ "$2" != "-f" ] && [ -f "/jffs/scripts/malware-filter" ] || [ -f "/jffs/scripts/ya-malware-block.sh" ] || [ -f "/jffs/scripts/ipBLOCKer.sh" ]; then
-		echo "Another Malware Filter Script Detected And May Cause Conflicts, Are You Sure You Want To Continue? (yes/no)"
-		echo "For Custom Filter Lists Use; \"sh $0 banmalware -f\""
-		read -r continue
-		if [ "$continue" != "yes" ]; then
+		conflicting_scripts="(malware-filter|privacy-filter|ipBLOCKer.sh|ya-malware-block.sh|iblocklist-loader.sh)$"
+		if find / | grep -E "$conflicting_scripts" >/dev/null 2>&1; then
+			logger -st Skynet "[ERROR] Conflicting Malware Script Detected; $(find / | grep -E "$conflicting_scripts" | xargs)"
 			exit
 		fi
-	fi
-		if  [ -n "$2" ] && [ "$2" != "-f" ]; then
+		if [ -n "$2" ]; then
 			listurl="$2"
 			echo "Custom List Detected: $2"
-		elif [ -n "$3" ]; then
-			listurl="$3"
-			echo "Custom List Detected: $3"
 		else
-			echo "To Use A Custom List In Future Use; \"sh $0 banmalware URL\""
+			echo "For Custom Filter Importing Use; ( sh $0 banmalware URL )"
 			listurl="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/filter.list"
 		fi
 		curl -s --connect-timeout 5 "$listurl" | grep -qF "http" || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Banmalware" ; exit; }
@@ -453,7 +447,7 @@ case "$1" in
 			ipset -q -A Whitelist 213.230.210.230 # AB-Solution Host File
 		fi
 		echo "Warning; This May Have Blocked Your Favorite Website"
-		echo "For Whitelisting Domains Use; \"sh $0 whitelist domain URL\""
+		echo "For Whitelisting Domains Use; ( sh $0 whitelist domain URL )"
 		echo "Saving Changes"
 		ipset --save > "$location/scripts/ipset.txt"
 		rm -rf /tmp/skynet.lock
@@ -462,8 +456,8 @@ case "$1" in
 	whitelist)
 		Purge_Logs
 		if [ -z "$2" ]; then
-			echo "For Automated IP Whitelisting Use; \"sh $0 whitelist IP\""
-			echo "For Automated Domain Whitelisting Use; \"sh $0 whitelist domain URL\""
+			echo "For Automated IP Whitelisting Use; ( sh $0 whitelist IP )"
+			echo "For Automated Domain Whitelisting Use; ( sh $0 whitelist domain URL )"
 			echo "Input IP To Whitelist"
 			read -r ip
 			echo "Whitelisting $ip"
@@ -619,8 +613,8 @@ case "$1" in
 		localver="$(Filter_Version "$0")"
 		remotever="$(/usr/sbin/wget "$remoteurl" -qO- | Filter_Version)"
 		if [ "$localver" = "$remotever" ] && [ "$2" != "-f" ]; then
-			echo "To Use Only Check For Update Use; \"sh $0 update check\""
-			echo "To Force Update Use; \"sh $0 update -f\""
+			echo "To Use Only Check For Update Use; ( sh $0 update check )"
+			echo "To Force Update Use; ( sh $0 update -f )"
 			logger -st Skynet "[INFO] Skynet Up To Date - $localver"
 			exit
 		elif [ "$localver" != "$remotever" ] && [ "$2" = "check" ]; then
