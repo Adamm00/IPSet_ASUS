@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 11/06/2017 -		   Asus Firewall Addition By Adamm v4.9.2				    #
+## - 11/06/2017 -		   Asus Firewall Addition By Adamm v4.9.3				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -17,7 +17,7 @@
 ##############################
 ###	  Commands	   ###
 ##############################
-#	  "unban"	     # <-- Remove Entry From Blacklist (IP/Range/Domain/Port/Country/Malware/All/Nomanual)
+#	  "unban"	     # <-- Remove Entry From Blacklist (IP/Range/Domain/Port/Country/Malware/Nomanual/All)
 #	  "ban"		     # <-- Adds Entry To Blacklist (IP/Range/Domain/Port/Country)
 #	  "banmalware"	     # <-- Bans Various Malware Domains
 #	  "whitelist"        # <-- Add Entry To Whitelist (IP/Range/Domain/Port/Remove)
@@ -223,7 +223,7 @@ Filter_PrivateSRC () {
 }
 
 Filter_PrivateDST () {
-		grep -E '(SRC=127\.)|(SRC=10\.)|(SRC=172\.1[6-9]\.)|(SRC=172\.2[0-9]\.)|(SRC=172\.3[0-1]\.)|(SRC=192\.168\.)|(SRC=0.)|(SRC=169\.254\.)'
+		grep -E '(DST=127\.)|(DST=10\.)|(DST=172\.1[6-9]\.)|(DST=172\.2[0-9]\.)|(DST=172\.3[0-1]\.)|(DST=192\.168\.)|(DST=0.)|(DST=169\.254\.)'
 }
 
 Unban_PrivateIP () {
@@ -332,14 +332,6 @@ case "$1" in
 			echo "Removing Previous Malware Bans"
 			sed 's/add/del/g' "$location/scripts/malwarelist.txt" | ipset -q -R -!
 			rm -rf "$location/scripts/malwarelist.txt"
-		elif [ "$2" = "all" ]; then
-			nvram set Blacklist="$(($(grep -Foc "d Black" $location/scripts/ipset.txt) + $(grep -Foc "d Block" $location/scripts/ipset.txt)))"
-			logger -st Skynet "[INFO] Removing All $(nvram get Blacklist) Entries From Blacklist ... ... ..."
-			ipset --flush Blacklist
-			ipset --flush BlockedRanges
-			iptables -Z PREROUTING -t raw
-			rm -rf "$location/scripts/countrylist.txt" "$location/scripts/malwarelist.txt"
-			true > "$location/skynet.log"
 		elif [ "$2" = "nomanual" ]; then
 			sed -i '/Manual /!d' "$location/skynet.log"
 			ipset --flush Blacklist
@@ -350,6 +342,14 @@ case "$1" in
 				ipset -q -A Blacklist "$(echo "$ip" | grep -Fv "/")"
 				ipset -q -A BlockedRanges "$(echo "$ip" | grep -F "/")"
 			done
+		elif [ "$2" = "all" ]; then
+			nvram set Blacklist="$(($(grep -Foc "d Black" $location/scripts/ipset.txt) + $(grep -Foc "d Block" $location/scripts/ipset.txt)))"
+			logger -st Skynet "[INFO] Removing All $(nvram get Blacklist) Entries From Blacklist ... ... ..."
+			ipset --flush Blacklist
+			ipset --flush BlockedRanges
+			iptables -Z PREROUTING -t raw
+			rm -rf "$location/scripts/countrylist.txt" "$location/scripts/malwarelist.txt"
+			true > "$location/skynet.log"
 		else
 			echo "Command Not Recognised, Please Try Again"
 			exit
