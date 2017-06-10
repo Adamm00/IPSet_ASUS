@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 10/06/2017 -		   Asus Firewall Addition By Adamm v4.8.9				    #
+## - 10/06/2017 -		   Asus Firewall Addition By Adamm v4.9.0				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -54,12 +54,20 @@ else
 fi
 
 
+Kill_Lock () {
+		if [ -f "/tmp/skynet.lock" ] && [ -f "/proc/$(cat /tmp/skynet.lock)/exe" ]; then
+			logger -st Skynet "[INFO] Killing Locked Processes (pid=$(cat /tmp/skynet.lock))"
+			kill "$(cat /tmp/skynet.lock)"
+			rm -rf /tmp/skynet.lock
+		fi
+}
+
 Check_Lock () {
-		if [ -f "/tmp/skynet.lock" ]; then
-			logger -st Skynet "[INFO] Lock File Detected - Exiting"
+		if [ -f "/tmp/skynet.lock" ] && [ -f "/proc/$(cat /tmp/skynet.lock)/exe" ]; then
+			logger -st Skynet "[INFO] Lock File Detected (pid=$(cat /tmp/skynet.lock)) - Exiting"
 			exit
 		else
-			touch /tmp/skynet.lock
+			echo $$ > /tmp/skynet.lock
 		fi
 }
 
@@ -426,11 +434,11 @@ case "$1" in
 			listurl="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/filter.list"
 		fi
 		curl -s --connect-timeout 5 "$listurl" | grep -qF "http" || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Banmalware" ; exit; }
+		Check_Lock
 		if [ -f "$location/scripts/malwarelist.txt" ]; then
 			echo "Removing Previous Malware Bans"
 			sed 's/add/del/g' "$location/scripts/malwarelist.txt" | ipset -q -R -!
 		fi
-		Check_Lock
 		echo "Downloading Lists"
 		/usr/sbin/wget "$listurl" -qO- | /usr/sbin/wget -i- -qO- | awk '!x[$0]++' | Filter_PrivateIP > /tmp/malwarelist.txt
 		echo "Filtering IPv4 Addresses"
@@ -514,6 +522,7 @@ case "$1" in
 	import)
 		echo "This Function Extracts All IPs And Adds Them ALL To Blacklist"
 		if [ -n "$2" ]; then
+			Check_Lock
 			echo "Custom List Detected: $2"
 			/usr/sbin/wget "$2" --no-check-certificate -qO /tmp/iplist-unfiltered.txt
 		elif [ -z "$2" ]; then
@@ -529,11 +538,13 @@ case "$1" in
 		rm -rf /tmp/iplist-unfiltered.txt /tmp/iplist-filtered.txt
 		echo "Saving Changes"
 		ipset --save > "$location/scripts/ipset.txt"
+		rm -rf /tmp/skynet.lock
 		;;
 
 	deport)
 		echo "This Function Extracts All IPs And Removes Them ALL From Blacklist"
 		if [ -n "$2" ]; then
+			Check_Lock
 			echo "Custom List Detected: $2"
 			/usr/sbin/wget "$2" --no-check-certificate -qO /tmp/iplist-unfiltered.txt
 		elif [ -z "$2" ]; then
@@ -597,6 +608,7 @@ case "$1" in
 		Unload_DebugIPTables
 		Purge_Logs
 		Unload_Cron
+		Kill_Lock
 		exit
 	;;
 
@@ -617,11 +629,13 @@ case "$1" in
 			logger -st Skynet "[INFO] Forcing Update"
 		fi
 		if [ "$localver" != "$remotever" ] || [ "$2" = "-f" ]; then
+			Check_Lock
 			logger -st Skynet "[INFO] New Version Detected - Updating To $remotever... ... ..."
 			sed -i 's/RAW/INBOUND/g' "$location/skynet.log"		# Remove After Adjustment Period
 			Unload_Cron
 			/usr/sbin/wget "$remoteurl" -qO "$0" && logger -st Skynet "[INFO] Skynet Sucessfully Updated - Restarting Firewall"
 			iptables -t raw -F
+			rm -rf /tmp/skynet.lock
 			service restart_firewall
 			exit
 		fi
@@ -630,9 +644,9 @@ case "$1" in
 	debug)
 		case "$2" in
 			restart)
-				echo "Restarting Firewall Service"
-				rm -rf /tmp/skynet.lock
 				Unload_Cron
+				Kill_Lock
+				echo "Restarting Firewall Service"
 				iptables -t raw -F
 				service restart_firewall
 				exit
@@ -809,6 +823,7 @@ case "$1" in
 		;;
 
 	install)
+		Check_Lock
 		if [ ! -f "/jffs/scripts/firewall-start" ]; then
 			echo "#!/bin/sh" > /jffs/scripts/firewall-start
 		elif [ -f "/jffs/scripts/firewall-start" ] && ! grep -qF "#!/bin" /jffs/scripts/firewall-start; then
@@ -842,6 +857,7 @@ case "$1" in
 			;;
 			*)
 			echo "Mode Not Recognised - Please Run The Command And Try Again"
+			rm -rf /tmp/skynet.lock
 			exit
 			;;
 		esac
@@ -898,6 +914,7 @@ case "$1" in
 			read -r device
 			if ! mount | grep -E 'ext2|ext3|ext4' | awk '{print " "$3" "}' | grep -wq " $device "; then
 				echo "Error - Input Not Recognised, Exiting Installation"
+				rm -rf /tmp/skynet.lock
 				exit
 			fi
 			mkdir -p "${device}/skynet"
@@ -905,6 +922,7 @@ case "$1" in
 			touch "${device}/skynet/rwtest"
 			if [ ! -f "${device}/skynet/rwtest" ]; then
 				echo "Writing To $device Failed - Exiting Installation"
+				rm -rf /tmp/skynet.lock
 				exit
 			else
 				rm -rf "${device}/skynet/rwtest"
@@ -933,6 +951,7 @@ case "$1" in
 		echo
 		echo "Restarting Firewall To Apply Changes"
 		Unload_Cron
+		rm -rf /tmp/skynet.lock
 		iptables -t raw -F
 		service restart_firewall
 		exit
@@ -947,6 +966,7 @@ case "$1" in
 		if [ "$continue" = "yes" ]; then
 			echo "Uninstalling And Restarting Firewall"
 			Unload_Cron
+			Kill_Lock
 			sed -i '\~/jffs/scripts/firewall ~d' /jffs/scripts/firewall-start
 			rm -rf "$location/scripts/ipset.txt" "$location/scripts/malwarelist.txt" "$location/scripts/countrylist.txt" "$location/skynet.log" "/jffs/scripts/firewall"
 			iptables -t raw -F
