@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 10/06/2017 -		   Asus Firewall Addition By Adamm v4.8.8				    #
+## - 10/06/2017 -		   Asus Firewall Addition By Adamm v4.8.9				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -328,6 +328,7 @@ case "$1" in
 			logger -st Skynet "[INFO] Removing All $(nvram get Blacklist) Entries From Blacklist ... ... ..."
 			ipset --flush Blacklist
 			ipset --flush BlockedRanges
+			iptables -Z PREROUTING -t raw
 			rm -rf "$location/scripts/countrylist.txt" "$location/scripts/malwarelist.txt"
 			true > "$location/skynet.log"
 		elif [ "$2" = "nomanual" ]; then
@@ -396,7 +397,7 @@ case "$1" in
 			sed -n "s/\r//;/^$/d;/^[0-9,\.,\/]*$/s/^/add BlockedRanges /p" /tmp/countrylist.txt | grep -F "/" | awk '!x[$0]++' > "$location/scripts/countrylist.txt"
 			echo "Applying Blacklists"
 			ipset -q -R -! < "$location/scripts/countrylist.txt"
-			rm -rf /tmp/countrylist*.txt
+			rm -rf /tmp/countrylist.txt
 		else
 			echo "Command Not Recognised, Please Try Again"
 			exit
@@ -514,18 +515,18 @@ case "$1" in
 		echo "This Function Extracts All IPs And Adds Them ALL To Blacklist"
 		if [ -n "$2" ]; then
 			echo "Custom List Detected: $2"
-			wget "$2" --no-check-certificate -qO /tmp/ipset2.txt
+			/usr/sbin/wget "$2" --no-check-certificate -qO /tmp/iplist-unfiltered.txt
 		elif [ -z "$2" ]; then
 			echo "No List URL Specified - Exiting"
 			exit
 		fi
 		echo "Filtering IPv4 Addresses"
-		grep -woE '([0-9]{1,3}\.){3}[0-9]{1,3}' /tmp/ipset2.txt | Filter_PrivateIP | awk '{print "add Blacklist " $1}' > /tmp/ipset3.txt
+		grep -woE '([0-9]{1,3}\.){3}[0-9]{1,3}' /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk '{print "add Blacklist " $1}' > /tmp/iplist-filtered.txt
 		echo "Filtering IPv4 Ranges"
-		grep -woE '([0-9]{1,3}\.){3}[0-9]{1,3}\/[0-9]{1,2}' /tmp/ipset2.txt | Filter_PrivateIP | awk '{print "add BlockedRanges " $1}' >> /tmp/ipset3.txt
+		grep -woE '([0-9]{1,3}\.){3}[0-9]{1,3}\/[0-9]{1,2}' /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk '{print "add BlockedRanges " $1}' >> /tmp/iplist-filtered.txt
 		echo "Adding IPs To Blacklist"
-		ipset -q -R -! < /tmp/ipset3.txt
-		rm -rf /tmp/ipset2.txt /tmp/ipset3.txt
+		ipset -q -R -! < /tmp/iplist-filtered.txt
+		rm -rf /tmp/iplist-unfiltered.txt /tmp/iplist-filtered.txt
 		echo "Saving Changes"
 		ipset --save > "$location/scripts/ipset.txt"
 		;;
@@ -534,18 +535,18 @@ case "$1" in
 		echo "This Function Extracts All IPs And Removes Them ALL From Blacklist"
 		if [ -n "$2" ]; then
 			echo "Custom List Detected: $2"
-			wget "$2" --no-check-certificate -qO /tmp/ipset2.txt
+			/usr/sbin/wget "$2" --no-check-certificate -qO /tmp/iplist-unfiltered.txt
 		elif [ -z "$2" ]; then
 			echo "No List URL Specified - Exiting"
 			exit
 		fi
 		echo "Filtering IPv4 Addresses"
-		grep -woE '([0-9]{1,3}\.){3}[0-9]{1,3}' /tmp/ipset2.txt | Filter_PrivateIP | awk '{print "del Blacklist " $1}' > /tmp/ipset3.txt
+		grep -woE '([0-9]{1,3}\.){3}[0-9]{1,3}' /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk '{print "del Blacklist " $1}' > /tmp/iplist-filtered.txt
 		echo "Filtering IPv4 Ranges"
-		grep -woE '([0-9]{1,3}\.){3}[0-9]{1,3}\/[0-9]{1,2}' /tmp/ipset2.txt | Filter_PrivateIP | awk '{print "del BlockedRanges " $1}' >> /tmp/ipset3.txt
+		grep -woE '([0-9]{1,3}\.){3}[0-9]{1,3}\/[0-9]{1,2}' /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk '{print "del BlockedRanges " $1}' >> /tmp/iplist-filtered.txt
 		echo "Removing IPs From Blacklist"
-		ipset -q -R -! < /tmp/ipset3.txt
-		rm -rf /tmp/ipset2.txt /tmp/ipset3.txt
+		ipset -q -R -! < /tmp/iplist-filtered.txt
+		rm -rf /tmp/iplist-unfiltered.txt /tmp/iplist-filtered.txt
 		echo "Saving Changes"
 		ipset --save > "$location/scripts/ipset.txt"
 		;;
@@ -689,6 +690,7 @@ case "$1" in
 		fi
 		if [ "$2" = "reset" ]; then
 			true > "$location/skynet.log"
+			iptables -Z PREROUTING -t raw
 			echo "Stat Data Reset"
 			exit
 		fi
