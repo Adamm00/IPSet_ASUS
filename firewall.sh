@@ -55,7 +55,7 @@ fi
 
 
 Kill_Lock () {
-		if [ -f "/tmp/skynet.lock" ] && [ -f "/proc/$(cat /tmp/skynet.lock)/exe" ]; then
+		if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(cat /tmp/skynet.lock)" ]; then
 			logger -st Skynet "[INFO] Killing Locked Processes (pid=$(cat /tmp/skynet.lock))"
 			kill "$(cat /tmp/skynet.lock)"
 			rm -rf /tmp/skynet.lock
@@ -63,7 +63,7 @@ Kill_Lock () {
 }
 
 Check_Lock () {
-		if [ -f "/tmp/skynet.lock" ] && [ -f "/proc/$(cat /tmp/skynet.lock)/exe" ]; then
+		if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(cat /tmp/skynet.lock)" ]; then
 			logger -st Skynet "[INFO] Lock File Detected (pid=$(cat /tmp/skynet.lock)) - Exiting"
 			exit
 		else
