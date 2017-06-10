@@ -704,7 +704,7 @@ case "$1" in
 			exit
 		fi
 		if [ "$2" = "reset" ]; then
-			true > "$location/skynet.log"
+			sed -i '/Manual /!d' "$location/skynet.log"
 			iptables -Z PREROUTING -t raw
 			echo "Stat Data Reset"
 			exit
