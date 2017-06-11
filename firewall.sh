@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 11/06/2017 -		   Asus Firewall Addition By Adamm v4.9.5				    #
+## - 12/06/2017 -		   Asus Firewall Addition By Adamm v4.9.6				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -39,14 +39,14 @@ export LC_ALL=C
 if grep -F "Skynet" /jffs/scripts/firewall-start | grep -qF "usb"; then
 	location="$(grep -ow "usb=.*" /jffs/scripts/firewall-start | awk '{print $1}' | cut -c 5-)/skynet"
 	if [ ! -d "$location" ] && ! echo "$@" | grep -qF "install"; then
-		echo "Waiting 10 Seconds For USB"
+		logger -st Skynet "[INFO] Waiting 10 Seconds For USB"
 		sleep 10
 		if [ ! -d "$location" ]; then
-			echo "Waiting 20 Seconds For USB"
+			logger -st Skynet "[INFO] Waiting 20 Seconds For USB"
 			sleep 20
 			if [ ! -d "$location" ]; then
-				logger -st Skynet "[ERROR] !!! - USB Mode Selected But Chosen Device Not Found - Please Fix Immediately - !!!"
-				logger -st Skynet "[ERROR] !!! - When Fixed Run ( sh $0 debug restart ) - !!!"
+				logger -st Skynet "[ERROR] USB Mode Selected But Chosen Device Not Found - Please Fix Immediately!"
+				logger -st Skynet "[ERROR] When Fixed Run ( sh $0 debug restart )"
 				exit
 			fi
 		fi
@@ -249,11 +249,18 @@ Unban_PrivateIP () {
 }
 
 Purge_Logs () {
-		if [ "$(du $location/skynet.log | awk '{print $1}')" -ge "7000" ]; then
+		if ! grep -F "Skynet" /jffs/scripts/firewall-start | grep -qF "usb" && [ "$(du $location/skynet.log | awk '{print $1}')" -ge "7000" ]; then
 			sed -i '/BLOCKED - RAW/d' "$location/skynet.log"		# Remove After Adjustment Period
 			sed -i '/BLOCKED - INBOUND/d' "$location/skynet.log"
 			sed -i '/BLOCKED - OUTBOUND/d' "$location/skynet.log"
 			if [ "$(du $location/skynet.log | awk '{print $1}')" -ge "3000" ]; then
+				true > "$location/skynet.log"
+			fi
+		elif grep -F "Skynet" /jffs/scripts/firewall-start | grep -qF "usb" && [ "$(du $location/skynet.log | awk '{print $1}')" -ge "21000" ]; then
+			sed -i '/BLOCKED - RAW/d' "$location/skynet.log"		# Remove After Adjustment Period
+			sed -i '/BLOCKED - INBOUND/d' "$location/skynet.log"
+			sed -i '/BLOCKED - OUTBOUND/d' "$location/skynet.log"
+			if [ "$(du $location/skynet.log | awk '{print $1}')" -ge "9000" ]; then
 				true > "$location/skynet.log"
 			fi
 		fi
@@ -605,6 +612,7 @@ case "$1" in
 		ipset --save > "$location/scripts/ipset.txt"
 		Unload_IPTables
 		Unload_DebugIPTables
+		ipset destroy
 		Purge_Logs
 		Unload_Cron
 		Kill_Lock
@@ -645,6 +653,11 @@ case "$1" in
 			restart)
 				Unload_Cron
 				Kill_Lock
+				echo "Saving Changes"
+				ipset --save > "$location/scripts/ipset.txt"
+				Unload_IPTables
+				Unload_DebugIPTables
+				ipset destroy
 				echo "Restarting Firewall Service"
 				iptables -t raw -F
 				service restart_firewall
@@ -668,13 +681,16 @@ case "$1" in
 				echo "Skynet Version: $(Filter_Version "$0") ($(Filter_Date "$0"))"
 				echo "$(iptables --version) - ($iface)"
 				ipset -v
-				echo "FW Version: $(nvram get buildno)_$(nvram get extendno)"
-				echo "Install Dir; $location"
+				echo "FW Version: $(nvram get buildno)_$(nvram get extendno) ($(uname -v | awk '{print $5" "$6" "$9}'))"
+				echo "Install Dir; $location ($(df -h $location | xargs | awk '{print $9}') Space Available)"
 				echo "Boot Args; $(grep -F "Skynet" /jffs/scripts/firewall-start | cut -c 4- | cut -d '#' -f1)"
+				if [ -w "$location" ]; then $GRN "Install Dir Writeable"; else $RED "Can't Write To Install Dir"; fi
 				if grep -qF "Skynet" /jffs/scripts/firewall-start; then $GRN "Startup Entry Detected"; else $RED "Startup Entry Not Detected"; fi
 				if cru l | grep -qF "Skynet"; then $GRN "Cronjobs Detected"; else $RED "Cronjobs Not Detected"; fi
 				if iptables -L | grep -F "LOG" | grep -qF "NEW BAN"; then $GRN "Autobanning Enabled"; else $RED "Autobanning Disabled"; fi
 				if iptables -L -nt raw | grep -F "LOG" | grep -qF "match-set Blacklist "; then $GRN "Debug Mode Enabled"; else $RED "Debug Mode Disabled"; fi
+				if [ ! "$(iptables-save -t raw | sort | uniq -d | grep -c " ")" -ge "1" ]; then $GRN "No Duplicate Rules Detected In RAW"; else $RED "Duplicate Rules Detected In RAW"; fi
+				if [ ! "$(iptables-save -t filter | sort | uniq -d | grep -c " ")" -ge "1" ]; then $GRN "No Duplicate Rules Detected In FILTER"; else $RED "Duplicate Rules Detected In FILTER"; fi
 				if iptables -L -nt raw | grep -qF "match-set Whitelist "; then $GRN "Whitelist IPTable Detected"; else $RED "Whitelist IPTable Not Detected"; fi
 				if iptables -L -nt raw | grep -v "LOG" | grep -qF "match-set BlockedRanges "; then $GRN "BlockedRanges IPTable Detected"; else $RED "BlockedRanges IPTable Not Detected"; fi
 				if iptables -L -nt raw | grep -v "LOG" | grep -qF "match-set Blacklist "; then $GRN "Blacklist IPTable Detected"; else $RED "Blacklist IPTable Not Detected"; fi
@@ -693,7 +709,7 @@ case "$1" in
 		if ! iptables -L -nt raw | grep -qF "LOG"; then
 			echo
 			echo "!!! Debug Mode Is Disabled !!!"
-			echo "To Enable Use 'sh $0 install'"
+			echo "To Enable Use ( sh $0 install )"
 			echo
 		fi
 		if [ -s "$location/skynet.log" ]; then
@@ -967,6 +983,9 @@ case "$1" in
 			echo "Uninstalling And Restarting Firewall"
 			Unload_Cron
 			Kill_Lock
+			Unload_IPTables
+			Unload_DebugIPTables
+			ipset destroy
 			sed -i '\~ Skynet ~d' /jffs/scripts/firewall-start
 			rm -rf "$location/scripts/ipset.txt" "$location/scripts/malwarelist.txt" "$location/scripts/countrylist.txt" "$location/skynet.log" "/jffs/scripts/firewall"
 			iptables -t raw -F
