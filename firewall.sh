@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 11/06/2017 -		   Asus Firewall Addition By Adamm v4.9.4				    #
+## - 11/06/2017 -		   Asus Firewall Addition By Adamm v4.9.5				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -38,8 +38,18 @@ export LC_ALL=C
 
 if grep -F "Skynet" /jffs/scripts/firewall-start | grep -qF "usb"; then
 	location="$(grep -ow "usb=.*" /jffs/scripts/firewall-start | awk '{print $1}' | cut -c 5-)/skynet"
-	if [ ! -d "$location" ]; then
-		logger -st Skynet "[ERROR] !!! - USB Mode Selected But Chosen Device Not Found - Please Fix Immediately - !!!"
+	if [ ! -d "$location" ] && ! echo "$@" | grep -qF "install"; then
+		echo "Waiting 10 Seconds For USB"
+		sleep 10
+		if [ ! -d "$location" ]; then
+			echo "Waiting 20 Seconds For USB"
+			sleep 20
+			if [ ! -d "$location" ]; then
+				logger -st Skynet "[ERROR] !!! - USB Mode Selected But Chosen Device Not Found - Please Fix Immediately - !!!"
+				logger -st Skynet "[ERROR] !!! - When Fixed Run ( sh $0 debug restart ) - !!!"
+				exit
+			fi
+		fi
 	fi
 else
 	location="/jffs"
@@ -83,11 +93,11 @@ Check_Settings () {
 			logger -st Skynet "[ERROR] $(find / | grep -E "$conflicting_scripts" | xargs) Detected - This Script Will Cause Conflicts! Please Uninstall It ASAP"
 		fi
 
-		if [ "$1" = "banmalware" ] || [ "$2" = "banmalware" ] || [ "$3" = "banmalware" ]; then
+		if echo "$@" | grep -qF "banmalware"; then
 			cru a Skynet_banmalware "25 1 * * 1 sh /jffs/scripts/firewall banmalware"
 		fi
 
-		if [ "$1" = "autoupdate" ] || [ "$2" = "autoupdate" ] || [ "$3" = "autoupdate" ] || [ "$4" = "autoupdate" ]; then
+		if echo "$@" | grep -qF "autoupdate"; then
 			cru a Skynet_autoupdate "25 1 * * * sh /jffs/scripts/firewall update"
 		else
 			cru a Skynet_checkupdate "25 2 * * * sh /jffs/scripts/firewall update check"
@@ -100,22 +110,18 @@ Check_Settings () {
 		fi
 
 		if [ -d "/opt/bin" ] && [ ! -f "/opt/bin/firewall" ]; then
-			echo "Enabling /opt/bin Symlink"
 			ln -s /jffs/scripts/firewall /opt/bin
 		fi
 
 		if [ "$(nvram get jffs2_scripts)" != "1" ]; then
-			echo "Enabling Custom JFFS Scripts"
 			nvram set jffs2_scripts=1
 		fi
 
 		if [ "$(nvram get fw_enable_x)" != "1" ]; then
-			echo "Enabling SPI Firewall"
 			nvram set fw_enable_x=1
 		fi
 
-		if [ "$(nvram get fw_log_x)" != "drop" ] || [ "$(nvram get fw_log_x)" != "both" ]; then
-			echo "Enabling Firewall Logging"
+		if [ "$(nvram get fw_log_x)" != "drop" ] && [ "$(nvram get fw_log_x)" != "both" ]; then
 			nvram set fw_log_x=drop
 		fi
 }
@@ -147,7 +153,7 @@ Load_IPTables () {
 		iptables -t raw -I PREROUTING -i br0 -m set --match-set Blacklist dst -j DROP >/dev/null 2>&1
 		iptables -t raw -I PREROUTING -i br0 -m set --match-set BlockedRanges dst -j DROP >/dev/null 2>&1
 		iptables -t raw -I PREROUTING -i br0 -m set --match-set Whitelist dst -j ACCEPT >/dev/null 2>&1
-		if [ "$1" = "noautoban" ]; then
+		if echo "$@" | grep -qF "noautoban"; then
 			logger -st Skynet "[INFO] Enabling No-Autoban Mode ... ... ..."
 		else
 			iptables -I logdrop -i "$iface" -m state --state INVALID -j SET --add-set Blacklist src >/dev/null 2>&1
@@ -172,7 +178,7 @@ Unload_DebugIPTables () {
 }
 
 Load_DebugIPTables () {
-		if [ "$1" = "debug" ] || [ "$2" = "debug" ]; then
+		if echo "$@" | grep -qF "debug"; then
 			pos1="$(iptables --line -L PREROUTING -nt raw | grep -F "BlockedRanges src" | grep -F "DROP" | awk '{print $1}')"
 			iptables -t raw -I PREROUTING "$pos1" -i "$iface" -m set --match-set BlockedRanges src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
 			pos2="$(iptables --line -L PREROUTING -nt raw | grep -F "Blacklist src" | grep -F "DROP" | awk '{print $1}')"
@@ -568,7 +574,7 @@ case "$1" in
 	start)
 		Check_Lock
 		Unload_Cron
-		Check_Settings "$2" "$3" "$4" "$5"
+		Check_Settings "$@"
 		cru a Skynet_save "0 * * * * sh /jffs/scripts/firewall save"
 		sed -i '/Startup Initiated/d' /tmp/syslog.log
 		logger -st Skynet "[INFO] Startup Initiated ... ... ..."
@@ -587,8 +593,8 @@ case "$1" in
 		ipset -q -A Whitelist 151.101.96.133/32   # raw.githubusercontent.com Update Server
 		Unload_IPTables
 		Unload_DebugIPTables
-		Load_IPTables "$2"
-		Load_DebugIPTables "$2" "$3"
+		Load_IPTables "$@"
+		Load_DebugIPTables "$@"
 		sed -i '/DROP IN=/d' /tmp/syslog.log
 		rm -rf /tmp/skynet.lock
 		;;
@@ -664,7 +670,7 @@ case "$1" in
 				ipset -v
 				echo "FW Version: $(nvram get buildno)_$(nvram get extendno)"
 				echo "Install Dir; $location"
-				echo "Boot Args; $(grep -F "Skynet" /jffs/scripts/firewall-start | cut -c 14- | cut -d '#' -f1)"
+				echo "Boot Args; $(grep -F "Skynet" /jffs/scripts/firewall-start | cut -c 4- | cut -d '#' -f1)"
 				if grep -qF "Skynet" /jffs/scripts/firewall-start; then $GRN "Startup Entry Detected"; else $RED "Startup Entry Not Detected"; fi
 				if cru l | grep -qF "Skynet"; then $GRN "Cronjobs Detected"; else $RED "Cronjobs Not Detected"; fi
 				if iptables -L | grep -F "LOG" | grep -qF "NEW BAN"; then $GRN "Autobanning Enabled"; else $RED "Autobanning Disabled"; fi
@@ -926,7 +932,7 @@ case "$1" in
 			mv "/jffs/scripts/countrylist.txt" "${device}/skynet/scripts/" >/dev/null 2>&1
 			mv "/jffs/skynet.log" "${device}/skynet/" >/dev/null 2>&1
 			sed -i '\~ Skynet ~d' /jffs/scripts/firewall-start
-			echo "sleep 10; sh /jffs/scripts/firewall $set1 $set2 $set3 usb=${device} # Skynet Firewall Addition" | tr -s " " >> /jffs/scripts/firewall-start
+			echo "sh /jffs/scripts/firewall $set1 $set2 $set3 usb=${device} # Skynet Firewall Addition" | tr -s " " >> /jffs/scripts/firewall-start
 			;;
 			*)
 			echo "JFFS Installation Selected"
@@ -938,7 +944,7 @@ case "$1" in
 				mv "$location/skynet.log" "/jffs/" >/dev/null 2>&1
 			fi
 			sed -i '\~ Skynet ~d' /jffs/scripts/firewall-start
-			echo "sleep 10; sh /jffs/scripts/firewall $set1 $set2 $set3 # Skynet Firewall Addition" | tr -s " " >> /jffs/scripts/firewall-start
+			echo "sh /jffs/scripts/firewall $set1 $set2 $set3 # Skynet Firewall Addition" | tr -s " " >> /jffs/scripts/firewall-start
 			;;
 		esac
 		chmod +x /jffs/scripts/firewall-start
