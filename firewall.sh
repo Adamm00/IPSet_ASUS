@@ -38,7 +38,7 @@ export LC_ALL=C
 
 if grep -F "Skynet" /jffs/scripts/firewall-start | grep -qF "usb"; then
 	location="$(grep -ow "usb=.*" /jffs/scripts/firewall-start | awk '{print $1}' | cut -c 5-)/skynet"
-	if [ ! -d "$location" ] && ! echo "$@" | grep -qF "install"; then
+	if [ ! -d "$location" ] && ! echo "$@" | grep -wqE "(install|uninstall|disable|update|debug)"; then
 		logger -st Skynet "[INFO] Waiting 10 Seconds For USB"
 		sleep 10
 		if [ ! -d "$location" ]; then
