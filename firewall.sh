@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 11/06/2017 -		   Asus Firewall Addition By Adamm v4.9.3				    #
+## - 11/06/2017 -		   Asus Firewall Addition By Adamm v4.9.4				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -24,7 +24,6 @@
 #	  "import"	     # <-- Bans All IPs From URL
 #	  "deport"	     # <-- Unbans All IPs From URL
 #	  "save"	     # <-- Save Blacklists To ipset.txt
-#	  "start"	     # <-- Initiate Firewall
 #	  "disable"	     # <-- Disable Firewall
 #	  "update"	     # <-- Update Script To Latest Version (check github for changes)
 #	  "debug"	     # <-- Debug Features (Restart/Disable/Watch/Info)
@@ -33,7 +32,7 @@
 #	  "uninstall"        # <-- Uninstall All Traces Of Skynet
 ##############################
 
-head -35 "$0"
+head -34 "$0"
 start_time="$(date +%s)"
 export LC_ALL=C
 
@@ -68,7 +67,7 @@ Check_Lock () {
 			logger -st Skynet "[INFO] Lock File Detected (pid=$(cat /tmp/skynet.lock)) - Exiting"
 			exit
 		else
-			echo $$ > /tmp/skynet.lock
+			echo "$$" > /tmp/skynet.lock
 		fi
 }
 
@@ -78,8 +77,10 @@ Check_Settings () {
 			rm -rf /tmp/skynet.lock
 			exit
 		fi
-		if find / | grep -F "IPSet_Block.sh" >/dev/null 2>&1; then
-			logger -st Skynet "[ERROR] $(find / | grep -F "IPSet_Block.sh") Detected - This Script Will Cause Conflicts! Please Uninstall It ASAP"
+		
+		conflicting_scripts="(IPSet_Block.sh|malware-filter|privacy-filter|ipBLOCKer.sh|ya-malware-block.sh|iblocklist-loader.sh)$"
+		if find / | grep -qE "$conflicting_scripts"; then
+			logger -st Skynet "[ERROR] $(find / | grep -E "$conflicting_scripts" | xargs) Detected - This Script Will Cause Conflicts! Please Uninstall It ASAP"
 		fi
 
 		if [ "$1" = "banmalware" ] || [ "$2" = "banmalware" ] || [ "$3" = "banmalware" ]; then
@@ -266,8 +267,10 @@ Logging () {
 		newips="$(nvram get Blacklist)"
 		newranges="$(nvram get BlockedRanges)"
 		nvram commit
-		hits1="$(($(iptables -vL -nt raw | grep -Fv "LOG" | grep -F "Blacklist src" | awk '{print $1}') + $(iptables -vL -nt raw | grep -Fv "LOG" | grep -F "Blacklist dst" | awk '{print $1}')))"
-		hits2="$(($(iptables -vL -nt raw | grep -Fv "LOG" | grep -F "BlockedRanges src" | awk '{print $1}') + $(iptables -vL -nt raw | grep -Fv "LOG" | grep -F "BlockedRanges dst" | awk '{print $1}')))"
+		if iptables -vL -nt raw | grep -Fv "LOG" | grep -qF "Blacklist src"; then
+			hits1="$(($(iptables -vL -nt raw | grep -Fv "LOG" | grep -F "Blacklist src" | awk '{print $1}') + $(iptables -vL -nt raw | grep -Fv "LOG" | grep -F "Blacklist dst" | awk '{print $1}')))"
+			hits2="$(($(iptables -vL -nt raw | grep -Fv "LOG" | grep -F "BlockedRanges src" | awk '{print $1}') + $(iptables -vL -nt raw | grep -Fv "LOG" | grep -F "BlockedRanges dst" | awk '{print $1}')))"
+		fi
 		start_time="$(($(date +%s) - start_time))"
 		logger -st Skynet "[Complete] $newips IPs / $newranges Ranges banned. $((newips - oldips)) New IPs / $((newranges - oldranges)) New Ranges Banned. $hits1 IP / $hits2 Range Connections Blocked! [${start_time}s]"
 }
@@ -416,10 +419,6 @@ case "$1" in
 		;;
 
 	banmalware)
-		conflicting_scripts="(malware-filter|privacy-filter|ipBLOCKer.sh|ya-malware-block.sh|iblocklist-loader.sh)$"
-		if find / | grep -E "$conflicting_scripts" >/dev/null 2>&1; then
-			logger -st Skynet "[ERROR] Conflicting Malware Script Detected; $(find / | grep -E "$conflicting_scripts" | xargs)"
-		fi
 		if [ -n "$2" ]; then
 			listurl="$2"
 			echo "Custom List Detected: $2"
@@ -570,7 +569,7 @@ case "$1" in
 		Check_Lock
 		Unload_Cron
 		Check_Settings "$2" "$3" "$4" "$5"
-		cru a Skynet_save "0 * * * * /jffs/scripts/firewall save"
+		cru a Skynet_save "0 * * * * sh /jffs/scripts/firewall save"
 		sed -i '/Startup Initiated/d' /tmp/syslog.log
 		logger -st Skynet "[INFO] Startup Initiated ... ... ..."
 		modprobe xt_set
@@ -665,16 +664,17 @@ case "$1" in
 				ipset -v
 				echo "FW Version: $(nvram get buildno)_$(nvram get extendno)"
 				echo "Install Dir; $location"
-				grep -qF "/jffs/scripts/firewall start" /jffs/scripts/firewall-start >/dev/null 2>&1 && $GRN "Startup Entry Detected" || $RED "Startup Entry Not Detected"
-				cru l | grep -qF "Skynet" >/dev/null 2>&1 && $GRN "Cronjobs Detected" || $RED "Cronjobs Not Detected"
-				iptables -L | grep -F "LOG" | grep -qF "BAN" >/dev/null 2>&1 && $GRN "Autobanning Enabled" || $RED "Autobanning Disabled"
-				iptables -L -nt raw | grep -qF "BLOCKED -" >/dev/null 2>&1 && $GRN "Debug Mode Enabled" || $RED "Debug Mode Disabled"
-				iptables -L -nt raw | grep -F "Whitelist" >/dev/null 2>&1 && $GRN "Whitelist IPTable Detected" || $RED "Whitelist IPTable Not Detected"
-				iptables -L -nt raw | grep -v "LOG" | grep -qF "BlockedRanges" >/dev/null 2>&1 && $GRN "BlockedRanges IPTable Detected" || $RED "BlockedRanges IPTable Not Detected"
-				iptables -L -nt raw | grep -v "LOG" | grep -qF "Blacklist" >/dev/null 2>&1 && $GRN "Blacklist IPTable Detected" || $RED "Blacklist IPTable Not Detected"
-				ipset -L -n Whitelist >/dev/null 2>&1 && $GRN "Whitelist IPSet Detected" || $RED "Whitelist IPSet Not Detected"
-				ipset -L -n BlockedRanges >/dev/null 2>&1 && $GRN "BlockedRanges IPSet Detected" || $RED "BlockedRanges IPSet Not Detected"
-				ipset -L -n Blacklist >/dev/null 2>&1 && $GRN "Blacklist IPSet Detected" || $RED "Blacklist IPSet Not Detected"
+				echo "Boot Args; $(grep -F "Skynet" /jffs/scripts/firewall-start | cut -c 14- | cut -d '#' -f1)"
+				if grep -qF "Skynet" /jffs/scripts/firewall-start; then $GRN "Startup Entry Detected"; else $RED "Startup Entry Not Detected"; fi
+				if cru l | grep -qF "Skynet"; then $GRN "Cronjobs Detected"; else $RED "Cronjobs Not Detected"; fi
+				if iptables -L | grep -F "LOG" | grep -qF "NEW BAN"; then $GRN "Autobanning Enabled"; else $RED "Autobanning Disabled"; fi
+				if iptables -L -nt raw | grep -F "LOG" | grep -qF "match-set Blacklist "; then $GRN "Debug Mode Enabled"; else $RED "Debug Mode Disabled"; fi
+				if iptables -L -nt raw | grep -qF "match-set Whitelist "; then $GRN "Whitelist IPTable Detected"; else $RED "Whitelist IPTable Not Detected"; fi
+				if iptables -L -nt raw | grep -v "LOG" | grep -qF "match-set BlockedRanges "; then $GRN "BlockedRanges IPTable Detected"; else $RED "BlockedRanges IPTable Not Detected"; fi
+				if iptables -L -nt raw | grep -v "LOG" | grep -qF "match-set Blacklist "; then $GRN "Blacklist IPTable Detected"; else $RED "Blacklist IPTable Not Detected"; fi
+				if ipset -L -n Whitelist >/dev/null 2>&1; then $GRN "Whitelist IPSet Detected"; else $RED "Whitelist IPSet Not Detected"; fi
+				if ipset -L -n BlockedRanges >/dev/null 2>&1; then $GRN "BlockedRanges IPSet Detected"; else $RED "BlockedRanges IPSet Not Detected"; fi
+				if ipset -L -n Blacklist >/dev/null 2>&1; then $GRN "Blacklist IPSet Detected"; else $RED "Blacklist IPSet Not Detected"; fi
 			;;
 
 		*)
@@ -925,8 +925,8 @@ case "$1" in
 			mv "/jffs/scripts/malwarelist.txt" "${device}/skynet/scripts/" >/dev/null 2>&1
 			mv "/jffs/scripts/countrylist.txt" "${device}/skynet/scripts/" >/dev/null 2>&1
 			mv "/jffs/skynet.log" "${device}/skynet/" >/dev/null 2>&1
-			sed -i '\~/jffs/scripts/firewall ~d' /jffs/scripts/firewall-start
-			echo "sleep 10; sh /jffs/scripts/firewall $set1 $set2 $set3 usb=${device} # Skynet Firewall Addition" >> /jffs/scripts/firewall-start
+			sed -i '\~ Skynet ~d' /jffs/scripts/firewall-start
+			echo "sleep 10; sh /jffs/scripts/firewall $set1 $set2 $set3 usb=${device} # Skynet Firewall Addition" | tr -s " " >> /jffs/scripts/firewall-start
 			;;
 			*)
 			echo "JFFS Installation Selected"
@@ -937,8 +937,8 @@ case "$1" in
 				mv "$location/scripts/countrylist.txt" "/jffs/scripts/" >/dev/null 2>&1
 				mv "$location/skynet.log" "/jffs/" >/dev/null 2>&1
 			fi
-			sed -i '\~/jffs/scripts/firewall ~d' /jffs/scripts/firewall-start
-			echo "sleep 10; sh /jffs/scripts/firewall $set1 $set2 $set3 # Skynet Firewall Addition" >> /jffs/scripts/firewall-start
+			sed -i '\~ Skynet ~d' /jffs/scripts/firewall-start
+			echo "sleep 10; sh /jffs/scripts/firewall $set1 $set2 $set3 # Skynet Firewall Addition" | tr -s " " >> /jffs/scripts/firewall-start
 			;;
 		esac
 		chmod +x /jffs/scripts/firewall-start
@@ -961,7 +961,7 @@ case "$1" in
 			echo "Uninstalling And Restarting Firewall"
 			Unload_Cron
 			Kill_Lock
-			sed -i '\~/jffs/scripts/firewall ~d' /jffs/scripts/firewall-start
+			sed -i '\~ Skynet ~d' /jffs/scripts/firewall-start
 			rm -rf "$location/scripts/ipset.txt" "$location/scripts/malwarelist.txt" "$location/scripts/countrylist.txt" "$location/skynet.log" "/jffs/scripts/firewall"
 			iptables -t raw -F
 			service restart_firewall
