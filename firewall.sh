@@ -87,8 +87,8 @@ Check_Settings () {
 		fi
 		
 		conflicting_scripts="(IPSet_Block.sh|malware-filter|privacy-filter|ipBLOCKer.sh|ya-malware-block.sh|iblocklist-loader.sh)$"
-		if find / | grep -qE "$conflicting_scripts"; then
-			logger -st Skynet "[ERROR] $(find / | grep -E "$conflicting_scripts" | xargs) Detected - This Script Will Cause Conflicts! Please Uninstall It ASAP"
+		if find /jffs /tmp/mnt | grep -qE "$conflicting_scripts"; then
+			logger -st Skynet "[ERROR] $(find /jffs /tmp/mnt | grep -E "$conflicting_scripts" | xargs) Detected - This Script Will Cause Conflicts! Please Uninstall It ASAP"
 		fi
 
 		if echo "$@" | grep -qF "banmalware"; then
