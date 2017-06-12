@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 12/06/2017 -		   Asus Firewall Addition By Adamm v4.9.6				    #
+## - 12/06/2017 -		   Asus Firewall Addition By Adamm v4.9.7				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -38,18 +38,16 @@ export LC_ALL=C
 
 if grep -F "Skynet" /jffs/scripts/firewall-start | grep -qF "usb"; then
 	location="$(grep -ow "usb=.*" /jffs/scripts/firewall-start | awk '{print $1}' | cut -c 5-)/skynet"
-	if [ ! -d "$location" ] && ! echo "$@" | grep -wqE "(install|uninstall|disable|update|debug)"; then
-		logger -st Skynet "[INFO] Waiting 10 Seconds For USB"
+	retry=1
+	while [ ! -d "$location" ] && [ "$retry" -lt "7" ] &&  ! echo "$@" | grep -wqE "(install|uninstall|disable|update|debug)"; do
+		logger -st Skynet "[INFO] USB Not Found - Sleeping For 10 Seconds ( Attempt #$retry )"
+		retry=$((retry+1))
 		sleep 10
-		if [ ! -d "$location" ]; then
-			logger -st Skynet "[INFO] Waiting 20 Seconds For USB"
-			sleep 20
-			if [ ! -d "$location" ]; then
-				logger -st Skynet "[ERROR] USB Mode Selected But Chosen Device Not Found - Please Fix Immediately!"
-				logger -st Skynet "[ERROR] When Fixed Run ( sh $0 debug restart )"
-				exit
-			fi
-		fi
+	done
+	if [ ! -d "$location" ]; then
+		logger -st Skynet "[ERROR] USB Not Found After 6 Retries - Please Fix Immediately!"
+		logger -st Skynet "[ERROR] When Fixed Run ( sh $0 debug restart )"
+		exit
 	fi
 else
 	location="/jffs"
