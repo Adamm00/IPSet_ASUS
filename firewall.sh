@@ -734,17 +734,17 @@ case "$1" in
 			proto=ICMP
 		fi
 		if [ "$2" = "search" ] && [ "$3" = "port" ] && [ -n "$4" ]; then
-			echo "Port $4 First Tracked On $(grep -F "DPT=$4 " $location/skynet.log | head -1 | awk '{print $1" "$2" "$3}')"
-			echo "Port $4 Last Tracked On $(grep -F "DPT=$4 " $location/skynet.log | tail -1 | awk '{print $1" "$2" "$3}')"
-			echo "$(grep -Foc "DPT=$4 " $location/skynet.log) Attempts Total"
-			echo "$(grep -F "DPT=$4 " $location/skynet.log | grep -oE ' SRC=[0-9,\.]* ' | awk '!x[$0]++' | wc -l) Unique IPs"
-			echo "$(grep -F "DPT=$4 " $location/skynet.log | grep -cF NEW) Autobans From This Port"
+			echo "Port $4 First Tracked On $(grep -F "PT=$4 " $location/skynet.log | head -1 | awk '{print $1" "$2" "$3}')"
+			echo "Port $4 Last Tracked On $(grep -F "PT=$4 " $location/skynet.log | tail -1 | awk '{print $1" "$2" "$3}')"
+			echo "$(grep -Foc "PT=$4 " $location/skynet.log) Attempts Total"
+			echo "$(grep -F "PT=$4 " $location/skynet.log | grep -oE ' SRC=[0-9,\.]* ' | awk '!x[$0]++' | wc -l) Unique IPs"
+			echo "$(grep -F "PT=$4 " $location/skynet.log | grep -cF NEW) Autobans From This Port"
 			echo
-			echo "First Attack Tracked On Port $4;"
-			grep -F "DPT=$4 " "$location/skynet.log" | head -1
+			echo "First Block Tracked On Port $4;"
+			grep -F "PT=$4 " "$location/skynet.log" | head -1
 			echo
-			echo "$counter Most Recent Attacks On Port $4;";
-			grep -F "DPT=$4 " "$location/skynet.log" | tail -"$counter"
+			echo "$counter Most Recent Blocks On Port $4;";
+			grep -F "PT=$4 " "$location/skynet.log" | tail -"$counter"
 			exit
 		elif [ "$2" = "search" ] && [ "$3" = "ip" ] && [ -n "$4" ]; then
 			ipset test Whitelist "$4"
@@ -755,10 +755,10 @@ case "$1" in
 			echo "$4 Last Tracked On $(grep -F "=$4 " $location/skynet.log | tail -1 | awk '{print $1" "$2" "$3}')"
 			echo "$(grep -Foc "=$4 " $location/skynet.log) Attempts Total"
 			echo
-			echo "First Attack Tracked From $4;"
+			echo "First Block Tracked From $4;"
 			grep -F "=$4 " "$location/skynet.log" | head -1
 			echo
-			echo "$counter Most Recent Attacks From $4;"
+			echo "$counter Most Recent Blocks From $4;"
 			grep -F "=$4 " "$location/skynet.log" | tail -"$counter"
 			exit
 		elif [ "$2" = "search" ] && [ "$3" = "malware" ] && [ -n "$4" ]; then
