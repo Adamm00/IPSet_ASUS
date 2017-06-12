@@ -232,14 +232,12 @@ Filter_PrivateDST () {
 }
 
 Unban_PrivateIP () {
-		grep -F "INBOUND" /tmp/syslog.log | Filter_PrivateSRC | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | while IFS= read -r ip
-			do
+		grep -F "INBOUND" /tmp/syslog.log | Filter_PrivateSRC | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | while IFS= read -r ip; do
 			ipset -q -A Whitelist "$ip"
 			ipset -q -D Blacklist "$ip"
 			sed -i "/SRC=${ip} /d" /tmp/syslog.log
 		done
-		grep -F "OUTBOUND" /tmp/syslog.log |  Filter_PrivateDST | grep -oE 'DST=[0-9,\.]* ' | cut -c 5- | while IFS= read -r ip
-			do
+		grep -F "OUTBOUND" /tmp/syslog.log |  Filter_PrivateDST | grep -oE 'DST=[0-9,\.]* ' | cut -c 5- | while IFS= read -r ip; do
 			ipset -q -A Whitelist "$ip"
 			ipset -q -D Blacklist "$ip"
 			sed -i "/DST=${ip} /d" /tmp/syslog.log
@@ -316,24 +314,21 @@ case "$1" in
 			echo "Input Domain To Unban"
 			read -r unbandomain
 			logger -st Skynet "[INFO] Removing $unbandomain From Blacklist ... ... ..."
-			for ip in $(Domain_Lookup "$unbandomain")
-				do
+			for ip in $(Domain_Lookup "$unbandomain"); do
 				echo "Unbanning $ip"
 				ipset -D Blacklist "$ip"
 				sed -i "\~$ip ~d" "$location/skynet.log"
 			done
 		elif [ "$2" = "domain" ] && [ -n "$3" ]; then
 		logger -st Skynet "[INFO] Removing $3 From Blacklist ... ... ..."
-		for ip in $(Domain_Lookup "$3")
-			do
+		for ip in $(Domain_Lookup "$3"); do
 			echo "Unbanning $ip"
 			ipset -D Blacklist "$ip"
 			sed -i "\~$ip ~d" "$location/skynet.log"
 		done
 		elif [ "$2" = "port" ] && [ -n "$3" ]; then
 			logger -st Skynet "[INFO] Unbanning Autobans Issued On Traffic From Source/Destination Port $3 ... ... ..."
-			grep -F "NEW" "$location/skynet.log" | grep -F "PT=$3 " | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | while IFS= read -r ip
-				do
+			grep -F "NEW" "$location/skynet.log" | grep -F "PT=$3 " | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | while IFS= read -r ip; do
 				echo "Unbanning $ip"
 				ipset -D Blacklist "$ip"
 			done
@@ -351,8 +346,7 @@ case "$1" in
 			ipset --flush Blacklist
 			ipset --flush BlockedRanges
 			rm -rf "$location/scripts/countrylist.txt" "$location/scripts/malwarelist.txt"
-			awk '{print $8}' "$location/skynet.log" | cut -c 5- | while IFS= read -r ip
-				do
+			awk '{print $8}' "$location/skynet.log" | cut -c 5- | while IFS= read -r ip; do
 				ipset -q -A Blacklist "$(echo "$ip" | grep -Fv "/")"
 				ipset -q -A BlockedRanges "$(echo "$ip" | grep -F "/")"
 			done
@@ -393,15 +387,13 @@ case "$1" in
 			echo "Input Domain To Blacklist"
 			read -r bandomain
 			logger -st Skynet "[INFO] Adding $bandomain To Blacklist ... ... ..."
-			for ip in $(Domain_Lookup "$bandomain")
-				do
+			for ip in $(Domain_Lookup "$bandomain"); do
 				echo "Banning $ip"
 				ipset -A Blacklist "$ip" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$bandomain " >> "$location/skynet.log"
 			done
 		elif [ "$2" = "domain" ] && [ -n "$3" ]; then
 		logger -st Skynet "[INFO] Adding $3 To Blacklist ... ... ..."
-		for ip in $(Domain_Lookup "$3")
-			do
+		for ip in $(Domain_Lookup "$3"); do
 			echo "Banning $ip"
 			ipset -A Blacklist "$ip" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$3 " >> "$location/skynet.log"
 		done
@@ -412,8 +404,7 @@ case "$1" in
 			fi
 			echo "Banning Known IP Ranges For $3"
 			echo "Downloading Lists"
-			for country in $3
-			do
+			for country in $3; do
 				/usr/sbin/wget http://ipdeny.com/ipblocks/data/aggregated/"$country"-aggregated.zone -qO- >> /tmp/countrylist.txt
 			done
 			echo "Filtering IPv4 Ranges"
@@ -482,8 +473,7 @@ case "$1" in
 			echo "Input Domain To Whitelist"
 			read -r whitelistdomain
 			logger -st Skynet "[INFO] Adding $whitelistdomain To Whitelist ... ... ..."
-			for ip in $(Domain_Lookup "$whitelistdomain")
-				do
+			for ip in $(Domain_Lookup "$whitelistdomain"); do
 				echo "Whitelisting $ip"
 				ipset -A Whitelist "$ip"
 				ipset -D Blacklist "$ip"
@@ -491,8 +481,7 @@ case "$1" in
 			done
 		elif [ "$2" = "domain" ] && [ -n "$3" ]; then
 		logger -st Skynet "[INFO] Adding $3 To Whitelist ... ... ..."
-		for ip in $(Domain_Lookup "$3")
-			do
+		for ip in $(Domain_Lookup "$3"); do
 			echo "Whitelisting $ip"
 			ipset -A Whitelist "$ip"
 			ipset -D Blacklist "$ip"
@@ -500,8 +489,7 @@ case "$1" in
 		done
 		elif [ "$2" = "port" ] && [ -n "$3" ]; then
 			logger -st Skynet "[INFO] Whitelisting Autobans Issued On Traffic From Port $3 ... ... ..."
-			grep -F "NEW" "$location/skynet.log" | grep -F "DPT=$3 " | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | while IFS= read -r ip
-				do
+			grep -F "NEW" "$location/skynet.log" | grep -F "DPT=$3 " | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | while IFS= read -r ip; do
 				echo "Whitelisting $ip"
 				ipset -A Whitelist "$ip"
 				ipset -D Blacklist "$ip"
@@ -774,8 +762,7 @@ case "$1" in
 			grep -F "=$4 " "$location/skynet.log" | tail -"$counter"
 			exit
 		elif [ "$2" = "search" ] && [ "$3" = "malware" ] && [ -n "$4" ]; then
-			/usr/sbin/wget https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/filter.list -qO- | while IFS= read -r url
-				do
+			/usr/sbin/wget https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/filter.list -qO- | while IFS= read -r url; do
 				/usr/sbin/wget "$url" -qO /tmp/malwarelist.txt
 				grep -qF "$4" /tmp/malwarelist.txt && echo "$4 Found In $url"
 				grep -F "/" /tmp/malwarelist.txt | grep -qF "$(echo "$4" | cut -d '.' -f1-3)." && echo "$4 Possible CIDR Match In $url"
@@ -972,10 +959,9 @@ case "$1" in
 		;;
 
 	uninstall)
-		echo "Uninstalling All Traces Of Skynet"
 		echo "If You Were Experiencing Bugs, Try Update Or Visit SNBForums/Github"
 		echo "https://github.com/Adamm00/IPSet_ASUS"
-		echo "Type 'yes' To Continue"
+		echo "Type 'yes' To Continue Uninstall"
 		read -r continue
 		if [ "$continue" = "yes" ]; then
 			echo "Uninstalling And Restarting Firewall"
