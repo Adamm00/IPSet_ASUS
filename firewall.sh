@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 14/06/2017 -		   Asus Firewall Addition By Adamm v4.9.8				    #
+## - 14/06/2017 -		   Asus Firewall Addition By Adamm v4.9.9				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -39,13 +39,13 @@ export LC_ALL=C
 if grep -F "Skynet" /jffs/scripts/firewall-start | grep -qF "usb"; then
 	location="$(grep -ow "usb=.*" /jffs/scripts/firewall-start | awk '{print $1}' | cut -c 5-)/skynet"
 	retry=1
-	while [ ! -d "$location" ] && [ "$retry" -lt "7" ] &&  ! echo "$@" | grep -wqE "(install|uninstall|disable|update|debug)"; do
+	while [ ! -d "$location" ] && [ "$retry" -lt "11" ] &&  ! echo "$@" | grep -wqE "(install|uninstall|disable|update|debug)"; do
 		logger -st Skynet "[INFO] USB Not Found - Sleeping For 10 Seconds ( Attempt #$retry )"
 		retry=$((retry+1))
 		sleep 10
 	done
 	if [ ! -d "$location" ]; then
-		logger -st Skynet "[ERROR] USB Not Found After 6 Attempts - Please Fix Immediately!"
+		logger -st Skynet "[ERROR] USB Not Found After 10 Attempts - Please Fix Immediately!"
 		logger -st Skynet "[ERROR] When Fixed Run ( sh $0 debug restart )"
 		exit
 	fi
@@ -625,6 +625,7 @@ case "$1" in
 			Check_Lock
 			logger -st Skynet "[INFO] New Version Detected - Updating To $remotever... ... ..."
 			sed -i 's/RAW/INBOUND/g' "$location/skynet.log"		# Remove After Adjustment Period
+			sed -i 's/sleep 10; //g' /jffs/scripts/firewall-start		# Remove After Adjustment Period
 			Unload_Cron
 			/usr/sbin/wget "$remoteurl" -qO "$0" && logger -st Skynet "[INFO] Skynet Sucessfully Updated - Restarting Firewall"
 			iptables -t raw -F
