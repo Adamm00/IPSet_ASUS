@@ -269,13 +269,12 @@ Purge_Logs () {
 }
 
 Logging () {
-		oldips="$(nvram get Blacklist)"
-		oldranges="$(nvram get BlockedRanges)"
-		nvram set Blacklist="$(grep -Foc "d Black" $location/scripts/ipset.txt 2> /dev/null)"
-		nvram set BlockedRanges="$(grep -Foc "d Block" $location/scripts/ipset.txt 2> /dev/null)"
-		newips="$(nvram get Blacklist)"
-		newranges="$(nvram get BlockedRanges)"
-		nvram commit
+		oldips="$(sed -n '1p' /tmp/counter.txt 2> /dev/null)"
+		oldranges="$(sed -n '2p' /tmp/counter.txt 2> /dev/null)"
+		grep -Foc "d Black" "$location/scripts/ipset.txt" 2> /dev/null > /tmp/counter.txt
+		grep -Foc "d Block" "$location/scripts/ipset.txt" 2> /dev/null >> /tmp/counter.txt
+		newips="$(sed -n '1p' /tmp/counter.txt)"
+		newranges="$(sed -n '2p' /tmp/counter.txt)"
 		if iptables -vL -nt raw | grep -Fv "LOG" | grep -qF "Blacklist src"; then
 			hits1="$(($(iptables -vL -nt raw | grep -Fv "LOG" | grep -F "Blacklist src" | awk '{print $1}') + $(iptables -vL -nt raw | grep -Fv "LOG" | grep -F "BlockedRanges src" | awk '{print $1}')))"	
 			hits2="$(($(iptables -vL -nt raw | grep -Fv "LOG" | grep -F "Blacklist dst" | awk '{print $1}') + $(iptables -vL -nt raw | grep -Fv "LOG" | grep -F "BlockedRanges dst" | awk '{print $1}')))"
@@ -626,6 +625,8 @@ case "$1" in
 			logger -st Skynet "[INFO] New Version Detected - Updating To $remotever... ... ..."
 			sed -i 's/RAW/INBOUND/g' "$location/skynet.log"		# Remove After Adjustment Period
 			sed -i 's/sleep 10; //g' /jffs/scripts/firewall-start		# Remove After Adjustment Period
+			nvram unset Blacklist		# Remove After Adjustment Period
+			nvram unset BlockedRanges		# Remove After Adjustment Period
 			Unload_Cron
 			/usr/sbin/wget "$remoteurl" -qO "$0" && logger -st Skynet "[INFO] Skynet Sucessfully Updated - Restarting Firewall"
 			iptables -t raw -F
