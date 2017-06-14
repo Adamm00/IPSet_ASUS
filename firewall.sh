@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 12/06/2017 -		   Asus Firewall Addition By Adamm v4.9.7				    #
+## - 14/06/2017 -		   Asus Firewall Addition By Adamm v4.9.8				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -45,7 +45,7 @@ if grep -F "Skynet" /jffs/scripts/firewall-start | grep -qF "usb"; then
 		sleep 10
 	done
 	if [ ! -d "$location" ]; then
-		logger -st Skynet "[ERROR] USB Not Found After 6 Retries - Please Fix Immediately!"
+		logger -st Skynet "[ERROR] USB Not Found After 6 Attempts - Please Fix Immediately!"
 		logger -st Skynet "[ERROR] When Fixed Run ( sh $0 debug restart )"
 		exit
 	fi
