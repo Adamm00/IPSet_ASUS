@@ -76,7 +76,7 @@ Here Are Some Example Deport Commands;
 "sh /jffs/scripts/firewall deport URL" This Unbans All IPs From URL
 
 Here Are Some Example Debug Commands;
-"sh /jffs/scripts/firewall debug restart" Restart Firewall Completely
+"sh /jffs/scripts/firewall debug restart" Restart Firewall
 "sh /jffs/scripts/firewall debug disable" Disable Raw Debugging
 "sh /jffs/scripts/firewall debug watch" Show Debug Entries As They Appear
 "sh /jffs/scripts/firewall debug info" Print Usefull Debug Info
