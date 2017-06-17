@@ -911,11 +911,11 @@ case "$1" in
 			echo
 			echo "USB Installation Selected"
 			echo "Compadible Devices To Install Are;"
-			mount | grep -E 'ext2|ext3|ext4' | awk '{print $3" - ("$1")"}'
+			mount | grep -E 'ext2|ext3|ext4|tfat' | awk '{print $3" - ("$1")"}'
 			echo
 			echo "Please Type Device Label - eg /tmp/mnt/Main"
 			read -r device
-			if ! mount | grep -E 'ext2|ext3|ext4' | awk '{print " "$3" "}' | grep -wq " $device "; then
+			if ! mount | grep -E 'ext2|ext3|ext4|tfat' | awk '{print " "$3" "}' | grep -wq " $device "; then
 				echo "Error - Input Not Recognised, Exiting Installation"
 				rm -rf /tmp/skynet.lock
 				exit
