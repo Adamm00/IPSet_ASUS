@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 17/06/2017 -		   Asus Firewall Addition By Adamm v4.9.9				    #
+## - 18/06/2017 -		   Asus Firewall Addition By Adamm v4.9.10				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -142,6 +142,7 @@ Unload_IPTables () {
 		iptables -D logdrop -p tcp --tcp-flags ALL ACK,PSH,FIN -j ACCEPT >/dev/null 2>&1
 		iptables -D logdrop -p icmp --icmp-type 3 -j ACCEPT >/dev/null 2>&1
 		iptables -D logdrop -p icmp --icmp-type 11 -j ACCEPT >/dev/null 2>&1
+		iptables -D SSHBFP "$pos5" -m recent --update --seconds 60 --hitcount 4 --name SSH --rsource -j SET --add-set Blacklist src >/dev/null 2>&1
 }
 
 Load_IPTables () {
@@ -164,6 +165,10 @@ Load_IPTables () {
 			iptables -I logdrop -p icmp --icmp-type 11 -j ACCEPT >/dev/null 2>&1
 			iptables -I logdrop -i "$iface" -p tcp -m multiport --sports 80,443,143,993,110,995,25,465 -m state --state INVALID -j DROP >/dev/null 2>&1
 			iptables -I logdrop -i "$iface" -m set --match-set Whitelist src -j ACCEPT >/dev/null 2>&1
+		fi
+		if [ "$(nvram get sshd_enable)" = "1" ] && [ "$(nvram get sshd_bfp)" = "1" ]; then
+			pos5="$(iptables --line -L SSHBFP | grep -F "seconds: 60 hit_count: 4" | grep -F "logdrop" | awk '{print $1}')"
+			iptables -I SSHBFP "$pos5" -m recent --update --seconds 60 --hitcount 4 --name SSH --rsource -j SET --add-set Blacklist src >/dev/null 2>&1
 		fi
 }
 
