@@ -830,10 +830,10 @@ case "$1" in
 		fi
 		echo "Installing Skynet $(Filter_Version "$0")"
 		echo "This Will Remove Any Old Install Arguements And Can Be Run Multiple Times"
-		echo "[1] Vanilla -           Default Installation"
-		echo "[2] NoAuto -            Default Installation Without Autobanning"
-		echo "[3] Debug -             Default Installation With Debug Print For Extended Stat Reporting"
-		echo "[4] NoAuto & Debug -    Default Installation With No Autobanning And Debug Print"
+		echo "[1] --> Vanilla -           Default Installation"
+		echo "[2] --> NoAuto -            Default Installation Without Autobanning"
+		echo "[3] --> Debug -             Default Installation With Debug Print For Extended Stat Reporting"
+		echo "[4] --> NoAuto & Debug -    Default Installation With No Autobanning And Debug Print"
 		echo
 		echo "Please Select Installation Mode"
 		printf "[1-4]: "
@@ -864,8 +864,8 @@ case "$1" in
 		echo
 		echo
 		echo "Would You Like To Enable Weekly Malwarelist Updating?"
-		echo "[1] Yes  - (Recommended)"
-		echo "[2] No"
+		echo "[1] --> Yes  - (Recommended)"
+		echo "[2] --> No"
 		echo
 		echo "Please Select Option"
 		printf "[1-2]: "
@@ -882,8 +882,8 @@ case "$1" in
 		echo
 		echo
 		echo "Would You Like To Enable Daily Skynet Updating?"
-		echo "[1] Yes  - (Recommended)"
-		echo "[2] No"
+		echo "[1] --> Yes  - (Recommended)"
+		echo "[2] --> No"
 		echo
 		echo "Please Select Option"
 		printf "[1-2]: "
@@ -900,8 +900,8 @@ case "$1" in
 		echo
 		echo
 		echo "Where Would You Like To Install Skynet?"
-		echo "[1] JFFS"
-		echo "[2] USB - (Recommended)"
+		echo "[1] --> JFFS"
+		echo "[2] --> USB - (Recommended)"
 		echo
 		echo "Please Select Option"
 		printf "[1-2]: "
