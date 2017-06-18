@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 18/06/2017 -		   Asus Firewall Addition By Adamm v4.9.10				    #
+## - 19/06/2017 -		   Asus Firewall Addition By Adamm v4.9.11				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -47,7 +47,7 @@ if grep -F "Skynet" /jffs/scripts/firewall-start | grep -qF "usb"; then
 	if [ ! -d "$location" ]; then
 		logger -st Skynet "[ERROR] USB Not Found After 10 Attempts - Please Fix Immediately!"
 		logger -st Skynet "[ERROR] When Fixed Run ( sh $0 debug restart )"
-		exit
+		exit 1
 	fi
 else
 	location="/jffs"
@@ -73,7 +73,7 @@ Kill_Lock () {
 Check_Lock () {
 		if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(cat /tmp/skynet.lock)" ]; then
 			logger -st Skynet "[INFO] Lock File Detected (pid=$(cat /tmp/skynet.lock)) - Exiting"
-			exit
+			exit 1
 		else
 			echo "$$" > /tmp/skynet.lock
 		fi
@@ -83,9 +83,9 @@ Check_Settings () {
 		if ! grep -qF "Skynet" /jffs/scripts/firewall-start; then
 			logger -st Skynet "[ERROR] Installation Not Detected - Please Use Install Command To Continue"
 			rm -rf /tmp/skynet.lock
-			exit
+			exit 1
 		fi
-		
+
 		conflicting_scripts="(IPSet_Block.sh|malware-filter|privacy-filter|ipBLOCKer.sh|ya-malware-block.sh|iblocklist-loader.sh)$"
 		if find /jffs /tmp/mnt | grep -qE "$conflicting_scripts"; then
 			logger -st Skynet "[ERROR] $(find /jffs /tmp/mnt | grep -E "$conflicting_scripts" | xargs) Detected - This Script Will Cause Conflicts! Please Uninstall It ASAP"
@@ -104,7 +104,7 @@ Check_Settings () {
 		if [ "$(ipset -v | grep -Fo v6)" != "v6" ]; then
 			logger -st Skynet "[ERROR] IPSet Version Not Supported"
 			rm -rf /tmp/skynet.lock
-			exit
+			exit 1
 		fi
 
 		if [ -d "/opt/bin" ] && [ ! -f "/opt/bin/firewall" ]; then
@@ -276,7 +276,7 @@ Logging () {
 		newips="$(sed -n '1p' /tmp/counter.txt)"
 		newranges="$(sed -n '2p' /tmp/counter.txt)"
 		if iptables -vL -nt raw | grep -Fv "LOG" | grep -qF "Blacklist src"; then
-			hits1="$(($(iptables -xvL -nt raw | grep -Fv "LOG" | grep -F "Blacklist src" | awk '{print $1}') + $(iptables -xvL -nt raw | grep -Fv "LOG" | grep -F "BlockedRanges src" | awk '{print $1}')))"	
+			hits1="$(($(iptables -xvL -nt raw | grep -Fv "LOG" | grep -F "Blacklist src" | awk '{print $1}') + $(iptables -xvL -nt raw | grep -Fv "LOG" | grep -F "BlockedRanges src" | awk '{print $1}')))"
 			hits2="$(($(iptables -xvL -nt raw | grep -Fv "LOG" | grep -F "Blacklist dst" | awk '{print $1}') + $(iptables -xvL -nt raw | grep -Fv "LOG" | grep -F "BlockedRanges dst" | awk '{print $1}')))"
 		fi
 		start_time="$(($(date +%s) - start_time))"
@@ -359,7 +359,7 @@ case "$1" in
 			true > "$location/skynet.log"
 		else
 			echo "Command Not Recognised, Please Try Again"
-			exit
+			exit 2
 		fi
 		echo "Saving Changes"
 		ipset --save > "$location/scripts/ipset.txt"
@@ -413,7 +413,7 @@ case "$1" in
 			rm -rf /tmp/countrylist.txt
 		else
 			echo "Command Not Recognised, Please Try Again"
-			exit
+			exit 2
 		fi
 		echo "Saving Changes"
 		ipset --save > "$location/scripts/ipset.txt"
@@ -427,7 +427,7 @@ case "$1" in
 			echo "For Custom Filter Importing Use; ( sh $0 banmalware URL )"
 			listurl="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/filter.list"
 		fi
-		curl -s --connect-timeout 5 "$listurl" | grep -qF "http" || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Banmalware" ; exit; }
+		curl -s --connect-timeout 5 "$listurl" | grep -qF "http" || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Banmalware" ; exit 1; }
 		Check_Lock
 		if [ -f "$location/scripts/malwarelist.txt" ]; then
 			echo "Removing Previous Malware Bans"
@@ -501,10 +501,10 @@ case "$1" in
 			ipset --save > "$location/scripts/ipset.txt"
 			echo "Restarting Firewall"
 			service restart_firewall
-			exit
+			exit 0
 		else
 			echo "Command Not Recognised, Please Try Again"
-			exit
+			exit 2
 		fi
 		echo "Saving Changes"
 		ipset --save > "$location/scripts/ipset.txt"
@@ -518,7 +518,7 @@ case "$1" in
 			/usr/sbin/wget "$2" --no-check-certificate -qO /tmp/iplist-unfiltered.txt
 		elif [ -z "$2" ]; then
 			echo "No List URL Specified - Exiting"
-			exit
+			exit 2
 		fi
 		echo "Filtering IPv4 Addresses"
 		grep -woE '([0-9]{1,3}\.){3}[0-9]{1,3}' /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk '{print "add Blacklist " $1}' > /tmp/iplist-filtered.txt
@@ -540,7 +540,7 @@ case "$1" in
 			/usr/sbin/wget "$2" --no-check-certificate -qO /tmp/iplist-unfiltered.txt
 		elif [ -z "$2" ]; then
 			echo "No List URL Specified - Exiting"
-			exit
+			exit 2
 		fi
 		echo "Filtering IPv4 Addresses"
 		grep -woE '([0-9]{1,3}\.){3}[0-9]{1,3}' /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk '{print "del Blacklist " $1}' > /tmp/iplist-filtered.txt
@@ -601,7 +601,7 @@ case "$1" in
 		Purge_Logs
 		Unload_Cron
 		Kill_Lock
-		exit
+		exit 0
 	;;
 
 	update)
@@ -613,10 +613,10 @@ case "$1" in
 			echo "To Use Only Check For Update Use; ( sh $0 update check )"
 			echo "To Force Update Use; ( sh $0 update -f )"
 			logger -st Skynet "[INFO] Skynet Up To Date - $localver"
-			exit
+			exit 0
 		elif [ "$localver" != "$remotever" ] && [ "$2" = "check" ]; then
 			logger -st Skynet "[INFO] Skynet Update Detected - $remotever"
-			exit
+			exit 0
 		elif [ "$2" = "-f" ]; then
 			logger -st Skynet "[INFO] Forcing Update"
 		fi
@@ -628,7 +628,7 @@ case "$1" in
 			iptables -t raw -F
 			rm -rf /tmp/skynet.lock
 			service restart_firewall
-			exit
+			exit 0
 		fi
 		;;
 
@@ -645,7 +645,7 @@ case "$1" in
 				echo "Restarting Firewall Service"
 				iptables -t raw -F
 				service restart_firewall
-				exit
+				exit 0
 			;;
 			disable)
 				logger -st Skynet "[INFO] Temporarily Disabling Debug Output ... ... ..."
@@ -700,13 +700,13 @@ case "$1" in
 			echo "Debug Data Detected in $location/skynet.log - $(du -h $location/skynet.log | awk '{print $1}')"
 		else
 			echo "No Debug Data Detected - Give This Time To Generate"
-			exit
+			exit 0
 		fi
 		if [ "$2" = "reset" ]; then
 			sed -i '/Manual /!d' "$location/skynet.log"
 			iptables -Z PREROUTING -t raw
 			echo "Stat Data Reset"
-			exit
+			exit 0
 		fi
 		echo "Monitoring From $(head -1 $location/skynet.log | awk '{print $1" "$2" "$3}') To $(tail -1 $location/skynet.log | awk '{print $1" "$2" "$3}')"
 		echo "$(wc -l $location/skynet.log | awk '{print $1}') Total Events Detected"
@@ -743,7 +743,7 @@ case "$1" in
 			echo
 			echo "$counter Most Recent Blocks On Port $4;";
 			grep -F "PT=$4 " "$location/skynet.log" | tail -"$counter"
-			exit
+			exit 0
 		elif [ "$2" = "search" ] && [ "$3" = "ip" ] && [ -n "$4" ]; then
 			ipset test Whitelist "$4"
 			ipset test Blacklist "$4"
@@ -758,7 +758,7 @@ case "$1" in
 			echo
 			echo "$counter Most Recent Blocks From $4;"
 			grep -F "=$4 " "$location/skynet.log" | tail -"$counter"
-			exit
+			exit 0
 		elif [ "$2" = "search" ] && [ "$3" = "malware" ] && [ -n "$4" ]; then
 			/usr/sbin/wget https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/filter.list -qO- | while IFS= read -r url; do
 				/usr/sbin/wget "$url" -qO /tmp/malwarelist.txt
@@ -767,7 +767,7 @@ case "$1" in
 			done
 			rm -rf /tmp/malwarelist.txt
 			Logging
-			exit
+			exit 0
 		elif [ "$2" = "search" ] && [ "$3" = "autobans" ]; then
 			echo "First Autoban Issued On $(grep -F "NEW BAN" $location/skynet.log | head -1 | awk '{print $1" "$2" "$3}')"
 			echo "Last Autoban Issued On $(grep -F "NEW BAN" $location/skynet.log | tail -1 | awk '{print $1" "$2" "$3}')"
@@ -777,7 +777,7 @@ case "$1" in
 			echo
 			echo "$counter Most Recent Autobans;"
 			grep -F "NEW BAN" "$location/skynet.log" | tail -"$counter"
-			exit
+			exit 0
 		elif [ "$2" = "search" ] && [ "$3" = "manualbans" ]; then
 			echo "First Manual Ban Issued On $(grep -F "Manual Ban" $location/skynet.log | head -1 | awk '{print $1" "$2" "$3}')"
 			echo "Last Manual Ban Issued On $(grep -F "Manual Ban" $location/skynet.log | tail -1 | awk '{print $1" "$2" "$3}')"
@@ -787,7 +787,7 @@ case "$1" in
 			echo
 			echo "$counter Most Recent Manual Bans;"
 			grep -F "Manual Ban" "$location/skynet.log" | tail -"$counter"
-			exit
+			exit 0
 		fi
 		echo "Top $counter Targeted Ports (Inbound); (Torrent Clients May Cause Excess Hits In Debug Mode)"
 		grep -F "INBOUND" "$location/skynet.log" | grep -F "$proto" | grep -oE 'DPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://www.speedguide.net/port.php?port="$2}'
@@ -830,12 +830,13 @@ case "$1" in
 		fi
 		echo "Installing Skynet $(Filter_Version "$0")"
 		echo "This Will Remove Any Old Install Arguements And Can Be Run Multiple Times"
-		echo "Please Select Installation Mode (Number)"
-		echo "1. Vanilla -           Default Installation"
-		echo "2. NoAuto -            Default Installation Without Autobanning"
-		echo "3. Debug -             Default Installation With Debug Print For Extended Stat Reporting"
-		echo "4. NoAuto & Debug -    Default Installation With No Autobanning And Debug Print"
+		echo "[1] Vanilla -           Default Installation"
+		echo "[2] NoAuto -            Default Installation Without Autobanning"
+		echo "[3] Debug -             Default Installation With Debug Print For Extended Stat Reporting"
+		echo "[4] NoAuto & Debug -    Default Installation With No Autobanning And Debug Print"
 		echo
+		echo "Please Select Installation Mode"
+		printf "[1-4]: "
 		read -r mode
 		case "$mode" in
 			1)
@@ -857,19 +858,21 @@ case "$1" in
 			*)
 			echo "Mode Not Recognised - Please Run The Command And Try Again"
 			rm -rf /tmp/skynet.lock
-			exit
+			exit 2
 			;;
 		esac
 		echo
+		echo
 		echo "Would You Like To Enable Weekly Malwarelist Updating?"
-		echo "1. Yes"
-		echo "2. No"
-		echo "Please Select Option (Number)"
+		echo "[1] Yes  - (Recommended)"
+		echo "[2] No"
+		echo
+		echo "Please Select Option"
+		printf "[1-2]: "
 		read -r mode2
 		case "$mode2" in
 			1)
-			echo "Malware List Updating Enabled"
-			echo "Malware Updates Scheduled For 1.25am Every Monday"
+			echo "Malware List Updating Enabled & Scheduled For 1.25am Every Monday"
 			set2="banmalware"
 			;;
 			*)
@@ -877,17 +880,17 @@ case "$1" in
 			;;
 		esac
 		echo
-		echo "Would You Like To Enable Daily Auto Script Updating?"
-		echo "Skynet By Default Only Checks For Updates But They Are Never Downloaded"
 		echo
-		echo "1. Yes"
-		echo "2. No"
-		echo "Please Select Option (Number)"
+		echo "Would You Like To Enable Daily Skynet Updating?"
+		echo "[1] Yes  - (Recommended)"
+		echo "[2] No"
+		echo
+		echo "Please Select Option"
+		printf "[1-2]: "
 		read -r mode3
 		case "$mode3" in
 			1)
-			echo "Auto Updating Enabled"
-			echo "Skynet Updates Scheduled For 2.25am Daily"
+			echo "Skynet Updating Enabled & Scheduled For 2.25am Daily"
 			set3="autoupdate"
 			;;
 			*)
@@ -895,34 +898,57 @@ case "$1" in
 			;;
 		esac
 		echo
-		echo "Where Would You Like To Install Skynet?"
-		echo "Skynet By Default Is Installed To JFFS"
 		echo
-		echo "1. JFFS"
-		echo "2. USB"
-		echo "Please Select Option (Number)"
+		echo "Where Would You Like To Install Skynet?"
+		echo "[1] JFFS"
+		echo "[2] USB - (Recommended)"
+		echo
+		echo "Please Select Option"
+		printf "[1-2]: "
 		read -r mode4
 		case "$mode4" in
 			2)
 			echo
 			echo "USB Installation Selected"
-			echo "Compadible Devices To Install Are;"
-			mount | grep -E 'ext2|ext3|ext4|tfat|exfat' | awk '{print $3" - ("$1")"}'
-			echo
-			echo "Please Type Device Label - eg /tmp/mnt/Main"
-			read -r device
-			if ! mount | grep -E 'ext2|ext3|ext4|tfat|exfat' | awk '{print " "$3" "}' | grep -wq " $device "; then
-				echo "Error - Input Not Recognised, Exiting Installation"
+			echo "Looking For Available Partitions..."
+			i=1
+			IFS="
+			"
+			for mounted in $(/bin/mount | grep -E "ext2|ext3|ext4|tfat|exfat" | awk '{print $3" - ("$1")"}') ; do
+				echo "[$i] --> $mounted"
+				eval mounts$i="$(echo "$mounted" | awk '{print $1}')"
+				i=$((i + 1))
+			done
+			unset IFS
+			if [ $i = "1" ] ; then
+				echo "No Compadible Partitions Available. Exiting..."
 				rm -rf /tmp/skynet.lock
-				exit
+				exit 1
 			fi
+			echo
+			echo "Please Enter Partition Number Or 0 To Exit"
+			printf "[0-%s]: " "$((i - 1))"
+			read -r partitionNumber
+			if [ "$partitionNumber" = "0" ] ; then
+				echo "Exiting..."
+				rm -rf /tmp/skynet.lock
+				exit 0
+			fi
+			if [ "$partitionNumber" -gt $((i - 1)) ] ; then
+				echo "Invalid Partition Number! Exiting..."
+				rm -rf /tmp/skynet.lock
+				exit 2
+			fi
+			device=""
+			eval device=\$mounts"$partitionNumber"
+			echo "$device Selected."
 			mkdir -p "${device}/skynet"
 			mkdir -p "${device}/skynet/scripts"
 			touch "${device}/skynet/rwtest"
 			if [ ! -w "${device}/skynet/rwtest" ]; then
 				echo "Writing To $device Failed - Exiting Installation"
 				rm -rf /tmp/skynet.lock
-				exit
+				exit 1
 			else
 				rm -rf "${device}/skynet/rwtest"
 			fi
@@ -948,12 +974,12 @@ case "$1" in
 		esac
 		chmod +x /jffs/scripts/firewall-start
 		echo
-		echo "Restarting Firewall To Apply Changes"
+		echo "Restarting Firewall To Complete Installation"
 		Unload_Cron
 		rm -rf /tmp/skynet.lock
 		iptables -t raw -F
 		service restart_firewall
-		exit
+		exit 0
 		;;
 
 	uninstall)
@@ -972,7 +998,7 @@ case "$1" in
 			rm -rf "$location/scripts/ipset.txt" "$location/scripts/malwarelist.txt" "$location/scripts/countrylist.txt" "$location/skynet.log" "/jffs/scripts/firewall"
 			iptables -t raw -F
 			service restart_firewall
-			exit
+			exit 0
 		fi
 		;;
 
