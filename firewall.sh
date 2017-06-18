@@ -169,6 +169,7 @@ Load_IPTables () {
 		if [ "$(nvram get sshd_enable)" = "1" ] && [ "$(nvram get sshd_bfp)" = "1" ]; then
 			pos5="$(iptables --line -L SSHBFP | grep -F "seconds: 60 hit_count: 4" | grep -F "logdrop" | awk '{print $1}')"
 			iptables -I SSHBFP "$pos5" -m recent --update --seconds 60 --hitcount 4 --name SSH --rsource -j SET --add-set Blacklist src >/dev/null 2>&1
+			iptables -I SSHBFP "$pos5" -m recent --update --seconds 60 --hitcount 4 --name SSH --rsource -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
 		fi
 }
 
@@ -198,10 +199,6 @@ Unload_Cron () {
 		cru d Skynet_banmalware
 		cru d Skynet_autoupdate
 		cru d Skynet_checkupdate
-		cru d Firewall_save		# Remove After Adjustment Period
-		cru d Firewall_banmalware		# Remove After Adjustment Period
-		cru d Firewall_autoupdate		# Remove After Adjustment Period
-		cru d Firewall_checkupdate		# Remove After Adjustment Period
 }
 
 Is_IP () {
@@ -251,14 +248,12 @@ Unban_PrivateIP () {
 
 Purge_Logs () {
 		if ! grep -F "Skynet" /jffs/scripts/firewall-start | grep -qF "usb" && [ "$(du $location/skynet.log | awk '{print $1}')" -ge "7000" ]; then
-			sed -i '/BLOCKED - RAW/d' "$location/skynet.log"		# Remove After Adjustment Period
 			sed -i '/BLOCKED - INBOUND/d' "$location/skynet.log"
 			sed -i '/BLOCKED - OUTBOUND/d' "$location/skynet.log"
 			if [ "$(du $location/skynet.log | awk '{print $1}')" -ge "3000" ]; then
 				true > "$location/skynet.log"
 			fi
 		elif grep -F "Skynet" /jffs/scripts/firewall-start | grep -qF "usb" && [ "$(du $location/skynet.log | awk '{print $1}')" -ge "21000" ]; then
-			sed -i '/BLOCKED - RAW/d' "$location/skynet.log"		# Remove After Adjustment Period
 			sed -i '/BLOCKED - INBOUND/d' "$location/skynet.log"
 			sed -i '/BLOCKED - OUTBOUND/d' "$location/skynet.log"
 			if [ "$(du $location/skynet.log | awk '{print $1}')" -ge "9000" ]; then
@@ -628,10 +623,6 @@ case "$1" in
 		if [ "$localver" != "$remotever" ] || [ "$2" = "-f" ]; then
 			Check_Lock
 			logger -st Skynet "[INFO] New Version Detected - Updating To $remotever... ... ..."
-			sed -i 's/RAW/INBOUND/g' "$location/skynet.log"		# Remove After Adjustment Period
-			sed -i 's/sleep 10; //g' /jffs/scripts/firewall-start		# Remove After Adjustment Period
-			nvram unset Blacklist		# Remove After Adjustment Period
-			nvram unset BlockedRanges		# Remove After Adjustment Period
 			Unload_Cron
 			/usr/sbin/wget "$remoteurl" -qO "$0" && logger -st Skynet "[INFO] Skynet Sucessfully Updated - Restarting Firewall"
 			iptables -t raw -F
