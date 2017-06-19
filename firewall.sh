@@ -36,18 +36,32 @@ head -34 "$0"
 start_time="$(date +%s)"
 export LC_ALL=C
 
+Check_Lock () {
+		if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(cat /tmp/skynet.lock)" ]; then
+			logger -st Skynet "[INFO] Lock File Detected (pid=$(cat /tmp/skynet.lock)) - Exiting"
+			exit 1
+		else
+			echo "$$" > /tmp/skynet.lock
+		fi
+}
+
 if grep -F "Skynet" /jffs/scripts/firewall-start | grep -qF "usb"; then
 	location="$(grep -ow "usb=.*" /jffs/scripts/firewall-start | awk '{print $1}' | cut -c 5-)/skynet"
-	retry=1
-	while [ ! -d "$location" ] && [ "$retry" -lt "11" ] &&  ! echo "$@" | grep -wqE "(install|uninstall|disable|update|debug)"; do
-		logger -st Skynet "[INFO] USB Not Found - Sleeping For 10 Seconds ( Attempt #$retry )"
-		retry=$((retry+1))
-		sleep 10
-	done
 	if [ ! -d "$location" ]; then
-		logger -st Skynet "[ERROR] USB Not Found After 10 Attempts - Please Fix Immediately!"
-		logger -st Skynet "[ERROR] When Fixed Run ( sh $0 debug restart )"
-		exit 1
+		Check_Lock
+		retry=1
+		while [ ! -d "$location" ] && [ "$retry" -lt "11" ] &&  ! echo "$@" | grep -wqE "(install|uninstall|disable|update|restart|info)"; do
+			logger -st Skynet "[INFO] USB Not Found - Sleeping For 10 Seconds ( Attempt #$retry )"
+			retry=$((retry+1))
+			sleep 10
+		done
+		if [ ! -d "$location" ] &&  ! echo "$@" | grep -wqE "(install|uninstall|disable|update|restart|info)"; then
+			logger -st Skynet "[ERROR] USB Not Found After 10 Attempts - Please Fix Immediately!"
+			logger -st Skynet "[ERROR] When Fixed Run ( sh $0 debug restart )"
+			rm -rf /tmp/skynet.lock
+			exit 1
+		fi
+		rm -rf /tmp/skynet.lock
 	fi
 else
 	location="/jffs"
@@ -67,15 +81,6 @@ Kill_Lock () {
 			logger -st Skynet "[INFO] $(ps | awk -v pid="$(cat /tmp/skynet.lock)" '$1 == pid')"
 			kill "$(cat /tmp/skynet.lock)"
 			rm -rf /tmp/skynet.lock
-		fi
-}
-
-Check_Lock () {
-		if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(cat /tmp/skynet.lock)" ]; then
-			logger -st Skynet "[INFO] Lock File Detected (pid=$(cat /tmp/skynet.lock)) - Exiting"
-			exit 1
-		else
-			echo "$$" > /tmp/skynet.lock
 		fi
 }
 
