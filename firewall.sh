@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 19/06/2017 -		   Asus Firewall Addition By Adamm v4.9.11				    #
+## - 20/06/2017 -		   Asus Firewall Addition By Adamm v4.9.12				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -167,7 +167,7 @@ Load_IPTables () {
 			iptables -I logdrop -i "$iface" -m set --match-set Whitelist src -j ACCEPT >/dev/null 2>&1
 		fi
 		if [ "$(nvram get sshd_enable)" = "1" ] && [ "$(nvram get sshd_bfp)" = "1" ]; then
-			pos5="$(iptables --line -L SSHBFP | grep -F "seconds: 60 hit_count: 4" | grep -F "logdrop" | awk '{print $1}')"
+			pos5="$(iptables --line -nL SSHBFP | grep -F "seconds: 60 hit_count: 4" | grep -F "logdrop" | awk '{print $1}')"
 			iptables -I SSHBFP "$pos5" -m recent --update --seconds 60 --hitcount 4 --name SSH --rsource -j SET --add-set Blacklist src >/dev/null 2>&1
 			iptables -I SSHBFP "$pos5" -m recent --update --seconds 60 --hitcount 4 --name SSH --rsource -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
 		fi
@@ -183,13 +183,13 @@ Unload_DebugIPTables () {
 
 Load_DebugIPTables () {
 		if echo "$@" | grep -qF "debug"; then
-			pos1="$(iptables --line -L PREROUTING -nt raw | grep -F "BlockedRanges src" | grep -F "DROP" | awk '{print $1}')"
+			pos1="$(iptables --line -nL PREROUTING -t raw | grep -F "BlockedRanges src" | grep -F "DROP" | awk '{print $1}')"
 			iptables -t raw -I PREROUTING "$pos1" -i "$iface" -m set --match-set BlockedRanges src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
-			pos2="$(iptables --line -L PREROUTING -nt raw | grep -F "Blacklist src" | grep -F "DROP" | awk '{print $1}')"
+			pos2="$(iptables --line -nL PREROUTING -t raw | grep -F "Blacklist src" | grep -F "DROP" | awk '{print $1}')"
 			iptables -t raw -I PREROUTING "$pos2" -i "$iface" -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
-			pos3="$(iptables --line -L PREROUTING -nt raw | grep -F "BlockedRanges dst" | grep -F "DROP" | awk '{print $1}')"
+			pos3="$(iptables --line -nL PREROUTING -t raw | grep -F "BlockedRanges dst" | grep -F "DROP" | awk '{print $1}')"
 			iptables -t raw -I PREROUTING "$pos3" -i br0 -m set --match-set BlockedRanges dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
-			pos4="$(iptables --line -L PREROUTING -nt raw | grep -F "Blacklist dst" | grep -F "DROP" | awk '{print $1}')"
+			pos4="$(iptables --line -nL PREROUTING -t raw | grep -F "Blacklist dst" | grep -F "DROP" | awk '{print $1}')"
 			iptables -t raw -I PREROUTING "$pos4" -i br0 -m set --match-set Blacklist dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
 		fi
 }
@@ -275,9 +275,9 @@ Logging () {
 		grep -Foc "d Block" "$location/scripts/ipset.txt" 2> /dev/null >> /tmp/counter.txt
 		newips="$(sed -n '1p' /tmp/counter.txt)"
 		newranges="$(sed -n '2p' /tmp/counter.txt)"
-		if iptables -vL -nt raw | grep -Fv "LOG" | grep -qF "Blacklist src"; then
-			hits1="$(($(iptables -xvL -nt raw | grep -Fv "LOG" | grep -F "Blacklist src" | awk '{print $1}') + $(iptables -xvL -nt raw | grep -Fv "LOG" | grep -F "BlockedRanges src" | awk '{print $1}')))"
-			hits2="$(($(iptables -xvL -nt raw | grep -Fv "LOG" | grep -F "Blacklist dst" | awk '{print $1}') + $(iptables -xvL -nt raw | grep -Fv "LOG" | grep -F "BlockedRanges dst" | awk '{print $1}')))"
+		if iptables -nvL -t raw | grep -Fv "LOG" | grep -qF "Blacklist src"; then
+			hits1="$(($(iptables -xnvL -t raw | grep -Fv "LOG" | grep -F "Blacklist src" | awk '{print $1}') + $(iptables -xnvL -t raw | grep -Fv "LOG" | grep -F "BlockedRanges src" | awk '{print $1}')))"
+			hits2="$(($(iptables -xnvL -t raw | grep -Fv "LOG" | grep -F "Blacklist dst" | awk '{print $1}') + $(iptables -xnvL -t raw | grep -Fv "LOG" | grep -F "BlockedRanges dst" | awk '{print $1}')))"
 		fi
 		start_time="$(($(date +%s) - start_time))"
 		logger -st Skynet "[Complete] $newips IPs / $newranges Ranges Banned. $((newips - oldips)) New IPs / $((newranges - oldranges)) New Ranges Banned. $hits1 Inbound / $hits2 Outbound Connections Blocked! [${start_time}s]"
@@ -662,8 +662,8 @@ case "$1" in
 				tail -f /tmp/syslog.log | grep -F "BLOCKED"
 			;;
 			info)
-				RED="printf \e[0;31m%-6s\e[m\n"
-				GRN="printf \e[0;32m%-6s\e[m\n"
+				red="printf \e[5;31m%s\e[0m\n"
+				grn="printf \e[1;32m%s\e[0m\n"
 				echo "Router Model: $(uname -n)"
 				echo "Skynet Version: $(Filter_Version "$0") ($(Filter_Date "$0"))"
 				echo "$(iptables --version) - ($iface)"
@@ -671,19 +671,19 @@ case "$1" in
 				echo "FW Version: $(nvram get buildno)_$(nvram get extendno) ($(uname -v | awk '{print $5" "$6" "$9}'))"
 				echo "Install Dir; $location ($(df -h $location | xargs | awk '{print $9}') Space Available)"
 				echo "Boot Args; $(grep -F "Skynet" /jffs/scripts/firewall-start | cut -c 4- | cut -d '#' -f1)"
-				if [ -w "$location" ]; then $GRN "Install Dir Writeable"; else $RED "Can't Write To Install Dir"; fi
-				if grep -qF "Skynet" /jffs/scripts/firewall-start; then $GRN "Startup Entry Detected"; else $RED "Startup Entry Not Detected"; fi
-				if cru l | grep -qF "Skynet"; then $GRN "Cronjobs Detected"; else $RED "Cronjobs Not Detected"; fi
-				if iptables -L | grep -F "LOG" | grep -qF "NEW BAN"; then $GRN "Autobanning Enabled"; else $RED "Autobanning Disabled"; fi
-				if iptables -L -nt raw | grep -F "LOG" | grep -qF "match-set Blacklist "; then $GRN "Debug Mode Enabled"; else $RED "Debug Mode Disabled"; fi
-				if [ ! "$(iptables-save -t raw | sort | uniq -d | grep -c " ")" -ge "1" ]; then $GRN "No Duplicate Rules Detected In RAW"; else $RED "Duplicate Rules Detected In RAW"; fi
-				if [ ! "$(iptables-save -t filter | sort | uniq -d | grep -c " ")" -ge "1" ]; then $GRN "No Duplicate Rules Detected In FILTER"; else $RED "Duplicate Rules Detected In FILTER"; fi
-				if iptables -L -nt raw | grep -qF "match-set Whitelist "; then $GRN "Whitelist IPTable Detected"; else $RED "Whitelist IPTable Not Detected"; fi
-				if iptables -L -nt raw | grep -v "LOG" | grep -qF "match-set BlockedRanges "; then $GRN "BlockedRanges IPTable Detected"; else $RED "BlockedRanges IPTable Not Detected"; fi
-				if iptables -L -nt raw | grep -v "LOG" | grep -qF "match-set Blacklist "; then $GRN "Blacklist IPTable Detected"; else $RED "Blacklist IPTable Not Detected"; fi
-				if ipset -L -n Whitelist >/dev/null 2>&1; then $GRN "Whitelist IPSet Detected"; else $RED "Whitelist IPSet Not Detected"; fi
-				if ipset -L -n BlockedRanges >/dev/null 2>&1; then $GRN "BlockedRanges IPSet Detected"; else $RED "BlockedRanges IPSet Not Detected"; fi
-				if ipset -L -n Blacklist >/dev/null 2>&1; then $GRN "Blacklist IPSet Detected"; else $RED "Blacklist IPSet Not Detected"; fi
+				if [ -w "$location" ]; then $grn "Install Dir Writeable"; else $red "Can't Write To Install Dir"; fi
+				if grep -qF "Skynet" /jffs/scripts/firewall-start; then $grn "Startup Entry Detected"; else $red "Startup Entry Not Detected"; fi
+				if cru l | grep -qF "Skynet"; then $grn "Cronjobs Detected"; else $red "Cronjobs Not Detected"; fi
+				if iptables -nL | grep -F "LOG" | grep -qF "NEW BAN"; then $grn "Autobanning Enabled"; else $red "Autobanning Disabled"; fi
+				if iptables -nL -t raw | grep -F "LOG" | grep -qF "match-set Blacklist "; then $grn "Debug Mode Enabled"; else $red "Debug Mode Disabled"; fi
+				if [ ! "$(iptables-save -t raw | sort | uniq -d | grep -c " ")" -ge "1" ]; then $grn "No Duplicate Rules Detected In RAW"; else $red "Duplicate Rules Detected In RAW"; fi
+				if [ ! "$(iptables-save -t filter | sort | uniq -d | grep -c " ")" -ge "1" ]; then $grn "No Duplicate Rules Detected In FILTER"; else $red "Duplicate Rules Detected In FILTER"; fi
+				if iptables -nL -t raw | grep -qF "match-set Whitelist "; then $grn "Whitelist IPTable Detected"; else $red "Whitelist IPTable Not Detected"; fi
+				if iptables -nL -t raw | grep -v "LOG" | grep -qF "match-set BlockedRanges "; then $grn "BlockedRanges IPTable Detected"; else $red "BlockedRanges IPTable Not Detected"; fi
+				if iptables -nL -t raw | grep -v "LOG" | grep -qF "match-set Blacklist "; then $grn "Blacklist IPTable Detected"; else $red "Blacklist IPTable Not Detected"; fi
+				if ipset -L -n Whitelist >/dev/null 2>&1; then $grn "Whitelist IPSet Detected"; else $red "Whitelist IPSet Not Detected"; fi
+				if ipset -L -n BlockedRanges >/dev/null 2>&1; then $grn "BlockedRanges IPSet Detected"; else $red "BlockedRanges IPSet Not Detected"; fi
+				if ipset -L -n Blacklist >/dev/null 2>&1; then $grn "Blacklist IPSet Detected"; else $red "Blacklist IPSet Not Detected"; fi
 			;;
 
 		*)
@@ -693,7 +693,7 @@ case "$1" in
 
 	stats)
 		Purge_Logs
-		if ! iptables -L -nt raw | grep -qF "LOG"; then
+		if ! iptables -nL -t raw | grep -qF "LOG"; then
 			echo
 			echo "!!! Debug Mode Is Disabled !!!"
 			echo "To Enable Use ( sh $0 install )"
