@@ -34,17 +34,9 @@
 
 head -34 "$0"
 export LC_ALL=C
-if echo "$@" | grep -wq start; then
-	attempts=1
-	while [ "$(nvram get ntp_ready)" != "1" ] && [ "$attempts" -le "5" ]; do
-		ntpclient -h "$(nvram get ntp_server0)" -s >/dev/null 2>&1
-		if [ "$(nvram get ntp_ready)" = "1" ]; then
-			logger -st Skynet "[INFO] NTP update succeeded after $attempts attempt(s)"
-		else
-			attempts=$((attempts+1))
-		fi
-	done
-fi
+while [ "$(nvram get ntp_ready)" = "0" ]; do
+	sleep 2
+done
 start_time="$(date +%s)"
 
 Check_Lock () {
