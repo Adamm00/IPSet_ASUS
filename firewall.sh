@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 20/06/2017 -		   Asus Firewall Addition By Adamm v4.9.12				    #
+## - 23/06/2017 -		   Asus Firewall Addition By Adamm v4.9.13				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -33,8 +33,19 @@
 ##############################
 
 head -34 "$0"
-start_time="$(date +%s)"
 export LC_ALL=C
+if echo "$@" | grep -wq start; then
+	attempts=1
+	while [ "$(nvram get ntp_ready)" != "1" ] && [ "$attempts" -le "5" ]; do
+		ntpclient -h "$(nvram get ntp_server0)" -s >/dev/null 2>&1
+		if [ "$(nvram get ntp_ready)" = "1" ]; then
+			logger -st Skynet "[INFO] NTP update succeeded after $attempts attempt(s)"
+		else
+			attempts=$((attempts+1))
+		fi
+	done
+fi
+start_time="$(date +%s)"
 
 Check_Lock () {
 		if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(cat /tmp/skynet.lock)" ]; then
@@ -265,8 +276,6 @@ Purge_Logs () {
 				true > "$location/skynet.log"
 			fi
 		fi
-		sed -i '/Aug  1 1/d' /tmp/syslog.log-1 >/dev/null 2>&1
-		sed -i '/Aug  1 1/d' /tmp/syslog.log >/dev/null 2>&1
 		sed '/BLOCKED -/!d' /tmp/syslog.log-1 >/dev/null 2>&1 >> "$location/skynet.log"
 		sed -i '/BLOCKED -/d' /tmp/syslog.log-1 >/dev/null 2>&1
 		sed '/BLOCKED -/!d' /tmp/syslog.log >/dev/null 2>&1 >> "$location/skynet.log"
@@ -569,11 +578,10 @@ case "$1" in
 
 	start)
 		Check_Lock
+		logger -st Skynet "[INFO] Startup Initiated..."
 		Unload_Cron
 		Check_Settings "$@"
 		cru a Skynet_save "0 * * * * sh /jffs/scripts/firewall save"
-		sed -i '/Startup Initiated/d' /tmp/syslog.log
-		logger -st Skynet "[INFO] Startup Initiated..."
 		modprobe xt_set
 		ipset restore -! -f "$location/scripts/ipset.txt"
 		Unban_PrivateIP
