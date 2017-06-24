@@ -9,13 +9,13 @@ This script is an extra line of defense from malicious attackers (mostly bots) w
 
 sh /jffs/scripts/firewall *commandhere*
 
-    "unban"        # <-- Remove Entry From Blacklist (IP/Range/Domain/Port/Country/Malware/All)   
+    "unban"        # <-- Remove Entry From Blacklist (IP/Range/Domain/Port/Country/Malware/Autobans/Nomanual/All)   
     "ban"          # <-- Adds Entry To Blacklist (IP/Range/Domain/Port/Country)     
     "banmalware"   # <-- Bans Various Malware Domains  
     "whitelist"    # <-- Add Entry To Whitelist (IP/Range/Domain/Port/Remove)  
     "import"       # <-- Bans All IPs From URL  
     "deport"       # <-- Unbans All IPs From URL
-    "save"         # <-- Save Blacklists To /jffs/scripts/ipset.txt
+    "save"         # <-- Save Blacklists To ipset.txt
     "start"        # <-- Initiate Firewall
     "disable"      # <-- Disable Firewall
     "update"       # <-- Update Script To Latest Version (check github for changes)
@@ -47,6 +47,8 @@ Here Are Some Example Unban Commands;
 "sh /jffs/scripts/firewall unban port 23" This Unbans All Autobans Based On Traffic From Port 23
 "sh /jffs/scripts/firewall unban country" This Unbans Entries Added By The "Ban Country" Feature
 "sh /jffs/scripts/firewall unban malware" This Unbans Entries Added By The "Ban Malware" Feature
+"sh /jffs/scripts/firewall unban autobans" This Unbans All Autobans
+"sh /jffs/scripts/firewall unban nomanual" This Unbans Everything But Manual Bans
 "sh /jffs/scripts/firewall unban all" This Unbans All Entries From Both Blacklists
 
 Here Are Some Example Ban Commands;

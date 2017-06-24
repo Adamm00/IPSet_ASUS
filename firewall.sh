@@ -17,7 +17,7 @@
 ##############################
 ###	  Commands	   ###
 ##############################
-#	  "unban"	     # <-- Remove Entry From Blacklist (IP/Range/Domain/Port/Country/Malware/Nomanual/All)
+#	  "unban"	     # <-- Remove Entry From Blacklist (IP/Range/Domain/Port/Country/Malware/Autobans/Nomanual/All)
 #	  "ban"		     # <-- Adds Entry To Blacklist (IP/Range/Domain/Port/Country)
 #	  "banmalware"	     # <-- Bans Various Malware Domains
 #	  "whitelist"        # <-- Add Entry To Whitelist (IP/Range/Domain/Port/Remove)
@@ -345,6 +345,12 @@ case "$1" in
 			echo "Removing Previous Malware Bans"
 			sed 's/add/del/g' "$location/scripts/malwarelist.txt" | ipset restore -!
 			rm -rf "$location/scripts/malwarelist.txt"
+		elif [ "$2" = "autobans" ]; then
+			grep -F "NEW" "$location/skynet.log" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | while IFS= read -r ip; do
+				echo "Unbanning $ip"
+				ipset -D Blacklist "$ip"
+				sed -i "\~$ip~d" "$location/skynet.log"
+			done
 		elif [ "$2" = "nomanual" ]; then
 			sed -i '/Manual /!d' "$location/skynet.log"
 			ipset flush Blacklist
