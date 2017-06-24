@@ -9,7 +9,7 @@
 #			                   __/ |                             				    #
 # 			                  |___/                               				    #
 #													    #
-## - 23/06/2017 -		   Asus Firewall Addition By Adamm v4.9.13				    #
+## - 24/06/2017 -		   Asus Firewall Addition By Adamm v4.9.14				    #
 ## 				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -53,12 +53,12 @@ if grep -F "Skynet" /jffs/scripts/firewall-start | grep -qF "usb"; then
 	if [ ! -d "$location" ]; then
 		Check_Lock
 		retry=1
-		while [ ! -d "$location" ] && [ "$retry" -lt "11" ] &&  ! echo "$@" | grep -wqE "(install|uninstall|disable|update|restart|info)"; do
+		while [ ! -d "$location" ] && [ "$retry" -lt "11" ] && ! echo "$@" | grep -wqE "(install|uninstall|disable|update|restart|info)"; do
 			logger -st Skynet "[INFO] USB Not Found - Sleeping For 10 Seconds ( Attempt #$retry )"
 			retry=$((retry+1))
 			sleep 10
 		done
-		if [ ! -d "$location" ] &&  ! echo "$@" | grep -wqE "(install|uninstall|disable|update|restart|info)"; then
+		if [ ! -d "$location" ] && ! echo "$@" | grep -wqE "(install|uninstall|disable|update|restart|info)"; then
 			logger -st Skynet "[ERROR] USB Not Found After 10 Attempts - Please Fix Immediately!"
 			logger -st Skynet "[ERROR] When Fixed Run ( sh $0 debug restart )"
 			rm -rf /tmp/skynet.lock
@@ -107,12 +107,6 @@ Check_Settings () {
 			cru a Skynet_autoupdate "25 1 * * * sh /jffs/scripts/firewall update"
 		else
 			cru a Skynet_checkupdate "25 2 * * * sh /jffs/scripts/firewall update check"
-		fi
-
-		if [ "$(ipset -v | grep -Fo v6)" != "v6" ]; then
-			logger -st Skynet "[ERROR] IPSet Version Not Supported"
-			rm -rf /tmp/skynet.lock
-			exit 1
 		fi
 
 		if [ -d "/opt/bin" ] && [ ! -f "/opt/bin/firewall" ]; then
@@ -247,7 +241,7 @@ Unban_PrivateIP () {
 			ipset -q -D Blacklist "$ip"
 			sed -i "/SRC=${ip} /d" /tmp/syslog.log
 		done
-		grep -F "OUTBOUND" /tmp/syslog.log |  Filter_PrivateDST | grep -oE 'DST=[0-9,\.]* ' | cut -c 5- | while IFS= read -r ip; do
+		grep -F "OUTBOUND" /tmp/syslog.log | Filter_PrivateDST | grep -oE 'DST=[0-9,\.]* ' | cut -c 5- | while IFS= read -r ip; do
 			ipset -q -A Whitelist "$ip"
 			ipset -q -D Blacklist "$ip"
 			sed -i "/DST=${ip} /d" /tmp/syslog.log
@@ -380,7 +374,7 @@ case "$1" in
 			echo "Input IP To Ban"
 			read -r ip
 			echo "Banning $ip"
-			ipset -A Blacklist "$ip" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Single SRC=$ip "  >> "$location/skynet.log"
+			ipset -A Blacklist "$ip" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Single SRC=$ip " >> "$location/skynet.log"
 		elif echo "$2" | Is_IP; then
 			echo "Banning $2"
 			ipset -A Blacklist "$2" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Single SRC=$2 " >> "$location/skynet.log"
@@ -448,7 +442,7 @@ case "$1" in
 		ipset restore -! -f "$location/scripts/malwarelist.txt"
 		rm -rf /tmp/malwarelist.txt
 		if [ -f "/home/root/ab-solution.sh" ]; then
-			ipset -q -A Whitelist 213.230.210.230 # AB-Solution Host File
+			ipset -q -A Whitelist 213.230.210.230	# AB-Solution Host File
 		fi
 		echo "Warning; This May Have Blocked Your Favorite Website"
 		echo "For Whitelisting Domains Use; ( sh $0 whitelist domain URL )"
@@ -586,7 +580,7 @@ case "$1" in
 		ipset -q -A Whitelist "$(nvram get lan_ipaddr)"/24
 		ipset -q -A Whitelist "$(nvram get wan_dns1_x)"/32
 		ipset -q -A Whitelist "$(nvram get wan_dns2_x)"/32
-		ipset -q -A Whitelist 151.101.96.133/32   # raw.githubusercontent.com Update Server
+		ipset -q -A Whitelist 151.101.96.133/32		# raw.githubusercontent.com Update Server
 		Unload_IPTables
 		Unload_DebugIPTables
 		Load_IPTables "$@"
@@ -804,7 +798,7 @@ case "$1" in
 		grep -F "INBOUND" "$location/skynet.log" | grep -F "$proto" | grep -oE 'SPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://www.speedguide.net/port.php?port="$2}'
 		echo
 		echo "Last $counter Unique Connections Blocked (Inbound);"
-		grep -F "INBOUND" "$location/skynet.log" | grep -F "$proto"  | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | awk '!x[$0]++' | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
+		grep -F "INBOUND" "$location/skynet.log" | grep -F "$proto" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | awk '!x[$0]++' | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
 		echo
 		echo "Last $counter Unique Connections Blocked (Outbound);"
 		grep -F "OUTBOUND" "$location/skynet.log" | grep -vE 'DPT=80 |DPT=443 ' | grep -F "$proto" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | awk '!x[$0]++' | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
@@ -815,10 +809,10 @@ case "$1" in
 		echo "Last $counter Manual Bans;"
 		grep -F "Manual Ban" "$location/skynet.log" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
 		echo
-		echo "Last $counter Unique HTTP(s) Blocks;"
+		echo "Last $counter Unique HTTP(s) Blocks (Outbound);"
 		grep -E 'DPT=80 |DPT=443 ' "$location/skynet.log" | grep -F "OUTBOUND" | grep -F "$proto" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | awk '!x[$0]++' | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
 		echo
-		echo "Top $counter HTTP(s) Blocks;"
+		echo "Top $counter HTTP(s) Blocks (Outbound);"
 		grep -E 'DPT=80 |DPT=443 ' "$location/skynet.log" | grep -F "OUTBOUND" | grep -F "$proto" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}'
 		echo
 		echo "Top $counter Blocks (Inbound);"
@@ -831,6 +825,11 @@ case "$1" in
 
 	install)
 		Check_Lock
+		if [ "$(ipset -v | grep -Fo v6)" != "v6" ]; then
+			logger -st Skynet "[ERROR] IPSet Version Not Supported"
+			rm -rf /tmp/skynet.lock
+			exit 1
+		fi
 		if [ ! -f "/jffs/scripts/firewall-start" ]; then
 			echo "#!/bin/sh" > /jffs/scripts/firewall-start
 		elif [ -f "/jffs/scripts/firewall-start" ] && ! grep -qF "#!/bin" /jffs/scripts/firewall-start; then
@@ -971,7 +970,7 @@ case "$1" in
 			echo "JFFS Installation Selected"
 			mkdir -p "/jffs/scripts"
 			if grep -q "usb=.*" /jffs/scripts/firewall-start; then
-				mv "$location/scripts/ipset.txt" "/jffs/scripts/"  >/dev/null 2>&1
+				mv "$location/scripts/ipset.txt" "/jffs/scripts/" >/dev/null 2>&1
 				mv "$location/scripts/malwarelist.txt" "/jffs/scripts/" >/dev/null 2>&1
 				mv "$location/scripts/countrylist.txt" "/jffs/scripts/" >/dev/null 2>&1
 				mv "$location/skynet.log" "/jffs/" >/dev/null 2>&1
@@ -1013,7 +1012,7 @@ case "$1" in
 		;;
 
 	*)
-        echo "Command Not Recognised, Please Try Again"
+		echo "Command Not Recognised, Please Try Again"
 		echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
 		;;
 
