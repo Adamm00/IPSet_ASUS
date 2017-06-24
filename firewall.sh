@@ -35,7 +35,7 @@
 head -34 "$0"
 export LC_ALL=C
 while [ "$(nvram get ntp_ready)" = "0" ]; do
-	sleep 2
+	sleep 1
 done
 start_time="$(date +%s)"
 
@@ -716,7 +716,7 @@ case "$1" in
 			echo "Stat Data Reset"
 			exit 0
 		fi
-		echo "Monitoring From $(head -1 $location/skynet.log | awk '{print $1" "$2" "$3}') To $(tail -1 $location/skynet.log | awk '{print $1" "$2" "$3}')"
+		echo "Monitoring From $(grep -m1 -E 'INBOUND|OUTBOUND' $location/skynet.log | awk '{print $1" "$2" "$3}') To $(grep -E 'INBOUND|OUTBOUND' $location/skynet.log | tail -1 | awk '{print $1" "$2" "$3}')"
 		echo "$(wc -l $location/skynet.log | awk '{print $1}') Total Events Detected"
 		echo "$({ grep -F "INBOUND" $location/skynet.log | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- ; grep -F "OUTBOUND" $location/skynet.log | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- ; } | awk '!x[$0]++' | wc -l) Unique IPs"
 		echo "$(grep -Fc "NEW BAN" $location/skynet.log) Autobans Issued"
@@ -740,14 +740,14 @@ case "$1" in
 			proto=ICMP
 		fi
 		if [ "$2" = "search" ] && [ "$3" = "port" ] && [ -n "$4" ]; then
-			echo "Port $4 First Tracked On $(grep -F "PT=$4 " $location/skynet.log | head -1 | awk '{print $1" "$2" "$3}')"
+			echo "Port $4 First Tracked On $(grep -m1 -F "PT=$4 " $location/skynet.log | awk '{print $1" "$2" "$3}')"
 			echo "Port $4 Last Tracked On $(grep -F "PT=$4 " $location/skynet.log | tail -1 | awk '{print $1" "$2" "$3}')"
 			echo "$(grep -Foc "PT=$4 " $location/skynet.log) Attempts Total"
 			echo "$(grep -F "PT=$4 " $location/skynet.log | grep -oE ' SRC=[0-9,\.]* ' | awk '!x[$0]++' | wc -l) Unique IPs"
 			echo "$(grep -F "PT=$4 " $location/skynet.log | grep -cF NEW) Autobans From This Port"
 			echo
 			echo "First Block Tracked On Port $4;"
-			grep -F "PT=$4 " "$location/skynet.log" | head -1
+			grep -m1 -F "PT=$4 " "$location/skynet.log"
 			echo
 			echo "$counter Most Recent Blocks On Port $4;";
 			grep -F "PT=$4 " "$location/skynet.log" | tail -"$counter"
@@ -757,12 +757,12 @@ case "$1" in
 			ipset test Blacklist "$4"
 			ipset test BlockedRanges "$4"
 			echo
-			echo "$4 First Tracked On $(grep -F "=$4 " $location/skynet.log | head -1 | awk '{print $1" "$2" "$3}')"
+			echo "$4 First Tracked On $(grep -m1 -F "=$4 " $location/skynet.log | awk '{print $1" "$2" "$3}')"
 			echo "$4 Last Tracked On $(grep -F "=$4 " $location/skynet.log | tail -1 | awk '{print $1" "$2" "$3}')"
 			echo "$(grep -Foc "=$4 " $location/skynet.log) Attempts Total"
 			echo
 			echo "First Block Tracked From $4;"
-			grep -F "=$4 " "$location/skynet.log" | head -1
+			grep -m1 -F "=$4 " "$location/skynet.log"
 			echo
 			echo "$counter Most Recent Blocks From $4;"
 			grep -F "=$4 " "$location/skynet.log" | tail -"$counter"
@@ -777,21 +777,21 @@ case "$1" in
 			Logging
 			exit 0
 		elif [ "$2" = "search" ] && [ "$3" = "autobans" ]; then
-			echo "First Autoban Issued On $(grep -F "NEW BAN" $location/skynet.log | head -1 | awk '{print $1" "$2" "$3}')"
+			echo "First Autoban Issued On $(grep -m1 -F "NEW BAN" $location/skynet.log | awk '{print $1" "$2" "$3}')"
 			echo "Last Autoban Issued On $(grep -F "NEW BAN" $location/skynet.log | tail -1 | awk '{print $1" "$2" "$3}')"
 			echo
 			echo "First Autoban Issued;"
-			grep -F "NEW BAN" "$location/skynet.log" | head -1
+			grep -m1 -F "NEW BAN" "$location/skynet.log"
 			echo
 			echo "$counter Most Recent Autobans;"
 			grep -F "NEW BAN" "$location/skynet.log" | tail -"$counter"
 			exit 0
 		elif [ "$2" = "search" ] && [ "$3" = "manualbans" ]; then
-			echo "First Manual Ban Issued On $(grep -F "Manual Ban" $location/skynet.log | head -1 | awk '{print $1" "$2" "$3}')"
+			echo "First Manual Ban Issued On $(grep -m1 -F "Manual Ban" $location/skynet.log | awk '{print $1" "$2" "$3}')"
 			echo "Last Manual Ban Issued On $(grep -F "Manual Ban" $location/skynet.log | tail -1 | awk '{print $1" "$2" "$3}')"
 			echo
 			echo "First Manual Ban Issued;"
-			grep -F "Manual Ban" "$location/skynet.log" | head -1
+			grep -m1 -F "Manual Ban" "$location/skynet.log"
 			echo
 			echo "$counter Most Recent Manual Bans;"
 			grep -F "Manual Ban" "$location/skynet.log" | tail -"$counter"
