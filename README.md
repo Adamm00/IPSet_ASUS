@@ -16,7 +16,6 @@ sh /jffs/scripts/firewall *commandhere*
     "import"       # <-- Bans All IPs From URL  
     "deport"       # <-- Unbans All IPs From URL
     "save"         # <-- Save Blacklists To ipset.txt
-    "start"        # <-- Initiate Firewall
     "disable"      # <-- Disable Firewall
     "update"       # <-- Update Script To Latest Version (check github for changes)
     "debug"	       # <-- Debug Features (Restart/Disable/Watch/Info)  

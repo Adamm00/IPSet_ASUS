@@ -346,10 +346,10 @@ case "$1" in
 			sed 's/add/del/g' "$location/scripts/malwarelist.txt" | ipset restore -!
 			rm -rf "$location/scripts/malwarelist.txt"
 		elif [ "$2" = "autobans" ]; then
-			grep -F "NEW" "$location/skynet.log" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | while IFS= read -r ip; do
+			grep -F "NEW" "$location/skynet.log" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | tr -d " " | while IFS= read -r ip; do
 				echo "Unbanning $ip"
 				ipset -D Blacklist "$ip"
-				sed -i "\~$ip~d" "$location/skynet.log"
+				sed -i "\~$ip ~d" "$location/skynet.log"
 			done
 		elif [ "$2" = "nomanual" ]; then
 			sed -i '/Manual /!d' "$location/skynet.log"
