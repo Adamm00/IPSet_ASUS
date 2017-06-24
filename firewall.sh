@@ -71,7 +71,7 @@ else
 fi
 
 
-if nvram get wan0_pppoe_ifname | grep -qF "ppp0"; then
+if [ -n "$(nvram get wan0_pppoe_ifname)" ]; then
 	iface="ppp0"
 else
 	iface="$(nvram get wan0_ifname)"
@@ -180,7 +180,6 @@ Unload_DebugIPTables () {
 		iptables -t raw -D PREROUTING -i "$iface" -m set --match-set Blacklist src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
 		iptables -t raw -D PREROUTING -i br0 -m set --match-set BlockedRanges dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
 		iptables -t raw -D PREROUTING -i br0 -m set --match-set Blacklist dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
-
 }
 
 Load_DebugIPTables () {
@@ -194,6 +193,12 @@ Load_DebugIPTables () {
 			pos4="$(iptables --line -nL PREROUTING -t raw | grep -F "Blacklist dst" | grep -F "DROP" | awk '{print $1}')"
 			iptables -t raw -I PREROUTING "$pos4" -i br0 -m set --match-set Blacklist dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
 		fi
+}
+
+Unload_IPSets () {
+		ipset -q destroy Blacklist
+		ipset -q destroy BlockedRanges
+		ipset -q destroy Whitelist
 }
 
 Unload_Cron () {
@@ -361,7 +366,7 @@ case "$1" in
 			exit 2
 		fi
 		echo "Saving Changes"
-		ipset save -f "$location/scripts/ipset.txt"
+		{ ipset save Whitelist; ipset save Blacklist; ipset save BlockedRanges ;} > "$location/scripts/ipset.txt"
 		;;
 
 	ban)
@@ -415,7 +420,7 @@ case "$1" in
 			exit 2
 		fi
 		echo "Saving Changes"
-		ipset save -f "$location/scripts/ipset.txt"
+		{ ipset save Whitelist; ipset save Blacklist; ipset save BlockedRanges ;} > "$location/scripts/ipset.txt"
 		;;
 
 	banmalware)
@@ -447,7 +452,7 @@ case "$1" in
 		echo "Warning; This May Have Blocked Your Favorite Website"
 		echo "For Whitelisting Domains Use; ( sh $0 whitelist domain URL )"
 		echo "Saving Changes"
-		ipset save -f "$location/scripts/ipset.txt"
+		{ ipset save Whitelist; ipset save Blacklist; ipset save BlockedRanges ;} > "$location/scripts/ipset.txt"
 		rm -rf /tmp/skynet.lock
 		;;
 
@@ -497,7 +502,7 @@ case "$1" in
 			echo "Removing All Non-Default Whitelist Entries"
 			ipset flush Whitelist
 			echo "Saving Changes"
-			ipset save -f "$location/scripts/ipset.txt"
+			{ ipset save Whitelist; ipset save Blacklist; ipset save BlockedRanges ;} > "$location/scripts/ipset.txt"
 			echo "Restarting Firewall"
 			service restart_firewall
 			exit 0
@@ -506,7 +511,7 @@ case "$1" in
 			exit 2
 		fi
 		echo "Saving Changes"
-		ipset save -f "$location/scripts/ipset.txt"
+		{ ipset save Whitelist; ipset save Blacklist; ipset save BlockedRanges ;} > "$location/scripts/ipset.txt"
 		;;
 
 	import)
@@ -527,7 +532,7 @@ case "$1" in
 		ipset restore -! -f "/tmp/iplist-filtered.txt"
 		rm -rf /tmp/iplist-unfiltered.txt /tmp/iplist-filtered.txt
 		echo "Saving Changes"
-		ipset save -f "$location/scripts/ipset.txt"
+		{ ipset save Whitelist; ipset save Blacklist; ipset save BlockedRanges ;} > "$location/scripts/ipset.txt"
 		rm -rf /tmp/skynet.lock
 		;;
 
@@ -549,7 +554,7 @@ case "$1" in
 		ipset restore -! -f "/tmp/iplist-filtered.txt"
 		rm -rf /tmp/iplist-unfiltered.txt /tmp/iplist-filtered.txt
 		echo "Saving Changes"
-		ipset save -f "$location/scripts/ipset.txt"
+		{ ipset save Whitelist; ipset save Blacklist; ipset save BlockedRanges ;} > "$location/scripts/ipset.txt"
 		;;
 
 	save)
@@ -557,7 +562,7 @@ case "$1" in
 		echo "Saving Changes"
 		Unban_PrivateIP
 		Purge_Logs
-		ipset save -f "$location/scripts/ipset.txt"
+		{ ipset save Whitelist; ipset save Blacklist; ipset save BlockedRanges ;} > "$location/scripts/ipset.txt"
 		sed -i '/USER admin pid .*firewall/d' /tmp/syslog.log
 		rm -rf /tmp/skynet.lock
 		;;
@@ -592,12 +597,10 @@ case "$1" in
 	disable)
 		logger -st Skynet "[INFO] Disabling Skynet..."
 		echo "Saving Changes"
-		ipset save -f "$location/scripts/ipset.txt"
+		{ ipset save Whitelist; ipset save Blacklist; ipset save BlockedRanges ;} > "$location/scripts/ipset.txt"
 		Unload_IPTables
 		Unload_DebugIPTables
-		ipset -q destroy Blacklist
-		ipset -q destroy BlockedRanges
-		ipset -q destroy Whitelist
+		Unload_IPSets
 		Purge_Logs
 		Unload_Cron
 		Kill_Lock
@@ -638,12 +641,10 @@ case "$1" in
 				Unload_Cron
 				Kill_Lock
 				echo "Saving Changes"
-				ipset save -f "$location/scripts/ipset.txt"
+				{ ipset save Whitelist; ipset save Blacklist; ipset save BlockedRanges ;} > "$location/scripts/ipset.txt"
 				Unload_IPTables
 				Unload_DebugIPTables
-				ipset -q destroy Blacklist
-				ipset -q destroy BlockedRanges
-				ipset -q destroy Whitelist
+				Unload_IPSets
 				echo "Restarting Firewall Service"
 				iptables -t raw -F
 				service restart_firewall
@@ -1000,9 +1001,7 @@ case "$1" in
 			Kill_Lock
 			Unload_IPTables
 			Unload_DebugIPTables
-			ipset -q destroy Blacklist
-			ipset -q destroy BlockedRanges
-			ipset -q destroy Whitelist
+			Unload_IPSets
 			sed -i '\~ Skynet ~d' /jffs/scripts/firewall-start
 			rm -rf "$location/scripts/ipset.txt" "$location/scripts/malwarelist.txt" "$location/scripts/countrylist.txt" "$location/skynet.log" "/jffs/scripts/firewall"
 			iptables -t raw -F
