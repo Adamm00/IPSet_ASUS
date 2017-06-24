@@ -1,16 +1,16 @@
 #!/bin/sh
 #############################################################################################################
-#			       _____ _                     _           _  _   				    #
-#			      / ____| |                   | |         | || |				    #
-#			     | (___ | | ___   _ _ __   ___| |_  __   _| || |_				    #
-#			      \___ \| |/ / | | | '_ \ / _ \ __| \ \ / /__   _|				    #
-#			      ____) |   <| |_| | | | |  __/ |_   \ V /   | |				    #
-#			     |_____/|_|\_\\__, |_| |_|\___|\__|   \_(_)  |_| 				    #
-#			                   __/ |                             				    #
-# 			                  |___/                               				    #
+#			        _____ _                     _           _____ 				    #
+#			       / ____| |                   | |         | ____|				    #
+#			      | (___ | | ___   _ _ __   ___| |_  __   _| |__  				    #
+#			       \___ \| |/ / | | | '_ \ / _ \ __| \ \ / /___ \ 				    #
+#			       ____) |   <| |_| | | | |  __/ |_   \ V / ___) |				    #
+#			      |_____/|_|\_\\__, |_| |_|\___|\__|   \_/ |____/ 				    #
+#			                    __/ |                             				    #
+#			                   |___/                              				    #
 #													    #
-## - 24/06/2017 -		   Asus Firewall Addition By Adamm v4.9.14				    #
-## 				   https://github.com/Adamm00/IPSet_ASUS				    #
+## - 24/06/2017 -		   Asus Firewall Addition By Adamm v5.0.0				    #
+##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
 
@@ -37,7 +37,7 @@ export LC_ALL=C
 while [ "$(nvram get ntp_ready)" = "0" ]; do
 	sleep 1
 done
-start_time="$(date +%s)"
+stime="$(date +%s)"
 
 Check_Lock () {
 		if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(cat /tmp/skynet.lock)" ]; then
@@ -285,8 +285,8 @@ Logging () {
 			hits1="$(($(iptables -xnvL -t raw | grep -Fv "LOG" | grep -F "Blacklist src" | awk '{print $1}') + $(iptables -xnvL -t raw | grep -Fv "LOG" | grep -F "BlockedRanges src" | awk '{print $1}')))"
 			hits2="$(($(iptables -xnvL -t raw | grep -Fv "LOG" | grep -F "Blacklist dst" | awk '{print $1}') + $(iptables -xnvL -t raw | grep -Fv "LOG" | grep -F "BlockedRanges dst" | awk '{print $1}')))"
 		fi
-		start_time="$(($(date +%s) - start_time))"
-		logger -st Skynet "[Complete] $newips IPs / $newranges Ranges Banned. $((newips - oldips)) New IPs / $((newranges - oldranges)) New Ranges Banned. $hits1 Inbound / $hits2 Outbound Connections Blocked! [${start_time}s]"
+		stime="$(($(date +%s) - stime))"
+		logger -st Skynet "[Complete] $newips IPs / $newranges Ranges Banned. $((newips - oldips)) New IPs / $((newranges - oldranges)) New Ranges Banned. $hits1 Inbound / $hits2 Outbound Connections Blocked! [${stime}s]"
 }
 
 ##########################################################################################################################################
@@ -683,8 +683,8 @@ case "$1" in
 				if cru l | grep -qF "Skynet"; then $grn "Cronjobs Detected"; else $red "Cronjobs Not Detected"; fi
 				if iptables -nL | grep -F "LOG" | grep -qF "NEW BAN"; then $grn "Autobanning Enabled"; else $red "Autobanning Disabled"; fi
 				if iptables -nL -t raw | grep -F "LOG" | grep -qF "match-set Blacklist "; then $grn "Debug Mode Enabled"; else $red "Debug Mode Disabled"; fi
-				if [ ! "$(iptables-save -t raw | sort | uniq -d | grep -c " ")" -ge "1" ]; then $grn "No Duplicate Rules Detected In RAW"; else $red "Duplicate Rules Detected In RAW"; fi
-				if [ ! "$(iptables-save -t filter | sort | uniq -d | grep -c " ")" -ge "1" ]; then $grn "No Duplicate Rules Detected In FILTER"; else $red "Duplicate Rules Detected In FILTER"; fi
+				if [ "$(iptables-save -t raw | sort | uniq -d | grep -c " ")" = "0" ]; then $grn "No Duplicate Rules Detected In RAW"; else $red "Duplicate Rules Detected In RAW"; fi
+				if [ "$(iptables-save -t filter | sort | uniq -d | grep -c " ")" = "0" ]; then $grn "No Duplicate Rules Detected In FILTER"; else $red "Duplicate Rules Detected In FILTER"; fi
 				if iptables -nL -t raw | grep -qF "match-set Whitelist "; then $grn "Whitelist IPTable Detected"; else $red "Whitelist IPTable Not Detected"; fi
 				if iptables -nL -t raw | grep -v "LOG" | grep -qF "match-set BlockedRanges "; then $grn "BlockedRanges IPTable Detected"; else $red "BlockedRanges IPTable Not Detected"; fi
 				if iptables -nL -t raw | grep -v "LOG" | grep -qF "match-set Blacklist "; then $grn "Blacklist IPTable Detected"; else $red "Blacklist IPTable Not Detected"; fi
