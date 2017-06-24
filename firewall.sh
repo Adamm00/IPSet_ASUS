@@ -298,7 +298,8 @@ case "$1" in
 	unban)
 		Purge_Logs
 		if [ -z "$2" ]; then
-			read -r -p "Input IP: " ip
+			printf "Input IP: "
+			read -r ip
 			echo "Unbanning $ip"
 			ipset -D Blacklist "$ip"
 			sed -i "\~$ip ~d" "$location/skynet.log"
@@ -311,7 +312,8 @@ case "$1" in
 			ipset -D BlockedRanges "$3"
 			sed -i "\~$3 ~d" "$location/skynet.log"
 		elif [ "$2" = "domain" ] && [ -z "$3" ]; then
-			read -r -p "Input URL: " unbandomain
+			printf "Input URL: "
+			read -r unbandomain
 			logger -st Skynet "[INFO] Removing $unbandomain From Blacklist..."
 			for ip in $(Domain_Lookup "$unbandomain"); do
 				echo "Unbanning $ip"
@@ -373,7 +375,8 @@ case "$1" in
 	ban)
 		Purge_Logs
 		if [ -z "$2" ]; then
-			read -r -p "Input IP: " ip
+			printf "Input IP: "
+			read -r ip
 			echo "Banning $ip"
 			ipset -A Blacklist "$ip" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Single SRC=$ip " >> "$location/skynet.log"
 		elif echo "$2" | Is_IP; then
@@ -383,8 +386,8 @@ case "$1" in
 			echo "Banning $3"
 			ipset -A BlockedRanges "$3" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Range SRC=$3 " >> "$location/skynet.log"
 		elif [ "$2" = "domain" ] && [ -z "$3" ]; then
-			echo "Input Domain To Blacklist"
-			read -r -p "Input URL: " bandomain
+			printf "Input URL: "
+			read -r bandomain
 			logger -st Skynet "[INFO] Adding $bandomain To Blacklist..."
 			for ip in $(Domain_Lookup "$bandomain"); do
 				echo "Banning $ip"
@@ -454,7 +457,8 @@ case "$1" in
 	whitelist)
 		Purge_Logs
 		if [ -z "$2" ]; then
-			read -r -p "Input IP: " ip
+			printf "Input IP: "
+			read -r ip
 			echo "Whitelisting $ip"
 			ipset -A Whitelist "$ip"
 			ipset -D Blacklist "$ip"
@@ -465,8 +469,8 @@ case "$1" in
 			ipset -D Blacklist "$2"
 			sed -i "\~$2 ~d" "$location/skynet.log"
 		elif [ "$2" = "domain" ] && [ -z "$3" ];then
-			echo "Input Domain To Whitelist"
-			read -r -p "Input URL: " whitelistdomain
+			printf "Input URL: "
+			read -r whitelistdomain
 			logger -st Skynet "[INFO] Adding $whitelistdomain To Whitelist..."
 			for ip in $(Domain_Lookup "$whitelistdomain"); do
 				echo "Whitelisting $ip"
@@ -834,7 +838,8 @@ case "$1" in
 		echo "[4] --> NoAuto & Debug -    Default Installation With No Autobanning And Debug Print"
 		echo
 		echo "Please Select Installation Mode"
-		read -r -n 1 -p "[1-4]: " mode1; echo
+		printf "[1-4]: "
+		read -r mode1
 		case "$mode1" in
 			1)
 			echo "Vanilla Selected"
@@ -865,7 +870,8 @@ case "$1" in
 		echo "[2] --> No"
 		echo
 		echo "Please Select Option"
-		read -r -n 1 -p "[1-2]: " mode2; echo
+		printf "[1-2]: "
+		read -r mode2
 		case "$mode2" in
 			1)
 			echo "Malware List Updating Enabled & Scheduled For 1.25am Every Monday"
@@ -882,7 +888,8 @@ case "$1" in
 		echo "[2] --> No"
 		echo
 		echo "Please Select Option"
-		read -r -n 1 -p "[1-2]: " mode3; echo
+		printf "[1-2]: "
+		read -r mode3
 		case "$mode3" in
 			1)
 			echo "Skynet Updating Enabled & Scheduled For 2.25am Daily"
@@ -899,7 +906,8 @@ case "$1" in
 		echo "[2] --> USB - (Recommended)"
 		echo
 		echo "Please Select Option"
-		read -r -n 1 -p "[1-2]: " mode4; echo
+		printf "[1-2]: "
+		read -r mode4
 		case "$mode4" in
 			2)
 			echo
@@ -921,7 +929,8 @@ case "$1" in
 			fi
 			echo
 			echo "Please Enter Partition Number Or 0 To Exit"
-			read -r -p "[0-$((i - 1))]: " partitionNumber
+			printf "[0-%s]: " "$((i - 1))"
+			read -r partitionNumber
 			if [ "$partitionNumber" = "0" ] ; then
 				echo "Exiting..."
 				rm -rf /tmp/skynet.lock
@@ -979,7 +988,8 @@ case "$1" in
 		echo "If You Were Experiencing Bugs, Try Update Or Visit SNBForums/Github"
 		echo "https://github.com/Adamm00/IPSet_ASUS"
 		echo "Type 'yes' To Continue Uninstall"
-		read -r -p "[yes/no]: " continue
+		printf "[yes/no]: "
+		read -r continue
 		if [ "$continue" = "yes" ]; then
 			echo "Uninstalling And Restarting Firewall"
 			Unload_Cron
