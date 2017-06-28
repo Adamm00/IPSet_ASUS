@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 24/06/2017 -		   Asus Firewall Addition By Adamm v5.0.0				    #
+## - 28/06/2017 -		   Asus Firewall Addition By Adamm v5.0.0				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -17,7 +17,7 @@
 ##############################
 ###	  Commands	   ###
 ##############################
-#	  "unban"	     # <-- Remove Entry From Blacklist (IP/Range/Domain/Port/Country/Malware/Autobans/Nomanual/All)
+#	  "unban"	     # <-- Remove From Blacklist (IP/Range/Domain/Port/Country/Malware/Autobans/Nomanual/All)
 #	  "ban"		     # <-- Adds Entry To Blacklist (IP/Range/Domain/Port/Country)
 #	  "banmalware"	     # <-- Bans Various Malware Domains
 #	  "whitelist"        # <-- Add Entry To Whitelist (IP/Range/Domain/Port/Remove)
@@ -100,13 +100,13 @@ Check_Settings () {
 		fi
 
 		if echo "$@" | grep -qF "banmalware"; then
-			cru a Skynet_banmalware "25 1 * * 1 sh /jffs/scripts/firewall banmalware"
+			cru a Skynet_banmalware "25 2 * * 1 sh /jffs/scripts/firewall banmalware"
 		fi
 
 		if echo "$@" | grep -qF "autoupdate"; then
-			cru a Skynet_autoupdate "25 1 * * * sh /jffs/scripts/firewall update"
+			cru a Skynet_autoupdate "25 1 * * 1 sh /jffs/scripts/firewall update"
 		else
-			cru a Skynet_checkupdate "25 2 * * * sh /jffs/scripts/firewall update check"
+			cru a Skynet_checkupdate "25 1 * * 1 sh /jffs/scripts/firewall update check"
 		fi
 
 		if [ -d "/opt/bin" ] && [ ! -f "/opt/bin/firewall" ]; then
@@ -760,7 +760,7 @@ case "$1" in
 			/usr/sbin/wget https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/filter.list -qO- | while IFS= read -r url; do
 				/usr/sbin/wget "$url" -qO /tmp/malwarelist.txt
 				grep -qF "$4" /tmp/malwarelist.txt && echo "$4 Found In $url"
-				grep -F "/" /tmp/malwarelist.txt | grep -qF "$(echo "$4" | cut -d '.' -f1-3)." && echo "$4 Possible CIDR Match In $url"
+				{ grep -F "/" /tmp/malwarelist.txt | grep -F "$(echo "$4" | cut -d '.' -f1-3)." && echo "Possible CIDR Match In $url"; } | xargs -r
 			done
 			rm -rf /tmp/malwarelist.txt
 			Logging
@@ -874,7 +874,7 @@ case "$1" in
 		read -r mode2
 		case "$mode2" in
 			1)
-			echo "Malware List Updating Enabled & Scheduled For 1.25am Every Monday"
+			echo "Malware List Updating Enabled & Scheduled For 2.25am Every Monday"
 			set2="banmalware"
 			;;
 			*)
@@ -883,7 +883,7 @@ case "$1" in
 		esac
 		echo
 		echo
-		echo "Would You Like To Enable Daily Skynet Updating?"
+		echo "Would You Like To Enable Weekly Skynet Updating?"
 		echo "[1] --> Yes  - (Recommended)"
 		echo "[2] --> No"
 		echo
@@ -892,7 +892,7 @@ case "$1" in
 		read -r mode3
 		case "$mode3" in
 			1)
-			echo "Skynet Updating Enabled & Scheduled For 2.25am Daily"
+			echo "Skynet Updating Enabled & Scheduled For 1.25am Every Monday"
 			set3="autoupdate"
 			;;
 			*)
