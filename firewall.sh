@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 28/06/2017 -		   Asus Firewall Addition By Adamm v5.0.0				    #
+## - 29/06/2017 -		   Asus Firewall Addition By Adamm v5.0.1				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -581,6 +581,8 @@ case "$1" in
 		ipset -q -A Whitelist "$(nvram get lan_ipaddr)"/24
 		ipset -q -A Whitelist "$(nvram get wan_dns1_x)"/32
 		ipset -q -A Whitelist "$(nvram get wan_dns2_x)"/32
+		ipset -q -A Whitelist "$(nvram get wan_dns | awk '{print $1}')"/32
+		ipset -q -A Whitelist "$(nvram get wan_dns | awk '{print $2}')"/32
 		ipset -q -A Whitelist 151.101.96.133/32		# raw.githubusercontent.com Update Server
 		Unload_IPTables
 		Unload_DebugIPTables
@@ -620,9 +622,13 @@ case "$1" in
 		if [ "$localver" != "$remotever" ] || [ "$2" = "-f" ]; then
 			Check_Lock
 			logger -st Skynet "[INFO] New Version Detected - Updating To $remotever... ... ..."
+			{ ipset save Whitelist; ipset save Blacklist; ipset save BlockedRanges ;} > "$location/scripts/ipset.txt"
 			Unload_Cron
-			/usr/sbin/wget "$remoteurl" -qO "$0" && logger -st Skynet "[INFO] Skynet Sucessfully Updated - Restarting Firewall"
+			Unload_IPTables
+			Unload_DebugIPTables
+			Unload_IPSets
 			iptables -t raw -F
+			/usr/sbin/wget "$remoteurl" -qO "$0" && logger -st Skynet "[INFO] Skynet Sucessfully Updated - Restarting Firewall"
 			rm -rf /tmp/skynet.lock
 			service restart_firewall
 			exit 0
@@ -954,10 +960,10 @@ case "$1" in
 			else
 				rm -rf "${device}/skynet/rwtest"
 			fi
-			mv "/jffs/scripts/ipset.txt" "${device}/skynet/scripts/" >/dev/null 2>&1
-			mv "/jffs/scripts/malwarelist.txt" "${device}/skynet/scripts/" >/dev/null 2>&1
-			mv "/jffs/scripts/countrylist.txt" "${device}/skynet/scripts/" >/dev/null 2>&1
-			mv "/jffs/skynet.log" "${device}/skynet/" >/dev/null 2>&1
+			mv "$location/scripts/ipset.txt" "${device}/skynet/scripts/" >/dev/null 2>&1
+			mv "$location/scripts/malwarelist.txt" "${device}/skynet/scripts/" >/dev/null 2>&1
+			mv "$location/scripts/countrylist.txt" "${device}/skynet/scripts/" >/dev/null 2>&1
+			mv "$location/skynet.log" "${device}/skynet/" >/dev/null 2>&1
 			sed -i '\~ Skynet ~d' /jffs/scripts/firewall-start
 			echo "sh /jffs/scripts/firewall $set1 $set2 $set3 usb=${device} # Skynet Firewall Addition" | tr -s " " >> /jffs/scripts/firewall-start
 			;;
