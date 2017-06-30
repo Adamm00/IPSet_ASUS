@@ -369,7 +369,7 @@ case "$1" in
 			exit 2
 		fi
 		echo "Saving Changes"
-		{ ipset save Whitelist; ipset save Blacklist; ipset save BlockedRanges ;} > "${location}/scripts/ipset.txt"
+		{ ipset save Whitelist; ipset save Blacklist; ipset save BlockedRanges; } > "${location}/scripts/ipset.txt" 2>/dev/null
 		;;
 
 	ban)
@@ -419,7 +419,7 @@ case "$1" in
 			exit 2
 		fi
 		echo "Saving Changes"
-		{ ipset save Whitelist; ipset save Blacklist; ipset save BlockedRanges ;} > "${location}/scripts/ipset.txt"
+		{ ipset save Whitelist; ipset save Blacklist; ipset save BlockedRanges; } > "${location}/scripts/ipset.txt" 2>/dev/null
 		;;
 
 	banmalware)
@@ -450,7 +450,7 @@ case "$1" in
 		echo "Warning; This May Have Blocked Your Favorite Website"
 		echo "For Whitelisting Domains Use; ( sh $0 whitelist domain URL )"
 		echo "Saving Changes"
-		{ ipset save Whitelist; ipset save Blacklist; ipset save BlockedRanges ;} > "${location}/scripts/ipset.txt"
+		{ ipset save Whitelist; ipset save Blacklist; ipset save BlockedRanges; } > "${location}/scripts/ipset.txt" 2>/dev/null
 		rm -rf /tmp/skynet.lock
 		;;
 
@@ -498,7 +498,7 @@ case "$1" in
 			echo "Removing All Non-Default Whitelist Entries"
 			ipset flush Whitelist
 			echo "Saving Changes"
-			{ ipset save Whitelist; ipset save Blacklist; ipset save BlockedRanges ;} > "${location}/scripts/ipset.txt"
+			{ ipset save Whitelist; ipset save Blacklist; ipset save BlockedRanges; } > "${location}/scripts/ipset.txt" 2>/dev/null
 			echo "Restarting Firewall"
 			service restart_firewall
 			exit 0
@@ -507,7 +507,7 @@ case "$1" in
 			exit 2
 		fi
 		echo "Saving Changes"
-		{ ipset save Whitelist; ipset save Blacklist; ipset save BlockedRanges ;} > "${location}/scripts/ipset.txt"
+		{ ipset save Whitelist; ipset save Blacklist; ipset save BlockedRanges; } > "${location}/scripts/ipset.txt" 2>/dev/null
 		;;
 
 	import)
@@ -528,7 +528,7 @@ case "$1" in
 		ipset restore -! -f "/tmp/iplist-filtered.txt"
 		rm -rf /tmp/iplist-unfiltered.txt /tmp/iplist-filtered.txt
 		echo "Saving Changes"
-		{ ipset save Whitelist; ipset save Blacklist; ipset save BlockedRanges ;} > "${location}/scripts/ipset.txt"
+		{ ipset save Whitelist; ipset save Blacklist; ipset save BlockedRanges; } > "${location}/scripts/ipset.txt" 2>/dev/null
 		rm -rf /tmp/skynet.lock
 		;;
 
@@ -550,7 +550,7 @@ case "$1" in
 		ipset restore -! -f "/tmp/iplist-filtered.txt"
 		rm -rf /tmp/iplist-unfiltered.txt /tmp/iplist-filtered.txt
 		echo "Saving Changes"
-		{ ipset save Whitelist; ipset save Blacklist; ipset save BlockedRanges ;} > "${location}/scripts/ipset.txt"
+		{ ipset save Whitelist; ipset save Blacklist; ipset save BlockedRanges; } > "${location}/scripts/ipset.txt" 2>/dev/null
 		;;
 
 	save)
@@ -558,7 +558,7 @@ case "$1" in
 		echo "Saving Changes"
 		Unban_PrivateIP
 		Purge_Logs
-		{ ipset save Whitelist; ipset save Blacklist; ipset save BlockedRanges ;} > "${location}/scripts/ipset.txt"
+		{ ipset save Whitelist; ipset save Blacklist; ipset save BlockedRanges; } > "${location}/scripts/ipset.txt" 2>/dev/null
 		sed -i '/USER admin pid .*firewall/d' /tmp/syslog.log
 		rm -rf /tmp/skynet.lock
 		;;
@@ -595,7 +595,7 @@ case "$1" in
 	disable)
 		logger -st Skynet "[INFO] Disabling Skynet..."
 		echo "Saving Changes"
-		{ ipset save Whitelist; ipset save Blacklist; ipset save BlockedRanges ;} > "${location}/scripts/ipset.txt"
+		{ ipset save Whitelist; ipset save Blacklist; ipset save BlockedRanges; } > "${location}/scripts/ipset.txt" 2>/dev/null
 		Unload_IPTables
 		Unload_DebugIPTables
 		Unload_IPSets
@@ -622,7 +622,7 @@ case "$1" in
 		if [ "$localver" != "$remotever" ] || [ "$2" = "-f" ]; then
 			Check_Lock
 			logger -st Skynet "[INFO] New Version Detected - Updating To $remotever... ... ..."
-			{ ipset save Whitelist; ipset save Blacklist; ipset save BlockedRanges ;} > "${location}/scripts/ipset.txt"
+			{ ipset save Whitelist; ipset save Blacklist; ipset save BlockedRanges; } > "${location}/scripts/ipset.txt" 2>/dev/null
 			Unload_Cron
 			Unload_IPTables
 			Unload_DebugIPTables
@@ -641,7 +641,7 @@ case "$1" in
 				Unload_Cron
 				Kill_Lock
 				echo "Saving Changes"
-				{ ipset save Whitelist; ipset save Blacklist; ipset save BlockedRanges ;} > "${location}/scripts/ipset.txt"
+				{ ipset save Whitelist; ipset save Blacklist; ipset save BlockedRanges; } > "${location}/scripts/ipset.txt" 2>/dev/null
 				Unload_IPTables
 				Unload_DebugIPTables
 				Unload_IPSets
