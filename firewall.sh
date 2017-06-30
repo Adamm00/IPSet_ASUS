@@ -831,6 +831,10 @@ case "$1" in
 			rm -rf /tmp/skynet.lock
 			exit 1
 		fi
+		if [ "$(nvram get jffs2_scripts)" != "1" ]; then
+			nvram set jffs2_scripts=1
+			forcereboot=1
+		fi
 		if [ ! -f "/jffs/scripts/firewall-start" ]; then
 			echo "#!/bin/sh" > /jffs/scripts/firewall-start
 		elif [ -f "/jffs/scripts/firewall-start" ] && ! grep -qF "#!/bin" /jffs/scripts/firewall-start; then
@@ -982,9 +986,14 @@ case "$1" in
 		esac
 		chmod +x /jffs/scripts/firewall-start
 		echo
-		echo "Restarting Firewall To Complete Installation"
 		Unload_Cron
 		rm -rf /tmp/skynet.lock
+		if [ "$forcereboot" = "1" ]; then
+			echo "Rebooting Router To Complete Installation"
+			reboot
+			exit 0
+		fi
+		echo "Restarting Firewall To Complete Installation"
 		iptables -t raw -F
 		service restart_firewall
 		exit 0
