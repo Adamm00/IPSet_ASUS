@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 01/07/2017 -		   Asus Firewall Addition By Adamm v5.0.2				    #
+## - 02/07/2017 -		   Asus Firewall Addition By Adamm v5.0.2				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -570,7 +570,7 @@ case "$1" in
 
 	start)
 		Check_Lock
-		logger -st Skynet "[INFO] Startup Initiated..."
+		logger -st Skynet "[INFO] Startup Initiated... ($(grep -F "Skynet" /jffs/scripts/firewall-start | cut -c 4- | cut -d '#' -f1 | awk '{ $1=""; $2=""; print}') )"
 		Unload_Cron
 		Check_Settings "$@"
 		cru a Skynet_save "0 * * * * sh /jffs/scripts/firewall save"
