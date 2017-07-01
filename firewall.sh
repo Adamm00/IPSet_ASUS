@@ -575,7 +575,7 @@ case "$1" in
 		Check_Settings "$@"
 		cru a Skynet_save "0 * * * * sh /jffs/scripts/firewall save"
 		modprobe xt_set
-		ipset restore -! -f "${location}/scripts/ipset.txt"
+		ipset restore -! -f "${location}/scripts/ipset.txt" || touch "${location}/scripts/ipset.txt"
 		Unban_PrivateIP
 		Purge_Logs
 		ipset -q create Whitelist nethash
