@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 29/06/2017 -		   Asus Firewall Addition By Adamm v5.0.1				    #
+## - 01/07/2017 -		   Asus Firewall Addition By Adamm v5.0.2				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -461,13 +461,18 @@ case "$1" in
 			read -r ip
 			echo "Whitelisting $ip"
 			ipset -A Whitelist "$ip"
-			ipset -D Blacklist "$ip"
+			ipset -q -D Blacklist "$ip"
 			sed -i "\~$ip ~d" "${location}/skynet.log"
 		elif echo "$2" | Is_IP; then
 			echo "Whitelisting $2"
 			ipset -A Whitelist "$2"
-			ipset -D Blacklist "$2"
+			ipset -q -D Blacklist "$2"
 			sed -i "\~$2 ~d" "${location}/skynet.log"
+		elif [ "$2" = "range" ] && echo "$3" | Is_IP; then
+			echo "Whitelisting $3"
+			ipset -A Whitelist "$3"
+			ipset -q -D Blacklist "$3"
+			sed -i "\~$3 ~d" "${location}/skynet.log"
 		elif [ "$2" = "domain" ] && [ -z "$3" ];then
 			printf "Input URL: "
 			read -r whitelistdomain
@@ -475,7 +480,7 @@ case "$1" in
 			for ip in $(Domain_Lookup "$whitelistdomain"); do
 				echo "Whitelisting $ip"
 				ipset -A Whitelist "$ip"
-				ipset -D Blacklist "$ip"
+				ipset -q -D Blacklist "$ip"
 				sed -i "\~$ip ~d" "${location}/skynet.log"
 			done
 		elif [ "$2" = "domain" ] && [ -n "$3" ]; then
@@ -483,7 +488,7 @@ case "$1" in
 		for ip in $(Domain_Lookup "$3"); do
 			echo "Whitelisting $ip"
 			ipset -A Whitelist "$ip"
-			ipset -D Blacklist "$ip"
+			ipset -q -D Blacklist "$ip"
 			sed -i "\~$ip ~d" "${location}/skynet.log"
 		done
 		elif [ "$2" = "port" ] && [ -n "$3" ]; then
@@ -491,7 +496,7 @@ case "$1" in
 			grep -F "NEW" "${location}/skynet.log" | grep -F "DPT=$3 " | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | while IFS= read -r ip; do
 				echo "Whitelisting $ip"
 				ipset -A Whitelist "$ip"
-				ipset -D Blacklist "$ip"
+				ipset -q -D Blacklist "$ip"
 				sed -i "\~$ip ~d" "${location}/skynet.log"
 			done
 		elif [ "$2" = "remove" ]; then
