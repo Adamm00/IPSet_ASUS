@@ -144,8 +144,8 @@ Unload_IPTables () {
 		iptables -D logdrop -p tcp --tcp-flags ALL ACK,PSH,FIN -j ACCEPT >/dev/null 2>&1
 		iptables -D logdrop -p icmp --icmp-type 3 -j ACCEPT >/dev/null 2>&1
 		iptables -D logdrop -p icmp --icmp-type 11 -j ACCEPT >/dev/null 2>&1
-		iptables -D SSHBFP -m recent --update --seconds 60 --hitcount 4 --name SSH --rsource -j SET --add-set Blacklist src >/dev/null 2>&1
-		iptables -D SSHBFP -m recent --update --seconds 60 --hitcount 4 --name SSH --rsource -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
+		iptables -D SSHBFP -i "$iface" -m recent --update --seconds 60 --hitcount 4 --name SSH --rsource -j SET --add-set Blacklist src >/dev/null 2>&1
+		iptables -D SSHBFP -i "$iface" -m recent --update --seconds 60 --hitcount 4 --name SSH --rsource -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
 }
 
 Load_IPTables () {
@@ -171,8 +171,8 @@ Load_IPTables () {
 		fi
 		if [ "$(nvram get sshd_enable)" = "1" ] && [ "$(nvram get sshd_bfp)" = "1" ]; then
 			pos5="$(iptables --line -nL SSHBFP | grep -F "seconds: 60 hit_count: 4" | grep -F "logdrop" | awk '{print $1}')"
-			iptables -I SSHBFP "$pos5" -m recent --update --seconds 60 --hitcount 4 --name SSH --rsource -j SET --add-set Blacklist src >/dev/null 2>&1
-			iptables -I SSHBFP "$pos5" -m recent --update --seconds 60 --hitcount 4 --name SSH --rsource -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
+			iptables -I SSHBFP "$pos5" -i "$iface" -m recent --update --seconds 60 --hitcount 4 --name SSH --rsource -j SET --add-set Blacklist src >/dev/null 2>&1
+			iptables -I SSHBFP "$pos5" -i "$iface" -m recent --update --seconds 60 --hitcount 4 --name SSH --rsource -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
 		fi
 }
 
@@ -521,7 +521,7 @@ case "$1" in
 			Check_Lock
 			echo "Custom List Detected: $2"
 			/usr/sbin/wget "$2" --no-check-certificate -qO /tmp/iplist-unfiltered.txt
-		elif [ -z "$2" ]; then
+		else
 			echo "No List URL Specified - Exiting"
 			exit 2
 		fi
@@ -543,7 +543,7 @@ case "$1" in
 			Check_Lock
 			echo "Custom List Detected: $2"
 			/usr/sbin/wget "$2" --no-check-certificate -qO /tmp/iplist-unfiltered.txt
-		elif [ -z "$2" ]; then
+		else
 			echo "No List URL Specified - Exiting"
 			exit 2
 		fi
