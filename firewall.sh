@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 02/07/2017 -		   Asus Firewall Addition By Adamm v5.0.2				    #
+## - 04/07/2017 -		   Asus Firewall Addition By Adamm v5.0.2				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -261,10 +261,10 @@ Purge_Logs () {
 			if [ "$(du ${location}/skynet.log | awk '{print $1}')" -ge "3000" ]; then
 				true > "${location}/skynet.log"
 			fi
-		elif grep -F "Skynet" /jffs/scripts/firewall-start | grep -qF "usb" && [ "$(du ${location}/skynet.log | awk '{print $1}')" -ge "21000" ]; then
+		elif grep -F "Skynet" /jffs/scripts/firewall-start | grep -qF "usb" && [ "$(du ${location}/skynet.log | awk '{print $1}')" -ge "14000" ]; then
 			sed -i '/BLOCKED - INBOUND/d' "${location}/skynet.log"
 			sed -i '/BLOCKED - OUTBOUND/d' "${location}/skynet.log"
-			if [ "$(du ${location}/skynet.log | awk '{print $1}')" -ge "9000" ]; then
+			if [ "$(du ${location}/skynet.log | awk '{print $1}')" -ge "6000" ]; then
 				true > "${location}/skynet.log"
 			fi
 		fi
