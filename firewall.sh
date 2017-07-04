@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 04/07/2017 -		   Asus Firewall Addition By Adamm v5.0.2				    #
+## - 04/07/2017 -		   Asus Firewall Addition By Adamm v5.0.3				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -770,10 +770,11 @@ case "$1" in
 		elif [ "$2" = "search" ] && [ "$3" = "malware" ] && [ -n "$4" ]; then
 			/usr/sbin/wget https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/filter.list -qO- | while IFS= read -r url; do
 				/usr/sbin/wget "$url" -qO /tmp/malwarelist.txt
-				grep -qF "$4" /tmp/malwarelist.txt && echo "$4 Found In $url"
-				{ grep -F "/" /tmp/malwarelist.txt | grep -F "$(echo "$4" | cut -d '.' -f1-3)." && echo "Possible CIDR Match In $url"; } | xargs -r
+				{ grep -E "^$4" /tmp/malwarelist.txt && echo "Found In $url"; } | xargs -r
+				{ grep -F "/" /tmp/malwarelist.txt | grep -E "^$(echo "$4" | cut -d '.' -f1-3)." && echo "Possible CIDR Match In $url"; } | xargs -r
 			done
 			rm -rf /tmp/malwarelist.txt
+			echo
 			Logging
 			exit 0
 		elif [ "$2" = "search" ] && [ "$3" = "autobans" ]; then
