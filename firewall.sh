@@ -436,7 +436,7 @@ case "$1" in
 			sed 's/add/del/g' "${location}/scripts/malwarelist.txt" | ipset restore -!
 		fi
 		echo "Downloading Lists"
-		/usr/sbin/wget "$listurl" -qO- | /usr/sbin/wget -i- -qO- | awk '!x[$0]++' | Filter_PrivateIP > /tmp/malwarelist.txt
+		/usr/sbin/wget "$listurl" -qO- | /usr/sbin/wget -T3 -t3 -i- -qO- | awk '!x[$0]++' | Filter_PrivateIP > /tmp/malwarelist.txt
 		echo "Filtering IPv4 Addresses"
 		sed -n "s/\r//;/^$/d;/^[0-9,\.]*$/s/^/add Blacklist /p" /tmp/malwarelist.txt > "${location}/scripts/malwarelist.txt"
 		echo "Filtering IPv4 Ranges"
