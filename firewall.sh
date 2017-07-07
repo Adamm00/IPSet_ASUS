@@ -302,15 +302,15 @@ case "$1" in
 			read -r ip
 			echo "Unbanning $ip"
 			ipset -D Blacklist "$ip"
-			sed -i "\~$ip ~d" "${location}/skynet.log"
+			sed -i "\\~$ip ~d" "${location}/skynet.log"
 		elif echo "$2" | Is_IP; then
 			echo "Unbanning $2"
 			ipset -D Blacklist "$2"
-			sed -i "\~$2 ~d" "${location}/skynet.log"
+			sed -i "\\~$2 ~d" "${location}/skynet.log"
 		elif [ "$2" = "range" ] && [ -n "$3" ]; then
 			echo "Unbanning $3"
 			ipset -D BlockedRanges "$3"
-			sed -i "\~$3 ~d" "${location}/skynet.log"
+			sed -i "\\~$3 ~d" "${location}/skynet.log"
 		elif [ "$2" = "domain" ] && [ -z "$3" ]; then
 			printf "Input URL: "
 			read -r unbandomain
@@ -318,14 +318,14 @@ case "$1" in
 			for ip in $(Domain_Lookup "$unbandomain"); do
 				echo "Unbanning $ip"
 				ipset -D Blacklist "$ip"
-				sed -i "\~$ip ~d" "${location}/skynet.log"
+				sed -i "\\~$ip ~d" "${location}/skynet.log"
 			done
 		elif [ "$2" = "domain" ] && [ -n "$3" ]; then
 		logger -st Skynet "[INFO] Removing $3 From Blacklist..."
 		for ip in $(Domain_Lookup "$3"); do
 			echo "Unbanning $ip"
 			ipset -D Blacklist "$ip"
-			sed -i "\~$ip ~d" "${location}/skynet.log"
+			sed -i "\\~$ip ~d" "${location}/skynet.log"
 		done
 		elif [ "$2" = "port" ] && [ -n "$3" ]; then
 			logger -st Skynet "[INFO] Unbanning Autobans Issued On Traffic From Source/Destination Port $3..."
@@ -346,7 +346,7 @@ case "$1" in
 			grep -F "NEW" "${location}/skynet.log" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | tr -d " " | while IFS= read -r ip; do
 				echo "Unbanning $ip"
 				ipset -D Blacklist "$ip"
-				sed -i "\~$ip ~d" "${location}/skynet.log"
+				sed -i "\\~$ip ~d" "${location}/skynet.log"
 			done
 		elif [ "$2" = "nomanual" ]; then
 			sed -i '/Manual /!d' "${location}/skynet.log"
@@ -407,10 +407,10 @@ case "$1" in
 			echo "Banning Known IP Ranges For $3"
 			echo "Downloading Lists"
 			for country in $3; do
-				/usr/sbin/wget http://ipdeny.com/ipblocks/data/aggregated/"$country"-aggregated.zone -qO- >> /tmp/countrylist.txt
+				/usr/sbin/wget http://ipdeny.com/ipblocks/data/aggregated/"$country"-aggregated.zone -t2 -T2 -qO- >> /tmp/countrylist.txt
 			done
 			echo "Filtering IPv4 Ranges"
-			sed -n "s/\r//;/^$/d;/^[0-9,\.,\/]*$/s/^/add BlockedRanges /p" /tmp/countrylist.txt | grep -F "/" | awk '!x[$0]++' > "${location}/scripts/countrylist.txt"
+			grep -F "/" /tmp/countrylist.txt | sed -n "s/\\r//;/^$/d;/^[0-9,\\.,\\/]*$/s/^/add BlockedRanges /p" | awk '!x[$0]++' > "${location}/scripts/countrylist.txt"
 			echo "Applying Blacklists"
 			ipset restore -! -f "${location}/scripts/countrylist.txt"
 			rm -rf /tmp/countrylist.txt
@@ -429,18 +429,18 @@ case "$1" in
 		else
 			listurl="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/filter.list"
 		fi
-		curl -s --connect-timeout 5 "$listurl" | grep -qF "http" || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Banmalware" ; exit 1; }
+		/usr/sbin/wget "$listurl" -t2 -T2 -qO- | grep -qF "http" || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Banmalware" ; exit 1; }
 		Check_Lock
 		if [ -f "${location}/scripts/malwarelist.txt" ]; then
 			echo "Removing Previous Malware Bans"
 			sed 's/add/del/g' "${location}/scripts/malwarelist.txt" | ipset restore -!
 		fi
 		echo "Downloading Lists"
-		/usr/sbin/wget "$listurl" -qO- | /usr/sbin/wget -T3 -t3 -i- -qO- | awk '!x[$0]++' | Filter_PrivateIP > /tmp/malwarelist.txt
+		/usr/sbin/wget "$listurl" -qO- | /usr/sbin/wget -t2 -T2 -i- -qO- | sed -n "s/\\r//;/^$/d;/^[0-9,\\.,\\/]*$/p" | awk '!x[$0]++' | Filter_PrivateIP > /tmp/malwarelist.txt
 		echo "Filtering IPv4 Addresses"
-		sed -n "s/\r//;/^$/d;/^[0-9,\.]*$/s/^/add Blacklist /p" /tmp/malwarelist.txt > "${location}/scripts/malwarelist.txt"
+		grep -vF "/" /tmp/malwarelist.txt | awk '{print "add Blacklist "$1}' > "${location}/scripts/malwarelist.txt"
 		echo "Filtering IPv4 Ranges"
-		sed -n "s/\r//;/^$/d;/^[0-9,\.,\/]*$/s/^/add BlockedRanges /p" /tmp/malwarelist.txt | grep -F "/" >> "${location}/scripts/malwarelist.txt"
+		grep -F "/" /tmp/malwarelist.txt | awk '{print "add BlockedRanges "$1}' >> "${location}/scripts/malwarelist.txt"
 		echo "Applying Blacklists"
 		ipset restore -! -f "${location}/scripts/malwarelist.txt"
 		rm -rf /tmp/malwarelist.txt
@@ -462,17 +462,17 @@ case "$1" in
 			echo "Whitelisting $ip"
 			ipset -A Whitelist "$ip"
 			ipset -q -D Blacklist "$ip"
-			sed -i "\~$ip ~d" "${location}/skynet.log"
+			sed -i "\\~$ip ~d" "${location}/skynet.log"
 		elif echo "$2" | Is_IP; then
 			echo "Whitelisting $2"
 			ipset -A Whitelist "$2"
 			ipset -q -D Blacklist "$2"
-			sed -i "\~$2 ~d" "${location}/skynet.log"
+			sed -i "\\~$2 ~d" "${location}/skynet.log"
 		elif [ "$2" = "range" ] && echo "$3" | Is_IP; then
 			echo "Whitelisting $3"
 			ipset -A Whitelist "$3"
 			ipset -q -D Blacklist "$3"
-			sed -i "\~$3 ~d" "${location}/skynet.log"
+			sed -i "\\~$3 ~d" "${location}/skynet.log"
 		elif [ "$2" = "domain" ] && [ -z "$3" ];then
 			printf "Input URL: "
 			read -r whitelistdomain
@@ -481,7 +481,7 @@ case "$1" in
 				echo "Whitelisting $ip"
 				ipset -A Whitelist "$ip"
 				ipset -q -D Blacklist "$ip"
-				sed -i "\~$ip ~d" "${location}/skynet.log"
+				sed -i "\\~$ip ~d" "${location}/skynet.log"
 			done
 		elif [ "$2" = "domain" ] && [ -n "$3" ]; then
 		logger -st Skynet "[INFO] Adding $3 To Whitelist..."
@@ -489,7 +489,7 @@ case "$1" in
 			echo "Whitelisting $ip"
 			ipset -A Whitelist "$ip"
 			ipset -q -D Blacklist "$ip"
-			sed -i "\~$ip ~d" "${location}/skynet.log"
+			sed -i "\\~$ip ~d" "${location}/skynet.log"
 		done
 		elif [ "$2" = "port" ] && [ -n "$3" ]; then
 			logger -st Skynet "[INFO] Whitelisting Autobans Issued On Traffic From Port $3..."
@@ -497,7 +497,7 @@ case "$1" in
 				echo "Whitelisting $ip"
 				ipset -A Whitelist "$ip"
 				ipset -q -D Blacklist "$ip"
-				sed -i "\~$ip ~d" "${location}/skynet.log"
+				sed -i "\\~$ip ~d" "${location}/skynet.log"
 			done
 		elif [ "$2" = "remove" ]; then
 			echo "Removing All Non-Default Whitelist Entries"
@@ -520,7 +520,7 @@ case "$1" in
 		if [ -n "$2" ]; then
 			Check_Lock
 			echo "Custom List Detected: $2"
-			/usr/sbin/wget "$2" --no-check-certificate -qO /tmp/iplist-unfiltered.txt
+			/usr/sbin/wget "$2" --no-check-certificate -t2 -T2 -qO /tmp/iplist-unfiltered.txt || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Import" ; exit 1; }
 		else
 			echo "No List URL Specified - Exiting"
 			exit 2
@@ -542,7 +542,7 @@ case "$1" in
 		if [ -n "$2" ]; then
 			Check_Lock
 			echo "Custom List Detected: $2"
-			/usr/sbin/wget "$2" --no-check-certificate -qO /tmp/iplist-unfiltered.txt
+			/usr/sbin/wget "$2" --no-check-certificate -t2 -T2 -qO /tmp/iplist-unfiltered.txt || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Deport" ; exit 1; }
 		else
 			echo "No List URL Specified - Exiting"
 			exit 2
@@ -612,7 +612,7 @@ case "$1" in
 
 	update)
 		remoteurl="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh"
-		curl -s --connect-timeout 5 "$remoteurl" | grep -qF "Adamm" || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Update" ; exit; }
+		/usr/sbin/wget "$remoteurl" -t2 -T2 -qO- | grep -qF "Adamm" || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Update" ; exit 1; }
 		localver="$(Filter_Version "$0")"
 		remotever="$(/usr/sbin/wget "$remoteurl" -qO- | Filter_Version)"
 		if [ "$localver" = "$remotever" ] && [ "$2" != "-f" ]; then
@@ -667,8 +667,8 @@ case "$1" in
 				tail -f /tmp/syslog.log | grep -F "BLOCKED"
 			;;
 			info)
-				red="printf \e[5;31m%s\e[0m\n"
-				grn="printf \e[1;32m%s\e[0m\n"
+				red="printf \\e[5;31m%s\\e[0m\\n"
+				grn="printf \\e[1;32m%s\\e[0m\\n"
 				echo "Router Model: $(uname -n)"
 				echo "Skynet Version: $(Filter_Version "$0") ($(Filter_Date "$0"))"
 				echo "$(iptables --version) - ($iface)"
