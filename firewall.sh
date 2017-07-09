@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 04/07/2017 -		   Asus Firewall Addition By Adamm v5.0.3				    #
+## - 09/07/2017 -		   Asus Firewall Addition By Adamm v5.0.4				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -356,6 +356,7 @@ case "$1" in
 			awk '{print $8}' "${location}/skynet.log" | cut -c 5- | while IFS= read -r ip; do
 				ipset -q -A Blacklist "$(echo "$ip" | grep -Fv "/")"
 				ipset -q -A BlockedRanges "$(echo "$ip" | grep -F "/")"
+				iptables -Z PREROUTING -t raw
 			done
 		elif [ "$2" = "all" ]; then
 			logger -st Skynet "[INFO] Removing All $(($(sed -n '1p' /tmp/counter.txt) + $(sed -n '2p' /tmp/counter.txt))) Entries From Blacklist..."
