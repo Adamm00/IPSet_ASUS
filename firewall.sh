@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 09/07/2017 -		   Asus Firewall Addition By Adamm v5.0.4				    #
+## - 12/07/2017 -		   Asus Firewall Addition By Adamm v5.0.4				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -447,6 +447,14 @@ case "$1" in
 		rm -rf /tmp/malwarelist.txt
 		if [ -f "/home/root/ab-solution.sh" ]; then
 			ipset -q -A Whitelist 213.230.210.230	# AB-Solution Host File
+		fi
+		if [ -f "/jffs/shared-AB-whitelist" ]; then
+			while IFS= read -r domain; do
+				for ip in $(Domain_Lookup "$domain"); do
+					ipset -q -A Whitelist "$ip"
+					ipset -q -D Blacklist "$ip"
+				done
+			done </jffs/shared-AB-whitelist
 		fi
 		echo "Warning; This May Have Blocked Your Favorite Website"
 		echo "For Whitelisting Domains Use; ( sh $0 whitelist domain URL )"
