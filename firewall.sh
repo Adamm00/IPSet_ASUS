@@ -449,12 +449,12 @@ case "$1" in
 			ipset -q -A Whitelist 213.230.210.230	# AB-Solution Host File
 		fi
 		if [ -f "/jffs/shared-AB-whitelist" ]; then
-			while IFS= read -r domain; do
+			grep -vF "#" /jffs/shared-AB-whitelist | while IFS= read -r domain; do
 				for ip in $(Domain_Lookup "$domain"); do
 					ipset -q -A Whitelist "$ip"
 					ipset -q -D Blacklist "$ip"
 				done
-			done </jffs/shared-AB-whitelist
+			done
 		fi
 		echo "Warning; This May Have Blocked Your Favorite Website"
 		echo "For Whitelisting Domains Use; ( sh $0 whitelist domain URL )"
