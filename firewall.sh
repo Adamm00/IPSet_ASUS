@@ -437,7 +437,8 @@ case "$1" in
 			sed 's/add/del/g' "${location}/scripts/malwarelist.txt" | ipset restore -!
 		fi
 		echo "Downloading Lists"
-		/usr/sbin/wget "$listurl" -qO- | /usr/sbin/wget -t2 -T2 -i- -qO- | sed -n "s/\\r//;/^$/d;/^[0-9,\\.,\\/]*$/p" | awk '!x[$0]++' | Filter_PrivateIP > /tmp/malwarelist.txt
+		/usr/sbin/wget "$listurl" -qO /jffs/shared-Skynet-whitelist 
+		/usr/sbin/wget -t2 -T2 -i /jffs/shared-Skynet-whitelist -qO- | sed -n "s/\\r//;/^$/d;/^[0-9,\\.,\\/]*$/p" | awk '!x[$0]++' | Filter_PrivateIP > /tmp/malwarelist.txt
 		echo "Filtering IPv4 Addresses"
 		grep -vF "/" /tmp/malwarelist.txt | awk '{print "add Blacklist "$1}' > "${location}/scripts/malwarelist.txt"
 		echo "Filtering IPv4 Ranges"
@@ -448,9 +449,9 @@ case "$1" in
 		if [ -f "/home/root/ab-solution.sh" ]; then
 			ipset -q -A Whitelist 213.230.210.230	# AB-Solution Host File
 		fi
-		if [ -f "/jffs/shared-AB-whitelist" ]; then
+		if [ -n "$(find /jffs -maxdepth 1 -name 'shared-*-whitelist')" ]; then
 			echo "Whitelisting Shared Domains"
-			grep -vF "#" /jffs/shared-AB-whitelist | while IFS= read -r domain; do
+			grep -hvF "#" /jffs/shared-*-whitelist | cut -d '/' -f3 | awk '!x[$0]++' | while IFS= read -r domain; do
 				for ip in $(Domain_Lookup "$domain" 2> /dev/null); do
 					ipset -q -A Whitelist "$ip"
 					ipset -q -D Blacklist "$ip"
