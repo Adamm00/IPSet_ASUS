@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 16/07/2017 -		   Asus Firewall Addition By Adamm v5.0.5				    #
+## - 17/07/2017 -		   Asus Firewall Addition By Adamm v5.0.6				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -834,7 +834,7 @@ case "$1" in
 		grep -E "INBOUND.*$proto" "${location}/skynet.log" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}'
 		echo
 		echo "Top $counter Blocks (Outbound);"
-		grep -vE 'DPT=80 |DPT=443 ' "${location}/skynet.log" | grep -E "OUTBOUND.*$proto" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}'
+		grep -E "OUTBOUND.*$proto" "${location}/skynet.log" | grep -vE 'DPT=80 |DPT=443 ' | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}'
 		echo
 		;;
 
