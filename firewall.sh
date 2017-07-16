@@ -451,7 +451,7 @@ case "$1" in
 		fi
 		if [ -n "$(find /jffs -maxdepth 1 -name 'shared-*-whitelist')" ]; then
 			echo "Whitelisting Shared Domains"
-			grep -hvF "#" /jffs/shared-*-whitelist | cut -d '/' -f3 | awk '!x[$0]++' | while IFS= read -r domain; do
+			grep -hvF "#" /jffs/shared-*-whitelist | sed 's~https://~~g; s~http://~~g' | cut -d '/' -f1 | awk '!x[$0]++' | while IFS= read -r domain; do
 				for ip in $(Domain_Lookup "$domain" 2> /dev/null); do
 					ipset -q -A Whitelist "$ip"
 					ipset -q -D Blacklist "$ip"
