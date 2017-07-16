@@ -256,14 +256,12 @@ Unban_PrivateIP () {
 
 Purge_Logs () {
 		if ! grep -F "Skynet" /jffs/scripts/firewall-start | grep -qF "usb" && [ "$(du ${location}/skynet.log | awk '{print $1}')" -ge "7000" ]; then
-			sed -i '/BLOCKED - INBOUND/d' "${location}/skynet.log"
-			sed -i '/BLOCKED - OUTBOUND/d' "${location}/skynet.log"
+			sed -i '/BLOCKED - .*BOUND/d' "${location}/skynet.log"
 			if [ "$(du ${location}/skynet.log | awk '{print $1}')" -ge "3000" ]; then
 				true > "${location}/skynet.log"
 			fi
 		elif grep -F "Skynet" /jffs/scripts/firewall-start | grep -qF "usb" && [ "$(du ${location}/skynet.log | awk '{print $1}')" -ge "14000" ]; then
-			sed -i '/BLOCKED - INBOUND/d' "${location}/skynet.log"
-			sed -i '/BLOCKED - OUTBOUND/d' "${location}/skynet.log"
+			sed -i '/BLOCKED - .*BOUND/d' "${location}/skynet.log"
 			if [ "$(du ${location}/skynet.log | awk '{print $1}')" -ge "6000" ]; then
 				true > "${location}/skynet.log"
 			fi
@@ -437,7 +435,7 @@ case "$1" in
 			sed 's/add/del/g' "${location}/scripts/malwarelist.txt" | ipset restore -!
 		fi
 		echo "Downloading Lists"
-		/usr/sbin/wget "$listurl" -qO /jffs/shared-Skynet-whitelist 
+		/usr/sbin/wget "$listurl" -qO /jffs/shared-Skynet-whitelist
 		/usr/sbin/wget -t2 -T2 -i /jffs/shared-Skynet-whitelist -qO- | sed -n "s/\\r//;/^$/d;/^[0-9,\\.,\\/]*$/p" | awk '!x[$0]++' | Filter_PrivateIP > /tmp/malwarelist.txt
 		echo "Filtering IPv4 Addresses"
 		grep -vF "/" /tmp/malwarelist.txt | awk '{print "add Blacklist "$1}' > "${location}/scripts/malwarelist.txt"
@@ -721,7 +719,7 @@ case "$1" in
 			exit 0
 		fi
 		if [ "$2" = "reset" ]; then
-			sed -i '/Manual /!d' "${location}/skynet.log"
+			sed -i '/BLOCKED - .*BOUND/d' "${location}/skynet.log"
 			iptables -Z PREROUTING -t raw
 			echo "Stat Data Reset"
 			exit 0
@@ -851,9 +849,17 @@ case "$1" in
 			nvram set jffs2_scripts=1
 			forcereboot=1
 		fi
+		if [ "$(nvram get fw_enable_x)" != "1" ]; then
+			nvram set fw_enable_x=1
+			forcereboot=1
+		fi
+		if [ "$(nvram get fw_log_x)" != "drop" ] && [ "$(nvram get fw_log_x)" != "both" ]; then
+			nvram set fw_log_x=drop
+			forcereboot=1
+		fi
 		if [ ! -f "/jffs/scripts/firewall-start" ]; then
 			echo "#!/bin/sh" > /jffs/scripts/firewall-start
-		elif [ -f "/jffs/scripts/firewall-start" ] && ! grep -qF "#!/bin" /jffs/scripts/firewall-start; then
+		elif [ -f "/jffs/scripts/firewall-start" ] && ! head -1 /jffs/scripts/firewall-start | grep -qE "^#!/bin/sh"; then
 			sed -i '1s~^~#!/bin/sh\n~' /jffs/scripts/firewall-start
 		fi
 		echo "Installing Skynet $(Filter_Version "$0")"
