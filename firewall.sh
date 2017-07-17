@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 17/07/2017 -		   Asus Firewall Addition By Adamm v5.0.6				    #
+## - 18/07/2017 -		   Asus Firewall Addition By Adamm v5.0.6				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -53,8 +53,8 @@ if grep -F "Skynet" /jffs/scripts/firewall-start | grep -qF "usb"; then
 	if [ ! -d "$location" ]; then
 		Check_Lock
 		retry=1
-		while [ ! -d "$location" ] && [ "$retry" -lt "11" ] && ! echo "$@" | grep -wqE "(install|uninstall|disable|update|restart|info)"; do
-			logger -st Skynet "[INFO] USB Not Found - Sleeping For 10 Seconds ( Attempt #$retry )"
+		while [ ! -d "$location" ] && [ "$retry" -lt "11" ]; do
+			logger -st Skynet "[INFO] USB Not Found - Sleeping For 10 Seconds ( Attempt $retry Of 10 )"
 			retry=$((retry+1))
 			sleep 10
 		done
@@ -1012,6 +1012,7 @@ case "$1" in
 		rm -rf /tmp/skynet.lock
 		if [ "$forcereboot" = "1" ]; then
 			echo "Rebooting Router To Complete Installation"
+			nvram commit
 			reboot
 			exit 0
 		fi
