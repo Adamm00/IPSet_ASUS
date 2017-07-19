@@ -440,9 +440,9 @@ case "$1" in
 		/usr/sbin/wget "$listurl" -qO /jffs/shared-Skynet-whitelist
 		/usr/sbin/wget -t2 -T2 -i /jffs/shared-Skynet-whitelist -qO- | sed -n "s/\\r//;/^$/d;/^[0-9,\\.,\\/]*$/p" | awk '!x[$0]++' | Filter_PrivateIP > /tmp/malwarelist.txt
 		echo "Filtering IPv4 Addresses"
-		grep -vF "/" /tmp/malwarelist.txt | awk '{print "add Blacklist " $1 " Banmalware"}' > "${location}/scripts/malwarelist.txt"
+		grep -vF "/" /tmp/malwarelist.txt | awk '{print "add Blacklist " $1 " comment Banmalware"}' > "${location}/scripts/malwarelist.txt"
 		echo "Filtering IPv4 Ranges"
-		grep -F "/" /tmp/malwarelist.txt | awk '{print "add BlockedRanges " $1 " Banmalware"}' >> "${location}/scripts/malwarelist.txt"
+		grep -F "/" /tmp/malwarelist.txt | awk '{print "add BlockedRanges " $1 " comment Banmalware"}' >> "${location}/scripts/malwarelist.txt"
 		echo "Applying Blacklists"
 		ipset restore -! -f "${location}/scripts/malwarelist.txt"
 		rm -rf /tmp/malwarelist.txt
@@ -538,9 +538,9 @@ case "$1" in
 			exit 2
 		fi
 		echo "Filtering IPv4 Addresses"
-		grep -woE '([0-9]{1,3}\.){3}[0-9]{1,3}' /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk '{print "add Blacklist " $1 "Imported"}' > /tmp/iplist-filtered.txt
+		grep -woE '([0-9]{1,3}\.){3}[0-9]{1,3}' /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk '{print "add Blacklist " $1 " comment Imported"}' > /tmp/iplist-filtered.txt
 		echo "Filtering IPv4 Ranges"
-		grep -woE '([0-9]{1,3}\.){3}[0-9]{1,3}\/[0-9]{1,2}' /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk '{print "add BlockedRanges " $1 " Imported"}' >> /tmp/iplist-filtered.txt
+		grep -woE '([0-9]{1,3}\.){3}[0-9]{1,3}\/[0-9]{1,2}' /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk '{print "add BlockedRanges " $1 " comment Imported"}' >> /tmp/iplist-filtered.txt
 		echo "Adding IPs To Blacklist"
 		ipset restore -! -f "/tmp/iplist-filtered.txt"
 		rm -rf /tmp/iplist-unfiltered.txt /tmp/iplist-filtered.txt
