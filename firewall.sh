@@ -338,10 +338,10 @@ case "$1" in
 			sed -i "/PT=${3} /d" "${location}/skynet.log"
 		elif [ "$2" = "country" ]; then
 			echo "Removing Previous Country Bans"
-			sed '/Country: /!d' /jffs/scripts/ipset.txt | sed 's~[0-9] .*~~' | sed 's/add/del/g' | ipset restore -! | ipset restore -!
+			sed '/Country: /!d' "${location}/scripts/ipset.txt" | sed 's~[0-9] .*~~' | sed 's/add/del/g' | ipset restore -! | ipset restore -!
 		elif [ "$2" = "malware" ]; then
 			echo "Removing Previous Malware Bans"
-			sed '/Banmalware/!d' /jffs/scripts/ipset.txt | sed 's~[0-9] .*~~' | sed 's/add/del/g' | ipset restore -!
+			sed '/Banmalware/!d' "${location}/scripts/ipset.txt" | sed 's~[0-9] .*~~' | sed 's/add/del/g' | ipset restore -!
 		elif [ "$2" = "autobans" ]; then
 			grep -F "NEW" "${location}/skynet.log" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | tr -d " " | while IFS= read -r ip; do
 				echo "Unbanning $ip"
@@ -404,7 +404,7 @@ case "$1" in
 				rm -rf "${location}/scripts/countrylist.txt"
 			fi
 			echo "Removing Previous Country Bans"
-			sed '/Country: /!d' /jffs/scripts/ipset.txt | sed 's~[0-9] .*~~' | sed 's/add/del/g' | ipset restore -!
+			sed '/Country: /!d' "${location}/scripts/ipset.txt" | sed 's~[0-9] .*~~' | sed 's/add/del/g' | ipset restore -!
 			echo "Banning Known IP Ranges For $3"
 			echo "Downloading Lists"
 			for country in $3; do
@@ -436,7 +436,7 @@ case "$1" in
 			rm -rf "${location}/scripts/malwarelist.txt"
 		fi
 		echo "Removing Previous Malware Bans"
-		sed '/BanMalware/!d' /jffs/scripts/ipset.txt | sed 's~[0-9] .*~~' | sed 's/add/del/g' | ipset restore -!
+		sed '/BanMalware/!d' "${location}/scripts/ipset.txt" | sed 's~[0-9] .*~~' | sed 's/add/del/g' | ipset restore -!
 		echo "Downloading Lists"
 		/usr/sbin/wget "$listurl" -qO /jffs/shared-Skynet-whitelist
 		/usr/sbin/wget -t2 -T2 -i /jffs/shared-Skynet-whitelist -qO- | sed -n "s/\\r//;/^$/d;/^[0-9,\\.,\\/]*$/p" | awk '!x[$0]++' | Filter_PrivateIP > /tmp/malwarelist.txt
@@ -645,9 +645,9 @@ case "$1" in
 			Unload_IPTables
 			Unload_DebugIPTables
 			Unload_IPSets
-			sed -i 's/create Blacklist.*[0-9]$/& comment/' /jffs/scripts/ipset.txt # Convert IPSets
-			sed -i 's/create BlockedRanges.*[0-9]$/& comment/' /jffs/scripts/ipset.txt # Convert IPSets
-			sed -i 's/create Whitelist.*[0-9]$/& comment/' /jffs/scripts/ipset.txt # Convert IPSets
+			sed -i 's/create Blacklist.*[0-9]$/& comment/' "${location}/scripts/ipset.txt" # Convert IPSets
+			sed -i 's/create BlockedRanges.*[0-9]$/& comment/' "${location}/scripts/ipset.txt" # Convert IPSets
+			sed -i 's/create Whitelist.*[0-9]$/& comment/' "${location}/scripts/ipset.txt" # Convert IPSets
 			iptables -t raw -F
 			/usr/sbin/wget "$remoteurl" -qO "$0" && logger -st Skynet "[INFO] Skynet Sucessfully Updated - Restarting Firewall"
 			rm -rf /tmp/skynet.lock
