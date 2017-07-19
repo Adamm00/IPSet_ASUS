@@ -583,7 +583,7 @@ case "$1" in
 
 	start)
 		Check_Lock
-		logger -st Skynet "[INFO] Startup Initiated... ($(grep -F "Skynet" /jffs/scripts/firewall-start | cut -c 4- | cut -d '#' -f1 | awk '{ $1=""; $2=""; print}') )"
+		logger -st Skynet "[INFO] Startup Initiated... ( $(echo "$@" | sed "s/start //g") )"
 		Unload_Cron
 		Check_Settings "$@"
 		cru a Skynet_save "0 * * * * sh /jffs/scripts/firewall save"
@@ -614,8 +614,10 @@ case "$1" in
 		logger -st Skynet "[INFO] Disabling Skynet..."
 		echo "Saving Changes"
 		{ ipset save Whitelist; ipset save Blacklist; ipset save BlockedRanges; } > "${location}/scripts/ipset.txt" 2>/dev/null
+		echo "Unloading IPTables Rules"
 		Unload_IPTables
 		Unload_DebugIPTables
+		echo "Unloading IPSets"
 		Unload_IPSets
 		Purge_Logs
 		Unload_Cron
