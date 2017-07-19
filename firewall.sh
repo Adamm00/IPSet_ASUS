@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 18/07/2017 -		   Asus Firewall Addition By Adamm v5.0.6				    #
+## - 19/07/2017 -		   Asus Firewall Addition By Adamm v5.0.6				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -376,27 +376,29 @@ case "$1" in
 		if [ -z "$2" ]; then
 			printf "Input IP: "
 			read -r ip
+			printf "Input Ban Comment: "
+			read -r desc
 			echo "Banning $ip"
-			ipset -A Blacklist "$ip" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Single SRC=$ip " >> "${location}/skynet.log"
+			ipset -A Blacklist "$ip" comment "$desc" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Single SRC=$ip COMMENT=$desc " >> "${location}/skynet.log"
 		elif echo "$2" | Is_IP; then
 			echo "Banning $2"
-			ipset -A Blacklist "$2" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Single SRC=$2 " >> "${location}/skynet.log"
+			ipset -A Blacklist "$2" comment "$3" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Single SRC=$2 COMMENT=$3 " >> "${location}/skynet.log"
 		elif [ "$2" = "range" ] && [ -n "$3" ]; then
 			echo "Banning $3"
-			ipset -A BlockedRanges "$3" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Range SRC=$3 " >> "${location}/skynet.log"
+			ipset -A BlockedRanges "$3" comment "$4" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Range SRC=$3 COMMENT=$4 " >> "${location}/skynet.log"
 		elif [ "$2" = "domain" ] && [ -z "$3" ]; then
 			printf "Input URL: "
 			read -r bandomain
 			logger -st Skynet "[INFO] Adding $bandomain To Blacklist..."
 			for ip in $(Domain_Lookup "$bandomain"); do
 				echo "Banning $ip"
-				ipset -A Blacklist "$ip" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$bandomain " >> "${location}/skynet.log"
+				ipset -A Blacklist "$ip" comment "$bandomain" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$bandomain " >> "${location}/skynet.log"
 			done
 		elif [ "$2" = "domain" ] && [ -n "$3" ]; then
 		logger -st Skynet "[INFO] Adding $3 To Blacklist..."
 		for ip in $(Domain_Lookup "$3"); do
 			echo "Banning $ip"
-			ipset -A Blacklist "$ip" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$3 " >> "${location}/skynet.log"
+			ipset -A Blacklist "$ip" comment "$3" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$3 " >> "${location}/skynet.log"
 		done
 		elif [ "$2" = "country" ] && [ -n "$3" ]; then
 			if [ -f "${location}/scripts/countrylist.txt" ]; then
@@ -438,20 +440,20 @@ case "$1" in
 		/usr/sbin/wget "$listurl" -qO /jffs/shared-Skynet-whitelist
 		/usr/sbin/wget -t2 -T2 -i /jffs/shared-Skynet-whitelist -qO- | sed -n "s/\\r//;/^$/d;/^[0-9,\\.,\\/]*$/p" | awk '!x[$0]++' | Filter_PrivateIP > /tmp/malwarelist.txt
 		echo "Filtering IPv4 Addresses"
-		grep -vF "/" /tmp/malwarelist.txt | awk '{print "add Blacklist "$1}' > "${location}/scripts/malwarelist.txt"
+		grep -vF "/" /tmp/malwarelist.txt | awk '{print "add Blacklist " $1 " Banmalware"}' > "${location}/scripts/malwarelist.txt"
 		echo "Filtering IPv4 Ranges"
-		grep -F "/" /tmp/malwarelist.txt | awk '{print "add BlockedRanges "$1}' >> "${location}/scripts/malwarelist.txt"
+		grep -F "/" /tmp/malwarelist.txt | awk '{print "add BlockedRanges " $1 " Banmalware"}' >> "${location}/scripts/malwarelist.txt"
 		echo "Applying Blacklists"
 		ipset restore -! -f "${location}/scripts/malwarelist.txt"
 		rm -rf /tmp/malwarelist.txt
 		if [ -f "/home/root/ab-solution.sh" ]; then
-			ipset -q -A Whitelist 213.230.210.230	# AB-Solution Host File
+			ipset -q -A Whitelist 213.230.210.230 comment "AB-Solution"
 		fi
 		if [ -n "$(find /jffs -maxdepth 1 -name 'shared-*-whitelist')" ]; then
 			echo "Whitelisting Shared Domains"
 			grep -hvF "#" /jffs/shared-*-whitelist | sed 's~http[s]*://~~;s~/.*~~' | awk '!x[$0]++' | while IFS= read -r domain; do
 				for ip in $(Domain_Lookup "$domain" 2> /dev/null); do
-					ipset -q -A Whitelist "$ip"
+					ipset -q -A Whitelist "$ip" comment "SharedWhitelist $domain"
 					ipset -q -D Blacklist "$ip"
 				done
 			done
@@ -467,18 +469,20 @@ case "$1" in
 		if [ -z "$2" ]; then
 			printf "Input IP: "
 			read -r ip
+			printf "Input Whitelist Comment: "
+			read -r desc
 			echo "Whitelisting $ip"
-			ipset -A Whitelist "$ip"
+			ipset -A Whitelist "$ip" comment "$desc"
 			ipset -q -D Blacklist "$ip"
 			sed -i "\\~$ip ~d" "${location}/skynet.log"
 		elif echo "$2" | Is_IP; then
 			echo "Whitelisting $2"
-			ipset -A Whitelist "$2"
+			ipset -A Whitelist "$2" comment "$3"
 			ipset -q -D Blacklist "$2"
 			sed -i "\\~$2 ~d" "${location}/skynet.log"
 		elif [ "$2" = "range" ] && echo "$3" | Is_IP; then
 			echo "Whitelisting $3"
-			ipset -A Whitelist "$3"
+			ipset -A Whitelist "$3" comment "$4"
 			ipset -q -D Blacklist "$3"
 			sed -i "\\~$3 ~d" "${location}/skynet.log"
 		elif [ "$2" = "domain" ] && [ -z "$3" ];then
@@ -487,7 +491,7 @@ case "$1" in
 			logger -st Skynet "[INFO] Adding $whitelistdomain To Whitelist..."
 			for ip in $(Domain_Lookup "$whitelistdomain"); do
 				echo "Whitelisting $ip"
-				ipset -A Whitelist "$ip"
+				ipset -A Whitelist "$ip" comment "$whitelistdomain"
 				ipset -q -D Blacklist "$ip"
 				sed -i "\\~$ip ~d" "${location}/skynet.log"
 			done
@@ -495,7 +499,7 @@ case "$1" in
 		logger -st Skynet "[INFO] Adding $3 To Whitelist..."
 		for ip in $(Domain_Lookup "$3"); do
 			echo "Whitelisting $ip"
-			ipset -A Whitelist "$ip"
+			ipset -A Whitelist "$ip" comment "$4"
 			ipset -q -D Blacklist "$ip"
 			sed -i "\\~$ip ~d" "${location}/skynet.log"
 		done
@@ -503,7 +507,7 @@ case "$1" in
 			logger -st Skynet "[INFO] Whitelisting Autobans Issued On Traffic From Port $3..."
 			grep -F "NEW" "${location}/skynet.log" | grep -F "DPT=$3 " | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | while IFS= read -r ip; do
 				echo "Whitelisting $ip"
-				ipset -A Whitelist "$ip"
+				ipset -A Whitelist "$ip" comment "Port $3 Traffic"
 				ipset -q -D Blacklist "$ip"
 				sed -i "\\~$ip ~d" "${location}/skynet.log"
 			done
@@ -534,9 +538,9 @@ case "$1" in
 			exit 2
 		fi
 		echo "Filtering IPv4 Addresses"
-		grep -woE '([0-9]{1,3}\.){3}[0-9]{1,3}' /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk '{print "add Blacklist " $1}' > /tmp/iplist-filtered.txt
+		grep -woE '([0-9]{1,3}\.){3}[0-9]{1,3}' /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk '{print "add Blacklist " $1 "Imported"}' > /tmp/iplist-filtered.txt
 		echo "Filtering IPv4 Ranges"
-		grep -woE '([0-9]{1,3}\.){3}[0-9]{1,3}\/[0-9]{1,2}' /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk '{print "add BlockedRanges " $1}' >> /tmp/iplist-filtered.txt
+		grep -woE '([0-9]{1,3}\.){3}[0-9]{1,3}\/[0-9]{1,2}' /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk '{print "add BlockedRanges " $1 " Imported"}' >> /tmp/iplist-filtered.txt
 		echo "Adding IPs To Blacklist"
 		ipset restore -! -f "/tmp/iplist-filtered.txt"
 		rm -rf /tmp/iplist-unfiltered.txt /tmp/iplist-filtered.txt
@@ -586,17 +590,17 @@ case "$1" in
 		ipset restore -! -f "${location}/scripts/ipset.txt" || touch "${location}/scripts/ipset.txt"
 		Unban_PrivateIP
 		Purge_Logs
-		ipset -q create Whitelist nethash
-		ipset -q create Blacklist iphash --maxelem 500000
-		ipset -q create BlockedRanges nethash
-		ipset -q -A Whitelist 192.168.1.0/24
-		ipset -q -A Whitelist "$(nvram get wan0_ipaddr)"/32
-		ipset -q -A Whitelist "$(nvram get lan_ipaddr)"/24
-		ipset -q -A Whitelist "$(nvram get wan_dns1_x)"/32
-		ipset -q -A Whitelist "$(nvram get wan_dns2_x)"/32
-		ipset -q -A Whitelist "$(nvram get wan_dns | awk '{print $1}')"/32
-		ipset -q -A Whitelist "$(nvram get wan_dns | awk '{print $2}')"/32
-		ipset -q -A Whitelist 151.101.96.133/32		# raw.githubusercontent.com Update Server
+		ipset -q create Whitelist nethash hashsize 65536 comment
+		ipset -q create Blacklist hash:ip --maxelem 500000 hashsize 4000000 comment
+		ipset -q create BlockedRanges hash:net hashsize 65536 comment
+		ipset -q -A Whitelist 192.168.1.0/24 comment "LAN Subnet"
+		ipset -q -A Whitelist "$(nvram get wan0_ipaddr)"/32 comment "WAN IP Addr"
+		ipset -q -A Whitelist "$(nvram get lan_ipaddr)"/24 comment "LAN Subnet"
+		ipset -q -A Whitelist "$(nvram get wan_dns1_x)"/32 comment "wan_dns1_x"
+		ipset -q -A Whitelist "$(nvram get wan_dns2_x)"/32 comment "wan_dns2_x"
+		ipset -q -A Whitelist "$(nvram get wan_dns | awk '{print $1}')"/32 comment "wan_dns"
+		ipset -q -A Whitelist "$(nvram get wan_dns | awk '{print $2}')"/32 comment "wan_dns"
+		ipset -q -A Whitelist 151.101.96.133/32	comment "Github Content Server"
 		Unload_IPTables
 		Unload_DebugIPTables
 		Load_IPTables "$@"
@@ -640,6 +644,9 @@ case "$1" in
 			Unload_IPTables
 			Unload_DebugIPTables
 			Unload_IPSets
+			sed -i 's/create Blacklist.*[0-9]$/& comment/' /jffs/scripts/ipset.txt
+			sed -i 's/create BlockedRanges.*[0-9]$/& comment/' /jffs/scripts/ipset.txt
+			sed -i 's/create Whitelist.*[0-9]$/& comment/' /jffs/scripts/ipset.txt
 			iptables -t raw -F
 			/usr/sbin/wget "$remoteurl" -qO "$0" && logger -st Skynet "[INFO] Skynet Sucessfully Updated - Restarting Firewall"
 			rm -rf /tmp/skynet.lock
