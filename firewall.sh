@@ -417,7 +417,7 @@ case "$1" in
 				/usr/sbin/wget http://ipdeny.com/ipblocks/data/aggregated/"$country"-aggregated.zone -t2 -T2 -qO- >> /tmp/countrylist.txt
 			done
 			echo "Filtering IPv4 Ranges & Applying Blacklists"
-			grep -F "/" /tmp/countrylist.txt | sed -n "s/\\r//;/^$/d;/^[0-9,\\.,\\/]*$/s/^/add BlockedRanges /p" | sed "s/$/& comment Country: $country/" | ipset restore -!
+			grep -F "/" /tmp/countrylist.txt | sed -n "s/\\r//;/^$/d;/^[0-9,\\.,\\/]*$/s/^/add BlockedRanges /p" | sed "s/$/& comment \"Country: $3\"/" | ipset restore -!
 			rm -rf "/tmp/countrylist.txt"
 		else
 			echo "Command Not Recognised, Please Try Again"
