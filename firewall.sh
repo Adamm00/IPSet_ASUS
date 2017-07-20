@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 20/07/2017 -		   Asus Firewall Addition By Adamm v5.1.0				    #
+## - 21/07/2017 -		   Asus Firewall Addition By Adamm v5.1.0				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -345,10 +345,10 @@ case "$1" in
 			sed -i "/PT=${3} /d" "${location}/skynet.log"
 		elif [ "$2" = "country" ]; then
 			echo "Removing Previous Country Bans"
-			sed '/Country: /!d' "${location}/scripts/ipset.txt" | sed 's~[0-9] .*~~' | sed 's/add/del/g' | ipset restore -! | ipset restore -!
+			sed '/Country: /!d' "${location}/scripts/ipset.txt" | sed 's~ comment.*~~' | sed 's/add/del/g' | ipset restore -! | ipset restore -!
 		elif [ "$2" = "malware" ]; then
 			echo "Removing Previous Malware Bans"
-			sed '/Banmalware/!d' "${location}/scripts/ipset.txt" | sed 's~[0-9] .*~~' | sed 's/add/del/g' | ipset restore -!
+			sed '/BanMalware/!d' "${location}/scripts/ipset.txt" | sed 's~ comment.*~~' | sed 's/add/del/g' | ipset restore -!
 		elif [ "$2" = "autobans" ]; then
 			grep -F "NEW" "${location}/skynet.log" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | tr -d " " | while IFS= read -r ip; do
 				echo "Unbanning $ip"
@@ -410,7 +410,7 @@ case "$1" in
 				rm -rf "${location}/scripts/countrylist.txt"
 			fi
 			echo "Removing Previous Country Bans"
-			sed '/Country: /!d' "${location}/scripts/ipset.txt" | sed 's~[0-9] .*~~' | sed 's/add/del/g' | ipset restore -!
+			sed '/Country: /!d' "${location}/scripts/ipset.txt" | sed 's~ comment.*~~' | sed 's/add/del/g' | ipset restore -!
 			echo "Banning Known IP Ranges For $3"
 			echo "Downloading Lists"
 			for country in $3; do
@@ -441,14 +441,14 @@ case "$1" in
 			rm -rf "${location}/scripts/malwarelist.txt"
 		fi
 		echo "Removing Previous Malware Bans"
-		sed '/BanMalware/!d' "${location}/scripts/ipset.txt" | sed 's~[0-9] .*~~' | sed 's/add/del/g' | ipset restore -!
+		sed '/BanMalware/!d' "${location}/scripts/ipset.txt" | sed 's~ comment.*~~' | sed 's/add/del/g' | ipset restore -!
 		echo "Downloading Lists"
 		/usr/sbin/wget "$listurl" -qO /jffs/shared-Skynet-whitelist
 		/usr/sbin/wget -t2 -T2 -i /jffs/shared-Skynet-whitelist -qO- | sed -n "s/\\r//;/^$/d;/^[0-9,\\.,\\/]*$/p" | awk '!x[$0]++' | Filter_PrivateIP > /tmp/malwarelist.txt
 		echo "Filtering IPv4 Addresses"
-		grep -vF "/" /tmp/malwarelist.txt | awk '{print "add Blacklist " $1 " comment Banmalware"}' > "/tmp/malwarelist2.txt"
+		grep -vF "/" /tmp/malwarelist.txt | awk '{print "add Blacklist " $1 " comment BanMalware"}' > "/tmp/malwarelist2.txt"
 		echo "Filtering IPv4 Ranges"
-		grep -F "/" /tmp/malwarelist.txt | awk '{print "add BlockedRanges " $1 " comment Banmalware"}' >> "/tmp/malwarelist2.txt"
+		grep -F "/" /tmp/malwarelist.txt | awk '{print "add BlockedRanges " $1 " comment BanMalware"}' >> "/tmp/malwarelist2.txt"
 		echo "Applying Blacklists"
 		ipset restore -! -f "/tmp/malwarelist2.txt"
 		rm -rf "/tmp/malwarelist.txt" "/tmp/malwarelist2.txt"
