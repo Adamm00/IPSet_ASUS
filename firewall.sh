@@ -772,9 +772,9 @@ case "$1" in
 			ipset test Blacklist "$4" && found2=true
 			ipset test BlockedRanges "$4" && found3=true
 			echo
-			if [ -n "$found1" ]; then echo "Whitelist Reason; $(grep -E Whitelist.*$4 ${location}/scripts/ipset.txt | awk '{$1=$2=$3=$4=""; print $0}' | tr -s " ")"; fi
-			if [ -n "$found2" ]; then echo "Blacklist Reason; $(grep -E Blacklist.*$4 ${location}/scripts/ipset.txt | awk '{$1=$2=$3=$4=""; print $0}' | tr -s " ")"; fi
-			if [ -n "$found3" ]; then echo "BlockedRanges Reason; $(grep -E BlockedRanges.*$4 ${location}/scripts/ipset.txt | awk '{$1=$2=$3=$4=""; print $0}' | tr -s " ")"; fi
+			if [ -n "$found1" ]; then echo "Whitelist Reason; $(grep -E "Whitelist.*$4" ${location}/scripts/ipset.txt | awk '{$1=$2=$3=$4=""; print $0}' | tr -s " ")"; fi
+			if [ -n "$found2" ]; then echo "Blacklist Reason; $(grep -E "Blacklist.*$4" ${location}/scripts/ipset.txt | awk '{$1=$2=$3=$4=""; print $0}' | tr -s " ")"; fi
+			if [ -n "$found3" ]; then echo "BlockedRanges Reason; $(grep -E "BlockedRanges.*$(echo "$4" | cut -d '.' -f1-3)." ${location}/scripts/ipset.txt | awk '{$1=$2=$4=""; print $0}' | tr -s " ")"; fi
 			echo
 			echo "$4 First Tracked On $(grep -m1 -F "=$4 " ${location}/skynet.log | awk '{print $1" "$2" "$3}')"
 			echo "$4 Last Tracked On $(grep -F "=$4 " ${location}/skynet.log | tail -1 | awk '{print $1" "$2" "$3}')"
