@@ -95,8 +95,8 @@ Check_Settings () {
 		fi
 
 		conflicting_scripts="(IPSet_Block.sh|malware-filter|privacy-filter|ipBLOCKer.sh|ya-malware-block.sh|iblocklist-loader.sh)$"
-		if find /jffs /tmp/mnt | grep -qE "$conflicting_scripts"; then
-			logger -st Skynet "[ERROR] $(find /jffs /tmp/mnt | grep -E "$conflicting_scripts" | xargs) Detected - This Script Will Cause Conflicts! Please Uninstall It ASAP"
+		if /usr/bin/find /jffs /tmp/mnt | grep -qE "$conflicting_scripts"; then
+			logger -st Skynet "[ERROR] $(/usr/bin/find /jffs /tmp/mnt | grep -E "$conflicting_scripts" | xargs) Detected - This Script Will Cause Conflicts! Please Uninstall It ASAP"
 		fi
 
 		if echo "$@" | grep -qF "banmalware"; then
@@ -447,7 +447,7 @@ case "$1" in
 		if [ -f "/home/root/ab-solution.sh" ]; then
 			ipset -q -A Whitelist 213.230.210.230	# AB-Solution Host File
 		fi
-		if [ -n "$(find /jffs -maxdepth 1 -name 'shared-*-whitelist')" ]; then
+		if [ -n "$(/usr/bin/find /jffs -name 'shared-*-whitelist')" ]; then
 			echo "Whitelisting Shared Domains"
 			grep -hvF "#" /jffs/shared-*-whitelist | sed 's~http[s]*://~~;s~/.*~~' | awk '!x[$0]++' | while IFS= read -r domain; do
 				for ip in $(Domain_Lookup "$domain" 2> /dev/null); do
