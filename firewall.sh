@@ -91,7 +91,7 @@ Check_Settings () {
 		if [ ! -f /lib/modules/*/kernel/net/netfilter/ipset/ip_set_hash_ipmac.ko ]; then
 			logger -st Skynet "[ERROR] IPSet Extensions Not Enabled - Please Update To Newer Firmware"
 		fi
-		
+
 		if ! grep -qF "Skynet" /jffs/scripts/firewall-start; then
 			logger -st Skynet "[ERROR] Installation Not Detected - Please Use Install Command To Continue"
 			rm -rf /tmp/skynet.lock
@@ -245,6 +245,13 @@ Filter_PrivateDST () {
 		grep -E '(DST=127\.)|(DST=10\.)|(DST=172\.1[6-9]\.)|(DST=172\.2[0-9]\.)|(DST=172\.3[0-1]\.)|(DST=192\.168\.)|(DST=0.)|(DST=169\.254\.)'
 }
 
+Save_IPSets () {
+		if ipset -q -n -L Whitelist >/dev/null 2>&1; then
+			echo "Saving Changes"
+			{ ipset save Whitelist; ipset save Blacklist; ipset save BlockedRanges; } > "${location}/scripts/ipset.txt" 2>/dev/null
+		fi
+}
+
 Unban_PrivateIP () {
 		grep -F "INBOUND" /tmp/syslog.log | Filter_PrivateSRC | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | while IFS= read -r ip; do
 			ipset -q -A Whitelist "$ip" comment "PrivateIP"
@@ -364,8 +371,7 @@ case "$1" in
 			echo "Command Not Recognised, Please Try Again"
 			exit 2
 		fi
-		echo "Saving Changes"
-		{ ipset save Whitelist; ipset save Blacklist; ipset save BlockedRanges; } > "${location}/scripts/ipset.txt" 2>/dev/null
+		Save_IPSets
 		;;
 
 	ban)
@@ -417,8 +423,7 @@ case "$1" in
 			echo "Command Not Recognised, Please Try Again"
 			exit 2
 		fi
-		echo "Saving Changes"
-		{ ipset save Whitelist; ipset save Blacklist; ipset save BlockedRanges; } > "${location}/scripts/ipset.txt" 2>/dev/null
+		Save_IPSets
 		;;
 
 	banmalware)
@@ -460,8 +465,7 @@ case "$1" in
 			done
 		fi
 		echo "Warning! This May Have Blocked Your Favorite Website. To Unblock It Use; ( sh $0 whitelist domain URL )"
-		echo "Saving Changes"
-		{ ipset save Whitelist; ipset save Blacklist; ipset save BlockedRanges; } > "${location}/scripts/ipset.txt" 2>/dev/null
+		Save_IPSets
 		rm -rf /tmp/skynet.lock
 		;;
 
@@ -515,8 +519,7 @@ case "$1" in
 		elif [ "$2" = "remove" ]; then
 			echo "Removing All Non-Default Whitelist Entries"
 			ipset flush Whitelist
-			echo "Saving Changes"
-			{ ipset save Whitelist; ipset save Blacklist; ipset save BlockedRanges; } > "${location}/scripts/ipset.txt" 2>/dev/null
+			Save_IPSets
 			echo "Restarting Firewall"
 			service restart_firewall
 			exit 0
@@ -524,8 +527,7 @@ case "$1" in
 			echo "Command Not Recognised, Please Try Again"
 			exit 2
 		fi
-		echo "Saving Changes"
-		{ ipset save Whitelist; ipset save Blacklist; ipset save BlockedRanges; } > "${location}/scripts/ipset.txt" 2>/dev/null
+		Save_IPSets
 		;;
 
 	import)
@@ -545,8 +547,7 @@ case "$1" in
 		echo "Adding IPs To Blacklist"
 		ipset restore -! -f "/tmp/iplist-filtered.txt"
 		rm -rf /tmp/iplist-unfiltered.txt /tmp/iplist-filtered.txt
-		echo "Saving Changes"
-		{ ipset save Whitelist; ipset save Blacklist; ipset save BlockedRanges; } > "${location}/scripts/ipset.txt" 2>/dev/null
+		Save_IPSets
 		rm -rf /tmp/skynet.lock
 		;;
 
@@ -567,16 +568,14 @@ case "$1" in
 		echo "Removing IPs From Blacklist"
 		ipset restore -! -f "/tmp/iplist-filtered.txt"
 		rm -rf /tmp/iplist-unfiltered.txt /tmp/iplist-filtered.txt
-		echo "Saving Changes"
-		{ ipset save Whitelist; ipset save Blacklist; ipset save BlockedRanges; } > "${location}/scripts/ipset.txt" 2>/dev/null
+		Save_IPSets
 		;;
 
 	save)
 		Check_Lock
-		echo "Saving Changes"
 		Unban_PrivateIP
 		Purge_Logs
-		{ ipset save Whitelist; ipset save Blacklist; ipset save BlockedRanges; } > "${location}/scripts/ipset.txt" 2>/dev/null
+		Save_IPSets
 		sed -i '/USER admin pid .*firewall/d' /tmp/syslog.log
 		rm -rf /tmp/skynet.lock
 		;;
@@ -594,13 +593,13 @@ case "$1" in
 		ipset -q create Whitelist nethash comment
 		ipset -q create Blacklist hash:ip --maxelem 500000 comment
 		ipset -q create BlockedRanges hash:net comment
-		ipset -q -A Whitelist 192.168.1.0/24 comment "LAN Subnet"
-		ipset -q -A Whitelist "$(nvram get wan0_ipaddr)"/32 comment "WAN IP Addr"
-		ipset -q -A Whitelist "$(nvram get lan_ipaddr)"/24 comment "LAN Subnet"
-		ipset -q -A Whitelist "$(nvram get wan_dns1_x)"/32 comment "wan_dns1_x"
-		ipset -q -A Whitelist "$(nvram get wan_dns2_x)"/32 comment "wan_dns2_x"
-		ipset -q -A Whitelist "$(nvram get wan_dns | awk '{print $1}')"/32 comment "wan_dns"
-		ipset -q -A Whitelist "$(nvram get wan_dns | awk '{print $2}')"/32 comment "wan_dns"
+		ipset -q -A Whitelist 192.168.1.0/24 comment "nvram: LAN Subnet"
+		ipset -q -A Whitelist "$(nvram get wan0_ipaddr)"/32 comment "nvram: WAN IP Addr"
+		ipset -q -A Whitelist "$(nvram get lan_ipaddr)"/24 comment "nvram: LAN Subnet"
+		ipset -q -A Whitelist "$(nvram get wan_dns1_x)"/32 comment "nvram: wan_dns1_x"
+		ipset -q -A Whitelist "$(nvram get wan_dns2_x)"/32 comment "nvram: wan_dns2_x"
+		ipset -q -A Whitelist "$(nvram get wan_dns | awk '{print $1}')"/32 comment "nvram: wan_dns"
+		ipset -q -A Whitelist "$(nvram get wan_dns | awk '{print $2}')"/32 comment "nvram: wan_dns"
 		ipset -q -A Whitelist 151.101.96.133/32	comment "Github Content Server"
 		Unload_IPTables
 		Unload_DebugIPTables
@@ -612,8 +611,7 @@ case "$1" in
 
 	disable)
 		logger -st Skynet "[INFO] Disabling Skynet..."
-		echo "Saving Changes"
-		{ ipset save Whitelist; ipset save Blacklist; ipset save BlockedRanges; } > "${location}/scripts/ipset.txt" 2>/dev/null
+		Save_IPSets
 		echo "Unloading IPTables Rules"
 		Unload_IPTables
 		Unload_DebugIPTables
@@ -642,7 +640,7 @@ case "$1" in
 		if [ "$localver" != "$remotever" ] || [ "$2" = "-f" ]; then
 			Check_Lock
 			logger -st Skynet "[INFO] New Version Detected - Updating To $remotever... ... ..."
-			{ ipset save Whitelist; ipset save Blacklist; ipset save BlockedRanges; } > "${location}/scripts/ipset.txt" 2>/dev/null
+			Save_IPSets >/dev/null 2>&1
 			Unload_Cron
 			Unload_IPTables
 			Unload_DebugIPTables
@@ -663,8 +661,7 @@ case "$1" in
 			restart)
 				Unload_Cron
 				Kill_Lock
-				echo "Saving Changes"
-				{ ipset save Whitelist; ipset save Blacklist; ipset save BlockedRanges; } > "${location}/scripts/ipset.txt" 2>/dev/null
+				Save_IPSets
 				Unload_IPTables
 				Unload_DebugIPTables
 				Unload_IPSets
