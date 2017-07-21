@@ -209,7 +209,7 @@ Is_IP () {
 }
 
 Domain_Lookup () {
-		nslookup "$1" | grep -woE '([0-9]{1,3}\.){3}[0-9]{1,3}' | awk 'NR>2'
+		nslookup "$(echo "$1" | sed 's~http[s]*://~~;s~/.*~~')" | grep -woE '([0-9]{1,3}\.){3}[0-9]{1,3}' | awk 'NR>2'
 }
 
 Filter_Version () {
@@ -495,7 +495,7 @@ case "$1" in
 		logger -st Skynet "[INFO] Adding $3 To Whitelist..."
 		for ip in $(Domain_Lookup "$3"); do
 			echo "Whitelisting $ip"
-			ipset -A Whitelist "$ip" comment "ManualWlist: $4"
+			ipset -A Whitelist "$ip" comment "ManualWlist: $3"
 			ipset -q -D Blacklist "$ip"
 			sed -i "\\~$ip ~d" "${location}/skynet.log"
 		done
@@ -567,7 +567,7 @@ case "$1" in
 		Unban_PrivateIP
 		Purge_Logs
 		Save_IPSets
-		sed -i '/USER admin pid .*firewall/d' /tmp/syslog.log
+		sed -i "/USER $(nvram get http_username) pid .*/jffs/scripts/firewall/d" /tmp/syslog.log
 		rm -rf /tmp/skynet.lock
 		;;
 
