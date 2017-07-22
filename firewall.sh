@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 21/07/2017 -		   Asus Firewall Addition By Adamm v5.1.0				    #
+## - 22/07/2017 -		   Asus Firewall Addition By Adamm v5.1.0				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -99,8 +99,8 @@ Check_Settings () {
 		fi
 
 		conflicting_scripts="(IPSet_Block.sh|malware-filter|privacy-filter|ipBLOCKer.sh|ya-malware-block.sh|iblocklist-loader.sh)$"
-		if find /jffs /tmp/mnt | grep -qE "$conflicting_scripts"; then
-			logger -st Skynet "[ERROR] $(find /jffs /tmp/mnt | grep -E "$conflicting_scripts" | xargs) Detected - This Script Will Cause Conflicts! Please Uninstall It ASAP"
+		if /usr/bin/find /jffs /tmp/mnt | grep -qE "$conflicting_scripts"; then
+			logger -st Skynet "[ERROR] $(/usr/bin/find /jffs /tmp/mnt | grep -E "$conflicting_scripts" | xargs) Detected - This Script Will Cause Conflicts! Please Uninstall It ASAP"
 		fi
 
 		if echo "$@" | grep -qF "banmalware"; then
@@ -254,6 +254,26 @@ Unban_PrivateIP () {
 			ipset -q -D Blacklist "$ip"
 			sed -i "/DST=${ip} /d" /tmp/syslog.log
 		done
+}
+
+Whitelist_Shared () {
+		ipset -q -A Whitelist 192.168.1.0/24 comment "nvram: LAN Subnet"
+		ipset -q -A Whitelist "$(nvram get wan0_ipaddr)"/32 comment "nvram: wan0_ipaddr"
+		ipset -q -A Whitelist "$(nvram get lan_ipaddr)"/24 comment "nvram: lan_ipaddr"
+		ipset -q -A Whitelist "$(nvram get wan_dns1_x)"/32 comment "nvram: wan_dns1_x"
+		ipset -q -A Whitelist "$(nvram get wan_dns2_x)"/32 comment "nvram: wan_dns2_x"
+		ipset -q -A Whitelist "$(nvram get wan_dns | awk '{print $1}')"/32 comment "nvram: wan_dns"
+		ipset -q -A Whitelist "$(nvram get wan_dns | awk '{print $2}')"/32 comment "nvram: wan_dns"
+		ipset -q -A Whitelist 151.101.96.133/32	comment "Github Content Server"
+		if [ -n "$(/usr/bin/find /jffs -name 'shared-*-whitelist')" ]; then
+			echo "Whitelisting Shared Domains"
+			grep -hvF "#" /jffs/shared-*-whitelist | sed 's~http[s]*://~~;s~/.*~~' | awk '!x[$0]++' | while IFS= read -r domain; do
+				for ip in $(Domain_Lookup "$domain" 2> /dev/null); do
+					ipset -q -A Whitelist "$ip" comment "Shared-Whitelist: $domain"
+					ipset -q -D Blacklist "$ip"
+				done
+			done
+		fi
 }
 
 Purge_Logs () {
@@ -443,18 +463,7 @@ case "$1" in
 		echo "Applying Blacklists"
 		ipset restore -! -f "/tmp/malwarelist2.txt"
 		rm -rf "/tmp/malwarelist.txt" "/tmp/malwarelist2.txt"
-		if [ -f "/home/root/ab-solution.sh" ]; then
-			ipset -q -A Whitelist 213.230.210.230 comment "AB-Solution"
-		fi
-		if [ -n "$(find /jffs -maxdepth 1 -name 'shared-*-whitelist')" ]; then
-			echo "Whitelisting Shared Domains"
-			grep -hvF "#" /jffs/shared-*-whitelist | sed 's~http[s]*://~~;s~/.*~~' | awk '!x[$0]++' | while IFS= read -r domain; do
-				for ip in $(Domain_Lookup "$domain" 2> /dev/null); do
-					ipset -q -A Whitelist "$ip" comment "Shared-Whitelist: $domain"
-					ipset -q -D Blacklist "$ip"
-				done
-			done
-		fi
+		Whitelist_Shared
 		echo "Warning! This May Have Blocked Your Favorite Website. To Unblock It Use; ( sh $0 whitelist domain URL )"
 		Save_IPSets
 		rm -rf /tmp/skynet.lock
@@ -508,12 +517,10 @@ case "$1" in
 				sed -i "\\~$ip ~d" "${location}/skynet.log"
 			done
 		elif [ "$2" = "remove" ]; then
-			echo "Removing All Non-Default Whitelist Entries"
+			echo "Flushing Whitelist"
 			ipset flush Whitelist
-			Save_IPSets
-			echo "Restarting Firewall"
-			service restart_firewall
-			exit 0
+			echo "Adding Default Entries"
+			Whitelist_Shared
 		else
 			echo "Command Not Recognised, Please Try Again"
 			exit 2
@@ -531,10 +538,11 @@ case "$1" in
 			echo "No List URL Specified - Exiting"
 			exit 2
 		fi
+		imptime="$(date +"%b %d %T")"
 		echo "Filtering IPv4 Addresses"
-		grep -woE '([0-9]{1,3}\.){3}[0-9]{1,3}' /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk '{print "add Blacklist " $1 " comment Imported"}' > /tmp/iplist-filtered.txt
+		grep -woE '([0-9]{1,3}\.){3}[0-9]{1,3}' /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk -v imptime="$imptime" '{print "add Blacklist " $1 " comment \"Imported: " imptime "\""}' > /tmp/iplist-filtered.txt
 		echo "Filtering IPv4 Ranges"
-		grep -woE '([0-9]{1,3}\.){3}[0-9]{1,3}\/[0-9]{1,2}' /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk '{print "add BlockedRanges " $1 " comment Imported"}' >> /tmp/iplist-filtered.txt
+		grep -woE '([0-9]{1,3}\.){3}[0-9]{1,3}\/[0-9]{1,2}' /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk -v imptime="$imptime" '{print "add BlockedRanges " $1 " comment \"Imported: " imptime "\""}' >> /tmp/iplist-filtered.txt
 		echo "Adding IPs To Blacklist"
 		ipset restore -! -f "/tmp/iplist-filtered.txt"
 		rm -rf /tmp/iplist-unfiltered.txt /tmp/iplist-filtered.txt
@@ -567,7 +575,7 @@ case "$1" in
 		Unban_PrivateIP
 		Purge_Logs
 		Save_IPSets
-		sed -i "/USER $(nvram get http_username) pid .*/jffs/scripts/firewall/d" /tmp/syslog.log
+		sed -i "/USER $(nvram get http_username) pid .*/jffs/scripts/firewall /d" /tmp/syslog.log
 		rm -rf /tmp/skynet.lock
 		;;
 
@@ -586,14 +594,7 @@ case "$1" in
 		if ! ipset -L -n Blacklist >/dev/null 2>&1; then ipset -q create Blacklist hash:ip --maxelem 500000 comment; fi
 		if ! ipset -L -n BlockedRanges >/dev/null 2>&1; then ipset -q create BlockedRanges hash:net comment; fi
 		if ! ipset -L -n Skynet >/dev/null 2>&1; then ipset -q create Skynet list:set; ipset -q -A Skynet Blacklist; ipset -q -A Skynet BlockedRanges; fi
-		ipset -q -A Whitelist 192.168.1.0/24 comment "nvram: LAN Subnet"
-		ipset -q -A Whitelist "$(nvram get wan0_ipaddr)"/32 comment "nvram: WAN IP Addr"
-		ipset -q -A Whitelist "$(nvram get lan_ipaddr)"/24 comment "nvram: LAN Subnet"
-		ipset -q -A Whitelist "$(nvram get wan_dns1_x)"/32 comment "nvram: wan_dns1_x"
-		ipset -q -A Whitelist "$(nvram get wan_dns2_x)"/32 comment "nvram: wan_dns2_x"
-		ipset -q -A Whitelist "$(nvram get wan_dns | awk '{print $1}')"/32 comment "nvram: wan_dns"
-		ipset -q -A Whitelist "$(nvram get wan_dns | awk '{print $2}')"/32 comment "nvram: wan_dns"
-		ipset -q -A Whitelist 151.101.96.133/32	comment "Github Content Server"
+		Whitelist_Shared
 		ipset -q -A Skynet Blacklist
 		ipset -q -A Skynet BlockedRanges
 		Load_IPTables "$@"
