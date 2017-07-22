@@ -575,7 +575,7 @@ case "$1" in
 		Unban_PrivateIP
 		Purge_Logs
 		Save_IPSets
-		sed -i "/USER $(nvram get http_username) pid .*/jffs/scripts/firewall /d" /tmp/syslog.log
+		sed -i "\~USER $(nvram get http_username) pid .*/jffs/scripts/firewall ~d" /tmp/syslog.log
 		rm -rf /tmp/skynet.lock
 		;;
 
@@ -586,21 +586,23 @@ case "$1" in
 		Check_Settings "$@"
 		cru a Skynet_save "0 * * * * sh /jffs/scripts/firewall save"
 		modprobe xt_set
-		Unload_IPTables
-		Unload_DebugIPTables
-		Unload_IPSets
 		ipset restore -! -f "${location}/scripts/ipset.txt" || touch "${location}/scripts/ipset.txt"
 		if ! ipset -L -n Whitelist >/dev/null 2>&1; then ipset -q create Whitelist nethash comment; fi
 		if ! ipset -L -n Blacklist >/dev/null 2>&1; then ipset -q create Blacklist hash:ip --maxelem 500000 comment; fi
 		if ! ipset -L -n BlockedRanges >/dev/null 2>&1; then ipset -q create BlockedRanges hash:net comment; fi
 		if ! ipset -L -n Skynet >/dev/null 2>&1; then ipset -q create Skynet list:set; ipset -q -A Skynet Blacklist; ipset -q -A Skynet BlockedRanges; fi
-		Whitelist_Shared
 		ipset -q -A Skynet Blacklist
 		ipset -q -A Skynet BlockedRanges
-		Load_IPTables "$@"
-		Load_DebugIPTables "$@"
 		Unban_PrivateIP
 		Purge_Logs
+		Whitelist_Shared
+		while [ "$(($(date +%s) - stime))" -lt "20" ]; do
+			sleep 1
+		done
+		Unload_IPTables
+		Unload_DebugIPTables
+		Load_IPTables "$@"
+		Load_DebugIPTables "$@"
 		sed -i '/DROP IN=/d' /tmp/syslog.log
 		rm -rf /tmp/skynet.lock
 		;;
