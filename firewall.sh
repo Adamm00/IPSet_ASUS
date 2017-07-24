@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 22/07/2017 -		   Asus Firewall Addition By Adamm v5.1.0				    #
+## - 24/07/2017 -		   Asus Firewall Addition By Adamm v5.1.0				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -257,23 +257,22 @@ Unban_PrivateIP () {
 }
 
 Whitelist_Shared () {
-		ipset -q -A Whitelist 192.168.1.0/24 comment "nvram: LAN Subnet"
 		ipset -q -A Whitelist "$(nvram get wan0_ipaddr)"/32 comment "nvram: wan0_ipaddr"
 		ipset -q -A Whitelist "$(nvram get lan_ipaddr)"/24 comment "nvram: lan_ipaddr"
 		ipset -q -A Whitelist "$(nvram get wan_dns1_x)"/32 comment "nvram: wan_dns1_x"
 		ipset -q -A Whitelist "$(nvram get wan_dns2_x)"/32 comment "nvram: wan_dns2_x"
 		ipset -q -A Whitelist "$(nvram get wan_dns | awk '{print $1}')"/32 comment "nvram: wan_dns"
 		ipset -q -A Whitelist "$(nvram get wan_dns | awk '{print $2}')"/32 comment "nvram: wan_dns"
+		ipset -q -A Whitelist 192.168.1.0/24 comment "nvram: LAN Subnet"
 		ipset -q -A Whitelist 151.101.96.133/32	comment "Github Content Server"
 		if [ -n "$(/usr/bin/find /jffs -name 'shared-*-whitelist')" ]; then
 			echo "Whitelisting Shared Domains"
 			sed '\~Shared-Whitelist~!d;s~ comment.*~~;s~add~del~g' "${location}/scripts/ipset.txt" | ipset restore -!
-			grep -hvF "#" /jffs/shared-*-whitelist | sed 's~http[s]*://~~;s~/.*~~' | awk '!x[$0]++' | while IFS= read -r domain; do
+			{ grep -hvF "#" /jffs/shared-*-whitelist | sed 's~http[s]*://~~;s~/.*~~' | awk '!x[$0]++' | while IFS= read -r domain; do
 				for ip in $(Domain_Lookup "$domain" 2> /dev/null); do
-					ipset -q -A Whitelist "$ip" comment "Shared-Whitelist: $domain"
-					ipset -q -D Blacklist "$ip"
+					echo "add Whitelist $ip comment \"Shared-Whitelist: $domain\""
 				done
-			done
+			done } | ipset restore -!
 		fi
 }
 
@@ -306,8 +305,8 @@ Logging () {
 			hits1="$(iptables -xnvL -t raw | grep -Fv "LOG" | grep -F "Skynet src" | awk '{print $1}')"
 			hits2="$(iptables -xnvL -t raw | grep -Fv "LOG" | grep -F "Skynet dst" | awk '{print $1}')"
 		fi
-		stime="$(($(date +%s) - stime))"
-		logger -st Skynet "[Complete] $newips IPs / $newranges Ranges Banned. $((newips - oldips)) New IPs / $((newranges - oldranges)) New Ranges Banned. $hits1 Inbound / $hits2 Outbound Connections Blocked! [${stime}s]"
+		ftime="$(($(date +%s) - stime))"
+		logger -st Skynet "[Complete] $newips IPs / $newranges Ranges Banned. $((newips - oldips)) New IPs / $((newranges - oldranges)) New Ranges Banned. $hits1 Inbound / $hits2 Outbound Connections Blocked! [${ftime}s]"
 }
 
 ##########################################################################################################################################
@@ -454,8 +453,10 @@ case "$1" in
 		fi
 		echo "Removing Previous Malware Bans"
 		sed '\~BanMalware~!d;s~ comment.*~~;s~add~del~g' "${location}/scripts/ipset.txt" | ipset restore -!
-		echo "Downloading Lists"
+		echo "Downloading filter.list"
 		/usr/sbin/wget "$listurl" -qO /jffs/shared-Skynet-whitelist
+		Whitelist_Shared
+		echo "Compiling Master List"
 		/usr/sbin/wget -t2 -T2 -i /jffs/shared-Skynet-whitelist -qO- | sed -n "s/\\r//;/^$/d;/^[0-9,\\.,\\/]*$/p" | awk '!x[$0]++' | Filter_PrivateIP > /tmp/malwarelist.txt
 		echo "Filtering IPv4 Addresses"
 		grep -vF "/" /tmp/malwarelist.txt | awk '{print "add Blacklist " $1 " comment BanMalware"}' > "/tmp/malwarelist2.txt"
@@ -464,7 +465,6 @@ case "$1" in
 		echo "Applying Blacklists"
 		ipset restore -! -f "/tmp/malwarelist2.txt"
 		rm -rf "/tmp/malwarelist.txt" "/tmp/malwarelist2.txt"
-		Whitelist_Shared
 		echo "Warning! This May Have Blocked Your Favorite Website. To Unblock It Use; ( sh $0 whitelist domain URL )"
 		Save_IPSets
 		rm -rf /tmp/skynet.lock
@@ -771,8 +771,8 @@ case "$1" in
 			ipset test Blacklist "$4" && found2=true
 			ipset test BlockedRanges "$4" && found3=true
 			echo
-			if [ -n "$found1" ]; then echo "Whitelist Reason; $(grep -E "Whitelist.*$4" ${location}/scripts/ipset.txt | awk '{$1=$2=$3=$4=""; print $0}' | tr -s " ")"; fi
-			if [ -n "$found2" ]; then echo "Blacklist Reason; $(grep -E "Blacklist.*$4" ${location}/scripts/ipset.txt | awk '{$1=$2=$3=$4=""; print $0}' | tr -s " ")"; fi
+			if [ -n "$found1" ]; then echo "Whitelist Reason; $(grep -E "Whitelist.*$4 " ${location}/scripts/ipset.txt | awk '{$1=$2=$3=$4=""; print $0}' | tr -s " ")"; fi
+			if [ -n "$found2" ]; then echo "Blacklist Reason; $(grep -E "Blacklist.*$4 " ${location}/scripts/ipset.txt | awk '{$1=$2=$3=$4=""; print $0}' | tr -s " ")"; fi
 			if [ -n "$found3" ]; then echo "BlockedRanges Reason; $(grep -E "BlockedRanges.*$(echo "$4" | cut -d '.' -f1-3)." ${location}/scripts/ipset.txt | awk '{$1=$2=$4=""; print $0}' | tr -s " ")"; fi
 			echo
 			echo "$4 First Tracked On $(grep -m1 -F "=$4 " ${location}/skynet.log | awk '{print $1" "$2" "$3}')"
