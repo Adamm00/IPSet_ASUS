@@ -52,8 +52,8 @@ Here Are Some Example Unban Commands;
 
 Here Are Some Example Ban Commands;
 "sh /jffs/scripts/firewall ban" This Requires Manual Input (Only IPs accepted)
-"sh /jffs/scripts/firewall ban 8.8.8.8" This Bans The IP Specified
-"sh /jffs/scripts/firewall ban range 8.8.8.8/24" This Bans the CIDR Block Specified
+"sh /jffs/scripts/firewall ban 8.8.8.8 Apples" This Bans The IP Specified With Comment Apples
+"sh /jffs/scripts/firewall ban range 8.8.8.8/24 Apples" This Bans the CIDR Block Specified With Comment Apples
 "sh /jffs/scripts/firewall ban domain" This Requires Manual Input (Only Domains Accepted)
 "sh /jffs/scripts/firewall ban domain google.com" This Bans the URL Specified
 "sh /jffs/scripts/firewall ban country "pk cn sa"" This Bans The Known IPs For The Specified Countries (accepts single/multiple inputs if quoted) http://www.ipdeny.com/ipblocks/data/countries/
@@ -64,7 +64,7 @@ Here Are Some Example Banmalware Commands;
 
 Here Are Some Example Whitelist Commands;
 "sh /jffs/scripts/firewall whitelist" This Requires Manual Input (Only IPs accepted)
-"sh /jffs/scripts/firewall whitelist 8.8.8.8" This Whitelists The IP or Range Specified
+"sh /jffs/scripts/firewall whitelist 8.8.8.8 Apples" This Whitelists The IP or Range Specified With Comment Apples
 "sh /jffs/scripts/firewall whitelist domain" This Requires Manual Input (Only Domains Accepted)
 "sh /jffs/scripts/firewall whitelist domain google.com" This Whitelists the URL Specified
 "sh /jffs/scripts/firewall whitelist port 23" This Whitelists All Autobans Based On Traffic From Port 23
