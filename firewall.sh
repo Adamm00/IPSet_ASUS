@@ -694,6 +694,7 @@ case "$1" in
 				if [ -w "$location" ]; then $grn "Install Dir Writeable"; else $red "Can't Write To Install Dir"; fi
 				if grep -qF "Skynet" /jffs/scripts/firewall-start; then $grn "Startup Entry Detected"; else $red "Startup Entry Not Detected"; fi
 				if cru l | grep -qF "Skynet"; then $grn "Cronjobs Detected"; else $red "Cronjobs Not Detected"; fi
+				if [ -f /lib/modules/*/kernel/net/netfilter/ipset/ip_set_hash_ipmac.ko ]; then $grn "IPSet Supports Comments"; else $red "IPSet Doesn't Support Comments - Please Update To 380.68_alpha1 Or Newer Firmware"; fi
 				if iptables -nL | grep -F "LOG" | grep -qF "NEW BAN"; then $grn "Autobanning Enabled"; else $red "Autobanning Disabled"; fi
 				if iptables -nL -t raw | grep -F "LOG" | grep -qF "match-set Skynet "; then $grn "Debug Mode Enabled"; else $red "Debug Mode Disabled"; fi
 				if [ "$(iptables-save -t raw | sort | uniq -d | grep -c " ")" = "0" ]; then $grn "No Duplicate Rules Detected In RAW"; else $red "Duplicate Rules Detected In RAW"; fi
