@@ -627,7 +627,7 @@ case "$1" in
 	;;
 
 	update)
-		remoteurl="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/ipset-updated/firewall.sh"
+		remoteurl="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh"
 		/usr/sbin/wget "$remoteurl" -t2 -T2 -qO- | grep -qF "Adamm" || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Update" ; exit 1; }
 		localver="$(Filter_Version "$0")"
 		remotever="$(/usr/sbin/wget "$remoteurl" -qO- | Filter_Version)"
