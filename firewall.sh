@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 24/07/2017 -		   Asus Firewall Addition By Adamm v5.1.0				    #
+## - 03/08/2017 -		   Asus Firewall Addition By Adamm v5.1.0				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -89,7 +89,11 @@ Kill_Lock () {
 
 Check_Settings () {
 		if [ ! -f /lib/modules/*/kernel/net/netfilter/ipset/ip_set_hash_ipmac.ko ]; then
-			logger -st Skynet "[ERROR] IPSet Extensions Not Enabled - Please Update To Newer Firmware"
+			logger -st Skynet "[ERROR] IPSet Extensions Not Enabled - Please Update To 380.68_alpha1 Or Newer Firmware"
+		else
+			sed -i 's/create Blacklist.*[0-9]$/& comment/' "${location}/scripts/ipset.txt" # Convert IPSets
+			sed -i 's/create BlockedRanges.*[0-9]$/& comment/' "${location}/scripts/ipset.txt" # Convert IPSets
+			sed -i 's/create Whitelist.*[0-9]$/& comment/' "${location}/scripts/ipset.txt" # Convert IPSets
 		fi
 
 		if ! grep -qF "Skynet" /jffs/scripts/firewall-start; then
@@ -644,9 +648,6 @@ case "$1" in
 			Unload_IPTables
 			Unload_DebugIPTables
 			Unload_IPSets
-			sed -i 's/create Blacklist.*[0-9]$/& comment/' "${location}/scripts/ipset.txt" # Convert IPSets
-			sed -i 's/create BlockedRanges.*[0-9]$/& comment/' "${location}/scripts/ipset.txt" # Convert IPSets
-			sed -i 's/create Whitelist.*[0-9]$/& comment/' "${location}/scripts/ipset.txt" # Convert IPSets
 			iptables -t raw -F
 			/usr/sbin/wget "$remoteurl" -qO "$0" && logger -st Skynet "[INFO] Skynet Sucessfully Updated - Restarting Firewall"
 			rm -rf /tmp/skynet.lock
@@ -952,8 +953,8 @@ case "$1" in
 		read -r mode4
 		case "$mode4" in
 			2)
-			echo
 			echo "USB Installation Selected"
+			echo
 			echo "Looking For Available Partitions..."
 			i=1
 			IFS="
@@ -996,18 +997,16 @@ case "$1" in
 			else
 				rm -rf "${device}/skynet/rwtest"
 			fi
-			mv "${location}/scripts/ipset.txt" "${device}/skynet/scripts/" >/dev/null 2>&1
-			mv "${location}/skynet.log" "${device}/skynet/" >/dev/null 2>&1
+			if [ -f "${location}/scripts/ipset.txt" ]; then mv "${location}/scripts/ipset.txt" "${device}/skynet/scripts/"; fi
+			if [ -f "${location}/skynet.log" ]; then mv "${location}/skynet.log" "${device}/skynet/"; fi
 			sed -i '\~ Skynet ~d' /jffs/scripts/firewall-start
 			echo "sh /jffs/scripts/firewall $set1 $set2 $set3 usb=${device} # Skynet Firewall Addition" | tr -s " " >> /jffs/scripts/firewall-start
 			;;
 			*)
 			echo "JFFS Installation Selected"
 			mkdir -p "/jffs/scripts"
-			if grep -q "usb=.*" /jffs/scripts/firewall-start; then
-				mv "${location}/scripts/ipset.txt" "/jffs/scripts/" >/dev/null 2>&1
-				mv "${location}/skynet.log" "/jffs/" >/dev/null 2>&1
-			fi
+			if [ -f "${location}/scripts/ipset.txt" ]; then mv "${location}/scripts/ipset.txt" "/jffs/scripts/"; fi
+			if [ -f "${location}/skynet.log" ]; then mv "${location}/skynet.log" "/jffs/"; fi
 			sed -i '\~ Skynet ~d' /jffs/scripts/firewall-start
 			echo "sh /jffs/scripts/firewall $set1 $set2 $set3 # Skynet Firewall Addition" | tr -s " " >> /jffs/scripts/firewall-start
 			;;
