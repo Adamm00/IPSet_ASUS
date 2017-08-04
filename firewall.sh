@@ -90,6 +90,7 @@ Kill_Lock () {
 Check_Settings () {
 		if [ ! -f /lib/modules/*/kernel/net/netfilter/ipset/ip_set_hash_ipmac.ko ]; then
 			logger -st Skynet "[ERROR] IPSet Extensions Not Enabled - Please Update To 380.68_alpha1 / V26E3 Or Newer Firmware"
+			exit 1
 		else
 			sed -i 's/create Blacklist.*[0-9]$/& comment/' "${location}/scripts/ipset.txt" # Convert IPSets
 			sed -i 's/create BlockedRanges.*[0-9]$/& comment/' "${location}/scripts/ipset.txt" # Convert IPSets
