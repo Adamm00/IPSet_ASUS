@@ -272,7 +272,7 @@ Whitelist_Shared () {
 		ipset -q -A Whitelist 151.101.96.133/32	comment "Github Content Server"
 		if [ -n "$(/usr/bin/find /jffs -name 'shared-*-whitelist')" ]; then
 			echo "Whitelisting Shared Domains"
-			sed '\~Shared-Whitelist~!d;s~ comment.*~~;s~add~del~g' "${location}/scripts/ipset.txt" | ipset restore -!
+			sed '\~add Whitelist ~!d;\~Shared-Whitelist~!d;s~ comment.*~~;s~add~del~g' "${location}/scripts/ipset.txt" | ipset restore -!
 			{ grep -hvF "#" /jffs/shared-*-whitelist | sed 's~http[s]*://~~;s~/.*~~' | awk '!x[$0]++' | while IFS= read -r domain; do
 				for ip in $(Domain_Lookup "$domain" 2> /dev/null); do
 					echo "add Whitelist $ip comment \"Shared-Whitelist: $domain\""
@@ -360,14 +360,14 @@ case "$1" in
 			done
 			sed -i "/PT=${3} /d" "${location}/skynet.log"
 		elif [ "$2" = "comment" ] && [ -n "$3" ]; then
-			echo "Removing Bans With Comment Containing $3"
-			sed "\\~$3~!d;s~ comment.*~~;s~add~del~g" "${location}/scripts/ipset.txt" | ipset restore -!
+			echo "Removing Bans With Comment Containing ($3)"
+			sed "\\~add Whitelist ~d;\\~$3~!d;s~ comment.*~~;s~add~del~g" "${location}/scripts/ipset.txt" | ipset restore -!
 		elif [ "$2" = "country" ]; then
 			echo "Removing Previous Country Bans"
-			sed '\~Country: ~!d;s~ comment.*~~;s~add~del~g' "${location}/scripts/ipset.txt" | ipset restore -!
+			sed '\~add Whitelist ~d;\~Country: ~!d;s~ comment.*~~;s~add~del~g' "${location}/scripts/ipset.txt" | ipset restore -!
 		elif [ "$2" = "malware" ]; then
 			echo "Removing Previous Malware Bans"
-			sed '\~BanMalware~!d;s~ comment.*~~;s~add~del~g' "${location}/scripts/ipset.txt" | ipset restore -!
+			sed '\~add Whitelist ~d;\~BanMalware~!d;s~ comment.*~~;s~add~del~g' "${location}/scripts/ipset.txt" | ipset restore -!
 		elif [ "$2" = "autobans" ]; then
 			grep -F "NEW" "${location}/skynet.log" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | tr -d " " | while IFS= read -r ip; do
 				echo "Unbanning $ip"
@@ -378,7 +378,7 @@ case "$1" in
 			sed -i '/Manual /!d' "${location}/skynet.log"
 			ipset flush Blacklist
 			ipset flush BlockedRanges
-			sed '/Manual[R]*Ban: /!d' "${location}/scripts/ipset.txt" | ipset restore -!
+			sed '\~add Whitelist ~d;\~Manual[R]*Ban: ~!d' "${location}/scripts/ipset.txt" | ipset restore -!
 			iptables -Z PREROUTING -t raw
 		elif [ "$2" = "all" ]; then
 			logger -st Skynet "[INFO] Removing All $(($(sed -n '1p' /tmp/counter.txt) + $(sed -n '2p' /tmp/counter.txt))) Entries From Blacklist..."
@@ -429,7 +429,7 @@ case "$1" in
 				rm -rf "${location}/scripts/countrylist.txt"
 			fi
 			echo "Removing Previous Country Bans"
-			sed '\~Country: ~!d;s~ comment.*~~;s~add~del~g' "${location}/scripts/ipset.txt" | ipset restore -!
+			sed '\~add Whitelist ~d;\~Country: ~!d;s~ comment.*~~;s~add~del~g' "${location}/scripts/ipset.txt" | ipset restore -!
 			echo "Banning Known IP Ranges For $3"
 			echo "Downloading Lists"
 			for country in $3; do
@@ -460,11 +460,11 @@ case "$1" in
 			rm -rf "${location}/scripts/malwarelist.txt"
 		fi
 		echo "Removing Previous Malware Bans"
-		sed '\~BanMalware~!d;s~ comment.*~~;s~add~del~g' "${location}/scripts/ipset.txt" | ipset restore -!
+		sed '\~add Whitelist ~d;\~BanMalware~!d;s~ comment.*~~;s~add~del~g' "${location}/scripts/ipset.txt" | ipset restore -!
 		echo "Downloading filter.list"
 		/usr/sbin/wget "$listurl" -qO /jffs/shared-Skynet-whitelist
 		Whitelist_Shared
-		echo "Compiling Master List"
+		echo "Compiling Blacklist"
 		/usr/sbin/wget -t2 -T2 -i /jffs/shared-Skynet-whitelist -qO- | sed -n "s/\\r//;/^$/d;/^[0-9,\\.,\\/]*$/p" | awk '!x[$0]++' | Filter_PrivateIP > /tmp/malwarelist.txt
 		echo "Filtering IPv4 Addresses"
 		grep -vF "/" /tmp/malwarelist.txt | awk '{print "add Blacklist " $1 " comment BanMalware"}' > "/tmp/malwarelist2.txt"
