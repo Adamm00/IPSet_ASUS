@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 03/08/2017 -		   Asus Firewall Addition By Adamm v5.1.0				    #
+## - 06/08/2017 -		   Asus Firewall Addition By Adamm v5.1.1				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -17,7 +17,7 @@
 ##############################
 ###	  Commands	   ###
 ##############################
-#	  "unban"	     # <-- Remove From Blacklist (IP/Range/Domain/Port/Country/Malware/Autobans/Nomanual/All)
+#	  "unban"	     # <-- Remove From Blacklist (IP/Range/Domain/Port/Comment/Country/Malware/Autobans/Nomanual/All)
 #	  "ban"		     # <-- Adds Entry To Blacklist (IP/Range/Domain/Port/Country)
 #	  "banmalware"	     # <-- Bans Various Malware Domains
 #	  "whitelist"        # <-- Add Entry To Whitelist (IP/Range/Domain/Port/Remove)
@@ -88,7 +88,7 @@ Kill_Lock () {
 }
 
 Check_Settings () {
-		if [ ! -f /lib/modules/*/kernel/net/netfilter/ipset/ip_set_hash_ipmac.ko ]; then
+		if [ ! -f /lib/modules/2.6.36.4brcmarm/kernel/net/netfilter/ipset/ip_set_hash_ipmac.ko ]; then
 			logger -st Skynet "[ERROR] IPSet Extensions Not Enabled - Please Update To 380.68_alpha1 / V26E3 Or Newer Firmware"
 			exit 1
 		else
@@ -359,6 +359,9 @@ case "$1" in
 				ipset -D Blacklist "$ip"
 			done
 			sed -i "/PT=${3} /d" "${location}/skynet.log"
+		elif [ "$2" = "comment" ] && [ -n "$3" ]; then
+			echo "Removing Bans With Comment Containing $3"
+			sed "\\~$3~!d;s~ comment.*~~;s~add~del~g" "${location}/scripts/ipset.txt" | ipset restore -!
 		elif [ "$2" = "country" ]; then
 			echo "Removing Previous Country Bans"
 			sed '\~Country: ~!d;s~ comment.*~~;s~add~del~g' "${location}/scripts/ipset.txt" | ipset restore -!
@@ -695,7 +698,7 @@ case "$1" in
 				if [ -w "$location" ]; then $grn "Install Dir Writeable"; else $red "Can't Write To Install Dir"; fi
 				if grep -qF "Skynet" /jffs/scripts/firewall-start; then $grn "Startup Entry Detected"; else $red "Startup Entry Not Detected"; fi
 				if cru l | grep -qF "Skynet"; then $grn "Cronjobs Detected"; else $red "Cronjobs Not Detected"; fi
-				if [ -f /lib/modules/*/kernel/net/netfilter/ipset/ip_set_hash_ipmac.ko ]; then $grn "IPSet Supports Comments"; else $red "IPSet Doesn't Support Comments - Please Update To 380.68_alpha1 / V26E3 Or Newer Firmware"; fi
+				if [ -f /lib/modules/2.6.36.4brcmarm/kernel/net/netfilter/ipset/ip_set_hash_ipmac.ko ]; then $grn "IPSet Supports Comments"; else $red "IPSet Doesn't Support Comments - Please Update To 380.68_alpha1 / V26E3 Or Newer Firmware"; fi
 				if iptables -nL | grep -F "LOG" | grep -qF "NEW BAN"; then $grn "Autobanning Enabled"; else $red "Autobanning Disabled"; fi
 				if iptables -nL -t raw | grep -F "LOG" | grep -qF "match-set Skynet "; then $grn "Debug Mode Enabled"; else $red "Debug Mode Disabled"; fi
 				if [ "$(iptables-save -t raw | sort | uniq -d | grep -c " ")" = "0" ]; then $grn "No Duplicate Rules Detected In RAW"; else $red "Duplicate Rules Detected In RAW"; fi
