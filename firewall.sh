@@ -537,13 +537,14 @@ case "$1" in
 			echo "Flushing Whitelist"
 			ipset flush Whitelist
 			echo "Adding Default Entries"
-			Whitelist_Extra
+			rm -rf /jffs/shared-Skynet2-whitelist
 			Whitelist_Shared
 		else
 			echo "Command Not Recognised, Please Try Again"
 			exit 2
 		fi
 		Save_IPSets
+		Whitelist_Extra
 		;;
 
 	import)
