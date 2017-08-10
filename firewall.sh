@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 09/08/2017 -		   Asus Firewall Addition By Adamm v5.1.1				    #
+## - 10/08/2017 -		   Asus Firewall Addition By Adamm v5.1.2				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -261,6 +261,13 @@ Unban_PrivateIP () {
 		done
 }
 
+Whitelist_Extra () {
+		sed '\~ManualWlistD: ~!d;s~.*ManualWlistD: ~~g;s~"~~g' "$location/scripts/ipset.txt" | awk '!x[$0]++' > /jffs/shared-Skynet2-whitelist
+		echo "ipdeny.com" >> /jffs/shared-Skynet2-whitelist
+		echo "speedguide.net" >> /jffs/shared-Skynet2-whitelist
+		echo "otx.alienvault.com" >> /jffs/shared-Skynet2-whitelist
+}
+
 Whitelist_Shared () {
 		ipset -q -A Whitelist "$(nvram get wan0_ipaddr)"/32 comment "nvram: wan0_ipaddr"
 		ipset -q -A Whitelist "$(nvram get lan_ipaddr)"/24 comment "nvram: lan_ipaddr"
@@ -463,6 +470,7 @@ case "$1" in
 		sed '\~add Whitelist ~d;\~BanMalware~!d;s~ comment.*~~;s~add~del~g' "${location}/scripts/ipset.txt" | ipset restore -!
 		echo "Downloading filter.list"
 		/usr/sbin/wget "$listurl" -qO /jffs/shared-Skynet-whitelist
+		Whitelist_Extra
 		Whitelist_Shared
 		echo "Compiling Blacklist"
 		/usr/sbin/wget -t2 -T2 -i /jffs/shared-Skynet-whitelist -qO- | sed -n "s/\\r//;/^$/d;/^[0-9,\\.,\\/]*$/p" | awk '!x[$0]++' | Filter_PrivateIP > /tmp/malwarelist.txt
@@ -505,7 +513,7 @@ case "$1" in
 			logger -st Skynet "[INFO] Adding $whitelistdomain To Whitelist..."
 			for ip in $(Domain_Lookup "$whitelistdomain"); do
 				echo "Whitelisting $ip"
-				ipset -A Whitelist "$ip" comment "ManualWlist: $whitelistdomain"
+				ipset -A Whitelist "$ip" comment "ManualWlistD: $whitelistdomain"
 				ipset -q -D Blacklist "$ip"
 				sed -i "\\~$ip ~d" "${location}/skynet.log"
 			done
@@ -513,7 +521,7 @@ case "$1" in
 		logger -st Skynet "[INFO] Adding $3 To Whitelist..."
 		for ip in $(Domain_Lookup "$3"); do
 			echo "Whitelisting $ip"
-			ipset -A Whitelist "$ip" comment "ManualWlist: $3"
+			ipset -A Whitelist "$ip" comment "ManualWlistD: $3"
 			ipset -q -D Blacklist "$ip"
 			sed -i "\\~$ip ~d" "${location}/skynet.log"
 		done
@@ -529,6 +537,7 @@ case "$1" in
 			echo "Flushing Whitelist"
 			ipset flush Whitelist
 			echo "Adding Default Entries"
+			Whitelist_Extra
 			Whitelist_Shared
 		else
 			echo "Command Not Recognised, Please Try Again"
@@ -596,14 +605,15 @@ case "$1" in
 		cru a Skynet_save "0 * * * * sh /jffs/scripts/firewall save"
 		modprobe xt_set
 		ipset restore -! -f "${location}/scripts/ipset.txt" || touch "${location}/scripts/ipset.txt"
-		if ! ipset -L -n Whitelist >/dev/null 2>&1; then ipset -q create Whitelist nethash comment && forcesave=1; fi
-		if ! ipset -L -n Blacklist >/dev/null 2>&1; then ipset -q create Blacklist hash:ip --maxelem 500000 comment && forcesave=1; fi
-		if ! ipset -L -n BlockedRanges >/dev/null 2>&1; then ipset -q create BlockedRanges hash:net comment && forcesave=1; fi
-		if ! ipset -L -n Skynet >/dev/null 2>&1; then ipset -q create Skynet list:set; ipset -q -A Skynet Blacklist; ipset -q -A Skynet BlockedRanges && forcesave=1; fi
+		if ! ipset -L -n Whitelist >/dev/null 2>&1; then ipset -q create Whitelist nethash comment; forcesave=1; fi
+		if ! ipset -L -n Blacklist >/dev/null 2>&1; then ipset -q create Blacklist hash:ip --maxelem 500000 comment; forcesave=1; fi
+		if ! ipset -L -n BlockedRanges >/dev/null 2>&1; then ipset -q create BlockedRanges hash:net comment; forcesave=1; fi
+		if ! ipset -L -n Skynet >/dev/null 2>&1; then ipset -q create Skynet list:set; ipset -q -A Skynet Blacklist; ipset -q -A Skynet BlockedRanges; forcesave=1; fi
 		ipset -q -A Skynet Blacklist
 		ipset -q -A Skynet BlockedRanges
 		Unban_PrivateIP
 		Purge_Logs
+		Whitelist_Extra
 		Whitelist_Shared
 		if [ -z "$forcesave" ]; then Save_IPSets; fi
 		while [ "$(($(date +%s) - stime))" -lt "20" ]; do
