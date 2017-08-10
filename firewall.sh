@@ -280,11 +280,11 @@ Whitelist_Shared () {
 		if [ -n "$(/usr/bin/find /jffs -name 'shared-*-whitelist')" ]; then
 			echo "Whitelisting Shared Domains"
 			sed '\~add Whitelist ~!d;\~Shared-Whitelist~!d;s~ comment.*~~;s~add~del~g' "${location}/scripts/ipset.txt" | ipset restore -!
-			{ grep -hvF "#" /jffs/shared-*-whitelist | sed 's~http[s]*://~~;s~/.*~~' | awk '!x[$0]++' | while IFS= read -r domain; do
+			grep -hvF "#" /jffs/shared-*-whitelist | sed 's~http[s]*://~~;s~/.*~~' | awk '!x[$0]++' | while IFS= read -r domain; do
 				for ip in $(Domain_Lookup "$domain" 2> /dev/null); do
-					echo "add Whitelist $ip comment \"Shared-Whitelist: $domain\""
+					ipset -q -A Whitelist "$ip" comment "Shared-Whitelist: $domain"
 				done
-			done } | ipset restore -!
+			done
 		fi
 }
 
