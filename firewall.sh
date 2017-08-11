@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 10/08/2017 -		   Asus Firewall Addition By Adamm v5.1.2				    #
+## - 11/08/2017 -		   Asus Firewall Addition By Adamm v5.1.2				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -262,10 +262,10 @@ Unban_PrivateIP () {
 }
 
 Whitelist_Extra () {
-		sed '\~ManualWlistD: ~!d;s~.*ManualWlistD: ~~g;s~"~~g' "$location/scripts/ipset.txt" | awk '!x[$0]++' > /jffs/shared-Skynet2-whitelist
-		echo "ipdeny.com" >> /jffs/shared-Skynet2-whitelist
-		echo "speedguide.net" >> /jffs/shared-Skynet2-whitelist
-		echo "otx.alienvault.com" >> /jffs/shared-Skynet2-whitelist
+		{ sed '\~ManualWlistD: ~!d;s~.*ManualWlistD: ~~g;s~"~~g' "$location/scripts/ipset.txt" | awk '!x[$0]++'
+		echo "ipdeny.com"
+		echo "speedguide.net"
+		echo "otx.alienvault.com"; } > /jffs/shared-Skynet2-whitelist
 }
 
 Whitelist_Shared () {
@@ -1058,7 +1058,7 @@ case "$1" in
 			Unload_DebugIPTables
 			Unload_IPSets
 			sed -i '\~ Skynet ~d' /jffs/scripts/firewall-start
-			rm -rf "${location}/scripts/ipset.txt" "${location}/skynet.log" "/jffs/shared-Skynet-whitelist" "/jffs/scripts/firewall"
+			rm -rf "${location}/scripts/ipset.txt" "${location}/skynet.log" "/jffs/shared-Skynet-whitelist" "/jffs/shared-Skynet2-whitelist" "/jffs/scripts/firewall"
 			iptables -t raw -F
 			service restart_firewall
 			exit 0
