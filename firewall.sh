@@ -289,17 +289,11 @@ Whitelist_Shared () {
 }
 
 Purge_Logs () {
-		if ! grep -F "Skynet" /jffs/scripts/firewall-start | grep -qF "usb" && [ "$(du ${location}/skynet.log | awk '{print $1}')" -ge "7000" ]; then
+		if [ "$(du ${location}/skynet.log | awk '{print $1}')" -ge "7000" ]; then
 			sed -i '/BLOCKED - .*BOUND/d' "${location}/skynet.log"
 			if [ "$(du ${location}/skynet.log | awk '{print $1}')" -ge "3000" ]; then
 				true > "${location}/skynet.log"
 			fi
-		elif grep -F "Skynet" /jffs/scripts/firewall-start | grep -qF "usb" && [ "$(du ${location}/skynet.log | awk '{print $1}')" -ge "14000" ]; then
-			sed -i '/BLOCKED - .*BOUND/d' "${location}/skynet.log"
-			if [ "$(du ${location}/skynet.log | awk '{print $1}')" -ge "6000" ]; then
-				true > "${location}/skynet.log"
-			fi
-		fi
 		sed '/BLOCKED -/!d' /tmp/syslog.log-1 >/dev/null 2>&1 >> "${location}/skynet.log"
 		sed -i '/BLOCKED -/d' /tmp/syslog.log-1 >/dev/null 2>&1
 		sed '/BLOCKED -/!d' /tmp/syslog.log >/dev/null 2>&1 >> "${location}/skynet.log"
