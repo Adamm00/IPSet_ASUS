@@ -294,6 +294,7 @@ Purge_Logs () {
 			if [ "$(du ${location}/skynet.log | awk '{print $1}')" -ge "3000" ]; then
 				true > "${location}/skynet.log"
 			fi
+		fi	
 		sed '/BLOCKED -/!d' /tmp/syslog.log-1 >/dev/null 2>&1 >> "${location}/skynet.log"
 		sed -i '/BLOCKED -/d' /tmp/syslog.log-1 >/dev/null 2>&1
 		sed '/BLOCKED -/!d' /tmp/syslog.log >/dev/null 2>&1 >> "${location}/skynet.log"
