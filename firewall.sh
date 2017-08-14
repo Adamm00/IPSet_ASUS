@@ -1023,6 +1023,7 @@ case "$1" in
 			echo "sh /jffs/scripts/firewall $set1 $set2 $set3 # Skynet Firewall Addition" | tr -s " " >> /jffs/scripts/firewall-start
 			;;
 		esac
+		chmod +x /jffs/scripts/firewall
 		chmod +x /jffs/scripts/firewall-start
 		echo
 		Unload_Cron
