@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 12/08/2017 -		   Asus Firewall Addition By Adamm v5.1.3				    #
+## - 14/08/2017 -		   Asus Firewall Addition By Adamm v5.1.3				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -725,7 +725,7 @@ case "$1" in
 
 	stats)
 		Purge_Logs
-		if ! iptables -nL -t raw | grep -qF "LOG"; then
+		if grep -F "Skynet" /jffs/scripts/firewall-start | grep -qF "noautoban"; then
 			echo
 			echo "!!! Debug Mode Is Disabled !!!"
 			echo "To Enable Use ( sh $0 install )"
