@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 14/08/2017 -		   Asus Firewall Addition By Adamm v5.1.3				    #
+## - 15/08/2017 -		   Asus Firewall Addition By Adamm v5.1.3				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -865,6 +865,11 @@ case "$1" in
 		Check_Lock
 		if [ "$(ipset -v | grep -Fo v6)" != "v6" ]; then
 			logger -st Skynet "[ERROR] IPSet Version Not Supported"
+			rm -rf /tmp/skynet.lock
+			exit 1
+		fi
+		if [ ! -f /lib/modules/2.6.36.4brcmarm/kernel/net/netfilter/ipset/ip_set_hash_ipmac.ko ]; then
+			logger -st Skynet "[ERROR] IPSet Extensions Not Enabled - Please Update To 380.68_alpha1 / V26E3 Or Newer Firmware"
 			rm -rf /tmp/skynet.lock
 			exit 1
 		fi
