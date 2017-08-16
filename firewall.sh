@@ -704,6 +704,7 @@ case "$1" in
 				echo "Boot Args; $(grep -F "Skynet" /jffs/scripts/firewall-start | cut -c 4- | cut -d '#' -f1)"
 				if [ -w "$location" ]; then $grn "Install Dir Writeable"; else $red "Can't Write To Install Dir"; fi
 				if grep -qF "Skynet" /jffs/scripts/firewall-start; then $grn "Startup Entry Detected"; else $red "Startup Entry Not Detected"; fi
+				if [ -f "/tmp/skynet.lock" ] && [ ! -d "/proc/$(cat /tmp/skynet.lock)" ]; then $grn "No Lock File Found"; else $red "Lock File Detected (pid=$(cat /tmp/skynet.lock))"; fi
 				if cru l | grep -qF "Skynet"; then $grn "Cronjobs Detected"; else $red "Cronjobs Not Detected"; fi
 				if [ -f /lib/modules/2.6.36.4brcmarm/kernel/net/netfilter/ipset/ip_set_hash_ipmac.ko ]; then $grn "IPSet Supports Comments"; else $red "IPSet Doesn't Support Comments - Please Update To 380.68_alpha1 / V26E3 Or Newer Firmware"; fi
 				if iptables -nL | grep -F "LOG" | grep -qF "NEW BAN"; then $grn "Autobanning Enabled"; else $red "Autobanning Disabled"; fi
@@ -725,7 +726,7 @@ case "$1" in
 
 	stats)
 		Purge_Logs
-		if grep -F "Skynet" /jffs/scripts/firewall-start | grep -qF "noautoban"; then
+		if ! grep -F "Skynet" /jffs/scripts/firewall-start | grep -qF "debug"; then
 			echo
 			echo "!!! Debug Mode Is Disabled !!!"
 			echo "To Enable Use ( sh $0 install )"
