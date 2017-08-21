@@ -1033,8 +1033,6 @@ case "$1" in
 		chmod +x /jffs/scripts/firewall
 		chmod +x /jffs/scripts/firewall-start
 		echo
-		Unload_Cron
-		rm -rf /tmp/skynet.lock
 		if [ "$forcereboot" = "1" ]; then
 			echo "Rebooting Router To Complete Installation"
 			nvram commit
@@ -1042,7 +1040,12 @@ case "$1" in
 			exit 0
 		fi
 		echo "Restarting Firewall To Complete Installation"
+		Unload_Cron
+		Unload_IPTables
+		Unload_DebugIPTables
+		Unload_IPSets
 		iptables -t raw -F
+		rm -rf /tmp/skynet.lock
 		service restart_firewall
 		exit 0
 		;;
