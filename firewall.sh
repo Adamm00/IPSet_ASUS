@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 23/08/2017 -		   Asus Firewall Addition By Adamm v5.1.4				    #
+## - 24/08/2017 -		   Asus Firewall Addition By Adamm v5.1.5				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -265,7 +265,8 @@ Whitelist_Extra () {
 		{ sed '\~ManualWlistD: ~!d;s~.*ManualWlistD: ~~g;s~"~~g' "$location/scripts/ipset.txt" | awk '!x[$0]++'
 		echo "ipdeny.com"
 		echo "speedguide.net"
-		echo "otx.alienvault.com"; } > /jffs/shared-Skynet2-whitelist
+		echo "otx.alienvault.com"
+		echo "raw.githubusercontent.com"; } > /jffs/shared-Skynet2-whitelist
 }
 
 Whitelist_Shared () {
@@ -273,10 +274,13 @@ Whitelist_Shared () {
 		ipset -q -A Whitelist "$(nvram get lan_ipaddr)"/24 comment "nvram: lan_ipaddr"
 		ipset -q -A Whitelist "$(nvram get wan_dns1_x)"/32 comment "nvram: wan_dns1_x"
 		ipset -q -A Whitelist "$(nvram get wan_dns2_x)"/32 comment "nvram: wan_dns2_x"
+		ipset -q -A Whitelist "$(nvram get wan0_dns1_x)"/32 comment "nvram: wan0_dns1_x"
+		ipset -q -A Whitelist "$(nvram get wan0_dns2_x)"/32 comment "nvram: wan0_dns2_x"
 		ipset -q -A Whitelist "$(nvram get wan_dns | awk '{print $1}')"/32 comment "nvram: wan_dns"
 		ipset -q -A Whitelist "$(nvram get wan_dns | awk '{print $2}')"/32 comment "nvram: wan_dns"
+		ipset -q -A Whitelist "$(nvram get wan0_xdns | awk '{print $1}')"/32 comment "nvram: wan0_xdns"
+		ipset -q -A Whitelist "$(nvram get wan0_xdns | awk '{print $2}')"/32 comment "nvram: wan0_xdns"
 		ipset -q -A Whitelist 192.168.1.0/24 comment "nvram: LAN Subnet"
-		ipset -q -A Whitelist 151.101.96.133/32	comment "Github Content Server"
 		if [ -n "$(/usr/bin/find /jffs -name 'shared-*-whitelist')" ]; then
 			echo "Whitelisting Shared Domains"
 			sed '\~add Whitelist ~!d;\~Shared-Whitelist~!d;s~ comment.*~~;s~add~del~g' "${location}/scripts/ipset.txt" | ipset restore -!
@@ -609,6 +613,7 @@ case "$1" in
 		ipset -q -A Skynet BlockedRanges
 		Unban_PrivateIP
 		Purge_Logs
+		sed '\~add Whitelist ~!d;\~nvram: ~!d;s~ comment.*~~;s~add~del~g' "${location}/scripts/ipset.txt" | ipset restore -!
 		Whitelist_Extra
 		Whitelist_Shared
 		if [ -z "$forcesave" ]; then Save_IPSets; fi
