@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 17/08/2017 -		   Asus Firewall Addition By Adamm v5.1.4				    #
+## - 23/08/2017 -		   Asus Firewall Addition By Adamm v5.1.4				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -601,7 +601,7 @@ case "$1" in
 		cru a Skynet_save "0 * * * * sh /jffs/scripts/firewall save"
 		modprobe xt_set
 		ipset restore -! -f "${location}/scripts/ipset.txt" || touch "${location}/scripts/ipset.txt"
-		if ! ipset -L -n Whitelist >/dev/null 2>&1; then ipset -q create Whitelist nethash comment; forcesave=1; fi
+		if ! ipset -L -n Whitelist >/dev/null 2>&1; then ipset -q create Whitelist hash:net comment; forcesave=1; fi
 		if ! ipset -L -n Blacklist >/dev/null 2>&1; then ipset -q create Blacklist hash:ip --maxelem 500000 comment; forcesave=1; fi
 		if ! ipset -L -n BlockedRanges >/dev/null 2>&1; then ipset -q create BlockedRanges hash:net comment; forcesave=1; fi
 		if ! ipset -L -n Skynet >/dev/null 2>&1; then ipset -q create Skynet list:set; ipset -q -A Skynet Blacklist; ipset -q -A Skynet BlockedRanges; forcesave=1; fi
@@ -1064,7 +1064,7 @@ case "$1" in
 			Unload_DebugIPTables
 			Unload_IPSets
 			sed -i '\~ Skynet ~d' /jffs/scripts/firewall-start
-			rm -rf "${location}/scripts/ipset.txt" "${location}/skynet.log" "/jffs/shared-Skynet-whitelist" "/jffs/shared-Skynet2-whitelist" "/jffs/scripts/firewall"
+			rm -rf "${location}/scripts/ipset.txt" "${location}/skynet.log" "/jffs/shared-Skynet-whitelist" "/jffs/shared-Skynet2-whitelist" "/opt/bin/firewall" "/jffs/scripts/firewall"
 			iptables -t raw -F
 			service restart_firewall
 			exit 0
