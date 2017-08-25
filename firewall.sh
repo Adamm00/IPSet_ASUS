@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 25/08/2017 -		   Asus Firewall Addition By Adamm v5.1.5				    #
+## - 26/08/2017 -		   Asus Firewall Addition By Adamm v5.1.5				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -137,6 +137,7 @@ Check_Settings () {
 
 Unload_IPTables () {
 		iptables -D logdrop -m state --state NEW -j LOG --log-prefix "DROP " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
+		ip6tables -D logdrop -m state --state NEW -j LOG --log-prefix "DROP " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
 		iptables -t raw -D PREROUTING -i "$iface" -m set --match-set Skynet src -j DROP >/dev/null 2>&1
 		iptables -t raw -D PREROUTING -i "$iface" -m set --match-set Whitelist src -j ACCEPT >/dev/null 2>&1
 		iptables -t raw -D PREROUTING -i br0 -m set --match-set Skynet dst -j DROP >/dev/null 2>&1
