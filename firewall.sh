@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 24/08/2017 -		   Asus Firewall Addition By Adamm v5.1.5				    #
+## - 25/08/2017 -		   Asus Firewall Addition By Adamm v5.1.5				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -89,7 +89,7 @@ Kill_Lock () {
 
 Check_Settings () {
 		if [ ! -f /lib/modules/2.6.36.4brcmarm/kernel/net/netfilter/ipset/ip_set_hash_ipmac.ko ]; then
-			logger -st Skynet "[ERROR] IPSet Extensions Not Enabled - Please Update To 380.68_alpha1 / V26E3 Or Newer Firmware"
+			logger -st Skynet "[ERROR] IPSet Extensions Not Enabled - Please Update To 380.68 / V26E3 Or Newer Firmware"
 			exit 1
 		else
 			sed -i 's/create Blacklist.*[0-9]$/& comment/' "${location}/scripts/ipset.txt" # Convert IPSets
@@ -624,6 +624,7 @@ case "$1" in
 		Unload_DebugIPTables
 		Load_IPTables "$@"
 		Load_DebugIPTables "$@"
+		sed -i '/DROP IN=/d' /tmp/syslog.log-1
 		sed -i '/DROP IN=/d' /tmp/syslog.log
 		rm -rf /tmp/skynet.lock
 		;;
@@ -700,19 +701,20 @@ case "$1" in
 			info)
 				red="printf \\e[5;31m%s\\e[0m\\n"
 				grn="printf \\e[1;32m%s\\e[0m\\n"
-				echo "Router Model: $(nvram get productid)"
-				echo "Skynet Version: $(Filter_Version "$0") ($(Filter_Date "$0"))"
+				echo "Router Model; $(nvram get productid)"
+				echo "Skynet Version; $(Filter_Version "$0") ($(Filter_Date "$0"))"
 				echo "$(iptables --version) - ($iface)"
 				ipset -v
-				echo "FW Version: $(nvram get buildno)_$(nvram get extendno) ($(uname -v | awk '{print $5" "$6" "$9}'))"
+				echo "FW Version; $(nvram get buildno)_$(nvram get extendno) ($(uname -v | awk '{print $5" "$6" "$9}'))"
 				echo "Install Dir; $location ($(df -h $location | xargs | awk '{print $9}') Space Available)"
 				echo "Boot Args; $(grep -F "Skynet" /jffs/scripts/firewall-start | cut -c 4- | cut -d '#' -f1)"
+				if grep -qF "Country:" "$location/scripts/ipset.txt"; then echo "Banned Countries; $(grep -m1 -F "Country:" "$location/scripts/ipset.txt" | sed 's~.*Country: ~~;s~"~~')"; fi
 				if [ -w "$location" ]; then $grn "Install Dir Writeable"; else $red "Can't Write To Install Dir"; fi
 				if grep -qF "Skynet" /jffs/scripts/firewall-start; then $grn "Startup Entry Detected"; else $red "Startup Entry Not Detected"; fi
 				if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(cat /tmp/skynet.lock)" ]; then $red "Lock File Detected (pid=$(cat /tmp/skynet.lock))"; else $grn "No Lock File Found"; fi
 				if cru l | grep -qF "Skynet"; then $grn "Cronjobs Detected"; else $red "Cronjobs Not Detected"; fi
-				if [ -f /lib/modules/2.6.36.4brcmarm/kernel/net/netfilter/ipset/ip_set_hash_ipmac.ko ]; then $grn "IPSet Supports Comments"; else $red "IPSet Doesn't Support Comments - Please Update To 380.68_alpha1 / V26E3 Or Newer Firmware"; fi
-				if [ "$(nvram get message_loglevel)" -lt "$(nvram get log_level)" ]; then $grn "Level $(nvram get message_loglevel) Messages Will Be Logged"; else $red "Level $(nvram get message_loglevel) Messages Won't Be Logged"; fi
+				if [ -f /lib/modules/2.6.36.4brcmarm/kernel/net/netfilter/ipset/ip_set_hash_ipmac.ko ]; then $grn "IPSet Supports Comments"; else $red "IPSet Doesn't Support Comments - Please Update To 380.68 / V26E3 Or Newer Firmware"; fi
+				if [ "$(nvram get message_loglevel)" -lt "$(nvram get log_level)" ]; then $grn "Level $(nvram get message_loglevel) Messages Will Be Logged"; else $red "Level $(nvram get message_loglevel) Messages Won't Be Logged - Only $(nvram get log_level)+"; fi
 				if iptables -nL | grep -F "LOG" | grep -qF "NEW BAN"; then $grn "Autobanning Enabled"; else $red "Autobanning Disabled"; fi
 				if iptables -nL -t raw | grep -F "LOG" | grep -qF "match-set Skynet "; then $grn "Debug Mode Enabled"; else $red "Debug Mode Disabled"; fi
 				if [ "$(iptables-save -t raw | sort | uniq -d | grep -c " ")" = "0" ]; then $grn "No Duplicate Rules Detected In RAW"; else $red "Duplicate Rules Detected In RAW"; fi
@@ -876,7 +878,7 @@ case "$1" in
 			exit 1
 		fi
 		if [ ! -f /lib/modules/2.6.36.4brcmarm/kernel/net/netfilter/ipset/ip_set_hash_ipmac.ko ]; then
-			logger -st Skynet "[ERROR] IPSet Extensions Not Enabled - Please Update To 380.68_alpha1 / V26E3 Or Newer Firmware"
+			logger -st Skynet "[ERROR] IPSet Extensions Not Enabled - Please Update To 380.68 / V26E3 Or Newer Firmware"
 			rm -rf /tmp/skynet.lock
 			exit 1
 		fi
