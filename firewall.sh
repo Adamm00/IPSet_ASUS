@@ -48,7 +48,7 @@ Check_Lock () {
 		fi
 }
 
-if grep -F "Skynet" /jffs/scripts/firewall-start | grep -qF "usb"; then
+if grep -F "Skynet" /jffs/scripts/firewall-start  2>/dev/null | grep -qF "usb"; then
 	location="$(grep -ow "usb=.*" /jffs/scripts/firewall-start | awk '{print $1}' | cut -c 5-)/skynet"
 	if [ ! -d "$location" ]; then
 		Check_Lock
