@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 30/08/2017 -		   Asus Firewall Addition By Adamm v5.1.6				    #
+## - 30/08/2017 -		   Asus Firewall Addition By Adamm v5.1.7				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -40,18 +40,19 @@ done
 stime="$(date +%s)"
 
 Check_Lock () {
-		if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(cat /tmp/skynet.lock)" ]; then
-			logger -st Skynet "[INFO] Lock File Detected (pid=$(cat /tmp/skynet.lock)) - Exiting"
+		if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(sed -n '2p' /tmp/skynet.lock)" ]; then
+			logger -st Skynet "[INFO] Lock File Detected ($(sed -n '1p' /tmp/skynet.lock)) (pid=$(sed -n '2p' /tmp/skynet.lock)) - Aborted Issued Command ($*)"
 			exit 1
 		else
-			echo "$$" > /tmp/skynet.lock
+			echo "$@" > /tmp/skynet.lock
+			echo "$$" >> /tmp/skynet.lock
 		fi
 }
 
 if grep -F "Skynet" /jffs/scripts/firewall-start 2>/dev/null | grep -qF "usb"; then
 	location="$(grep -ow "usb=.*" /jffs/scripts/firewall-start | awk '{print $1}' | cut -c 5-)/skynet"
 	if [ ! -d "$location" ]; then
-		Check_Lock
+		Check_Lock "$@"
 		retry=1
 		while [ ! -d "$location" ] && [ "$retry" -lt "11" ]; do
 			logger -st Skynet "[INFO] USB Not Found - Sleeping For 10 Seconds ( Attempt $retry Of 10 )"
@@ -79,10 +80,10 @@ fi
 
 
 Kill_Lock () {
-		if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(cat /tmp/skynet.lock)" ]; then
-			logger -st Skynet "[INFO] Killing Locked Processes (pid=$(cat /tmp/skynet.lock))"
-			logger -st Skynet "[INFO] $(ps | awk -v pid="$(cat /tmp/skynet.lock)" '$1 == pid')"
-			kill "$(cat /tmp/skynet.lock)"
+		if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(sed -n '2p' /tmp/skynet.lock)" ]; then
+			logger -st Skynet "[INFO] Killing Locked Processes ($(sed -n '1p' /tmp/skynet.lock)) (pid=$(sed -n '2p' /tmp/skynet.lock))"
+			logger -st Skynet "[INFO] $(ps | awk -v pid="$(sed -n '2p' /tmp/skynet.lock)" '$1 == pid')"
+			kill "$(sed -n '2p' /tmp/skynet.lock)"
 			rm -rf /tmp/skynet.lock
 		fi
 }
@@ -460,7 +461,7 @@ case "$1" in
 			listurl="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/filter.list"
 		fi
 		/usr/sbin/wget "$listurl" -t2 -T2 -qO- | grep -qF "http" || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Banmalware" ; exit 1; }
-		Check_Lock
+		Check_Lock "$@"
 		if [ -f "${location}/scripts/malwarelist.txt" ]; then
 			echo "Removing Previous Legacy Malware Bans"
 			sed 's/add/del/g' "${location}/scripts/malwarelist.txt" | ipset restore -!
@@ -550,7 +551,7 @@ case "$1" in
 	import)
 		echo "This Function Extracts All IPs And Adds Them ALL To Blacklist"
 		if [ -n "$2" ]; then
-			Check_Lock
+			Check_Lock "$@"
 			echo "Custom List Detected: $2"
 			/usr/sbin/wget "$2" --no-check-certificate -t2 -T2 -qO /tmp/iplist-unfiltered.txt || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Import" ; exit 1; }
 		else
@@ -572,7 +573,7 @@ case "$1" in
 	deport)
 		echo "This Function Extracts All IPs And Removes Them ALL From Blacklist"
 		if [ -n "$2" ]; then
-			Check_Lock
+			Check_Lock "$@"
 			echo "Custom List Detected: $2"
 			/usr/sbin/wget "$2" --no-check-certificate -t2 -T2 -qO /tmp/iplist-unfiltered.txt || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Deport" ; exit 1; }
 		else
@@ -590,7 +591,7 @@ case "$1" in
 		;;
 
 	save)
-		Check_Lock
+		Check_Lock "$@"
 		Unban_PrivateIP
 		Purge_Logs
 		Save_IPSets
@@ -599,7 +600,7 @@ case "$1" in
 		;;
 
 	start)
-		Check_Lock
+		Check_Lock "$@"
 		logger -st Skynet "[INFO] Startup Initiated... ( $(echo "$@" | sed "s/start //g") )"
 		Unload_Cron
 		Check_Settings "$@"
@@ -659,7 +660,7 @@ case "$1" in
 			logger -st Skynet "[INFO] Forcing Update"
 		fi
 		if [ "$localver" != "$remotever" ] || [ "$2" = "-f" ]; then
-			Check_Lock
+			Check_Lock "$@"
 			logger -st Skynet "[INFO] New Version Detected - Updating To $remotever... ... ..."
 			Save_IPSets >/dev/null 2>&1
 			Unload_Cron
@@ -712,7 +713,7 @@ case "$1" in
 				if grep -qF "Country:" "$location/scripts/ipset.txt"; then echo "Banned Countries; $(grep -m1 -F "Country:" "$location/scripts/ipset.txt" | sed 's~.*Country: ~~;s~"~~')"; fi
 				if [ -w "$location" ]; then $grn "Install Dir Writeable"; else $red "Can't Write To Install Dir"; fi
 				if grep -qF "Skynet" /jffs/scripts/firewall-start; then $grn "Startup Entry Detected"; else $red "Startup Entry Not Detected"; fi
-				if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(cat /tmp/skynet.lock)" ]; then $red "Lock File Detected (pid=$(cat /tmp/skynet.lock))"; else $grn "No Lock File Found"; fi
+				if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(sed -n '2p' /tmp/skynet.lock)" ]; then $red "[INFO] Lock File Detected ($(sed -n '1p' /tmp/skynet.lock)) (pid=$(sed -n '2p' /tmp/skynet.lock))"; else $grn "No Lock File Found"; fi
 				if cru l | grep -qF "Skynet"; then $grn "Cronjobs Detected"; else $red "Cronjobs Not Detected"; fi
 				if [ -f /lib/modules/2.6.36.4brcmarm/kernel/net/netfilter/ipset/ip_set_hash_ipmac.ko ]; then $grn "IPSet Supports Comments"; else $red "IPSet Doesn't Support Comments - Please Update To 380.68 / V26E3 Or Newer Firmware"; fi
 				if [ "$(nvram get message_loglevel)" -le "$(nvram get log_level)" ]; then $grn "Level $(nvram get message_loglevel) Messages Will Be Logged"; else $red "Level $(nvram get message_loglevel) Messages Won't Be Logged - Only $(nvram get log_level)+"; fi
@@ -872,7 +873,7 @@ case "$1" in
 		;;
 
 	install)
-		Check_Lock
+		Check_Lock "$@"
 		if [ "$(ipset -v | grep -Fo v6)" != "v6" ]; then
 			logger -st Skynet "[ERROR] IPSet Version Not Supported"
 			rm -rf /tmp/skynet.lock
