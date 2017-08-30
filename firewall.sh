@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 27/08/2017 -		   Asus Firewall Addition By Adamm v5.1.6				    #
+## - 30/08/2017 -		   Asus Firewall Addition By Adamm v5.1.6				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -48,7 +48,7 @@ Check_Lock () {
 		fi
 }
 
-if grep -F "Skynet" /jffs/scripts/firewall-start  2>/dev/null | grep -qF "usb"; then
+if grep -F "Skynet" /jffs/scripts/firewall-start 2>/dev/null | grep -qF "usb"; then
 	location="$(grep -ow "usb=.*" /jffs/scripts/firewall-start | awk '{print $1}' | cut -c 5-)/skynet"
 	if [ ! -d "$location" ]; then
 		Check_Lock
@@ -263,11 +263,11 @@ Unban_PrivateIP () {
 }
 
 Whitelist_Extra () {
-		{ sed '\~ManualWlistD: ~!d;s~.*ManualWlistD: ~~g;s~"~~g' "$location/scripts/ipset.txt" | awk '!x[$0]++'
+		{ sed '\~ManualWlistD: ~!d;s~.*ManualWlistD: ~~g;s~"~~g' "$location/scripts/ipset.txt"
 		echo "ipdeny.com"
 		echo "speedguide.net"
 		echo "otx.alienvault.com"
-		echo "raw.githubusercontent.com"; } > /jffs/shared-Skynet2-whitelist
+		echo "raw.githubusercontent.com"; } | awk '!x[$0]++' > /jffs/shared-Skynet2-whitelist
 }
 
 Whitelist_Shared () {
