@@ -460,7 +460,7 @@ case "$1" in
 		else
 			listurl="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/filter.list"
 		fi
-		/usr/sbin/wget "$listurl" -t2 -T2 -qO- | grep -qF "http" || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Banmalware" ; exit 1; }
+		/usr/sbin/wget "$listurl" -t2 -T2 -qO- || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Banmalware" ; exit 1; }
 		Check_Lock "$@"
 		if [ -f "${location}/scripts/malwarelist.txt" ]; then
 			echo "Removing Previous Legacy Malware Bans"
@@ -890,11 +890,9 @@ case "$1" in
 		fi
 		if [ "$(nvram get fw_enable_x)" != "1" ]; then
 			nvram set fw_enable_x=1
-			forcereboot=1
 		fi
 		if [ "$(nvram get fw_log_x)" != "drop" ] && [ "$(nvram get fw_log_x)" != "both" ]; then
 			nvram set fw_log_x=drop
-			forcereboot=1
 		fi
 		if [ ! -f "/jffs/scripts/firewall-start" ]; then
 			echo "#!/bin/sh" > /jffs/scripts/firewall-start
