@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 30/08/2017 -		   Asus Firewall Addition By Adamm v5.1.7				    #
+## - 03/09/2017 -		   Asus Firewall Addition By Adamm v5.1.7				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -314,7 +314,7 @@ Logging () {
 		grep -Foc "add Block" "${location}/scripts/ipset.txt" 2> /dev/null >> /tmp/counter.txt
 		newips="$(sed -n '1p' /tmp/counter.txt)"
 		newranges="$(sed -n '2p' /tmp/counter.txt)"
-		if iptables -nvL -t raw | grep -Fv "LOG" | grep -qF "Skynet src"; then
+		if iptables -t raw -C PREROUTING -i "$iface" -m set --match-set Skynet src -j DROP 2>/dev/null; then
 			hits1="$(iptables -xnvL -t raw | grep -Fv "LOG" | grep -F "Skynet src" | awk '{print $1}')"
 			hits2="$(iptables -xnvL -t raw | grep -Fv "LOG" | grep -F "Skynet dst" | awk '{print $1}')"
 		fi
@@ -717,12 +717,12 @@ case "$1" in
 				if cru l | grep -qF "Skynet"; then $grn "Cronjobs Detected"; else $red "Cronjobs Not Detected"; fi
 				if [ -f /lib/modules/2.6.36.4brcmarm/kernel/net/netfilter/ipset/ip_set_hash_ipmac.ko ]; then $grn "IPSet Supports Comments"; else $red "IPSet Doesn't Support Comments - Please Update To 380.68 / V26E3 Or Newer Firmware"; fi
 				if [ "$(nvram get message_loglevel)" -le "$(nvram get log_level)" ]; then $grn "Level $(nvram get message_loglevel) Messages Will Be Logged"; else $red "Level $(nvram get message_loglevel) Messages Won't Be Logged - Only $(nvram get log_level)+"; fi
-				if iptables -nL | grep -F "LOG" | grep -qF "NEW BAN"; then $grn "Autobanning Enabled"; else $red "Autobanning Disabled"; fi
-				if iptables -nL -t raw | grep -F "LOG" | grep -qF "match-set Skynet "; then $grn "Debug Mode Enabled"; else $red "Debug Mode Disabled"; fi
+				if iptables -C logdrop -i "$iface" -m state --state INVALID -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null; then $grn "Autobanning Enabled"; else $red "Autobanning Disabled"; fi
+				if iptables -t raw -C PREROUTING -i "$iface" -m set --match-set Skynet src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null; then $grn "Debug Mode Enabled"; else $red "Debug Mode Disabled"; fi
 				if [ "$(iptables-save -t raw | sort | uniq -d | grep -c " ")" = "0" ]; then $grn "No Duplicate Rules Detected In RAW"; else $red "Duplicate Rules Detected In RAW"; fi
 				if [ "$(iptables-save -t filter | sort | uniq -d | grep -c " ")" = "0" ]; then $grn "No Duplicate Rules Detected In FILTER"; else $red "Duplicate Rules Detected In FILTER"; fi
-				if iptables -nL -t raw | grep -qF "match-set Whitelist "; then $grn "Whitelist IPTable Detected"; else $red "Whitelist IPTable Not Detected"; fi
-				if iptables -nL -t raw | grep -v "LOG" | grep -qF "match-set Skynet "; then $grn "Skynet IPTable Detected"; else $red "Skynet IPTable Not Detected"; fi
+				if iptables -t raw -C PREROUTING -i "$iface" -m set --match-set Whitelist src -j ACCEPT 2>/dev/null; then $grn "Whitelist IPTable Detected"; else $red "Whitelist IPTable Not Detected"; fi
+				if iptables -t raw -C PREROUTING -i "$iface" -m set --match-set Skynet src -j DROP 2>/dev/null; then $grn "Skynet IPTable Detected"; else $red "Skynet IPTable Not Detected"; fi
 				if ipset -L -n Whitelist >/dev/null 2>&1; then $grn "Whitelist IPSet Detected"; else $red "Whitelist IPSet Not Detected"; fi
 				if ipset -L -n BlockedRanges >/dev/null 2>&1; then $grn "BlockedRanges IPSet Detected"; else $red "BlockedRanges IPSet Not Detected"; fi
 				if ipset -L -n Blacklist >/dev/null 2>&1; then $grn "Blacklist IPSet Detected"; else $red "Blacklist IPSet Not Detected"; fi
