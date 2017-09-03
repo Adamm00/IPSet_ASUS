@@ -27,3 +27,7 @@ https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/blocklist_de_s
 https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/alienvault_reputation.ipset
 https://raw.githubusercontent.com/shounak-de/misc-scripts/master/telemetry_and_scanners.txt
 https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/uscert_hidden_cobra.ipset
+https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/bds_atif.ipset
+https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/taichung.ipset
+https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/urandomusto_telnet.ipset
+https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/urandomusto_ssh.ipset
