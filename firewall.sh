@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 03/09/2017 -		   Asus Firewall Addition By Adamm v5.1.7				    #
+## - 04/09/2017 -		   Asus Firewall Addition By Adamm v5.1.7				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -460,7 +460,7 @@ case "$1" in
 		else
 			listurl="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/filter.list"
 		fi
-		/usr/sbin/wget "$listurl" -t2 -T2 -qO- || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Banmalware" ; exit 1; }
+		/usr/sbin/wget "$listurl" -t2 -T2 -qO- >/dev/null 2>&1 || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Banmalware" ; exit 1; }
 		Check_Lock "$@"
 		if [ -f "${location}/scripts/malwarelist.txt" ]; then
 			echo "Removing Previous Legacy Malware Bans"
