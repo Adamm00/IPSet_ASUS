@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 06/09/2017 -		   Asus Firewall Addition By Adamm v5.1.8				    #
+## - 06/09/2017 -		   Asus Firewall Addition By Adamm v5.1.9				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -268,7 +268,9 @@ Whitelist_Extra () {
 		echo "ipdeny.com"
 		echo "speedguide.net"
 		echo "otx.alienvault.com"
-		echo "raw.githubusercontent.com"; } | awk '!x[$0]++' > /jffs/shared-Skynet2-whitelist
+		echo "raw.githubusercontent.com"
+		echo "astrill.com"
+		echo "strongpath.net"; } | awk '!x[$0]++' > /jffs/shared-Skynet2-whitelist
 }
 
 Whitelist_Shared () {
@@ -285,6 +287,12 @@ Whitelist_Shared () {
 		ipset -q -A Whitelist "$(nvram get vpn_server1_sn)"/24 comment "nvram: vpn_server1_sn"
 		ipset -q -A Whitelist "$(nvram get vpn_server2_sn)"/24 comment "nvram: vpn_server2_sn"
 		ipset -q -A Whitelist "$(nvram get vpn_server_sn)"/24 comment "nvram: vpn_server_sn"
+		ipset -q -A Whitelist "$(nvram get vpn_client1_addr)"/24 comment "nvram: vpn_client1_addr"
+		ipset -q -A Whitelist "$(nvram get vpn_client2_addr)"/24 comment "nvram: vpn_client2_addr"
+		ipset -q -A Whitelist "$(nvram get vpn_client3_addr)"/24 comment "nvram: vpn_client3_addr"
+		ipset -q -A Whitelist "$(nvram get vpn_client4_addr)"/24 comment "nvram: vpn_client4_addr"
+		ipset -q -A Whitelist "$(nvram get vpn_client5_addr)"/24 comment "nvram: vpn_client5_addr"
+		if [ -f "/dev/astrill/openvpn.conf" ]; then ipset -q -A Whitelist "$(sed '\~remote ~!d;s~remote ~~' "/dev/astrill/openvpn.conf")"/24 comment "nvram: Astrill_VPN"; fi
 		ipset -q -A Whitelist 192.168.1.0/24 comment "nvram: LAN Subnet"
 		if [ -n "$(/usr/bin/find /jffs -name 'shared-*-whitelist')" ]; then
 			echo "Whitelisting Shared Domains"
