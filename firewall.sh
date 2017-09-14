@@ -271,7 +271,10 @@ Whitelist_Extra () {
 		echo "otx.alienvault.com"
 		echo "raw.githubusercontent.com"
 		echo "astrill.com"
-		echo "strongpath.net"; } | awk '!x[$0]++' > /jffs/shared-Skynet2-whitelist
+		echo "strongpath.net"
+		nvram get ntp_server0 
+		nvram get ntp_server1 
+		nvram get firmware_server; } | awk '!x[$0]++' > /jffs/shared-Skynet2-whitelist
 }
 
 Whitelist_Shared () {
