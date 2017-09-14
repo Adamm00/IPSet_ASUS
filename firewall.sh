@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 06/09/2017 -		   Asus Firewall Addition By Adamm v5.1.9				    #
+## - 15/09/2017 -		   Asus Firewall Addition By Adamm v5.1.9				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -125,6 +125,7 @@ Check_Settings () {
 
 		if [ "$(nvram get jffs2_scripts)" != "1" ]; then
 			nvram set jffs2_scripts=1
+			logger -st Skynet "[INFO] Custom JFFS Scripts Enabled - Please Manually Reboot To Apply Changes"
 		fi
 
 		if [ "$(nvram get fw_enable_x)" != "1" ]; then
@@ -232,7 +233,7 @@ Filter_Date () {
 }
 
 Filter_PrivateIP () {
-			grep -vE '(^127\.)|(^10\.)|(^172\.1[6-9]\.)|(^172\.2[0-9]\.)|(^172\.3[0-1]\.)|(^192\.168\.)|(^0.)|(^169\.254\.)'
+		grep -vE '(^127\.)|(^10\.)|(^172\.1[6-9]\.)|(^172\.2[0-9]\.)|(^172\.3[0-1]\.)|(^192\.168\.)|(^0.)|(^169\.254\.)'
 }
 
 Filter_PrivateSRC () {
@@ -1053,9 +1054,9 @@ case "$1" in
 		chmod +x /jffs/scripts/firewall
 		chmod +x /jffs/scripts/firewall-start
 		echo
+		nvram commit
 		if [ "$forcereboot" = "1" ]; then
 			echo "Rebooting Router To Complete Installation"
-			nvram commit
 			reboot
 			exit 0
 		fi
@@ -1071,9 +1072,10 @@ case "$1" in
 		;;
 
 	uninstall)
-		echo "If You Were Experiencing Bugs, Try Update Or Visit SNBForums/Github"
+		echo "If You Were Experiencing Issues, Try Update Or Visit SNBForums/Github For Support"
 		echo "https://github.com/Adamm00/IPSet_ASUS"
 		echo "Type 'yes' To Continue Uninstall"
+		echo
 		printf "[yes/no]: "
 		read -r continue
 		if [ "$continue" = "yes" ]; then
