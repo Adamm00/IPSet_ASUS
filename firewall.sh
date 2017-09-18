@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 15/09/2017 -		   Asus Firewall Addition By Adamm v5.1.9				    #
+## - 18/09/2017 -		   Asus Firewall Addition By Adamm v5.2.0				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -72,7 +72,7 @@ else
 fi
 
 
-if [ -n "$(nvram get wan0_pppoe_ifname)" ]; then
+if [ "$(nvram get wan0_proto)" = "pppoe" ]; then
 	iface="ppp0"
 else
 	iface="$(nvram get wan0_ifname)"
