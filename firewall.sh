@@ -72,7 +72,7 @@ else
 fi
 
 
-if [ "$(nvram get wan0_proto)" = "pppoe" ]; then
+if [ "$(nvram get wan0_proto)" = "pppoe" ] || [ "$(nvram get wan0_proto)" = "pptp" ] || [ "$(nvram get wan0_proto)" = "l2tp" ]; then
 	iface="ppp0"
 else
 	iface="$(nvram get wan0_ifname)"
