@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 18/09/2017 -		   Asus Firewall Addition By Adamm v5.2.0				    #
+## - 27/09/2017 -		   Asus Firewall Addition By Adamm v5.2.1				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -89,15 +89,6 @@ Kill_Lock () {
 }
 
 Check_Settings () {
-		if [ ! -f /lib/modules/2.6.36.4brcmarm/kernel/net/netfilter/ipset/ip_set_hash_ipmac.ko ]; then
-			logger -st Skynet "[ERROR] IPSet Extensions Not Enabled - Please Update To 380.68 / V26E3 Or Newer Firmware"
-			exit 1
-		else
-			sed -i 's/create Blacklist.*[0-9]$/& comment/' "${location}/scripts/ipset.txt" # Convert IPSets
-			sed -i 's/create BlockedRanges.*[0-9]$/& comment/' "${location}/scripts/ipset.txt" # Convert IPSets
-			sed -i 's/create Whitelist.*[0-9]$/& comment/' "${location}/scripts/ipset.txt" # Convert IPSets
-		fi
-
 		if ! grep -qF "Skynet" /jffs/scripts/firewall-start; then
 			logger -st Skynet "[ERROR] Installation Not Detected - Please Use Install Command To Continue"
 			rm -rf /tmp/skynet.lock
@@ -109,14 +100,16 @@ Check_Settings () {
 			logger -st Skynet "[ERROR] $(/usr/bin/find /jffs /tmp/mnt | grep -E "$conflicting_scripts" | xargs) Detected - This Script Will Cause Conflicts! Please Uninstall It ASAP"
 		fi
 
-		if echo "$@" | grep -qF "banmalware"; then
-			cru a Skynet_banmalware "25 2 * * 1 sh /jffs/scripts/firewall banmalware"
+		if echo "$@" | grep -qF "banmalware "; then
+			cru a Skynet_banmalware "25 2 * * * sh /jffs/scripts/firewall banmalware"
+		elif echo "$@" | grep -qF "banmalwareweekly "; then
+			cru a Skynet_banmalware "25 2 * * Mon sh /jffs/scripts/firewall banmalware"
 		fi
 
 		if echo "$@" | grep -qF "autoupdate"; then
-			cru a Skynet_autoupdate "25 1 * * 1 sh /jffs/scripts/firewall update"
+			cru a Skynet_autoupdate "25 1 * * Mon sh /jffs/scripts/firewall update"
 		else
-			cru a Skynet_checkupdate "25 1 * * 1 sh /jffs/scripts/firewall update check"
+			cru a Skynet_checkupdate "25 1 * * Mon sh /jffs/scripts/firewall update check"
 		fi
 
 		if [ -d "/opt/bin" ] && [ ! -f "/opt/bin/firewall" ]; then
@@ -818,13 +811,20 @@ case "$1" in
 			echo
 			echo "$4 First Tracked On $(grep -m1 -F "=$4 " ${location}/skynet.log | awk '{print $1" "$2" "$3}')"
 			echo "$4 Last Tracked On $(grep -F "=$4 " ${location}/skynet.log | tail -1 | awk '{print $1" "$2" "$3}')"
-			echo "$(grep -Foc "=$4 " ${location}/skynet.log) Attempts Total"
+			echo "$(grep -Foc "=$4 " ${location}/skynet.log) Events Total"
 			echo
 			echo "First Block Tracked From $4;"
 			grep -m1 -F "=$4 " "${location}/skynet.log"
 			echo
 			echo "$counter Most Recent Blocks From $4;"
 			grep -F "=$4 " "${location}/skynet.log" | tail -"$counter"
+			echo
+			echo "Top $counter Targeted Ports From $4 (Inbound);"
+			grep -E "INBOUND.*SRC=$4.*$proto" "${location}/skynet.log" | grep -oE 'DPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://www.speedguide.net/port.php?port="$2}'
+			echo
+			echo "Top $counter Sourced Ports From $4 (Inbound);"
+			grep -E "INBOUND.*SRC=$4.*$proto" "${location}/skynet.log" | grep -oE 'SPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://www.speedguide.net/port.php?port="$2}'
+			echo
 			exit 0
 		elif [ "$2" = "search" ] && [ "$3" = "malware" ] && [ -n "$4" ]; then
 			/usr/sbin/wget https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/filter.list -qO- | while IFS= read -r url; do
@@ -951,17 +951,22 @@ case "$1" in
 		esac
 		echo
 		echo
-		echo "Would You Like To Enable Weekly Malwarelist Updating?"
-		echo "[1] --> Yes  - (Recommended)"
-		echo "[2] --> No"
+		echo "Would You Like To Enable Malwarelist Updating?"
+		echo "[1] --> Yes (Daily)  - (Recommended)"
+		echo "[2] --> Yes (Weekly)"
+		echo "[3] --> No"
 		echo
 		echo "Please Select Option"
-		printf "[1-2]: "
+		printf "[1-3]: "
 		read -r mode2
 		case "$mode2" in
 			1)
-			echo "Malware List Updating Enabled & Scheduled For 2.25am Every Monday"
+			echo "Malware List Updating Enabled & Scheduled For 2.25am Every Day"
 			set2="banmalware"
+			;;
+			2)
+			echo "Malware List Updating Enabled & Scheduled For 2.25am Every Monday"
+			set2="banmalwareweekly"
 			;;
 			*)
 			echo "Malware List Updating Disabled"
@@ -1008,7 +1013,7 @@ case "$1" in
 				i=$((i + 1))
 			done
 			unset IFS
-			if [ $i = "1" ] ; then
+			if [ $i = "1" ]; then
 				echo "No Compadible Partitions Found. Exiting..."
 				rm -rf /tmp/skynet.lock
 				exit 1
@@ -1017,12 +1022,12 @@ case "$1" in
 			echo "Please Enter Partition Number Or 0 To Exit"
 			printf "[0-%s]: " "$((i - 1))"
 			read -r partitionNumber
-			if [ "$partitionNumber" = "0" ] ; then
+			if [ "$partitionNumber" = "0" ]; then
 				echo "Exiting..."
 				rm -rf /tmp/skynet.lock
 				exit 0
 			fi
-			if [ "$partitionNumber" -gt $((i - 1)) ] ; then
+			if [ -z "$partitionNumber" ] || [ "$partitionNumber" -gt $((i - 1)) ]; then
 				echo "Invalid Partition Number! Exiting..."
 				rm -rf /tmp/skynet.lock
 				exit 2
