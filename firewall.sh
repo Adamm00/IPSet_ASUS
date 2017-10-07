@@ -20,7 +20,7 @@
 #	  "unban"	     # <-- Remove From Blacklist (IP/Range/Domain/Port/Comment/Country/Malware/Autobans/Nomanual/All)
 #	  "ban"		     # <-- Adds Entry To Blacklist (IP/Range/Domain/Port/Country)
 #	  "banmalware"	     # <-- Bans Various Malware Domains
-#	  "whitelist"        # <-- Add Entry To Whitelist (IP/Range/Domain/Port/Remove)
+#	  "whitelist"        # <-- Add Entry To Whitelist (IP/Range/Domain/Port/Remove/Refresh/List)
 #	  "import"	     # <-- Bans All IPs From URL
 #	  "deport"	     # <-- Unbans All IPs From URL
 #	  "save"	     # <-- Save Blacklists To ipset.txt
@@ -578,11 +578,11 @@ case "$1" in
 			Whitelist_Extra
 			Whitelist_Shared
 		elif [ "$2" = "list" ] && [ -z "$3" ]; then
-			sed "\\~add Whitelist ~!d;s~add Whitelist ~~" "${location}/scripts/ipset.txt"
-		elif [ "$2" = "list" ] && [ "$3" = "domains" ]; then
-			sed "\\~add Whitelist ~!d;\\~ManualWlistD:~!d;s~add Whitelist ~~" "${location}/scripts/ipset.txt"
+			sed '\~add Whitelist ~!d;s~add Whitelist ~~' "${location}/scripts/ipset.txt"
 		elif [ "$2" = "list" ] && [ "$3" = "ips" ]; then
-			sed "\\~add Whitelist ~!d;\\~ManualWlist:~!d;s~add Whitelist ~~" "${location}/scripts/ipset.txt"
+			sed '\~add Whitelist ~!d;\~ManualWlist:~!d;s~add Whitelist ~~' "${location}/scripts/ipset.txt"
+		elif [ "$2" = "list" ] && [ "$3" = "domains" ]; then
+			sed '\~add Whitelist ~!d;\~ManualWlistD:~!d;s~add Whitelist ~~' "${location}/scripts/ipset.txt"
 		else
 			echo "Command Not Recognised, Please Try Again"
 			exit 2
