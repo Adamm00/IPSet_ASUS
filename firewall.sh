@@ -420,18 +420,18 @@ case "$1" in
 			ipset -A Blacklist "$ip" comment "ManualBan: $desc" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Single SRC=$ip COMMENT=$desc " >> "${location}/skynet.log"
 		elif echo "$2" | Is_IP; then
 			echo "Banning $2"
-			comment="$3"
+			desc="$3"
 			if [ -z "$3" ]; then
-				comment="$(date +"%b %d %T")"
+				desc="$(date +"%b %d %T")"
 			fi
-			ipset -A Blacklist "$2" comment "ManualBan: $comment" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Single SRC=$2 COMMENT=$3 " >> "${location}/skynet.log"
+			ipset -A Blacklist "$2" comment "ManualBan: $desc" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Single SRC=$2 COMMENT=$3 " >> "${location}/skynet.log"
 		elif [ "$2" = "range" ] && [ -n "$3" ]; then
 			echo "Banning $3"
-			comment="$4"
+			desc="$4"
 			if [ -z "$4" ]; then
-				comment="$(date +"%b %d %T")"
+				desc="$(date +"%b %d %T")"
 			fi
-			ipset -A BlockedRanges "$3" comment "ManualRBan: $comment" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Range SRC=$3 COMMENT=$4 " >> "${location}/skynet.log"
+			ipset -A BlockedRanges "$3" comment "ManualRBan: $desc" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Range SRC=$3 COMMENT=$4 " >> "${location}/skynet.log"
 		elif [ "$2" = "domain" ] && [ -z "$3" ]; then
 			printf "Input URL: "
 			read -r bandomain
@@ -518,20 +518,20 @@ case "$1" in
 			sed -i "\\~$ip ~d" "${location}/skynet.log"
 		elif echo "$2" | Is_IP; then
 			echo "Whitelisting $2"
-			comment="$3"
+			desc="$3"
 			if [ -z "$3" ]; then
-				comment="$(date +"%b %d %T")"
+				desc="$(date +"%b %d %T")"
 			fi
-			ipset -A Whitelist "$2" comment "ManualWlist: $comment"
+			ipset -A Whitelist "$2" comment "ManualWlist: $desc"
 			ipset -q -D Blacklist "$2"
 			sed -i "\\~$2 ~d" "${location}/skynet.log"
 		elif [ "$2" = "range" ] && echo "$3" | Is_IP; then
 			echo "Whitelisting $3"
-			comment="$4"
+			desc="$4"
 			if [ -z "$4" ]; then
-				comment="$(date +"%b %d %T")"
+				desc="$(date +"%b %d %T")"
 			fi
-			ipset -A Whitelist "$3" comment "ManualWlist: $comment"
+			ipset -A Whitelist "$3" comment "ManualWlist: $desc"
 			ipset -q -D Blacklist "$3"
 			sed -i "\\~$3 ~d" "${location}/skynet.log"
 		elif [ "$2" = "domain" ] && [ -z "$3" ];then
@@ -578,11 +578,11 @@ case "$1" in
 			Whitelist_Extra
 			Whitelist_Shared
 		elif [ "$2" = "list" ] && [ -z "$3" ]; then
-			ipset -L Whitelist
+			sed "\\~add Whitelist ~!d;s~add Whitelist ~~" "${location}/scripts/ipset.txt"
 		elif [ "$2" = "list" ] && [ "$3" = "domains" ]; then
-			ipset -L Whitelist | grep "ManualWlistD:"
+			sed "\\~add Whitelist ~!d;\\~ManualWlistD:~!d;s~add Whitelist ~~" "${location}/scripts/ipset.txt"
 		elif [ "$2" = "list" ] && [ "$3" = "ips" ]; then
-			ipset -L Whitelist | grep "ManualWlist:"
+			sed "\\~add Whitelist ~!d;\\~ManualWlist:~!d;s~add Whitelist ~~" "${location}/scripts/ipset.txt"
 		else
 			echo "Command Not Recognised, Please Try Again"
 			exit 2
