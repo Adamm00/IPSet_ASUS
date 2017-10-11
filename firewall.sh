@@ -279,6 +279,7 @@ Whitelist_VPN () {
 		ipset -q -A Whitelist "$(nvram get vpn_client3_addr)"/24 comment "nvram: vpn_client3_addr"
 		ipset -q -A Whitelist "$(nvram get vpn_client4_addr)"/24 comment "nvram: vpn_client4_addr"
 		ipset -q -A Whitelist "$(nvram get vpn_client5_addr)"/24 comment "nvram: vpn_client5_addr"
+		if [ -f "/dev/astrill/openvpn.conf" ]; then ipset -q -A Whitelist "$(sed '\~remote ~!d;s~remote ~~' "/dev/astrill/openvpn.conf")"/24 comment "nvram: Astrill_VPN"; fi
 }
 
 Whitelist_Shared () {
@@ -292,7 +293,6 @@ Whitelist_Shared () {
 		ipset -q -A Whitelist "$(nvram get wan_dns | awk '{print $2}')"/32 comment "nvram: wan_dns"
 		ipset -q -A Whitelist "$(nvram get wan0_xdns | awk '{print $1}')"/32 comment "nvram: wan0_xdns"
 		ipset -q -A Whitelist "$(nvram get wan0_xdns | awk '{print $2}')"/32 comment "nvram: wan0_xdns"
-		if [ -f "/dev/astrill/openvpn.conf" ]; then ipset -q -A Whitelist "$(sed '\~remote ~!d;s~remote ~~' "/dev/astrill/openvpn.conf")"/24 comment "nvram: Astrill_VPN"; fi
 		ipset -q -A Whitelist 192.168.1.0/24 comment "nvram: LAN Subnet"
 		if [ -n "$(/usr/bin/find /jffs -name 'shared-*-whitelist')" ]; then
 			echo "Whitelisting Shared Domains"
@@ -1145,6 +1145,7 @@ case "$1" in
 			Unload_DebugIPTables
 			Unload_IPSets
 			sed -i '\~ Skynet ~d' /jffs/scripts/firewall-start
+			sed -i '\~ Skynet ~d' /jffs/scripts/openvpn-event
 			rm -rf "${location}/scripts/ipset.txt" "${location}/skynet.log" "/jffs/shared-Skynet-whitelist" "/jffs/shared-Skynet2-whitelist" "/opt/bin/firewall" "/jffs/scripts/firewall"
 			iptables -t raw -F
 			service restart_firewall
