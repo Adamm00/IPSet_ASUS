@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 09/10/2017 -		   Asus Firewall Addition By Adamm v5.2.4				    #
+## - 12/10/2017 -		   Asus Firewall Addition By Adamm v5.2.5				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -270,6 +270,17 @@ Whitelist_Extra () {
 		nvram get firmware_server; } | awk '!x[$0]++' > /jffs/shared-Skynet2-whitelist
 }
 
+Whitelist_VPN () {
+		ipset -q -A Whitelist "$(nvram get vpn_server1_sn)"/24 comment "nvram: vpn_server1_sn"
+		ipset -q -A Whitelist "$(nvram get vpn_server2_sn)"/24 comment "nvram: vpn_server2_sn"
+		ipset -q -A Whitelist "$(nvram get vpn_server_sn)"/24 comment "nvram: vpn_server_sn"
+		ipset -q -A Whitelist "$(nvram get vpn_client1_addr)"/24 comment "nvram: vpn_client1_addr"
+		ipset -q -A Whitelist "$(nvram get vpn_client2_addr)"/24 comment "nvram: vpn_client2_addr"
+		ipset -q -A Whitelist "$(nvram get vpn_client3_addr)"/24 comment "nvram: vpn_client3_addr"
+		ipset -q -A Whitelist "$(nvram get vpn_client4_addr)"/24 comment "nvram: vpn_client4_addr"
+		ipset -q -A Whitelist "$(nvram get vpn_client5_addr)"/24 comment "nvram: vpn_client5_addr"
+}
+
 Whitelist_Shared () {
 		ipset -q -A Whitelist "$(nvram get wan0_ipaddr)"/32 comment "nvram: wan0_ipaddr"
 		ipset -q -A Whitelist "$(nvram get lan_ipaddr)"/24 comment "nvram: lan_ipaddr"
@@ -281,14 +292,6 @@ Whitelist_Shared () {
 		ipset -q -A Whitelist "$(nvram get wan_dns | awk '{print $2}')"/32 comment "nvram: wan_dns"
 		ipset -q -A Whitelist "$(nvram get wan0_xdns | awk '{print $1}')"/32 comment "nvram: wan0_xdns"
 		ipset -q -A Whitelist "$(nvram get wan0_xdns | awk '{print $2}')"/32 comment "nvram: wan0_xdns"
-		ipset -q -A Whitelist "$(nvram get vpn_server1_sn)"/24 comment "nvram: vpn_server1_sn"
-		ipset -q -A Whitelist "$(nvram get vpn_server2_sn)"/24 comment "nvram: vpn_server2_sn"
-		ipset -q -A Whitelist "$(nvram get vpn_server_sn)"/24 comment "nvram: vpn_server_sn"
-		ipset -q -A Whitelist "$(nvram get vpn_client1_addr)"/24 comment "nvram: vpn_client1_addr"
-		ipset -q -A Whitelist "$(nvram get vpn_client2_addr)"/24 comment "nvram: vpn_client2_addr"
-		ipset -q -A Whitelist "$(nvram get vpn_client3_addr)"/24 comment "nvram: vpn_client3_addr"
-		ipset -q -A Whitelist "$(nvram get vpn_client4_addr)"/24 comment "nvram: vpn_client4_addr"
-		ipset -q -A Whitelist "$(nvram get vpn_client5_addr)"/24 comment "nvram: vpn_client5_addr"
 		if [ -f "/dev/astrill/openvpn.conf" ]; then ipset -q -A Whitelist "$(sed '\~remote ~!d;s~remote ~~' "/dev/astrill/openvpn.conf")"/24 comment "nvram: Astrill_VPN"; fi
 		ipset -q -A Whitelist 192.168.1.0/24 comment "nvram: LAN Subnet"
 		if [ -n "$(/usr/bin/find /jffs -name 'shared-*-whitelist')" ]; then
@@ -489,6 +492,7 @@ case "$1" in
 		/usr/sbin/wget "$listurl" -qO /jffs/shared-Skynet-whitelist && echo "[$(($(date +%s) - btime))s]"
 		btime="$(date +%s)" && printf "Whitelisting Shared Domains "
 		Whitelist_Extra
+		Whitelist_VPN
 		Whitelist_Shared >/dev/null 2>&1 && echo "[$(($(date +%s) - btime))s]"
 		btime="$(date +%s)" && printf "Consolidating Blacklist "
 		/usr/sbin/wget -t2 -T2 -i /jffs/shared-Skynet-whitelist -qO- | sed -n "s/\\r//;/^$/d;/^[0-9,\\.,\\/]*$/p" | awk '!x[$0]++' | Filter_PrivateIP > /tmp/malwarelist.txt && echo "[$(($(date +%s) - btime))s]"
@@ -560,12 +564,17 @@ case "$1" in
 				ipset -q -D Blacklist "$ip"
 				sed -i "\\~$ip ~d" "${location}/skynet.log"
 			done
+		elif [ "$2" = "vpn" ]; then
+			logger -st Skynet "[INFO] Updating VPN Whitelist..."
+			Whitelist_VPN
+			exit 0
 		elif [ "$2" = "remove" ] && [ -z "$3" ]; then
 			echo "Flushing Whitelist"
 			ipset flush Whitelist
 			echo "Adding Default Entries"
 			true > "${location}/scripts/ipset.txt"
 			Whitelist_Extra
+			Whitelist_VPN
 			Whitelist_Shared
 		elif [ "$2" = "remove" ] && [ "$3" = "ip" ] && [ -n "$4" ]; then
 			echo "Removing $4 From Whitelist"
@@ -576,6 +585,7 @@ case "$1" in
 		elif [ "$2" = "refresh" ]; then
 			echo "Refreshing Shared Whitelist Files"
 			Whitelist_Extra
+			Whitelist_VPN
 			Whitelist_Shared
 		elif [ "$2" = "list" ] && [ -z "$3" ]; then
 			sed '\~add Whitelist ~!d;s~add Whitelist ~~' "${location}/scripts/ipset.txt"
@@ -659,6 +669,7 @@ case "$1" in
 		Purge_Logs
 		sed '\~add Whitelist ~!d;\~nvram: ~!d;s~ comment.*~~;s~add~del~g' "${location}/scripts/ipset.txt" | ipset restore -!
 		Whitelist_Extra
+		Whitelist_VPN
 		Whitelist_Shared
 		if [ -z "$forcesave" ]; then Save_IPSets; fi
 		while [ "$(($(date +%s) - stime))" -lt "20" ]; do
@@ -948,6 +959,13 @@ case "$1" in
 		elif [ -f "/jffs/scripts/firewall-start" ] && ! head -1 /jffs/scripts/firewall-start | grep -qE "^#!/bin/sh"; then
 			sed -i '1s~^~#!/bin/sh\n~' /jffs/scripts/firewall-start
 		fi
+		if [ ! -f "/jffs/scripts/openvpn-event" ]; then
+			echo "#!/bin/sh" > /jffs/scripts/openvpn-event
+		elif [ -f "/jffs/scripts/openvpn-event" ] && ! head -1 /jffs/scripts/openvpn-event | grep -qE "^#!/bin/sh"; then
+			sed -i '1s~^~#!/bin/sh\n~' /jffs/scripts/openvpn-event
+		fi
+		sed -i '\~ Skynet ~d' /jffs/scripts/openvpn-event
+		echo "sh /jffs/scripts/firewall whitelist vpn # Skynet Firewall Addition" >> /jffs/scripts/openvpn-event
 		echo "Installing Skynet $(Filter_Version "$0")"
 		echo "This Will Remove Any Old Install Arguements And Can Be Run Multiple Times"
 		echo "[1] --> Vanilla -           Default Installation"
@@ -1093,6 +1111,7 @@ case "$1" in
 		esac
 		chmod +x /jffs/scripts/firewall
 		chmod +x /jffs/scripts/firewall-start
+		chmod +x /jffs/scripts/openvpn-event
 		echo
 		nvram commit
 		if [ "$forcereboot" = "1" ]; then
