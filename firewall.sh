@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 12/10/2017 -		   Asus Firewall Addition By Adamm v5.2.5				    #
+## - 15/10/2017 -		   Asus Firewall Addition By Adamm v5.2.6				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -20,7 +20,7 @@
 #	  "unban"	     # <-- Remove From Blacklist (IP/Range/Domain/Port/Comment/Country/Malware/Autobans/Nomanual/All)
 #	  "ban"		     # <-- Adds Entry To Blacklist (IP/Range/Domain/Port/Country)
 #	  "banmalware"	     # <-- Bans Various Malware Domains
-#	  "whitelist"        # <-- Add Entry To Whitelist (IP/Range/Domain/Port/Remove/Refresh/List)
+#	  "whitelist"        # <-- Add Entry To Whitelist (IP/Range/Domain/Port/VPN/Remove/Refresh/List)
 #	  "import"	     # <-- Bans All IPs From URL
 #	  "deport"	     # <-- Unbans All IPs From URL
 #	  "save"	     # <-- Save Blacklists To ipset.txt
@@ -766,6 +766,7 @@ case "$1" in
 				if grep -qF "Country:" "$location/scripts/ipset.txt"; then echo "Banned Countries; $(grep -m1 -F "Country:" "$location/scripts/ipset.txt" | sed 's~.*Country: ~~;s~"~~')"; fi
 				if [ -w "$location" ]; then $grn "Install Dir Writeable"; else $red "Can't Write To Install Dir"; fi
 				if grep -qF "Skynet" /jffs/scripts/firewall-start; then $grn "Startup Entry Detected"; else $red "Startup Entry Not Detected"; fi
+				if grep -qF "Skynet" /jffs/scripts/openvpn-event; then $grn "OpenVPN-Event Entry Detected"; else $red "OpenVPN-Event Entry Not Detected, Please Rerun Installer"; fi
 				if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(sed -n '2p' /tmp/skynet.lock)" ]; then $red "Lock File Detected ($(sed -n '1p' /tmp/skynet.lock)) (pid=$(sed -n '2p' /tmp/skynet.lock))"; else $grn "No Lock File Found"; fi
 				if cru l | grep -qF "Skynet"; then $grn "Cronjobs Detected"; else $red "Cronjobs Not Detected"; fi
 				if [ -f /lib/modules/2.6.36.4brcmarm/kernel/net/netfilter/ipset/ip_set_hash_ipmac.ko ] || [ -f /lib/modules/4.1.27/kernel/net/netfilter/ipset/ip_set_hash_ipmac.ko ]; then $grn "IPSet Supports Comments"; else $red "IPSet Doesn't Support Comments - Please Update To 380.68 / V26E3 Or Newer Firmware"; fi
@@ -964,8 +965,6 @@ case "$1" in
 		elif [ -f "/jffs/scripts/openvpn-event" ] && ! head -1 /jffs/scripts/openvpn-event | grep -qE "^#!/bin/sh"; then
 			sed -i '1s~^~#!/bin/sh\n~' /jffs/scripts/openvpn-event
 		fi
-		sed -i '\~ Skynet ~d' /jffs/scripts/openvpn-event
-		echo "sh /jffs/scripts/firewall whitelist vpn # Skynet Firewall Addition" >> /jffs/scripts/openvpn-event
 		echo "Installing Skynet $(Filter_Version "$0")"
 		echo "This Will Remove Any Old Install Arguements And Can Be Run Multiple Times"
 		echo "[1] --> Vanilla -           Default Installation"
@@ -1109,13 +1108,17 @@ case "$1" in
 			echo "sh /jffs/scripts/firewall $set1 $set2 $set3 # Skynet Firewall Addition" | tr -s " " >> /jffs/scripts/firewall-start
 			;;
 		esac
+		sed -i '\~ Skynet ~d' /jffs/scripts/openvpn-event
+		echo "sh /jffs/scripts/firewall whitelist vpn # Skynet Firewall Addition" >> /jffs/scripts/openvpn-event
 		chmod +x /jffs/scripts/firewall
 		chmod +x /jffs/scripts/firewall-start
 		chmod +x /jffs/scripts/openvpn-event
 		echo
 		nvram commit
 		if [ "$forcereboot" = "1" ]; then
-			echo "Rebooting Router To Complete Installation"
+			echo "Reboot Required To Complete Installation"
+			printf "Press Enter To Confirm..."
+			read -r continue
 			reboot
 			exit 0
 		fi
