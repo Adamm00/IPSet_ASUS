@@ -12,7 +12,7 @@ sh /jffs/scripts/firewall *commandhere*
     "unban"        # <-- Remove Entry From Blacklist (IP/Range/Domain/Port/Country/Malware/Autobans/Nomanual/All)
     "ban"          # <-- Adds Entry To Blacklist (IP/Range/Domain/Port/Country)
     "banmalware"   # <-- Bans Various Malware Domains
-    "whitelist"    # <-- Add Entry To Whitelist (IP/Range/Domain/Port/Remove/Refresh/List)
+    "whitelist"    # <-- Add Entry To Whitelist (IP/Range/Domain/Port/VPN/Remove/Refresh/List)
     "import"       # <-- Bans All IPs From URL
     "deport"       # <-- Unbans All IPs From URL
     "save"         # <-- Save Blacklists To ipset.txt
@@ -69,6 +69,7 @@ Here Are Some Example Whitelist Commands;
 (sh /jffs/scripts/firewall whitelist domain) This Requires Manual Input (Only Domains Accepted)
 (sh /jffs/scripts/firewall whitelist domain google.com) This Whitelists the URL Specified
 (sh /jffs/scripts/firewall whitelist port 23) This Whitelists All Autobans Based On Traffic From Port 23
+(sh /jffs/scripts/firewall whitelist vpn) Refresh VPN Whitelist
 (sh /jffs/scripts/firewall whitelist remove) This Removes All Non-Default Entries
 (sh /jffs/scripts/firewall whitelist remove ip 8.8.8.8) This Removes IP Specified
 (sh /jffs/scripts/firewall whitelist remove comment "apple" ) This Removes Entries With Comment Containing The Word Apple
