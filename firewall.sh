@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 15/10/2017 -		   Asus Firewall Addition By Adamm v5.2.6				    #
+## - 17/10/2017 -		   Asus Firewall Addition By Adamm v5.3.0				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -38,6 +38,7 @@ while [ "$(nvram get ntp_ready)" = "0" ]; do
 	sleep 1
 done
 stime="$(date +%s)"
+
 
 Check_Lock () {
 		if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(sed -n '2p' /tmp/skynet.lock)" ]; then
@@ -209,6 +210,10 @@ Is_IP () {
 		grep -wqE '([0-9]{1,3}\.){3}[0-9]{1,3}'
 }
 
+Is_Range () {
+		grep -wqE '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}'
+}
+
 Domain_Lookup () {
 		nslookup "$(echo "$1" | sed 's~http[s]*://~~;s~/.*~~')" | grep -woE '([0-9]{1,3}\.){3}[0-9]{1,3}' | awk 'NR>2'
 }
@@ -337,6 +342,452 @@ Logging () {
 # -   unban / ban / banmalware / whitelist / import / deport / save / start / disable / update / debug / stats / install / uninstall   - #
 ##########################################################################################################################################
 
+case "$1" in
+	help)
+		echo "Input Menu Option:"
+		echo "[1]  --> Unban"
+		echo "[2]  --> Ban"
+		echo "[3]  --> Banmalware"
+		echo "[4]  --> Whitelist"
+		echo "[5]  --> Import IP List"
+		echo "[6]  --> Deport IP List"
+		echo "[7]  --> Save"
+		echo "[8]  --> Disable Skynet"
+		echo "[9]  --> Update Skynet"
+		echo "[10] --> Debug Options"
+		echo "[11] --> Stats"
+		echo "[12] --> Install"
+		echo "[13] --> Uninstall"
+		echo
+		printf "[1-13]: "
+		read -r "menu"
+		echo
+		case "$menu" in
+			1)
+				option1="unban"
+				echo "What Type Of Input Would You Like To Ban:"
+				echo "[1]  --> IP"
+				echo "[2]  --> Range"
+				echo "[3]  --> Domain"
+				echo "[4]  --> Port"
+				echo "[5]  --> Comment"
+				echo "[6]  --> Country"
+				echo "[7]  --> Malware"
+				echo "[8]  --> Autobans"
+				echo "[9]  --> Non Manual Bans"
+				echo "[10] --> All"
+				echo
+				printf "[1-10]: "
+				read -r "menu2"
+				echo
+				case "$menu2" in
+				1)
+					echo "Input IP To Unban"
+					echo
+					printf "[IP]: "
+					read -r "option2"
+					echo
+					;;
+				2)
+					option2="range"
+					echo "Input Range To Unban"
+					echo
+					printf "[Range]: "
+					read -r "option3"
+					echo
+					;;
+				3)
+					option2="domain"
+					echo "Input Domain To Unban"
+					echo
+					printf "[Domain]: "
+					read -r "option3"
+					echo
+					;;
+				4)
+					option2="port"
+					echo "Remove Autobans Based On Port..."
+					echo
+					printf "[Port]: "
+					read -r "option3"
+					echo
+					;;
+				5)
+					option2="comment"
+					echo "Remove Bans Matching Comment..."
+					echo
+					printf "[Comment]: "
+					read -r "option3"
+					echo
+					;;
+				6)
+					option2="country"
+					;;
+				7)
+					option2="malware"
+					;;
+				8)
+					option2="autobans"
+					;;
+				9)
+					option2="nomanual"
+					;;
+				10)
+					option2="all"
+					;;
+				esac
+				;;
+			2)
+				option1="ban"
+				echo "What Type Of Input Would You Like To Ban:"
+				echo "[1] --> IP"
+				echo "[2] --> Range"
+				echo "[3] --> Domain"
+				echo "[4] --> Country"
+				echo
+				printf "[1-4]: "
+				read -r "menu2"
+				echo
+				case "$menu2" in
+					1)
+						echo "Input IP To Ban"
+						echo
+						printf "[IP]: "
+						read -r "option2"
+						echo
+						echo "Input Comment For Ban"
+						echo
+						printf "[Comment]: "
+						read -r "option3"
+						echo
+						;;
+					2)
+						option2="range"
+						echo "Input Range To Ban"
+						echo
+						printf "[Range]: "
+						read -r "option3"
+						echo
+						echo "Input Comment For Ban"
+						echo
+						printf "[Comment]: "
+						read -r "option4"
+						echo
+						;;
+					3)
+						option2="domain"
+						echo "Input Domain To Ban"
+						echo
+						printf "[Domain]: "
+						read -r "option3"
+						echo
+						;;
+					4)
+						option2="country"
+						echo "Input Country Abbreviations To Ban"
+						echo
+						printf "[Countries]: "
+						read -r "option3"
+						echo
+						;;
+				esac
+				;;
+			3)
+				option1="banmalware"
+				echo "Input Filter List:"
+				echo "[1] --> Default"
+				echo "[2] --> Custom"
+				echo
+				printf "[1-2]: "
+				read -r "menu2"
+				echo
+				case "$menu2" in
+					2)
+						echo "Input Custom Filter List URL"
+						printf "[URL]: "
+						read -r "option2"
+						;;
+				esac
+				;;
+			4)
+				option1="whitelist"
+				echo "Input Whitelist Option:"
+				echo "[1]  --> IP/Range"
+				echo "[2]  --> Domain"
+				echo "[3]  --> Port"
+				echo "[4]  --> Refresh VPN Whitelist"
+				echo "[5]  --> Remove Entries"
+				echo "[6]  --> Refresh Entries"
+				echo "[7]  --> List Entries"
+				echo
+				printf "[1-7]: "
+				read -r "menu2"
+				echo
+				case "$menu2" in
+					1)
+						echo "Input IP Or Range To Whitelist:"
+						echo
+						printf "[IP/Range]: "
+						read -r "option2"
+						echo
+						;;
+					2)
+						option2="domain"
+						echo "Input Domain To Whitelist:"
+						echo
+						printf "[Domain]: "
+						read -r "option3"
+						echo
+						;;
+					3)
+						option2="port"
+						echo "Whitelist Autobans Based On Port:"
+						echo
+						printf "[Port]: "
+						read -r "option3"
+						echo
+						;;
+					4)
+						option2="vpn"
+						;;
+					5)
+						option2="remove"
+						echo "Remove From Whitelist:"
+						echo "[1]  --> All Non-Default Entries"
+						echo "[2]  --> IP/Range"
+						echo "[3]  --> Entries Matching Comment"
+						echo
+						printf "[1-3]: "
+						read -r "menu3"
+						echo
+						case "$menu3" in
+							2)
+								echo "Input IP Or Range To Remove:"
+								echo
+								printf "[IP/Range]: "
+								read -r "option3"
+								echo
+								;;
+							3)
+								echo "Remove Entries Based On Comment:"
+								echo
+								printf "[Comment]: "
+								read -r "option3"
+								echo
+								;;
+						esac
+						;;
+					6)
+						option2="refresh"
+						;;
+					7)
+						option2="list"
+						echo "Select Entries To List:"
+						echo "[1]  --> All"
+						echo "[2]  --> Manually Added IPs"
+						echo "[3]  --> Manually Added Domains"
+						echo
+						printf "[1-3]: "
+						read -r "menu3"
+						echo
+						case "$menu3" in
+							2)
+								option3="ips"
+								;;
+							3)
+								option3="domains"
+								;;
+						esac
+						;;
+				esac
+				;;
+			5)
+				option1="import"
+				echo "Input URL To Import"
+				echo
+				printf "[URL]: "
+				read -r option2
+				;;
+			6)
+				option1="deport"
+				echo "Input URL To Deport"
+				echo
+				printf "[URL]: "
+				read -r option2
+				;;
+			7)
+				option1="save"
+				;;
+			8)
+				option1="disable"
+				;;
+			9)
+				option1="update"
+				echo "Select Update Option:"
+				echo "[1]  --> Default"
+				echo "[2]  --> Check For Updates Only"
+				echo "[3]  --> Force Update Even If No Updates Detected"
+				echo
+				printf "[1-3]: "
+				read -r "menu2"
+				echo
+				case "$menu2" in
+					2)
+						option2="check"
+						;;
+					3)
+						option2="-f"
+						;;
+				esac
+				;;
+			10)
+				option1="debug"
+				echo "Select Debug Option:"
+				echo "[1]  --> Restart Skynet"
+				echo "[2]  --> Temporarily Disable Debug Output"
+				echo "[3]  --> Show Debug Entries As They Appear"
+				echo "[4]  --> Show Debug Info"
+				echo
+				printf "[1-4]: "
+				read -r "menu2"
+				echo
+				case "$menu2" in
+					1)
+						option2="restart"
+						;;
+					2)
+						option2="disable"
+						;;
+					3)
+						option2="watch"
+						;;
+					4)
+						option2="info"
+						;;
+				esac
+				;;
+			11)
+				option1="stats"
+				echo "Select Stat Option:"
+				echo "[1]  --> Display"
+				echo "[2]  --> Search"
+				echo "[3]  --> Reset"
+				echo
+				printf "[1-3]: "
+				read -r "menu2"
+				echo
+				case "$menu2" in
+					1)
+						echo "Show Top x Results:"
+						echo "[1]  --> 20"
+						echo "[2]  --> 50"
+						echo "[3]  --> 100"
+						echo
+						printf "[1-3]: "
+						read -r "menu3"
+						echo
+						case "$menu3" in
+							1)
+								option3="20"
+								;;
+							2)
+								option3="50"
+								;;
+							3)
+								option3="100"
+								;;
+						esac
+						echo "Show Packet Type:"
+						echo "[1]  --> All"
+						echo "[2]  --> TCP"
+						echo "[3]  --> UDP"
+						echo "[4]  --> ICMP"
+						echo
+						printf "[1-4]: "
+						read -r "menu4"
+						echo
+						case "$menu4" in
+							2)
+								option2="tcp"
+								;;
+							3)
+								option2="udp"
+								;;
+							4)
+								option2="icmp"
+								;;
+						esac
+						;;
+					2)
+						option2="search"
+						echo "Show Top x Results:"
+						echo "[1]  --> 20"
+						echo "[2]  --> 50"
+						echo "[3]  --> 100"
+						echo
+						printf "[1-3]: "
+						read -r "menu3"
+						echo
+						case "$menu3" in
+							1)
+								option5="20"
+								;;
+							2)
+								option5="50"
+								;;
+							3)
+								option5="100"
+								;;
+						esac
+						echo "Search Options: "
+						echo "[1]  --> Based On Port x"
+						echo "[2]  --> Entries From Specific IP"
+						echo "[3]  --> Search Malwarelists For IP"
+						echo "[4]  --> Search Autobans"
+						echo "[5]  --> Search Manualbans"
+						echo
+						printf "[1-5]: "
+						read -r "menu4"
+						echo
+						case "$menu4" in
+							1)
+								option3="port"
+								printf "[Port]: "
+								read -r "option4"
+								;;
+							2)
+								option3="ip"
+								printf "[IP]: "
+								read -r "option4"
+								;;
+							3)
+								option3="malware"
+								printf "[IP]: "
+								read -r "option4"
+								;;
+							4)
+								option3="autobans"
+								;;
+							5)
+								option3="manualbans"
+								;;
+						esac
+						;;
+					3)
+						option2="reset"
+						;;
+				esac
+				;;
+			12)
+				option1="install"
+				;;
+			13)
+				option1="uninstall"
+				;;
+		esac
+		set "$option1" "$option2" "$option3" "$option4" "$option5"
+		;;
+esac
 
 case "$1" in
 	unban)
@@ -428,7 +879,7 @@ case "$1" in
 				desc="$(date +"%b %d %T")"
 			fi
 			ipset -A Blacklist "$2" comment "ManualBan: $desc" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Single SRC=$2 COMMENT=$3 " >> "${location}/skynet.log"
-		elif [ "$2" = "range" ] && [ -n "$3" ]; then
+		elif [ "$2" = "range" ] && echo "$3" | Is_Range; then
 			echo "Banning $3"
 			desc="$4"
 			if [ -z "$4" ]; then
