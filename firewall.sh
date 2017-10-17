@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 17/10/2017 -		   Asus Firewall Addition By Adamm v5.3.2				    #
+## - 18/10/2017 -		   Asus Firewall Addition By Adamm v5.3.3				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -324,7 +324,7 @@ Logging () {
 ##########################################################################################################################################
 
 if [ -z "$1" ]; then
-	while [ "$menu" != "e" ]; do
+	while true; do
 		echo "Select Menu Option:"
 		echo "[1]  --> Unban"
 		echo "[2]  --> Ban"
@@ -348,7 +348,7 @@ if [ -z "$1" ]; then
 		case "$menu" in
 			1)
 				option1="unban"
-				while [ "$menu2" != "e" ]; do
+				while true; do
 					echo "What Type Of Input Would You Like To Unban:"
 					echo "[1]  --> IP"
 					echo "[2]  --> Range"
@@ -433,13 +433,17 @@ if [ -z "$1" ]; then
 						echo "Exiting!"
 						exit 2
 						;;
+					*)
+						echo "$menu2 Isn't An Option!"
+						echo
+						;;
 					esac
 				done
 				break
 				;;
 			2)
 				option1="ban"
-				while [ "$menu2" != "e" ]; do
+				while true; do
 					echo "What Type Of Input Would You Like To Ban:"
 					echo "[1] --> IP"
 					echo "[2] --> Range"
@@ -499,13 +503,17 @@ if [ -z "$1" ]; then
 							echo "Exiting!"
 							exit 2
 							;;
+						*)
+							echo "$menu2 Isn't An Option!"
+							echo
+							;;
 					esac
 				done
 				break
 				;;
 			3)
 				option1="banmalware"
-				while [ "$menu2" != "e" ]; do
+				while true; do
 					echo "Select Filter List:"
 					echo "[1] --> Default"
 					echo "[2] --> Custom"
@@ -528,13 +536,17 @@ if [ -z "$1" ]; then
 							echo "Exiting!"
 							exit 2
 							;;
+						*)
+							echo "$menu2 Isn't An Option!"
+							echo
+							;;
 					esac
 				done
 				break
 				;;
 			4)
 				option1="whitelist"
-				while [ "$menu2" != "e" ]; do
+				while true; do
 					echo "Select Whitelist Option:"
 					echo "[1]  --> IP/Range"
 					echo "[2]  --> Domain"
@@ -580,7 +592,7 @@ if [ -z "$1" ]; then
 							;;
 						5)
 							option2="remove"
-							while [ "$menu3" != "e" ]; do
+							while true; do
 								echo "Remove From Whitelist:"
 								echo "[1]  --> All Non-Default Entries"
 								echo "[2]  --> IP/Range"
@@ -613,6 +625,10 @@ if [ -z "$1" ]; then
 										echo "Exiting!"
 										exit 2
 										;;
+									*)
+										echo "$menu3 Isn't An Option!"
+										echo
+										;;
 								esac
 							done
 							break
@@ -623,7 +639,7 @@ if [ -z "$1" ]; then
 							;;
 						7)
 							option2="list"
-							while [ "$menu3" != "e" ]; do
+							while true; do
 								echo "Select Entries To List:"
 								echo "[1]  --> All"
 								echo "[2]  --> Manually Added IPs"
@@ -647,6 +663,10 @@ if [ -z "$1" ]; then
 									e)
 										echo "Exiting!"
 										exit 2
+										;;
+									*)
+										echo "$menu3 Isn't An Option!"
+										echo
 										;;
 								esac
 							done
@@ -684,7 +704,7 @@ if [ -z "$1" ]; then
 				;;
 			9)
 				option1="update"
-				while [ "$menu2" != "e" ]; do
+				while true; do
 					echo "Select Update Option:"
 					echo "[1]  --> Check For And Install Any New Updates"
 					echo "[2]  --> Check For Updates Only"
@@ -709,13 +729,17 @@ if [ -z "$1" ]; then
 							echo "Exiting!"
 							exit 2
 							;;
+						*)
+							echo "$menu2 Isn't An Option!"
+							echo
+							;;
 					esac
 				done
 				break
 				;;
 			10)
 				option1="debug"
-				while [ "$menu2" != "e" ]; do
+				while true; do
 					echo "Select Debug Option:"
 					echo "[1]  --> Restart Skynet"
 					echo "[2]  --> Temporarily Disable Debug Output"
@@ -746,13 +770,17 @@ if [ -z "$1" ]; then
 							echo "Exiting!"
 							exit 2
 							;;
+						*)
+							echo "$menu2 Isn't An Option!"
+							echo
+							;;
 					esac
 				done
 				break
 				;;
 			11)
 				option1="stats"
-				while [ "$menu2" != "e" ]; do
+				while true; do
 					echo "Select Stat Option:"
 					echo "[1]  --> Display"
 					echo "[2]  --> Search"
@@ -763,7 +791,7 @@ if [ -z "$1" ]; then
 					echo
 					case "$menu2" in
 						1)
-							while [ "$menu3" != "e" ]; do
+							while true; do
 								echo "Show Top x Results:"
 								echo "[1]  --> 10"
 								echo "[2]  --> 20"
@@ -789,9 +817,13 @@ if [ -z "$1" ]; then
 										echo "Exiting!"
 										exit 2
 										;;
+									*)
+										echo "$menu3 Isn't An Option!"
+										echo
+										;;
 								esac
 							done
-							while [ "$menu4" != "e" ]; do
+							while true; do
 								echo "Show Packet Type:"
 								echo "[1]  --> All"
 								echo "[2]  --> TCP"
@@ -821,13 +853,17 @@ if [ -z "$1" ]; then
 										echo "Exiting!"
 										exit 2
 										;;
+									*)
+										echo "$menu4 Isn't An Option!"
+										echo
+										;;
 								esac
 							done
 							break
 							;;
 						2)
 							option2="search"
-							while [ "$menu3" != "e" ]; do
+							while true; do
 								echo "Show Top x Results:"
 								echo "[1]  --> 10"
 								echo "[2]  --> 20"
@@ -853,9 +889,13 @@ if [ -z "$1" ]; then
 										echo "Exiting!"
 										exit 2
 										;;
+									*)
+										echo "$menu3 Isn't An Option!"
+										echo
+										;;
 								esac
 							done
-							while [ "$menu4" != "e" ]; do
+							while true; do
 								echo "Search Options: "
 								echo "[1]  --> Based On Port x"
 								echo "[2]  --> Entries From Specific IP"
@@ -900,6 +940,10 @@ if [ -z "$1" ]; then
 										echo "Exiting!"
 										exit 2
 										;;
+									*)
+										echo "$menu4 Isn't An Option!"
+										echo
+										;;
 								esac
 							done
 							break
@@ -912,6 +956,10 @@ if [ -z "$1" ]; then
 							echo "Exiting!"
 							exit 2
 							;;
+						*)
+						echo "$menu2 Isn't An Option!"
+						echo
+						;;
 					esac
 				done
 				break
@@ -929,7 +977,7 @@ if [ -z "$1" ]; then
 				exit
 				;;
 			*)
-				echo "Command Not Recognised, Please Try Again"
+				echo "$menu Isn't An Option!"
 				echo
 				;;
 		esac
@@ -1564,7 +1612,7 @@ case "$1" in
 		elif [ -f "/jffs/scripts/openvpn-event" ] && ! head -1 /jffs/scripts/openvpn-event | grep -qE "^#!/bin/sh"; then
 			sed -i '1s~^~#!/bin/sh\n~' /jffs/scripts/openvpn-event
 		fi
-		while [ "$mode1" != "e" ]; do
+		while true; do
 			echo "Installing Skynet $(Filter_Version "$0")"
 			echo "This Will Remove Any Old Install Arguements And Can Be Run Multiple Times"
 			echo "[1] --> Vanilla -           Default Installation"
@@ -1601,11 +1649,15 @@ case "$1" in
 				echo "Exiting!"
 				exit 2
 				;;
+				*)
+				echo "$mode1 Isn't An Option!"
+				echo
+				;;
 			esac
 		done
 		echo
 		echo
-		while [ "$mode2" != "e" ]; do
+		while true; do
 			echo "Would You Like To Enable Malwarelist Updating?"
 			echo "[1] --> Yes (Daily)  - (Recommended)"
 			echo "[2] --> Yes (Weekly)"
@@ -1634,11 +1686,15 @@ case "$1" in
 				echo "Exiting!"
 				exit 2
 				;;
+				*)
+				echo "$mode2 Isn't An Option!"
+				echo
+				;;
 			esac
 		done
 		echo
 		echo
-		while [ "$mode3" != "e" ]; do
+		while true; do
 			echo "Would You Like To Enable Weekly Skynet Updating?"
 			echo "[1] --> Yes  - (Recommended)"
 			echo "[2] --> No"
@@ -1661,11 +1717,15 @@ case "$1" in
 				echo "Exiting!"
 				exit 2
 				;;
+				*)
+				echo "$mode3 Isn't An Option!"
+				echo
+				;;
 			esac
 		done
 		echo
 		echo
-		while [ "$mode4" != "e" ]; do
+		while true; do
 			echo "Where Would You Like To Install Skynet?"
 			echo "[1] --> JFFS"
 			echo "[2] --> USB - (Recommended)"
@@ -1738,6 +1798,10 @@ case "$1" in
 				e)
 				echo "Exiting!"
 				exit 2
+				;;
+				*)
+				echo "$mode4 Isn't An Option!"
+				echo
 				;;
 			esac
 		done
