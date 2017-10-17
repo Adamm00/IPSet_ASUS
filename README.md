@@ -84,18 +84,18 @@ Here Are Some Example Import Commands;
 Here Are Some Example Deport Commands;
 (sh /jffs/scripts/firewall deport URL) This Unbans All IPs From URL
 
+Here Are Some Example Update Commands;
+(sh /jffs/scripts/firewall update) Standard Update Check - If Nothing Detected Exit
+(sh /jffs/scripts/firewall update check) Check For Updates Only - Wont Update If Detected
+(sh /jffs/scripts/firewall update -f) Force Update Even If No Changes Detected
+
 Here Are Some Example Debug Commands;
 (sh /jffs/scripts/firewall debug restart) Restart Firewall
 (sh /jffs/scripts/firewall debug disable) Disable Raw Debugging
 (sh /jffs/scripts/firewall debug watch) Show Debug Entries As They Appear
 (sh /jffs/scripts/firewall debug info) Print Usefull Debug Info
 
-Here Are Some Example Update Commands;
-(sh /jffs/scripts/firewall update) Standard Update Check - If Nothing Detected Exit
-(sh /jffs/scripts/firewall update check) Check For Updates Only - Wont Update If Detected
-(sh /jffs/scripts/firewall update -f) Force Update Even If No Changes Detected
-
-Here Are Some Example Stat Commands;
+Here Are Some Example Stats Commands;
 (sh /jffs/scripts/firewall stats) Compile Stats With Default Top10 Output
 (sh /jffs/scripts/firewall stats 20) Compile Stats With Customiseable Top20 Output
 (sh /jffs/scripts/firewall stats tcp) Compile Stats Showing Only TCP Entries
