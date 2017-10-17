@@ -9,11 +9,12 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 18/10/2017 -		   Asus Firewall Addition By Adamm v5.3.3				    #
+## - 18/10/2017 -		   Asus Firewall Addition By Adamm v5.3.4				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
 
+clear
 head -16 "$0"
 export LC_ALL=C
 while [ "$(nvram get ntp_ready)" = "0" ]; do
@@ -306,34 +307,6 @@ Purge_Logs () {
 		fi
 }
 
-Debug_Menu () {
-		echo "Router Model; $(nvram get productid)"
-		echo "Skynet Version; $(Filter_Version "$0") ($(Filter_Date "$0"))"
-		echo "$(iptables --version) - ($iface @ $(nvram get lan_ipaddr))"
-		ipset -v
-		echo "FW Version; $(nvram get buildno)_$(nvram get extendno) ($(uname -v | awk '{print $5" "$6" "$9}'))"
-		echo "Install Dir; $location ($(df -h $location | xargs | awk '{print $9}') Space Available)"
-		echo "Boot Args; $(grep -F "Skynet" /jffs/scripts/firewall-start | cut -c 4- | cut -d '#' -f1)"
-		if grep -qF "Country:" "$location/scripts/ipset.txt"; then echo "Banned Countries; $(grep -m1 -F "Country:" "$location/scripts/ipset.txt" | sed 's~.*Country: ~~;s~"~~')"; fi
-		if [ -w "$location" ]; then $grn "Install Dir Writeable"; else $red "Can't Write To Install Dir"; fi
-		if grep -qF "Skynet" /jffs/scripts/firewall-start; then $grn "Startup Entry Detected"; else $red "Startup Entry Not Detected"; fi
-		if grep -qF "Skynet" /jffs/scripts/openvpn-event; then $grn "OpenVPN-Event Entry Detected"; else $red "OpenVPN-Event Entry Not Detected, Please Rerun Installer"; fi
-		if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(sed -n '2p' /tmp/skynet.lock)" ]; then $red "Lock File Detected ($(sed -n '1p' /tmp/skynet.lock)) (pid=$(sed -n '2p' /tmp/skynet.lock))"; else $grn "No Lock File Found"; fi
-		if cru l | grep -qF "Skynet"; then $grn "Cronjobs Detected"; else $red "Cronjobs Not Detected"; fi
-		if [ -f /lib/modules/2.6.36.4brcmarm/kernel/net/netfilter/ipset/ip_set_hash_ipmac.ko ] || [ -f /lib/modules/4.1.27/kernel/net/netfilter/ipset/ip_set_hash_ipmac.ko ]; then $grn "IPSet Supports Comments"; else $red "IPSet Doesn't Support Comments - Please Update To 380.68 / V26E3 Or Newer Firmware"; fi
-		if [ "$(nvram get message_loglevel)" -le "$(nvram get log_level)" ]; then $grn "Level $(nvram get message_loglevel) Messages Will Be Logged"; else $red "Level $(nvram get message_loglevel) Messages Won't Be Logged - Only $(nvram get log_level)+"; fi
-		if iptables -C logdrop -i "$iface" -m state --state INVALID -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null; then $grn "Autobanning Enabled"; else $red "Autobanning Disabled"; fi
-		if iptables -t raw -C PREROUTING -i "$iface" -m set --match-set Skynet src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null; then $grn "Debug Mode Enabled"; else $red "Debug Mode Disabled"; fi
-		if [ "$(iptables-save -t raw | sort | uniq -d | grep -c " ")" = "0" ]; then $grn "No Duplicate Rules Detected In RAW"; else $red "Duplicate Rules Detected In RAW"; fi
-		if [ "$(iptables-save -t filter | sort | uniq -d | grep -c " ")" = "0" ]; then $grn "No Duplicate Rules Detected In FILTER"; else $red "Duplicate Rules Detected In FILTER"; fi
-		if iptables -t raw -C PREROUTING -i "$iface" -m set --match-set Whitelist src -j ACCEPT 2>/dev/null; then $grn "Whitelist IPTable Detected"; else $red "Whitelist IPTable Not Detected"; fi
-		if iptables -t raw -C PREROUTING -i "$iface" -m set --match-set Skynet src -j DROP 2>/dev/null; then $grn "Skynet IPTable Detected"; else $red "Skynet IPTable Not Detected"; fi
-		if ipset -L -n Whitelist >/dev/null 2>&1; then $grn "Whitelist IPSet Detected"; else $red "Whitelist IPSet Not Detected"; fi
-		if ipset -L -n BlockedRanges >/dev/null 2>&1; then $grn "BlockedRanges IPSet Detected"; else $red "BlockedRanges IPSet Not Detected"; fi
-		if ipset -L -n Blacklist >/dev/null 2>&1; then $grn "Blacklist IPSet Detected"; else $red "Blacklist IPSet Not Detected"; fi
-		if ipset -L -n Skynet >/dev/null 2>&1; then $grn "Skynet IPSet Detected"; else $red "Skynet IPSet Not Detected"; fi
-}
-
 Logging () {
 		oldips="$(sed -n '1p' /tmp/counter.txt 2> /dev/null)"
 		oldranges="$(sed -n '2p' /tmp/counter.txt 2> /dev/null)"
@@ -349,13 +322,27 @@ Logging () {
 		logger -st Skynet "[Complete] $newips IPs / $newranges Ranges Banned. $((newips - oldips)) New IPs / $((newranges - oldranges)) New Ranges Banned. $hits1 Inbound / $hits2 Outbound Connections Blocked! [${ftime}s]"
 }
 
-##########################################################################################################################################
-# -   unban / ban / banmalware / whitelist / import / deport / save / start / disable / update / debug / stats / install / uninstall   - #
-##########################################################################################################################################
+####################################################################################################################################################
+# -   unban / ban / banmalware / whitelist / import / deport / save / start / restart / disable / update / debug / stats / install / uninstall   - #
+####################################################################################################################################################
 
 if [ -z "$1" ]; then
-	Debug_Menu
-	echo
+	echo "Router Model; $(nvram get productid)"
+	echo "Skynet Version; $(Filter_Version "$0") ($(Filter_Date "$0"))"
+	echo "$(iptables --version) - ($iface @ $(nvram get lan_ipaddr))"
+	ipset -v
+	echo "FW Version; $(nvram get buildno)_$(nvram get extendno) ($(uname -v | awk '{print $5" "$6" "$9}')) ($(uname -r))"
+	echo "Install Dir; $location ($(df -h $location | xargs | awk '{print $9}') Space Available)"
+	echo "Boot Args; $(grep -F "Skynet" /jffs/scripts/firewall-start | cut -c 4- | cut -d '#' -f1)"
+	if grep -qF "Country:" "$location/scripts/ipset.txt"; then echo "Banned Countries; $(grep -m1 -F "Country:" "$location/scripts/ipset.txt" | sed 's~.*Country: ~~;s~"~~')"; fi
+	if ! grep -qF "Skynet" /jffs/scripts/firewall-start; then $red "Startup Entry Not Detected"; fi
+	if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(sed -n '2p' /tmp/skynet.lock)" ]; then $red "Lock File Detected ($(sed -n '1p' /tmp/skynet.lock)) (pid=$(sed -n '2p' /tmp/skynet.lock))"; fi
+	if ! iptables -t raw -C PREROUTING -i "$iface" -m set --match-set Whitelist src -j ACCEPT 2>/dev/null; then $red "Whitelist IPTable Not Detected"; fi
+	if ! iptables -t raw -C PREROUTING -i "$iface" -m set --match-set Skynet src -j DROP 2>/dev/null; then $red "Skynet IPTable Not Detected"; fi
+	if ! ipset -L -n Whitelist >/dev/null 2>&1; then $red "Whitelist IPSet Not Detected"; fi
+	if ! ipset -L -n BlockedRanges >/dev/null 2>&1; then $red "BlockedRanges IPSet Not Detected"; fi
+	if ! ipset -L -n Blacklist >/dev/null 2>&1; then $red "Blacklist IPSet Not Detected"; fi
+	if ! ipset -L -n Skynet >/dev/null 2>&1; then $red "Skynet IPSet Not Detected"; fi
 	echo
 	echo
 	while true; do
@@ -367,12 +354,13 @@ if [ -z "$1" ]; then
 		echo "[5]  --> Import IP List"
 		echo "[6]  --> Deport IP List"
 		echo "[7]  --> Save"
-		echo "[8]  --> Temporarily Disable Skynet"
-		echo "[9]  --> Update Skynet"
-		echo "[10] --> Debug Options"
-		echo "[11] --> Stats"
-		echo "[12] --> Install Skynet / Change Boot Options"
-		echo "[13] --> Uninstall"
+		echo "[8]  --> Restart Skynet"
+		echo "[9]  --> Temporarily Disable Skynet"
+		echo "[10] --> Update Skynet"
+		echo "[11] --> Debug Options"
+		echo "[12] --> Stats"
+		echo "[13] --> Install Skynet / Change Boot Options"
+		echo "[14] --> Uninstall"
 		echo
 		echo "[e]  --> Exit Menu"
 		echo
@@ -733,10 +721,14 @@ if [ -z "$1" ]; then
 				break
 				;;
 			8)
-				option1="disable"
+				option1="restart"
 				break
 				;;
 			9)
+				option1="disable"
+				break
+				;;
+			10)
 				option1="update"
 				while true; do
 					echo "Select Update Option:"
@@ -771,32 +763,27 @@ if [ -z "$1" ]; then
 				done
 				break
 				;;
-			10)
+			11)
 				option1="debug"
 				while true; do
 					echo "Select Debug Option:"
-					echo "[1]  --> Restart Skynet"
-					echo "[2]  --> Temporarily Disable Debug Output"
-					echo "[3]  --> Show Debug Entries As They Appear"
-					echo "[4]  --> Print Debug Info"
+					echo "[1]  --> Temporarily Disable Debug Output"
+					echo "[2]  --> Show Debug Entries As They Appear"
+					echo "[3]  --> Print Debug Info"
 					echo
 					printf "[1-4]: "
 					read -r "menu2"
 					echo
 					case "$menu2" in
 						1)
-							option2="restart"
-							break
-							;;
-						2)
 							option2="disable"
 							break
 							;;
-						3)
+						2)
 							option2="watch"
 							break
 							;;
-						4)
+						3)
 							option2="info"
 							break
 							;;
@@ -812,7 +799,7 @@ if [ -z "$1" ]; then
 				done
 				break
 				;;
-			11)
+			12)
 				option1="stats"
 				while true; do
 					echo "Select Stat Option:"
@@ -998,11 +985,11 @@ if [ -z "$1" ]; then
 				done
 				break
 				;;
-			12)
+			13)
 				option1="install"
 				break
 				;;
-			13)
+			14)
 				option1="uninstall"
 				break
 				;;
@@ -1365,6 +1352,19 @@ case "$1" in
 		rm -rf /tmp/skynet.lock
 		;;
 
+	restart)
+		Unload_Cron
+		Kill_Lock
+		Save_IPSets
+		Unload_IPTables
+		Unload_DebugIPTables
+		Unload_IPSets
+		echo "Restarting Firewall Service"
+		iptables -t raw -F
+		service restart_firewall
+		exit 0
+	;;
+
 	disable)
 		logger -st Skynet "[INFO] Disabling Skynet..."
 		Save_IPSets
@@ -1411,18 +1411,6 @@ case "$1" in
 
 	debug)
 		case "$2" in
-			restart)
-				Unload_Cron
-				Kill_Lock
-				Save_IPSets
-				Unload_IPTables
-				Unload_DebugIPTables
-				Unload_IPSets
-				echo "Restarting Firewall Service"
-				iptables -t raw -F
-				service restart_firewall
-				exit 0
-			;;
 			disable)
 				logger -st Skynet "[INFO] Temporarily Disabling Debug Output..."
 				Unload_DebugIPTables
@@ -1435,7 +1423,31 @@ case "$1" in
 				tail -f /tmp/syslog.log | grep -F "BLOCKED"
 			;;
 			info)
-			Debug_Menu
+				echo "Router Model; $(nvram get productid)"
+				echo "Skynet Version; $(Filter_Version "$0") ($(Filter_Date "$0"))"
+				echo "$(iptables --version) - ($iface @ $(nvram get lan_ipaddr))"
+				ipset -v
+				echo "FW Version; $(nvram get buildno)_$(nvram get extendno) ($(uname -v | awk '{print $5" "$6" "$9}')) ($(uname -r))"
+				echo "Install Dir; $location ($(df -h $location | xargs | awk '{print $9}') Space Available)"
+				echo "Boot Args; $(grep -F "Skynet" /jffs/scripts/firewall-start | cut -c 4- | cut -d '#' -f1)"
+				if grep -qF "Country:" "$location/scripts/ipset.txt"; then echo "Banned Countries; $(grep -m1 -F "Country:" "$location/scripts/ipset.txt" | sed 's~.*Country: ~~;s~"~~')"; fi
+				if [ -w "$location" ]; then $grn "Install Dir Writeable"; else $red "Can't Write To Install Dir"; fi
+				if grep -qF "Skynet" /jffs/scripts/firewall-start; then $grn "Startup Entry Detected"; else $red "Startup Entry Not Detected"; fi
+				if grep -qF "Skynet" /jffs/scripts/openvpn-event; then $grn "OpenVPN-Event Entry Detected"; else $red "OpenVPN-Event Entry Not Detected, Please Rerun Installer"; fi
+				if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(sed -n '2p' /tmp/skynet.lock)" ]; then $red "Lock File Detected ($(sed -n '1p' /tmp/skynet.lock)) (pid=$(sed -n '2p' /tmp/skynet.lock))"; else $grn "No Lock File Found"; fi
+				if cru l | grep -qF "Skynet"; then $grn "Cronjobs Detected"; else $red "Cronjobs Not Detected"; fi
+				if [ -f /lib/modules/"$(uname -r)"/kernel/net/netfilter/ipset/ip_set_hash_ipmac.ko ]; then $grn "IPSet Supports Comments"; else $red "IPSet Doesn't Support Comments - Please Update To 380.68 / V26E3 Or Newer Firmware"; fi
+				if [ "$(nvram get message_loglevel)" -le "$(nvram get log_level)" ]; then $grn "Level $(nvram get message_loglevel) Messages Will Be Logged"; else $red "Level $(nvram get message_loglevel) Messages Won't Be Logged - Only $(nvram get log_level)+"; fi
+				if iptables -C logdrop -i "$iface" -m state --state INVALID -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null; then $grn "Autobanning Enabled"; else $red "Autobanning Disabled"; fi
+				if iptables -t raw -C PREROUTING -i "$iface" -m set --match-set Skynet src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null; then $grn "Debug Mode Enabled"; else $red "Debug Mode Disabled"; fi
+				if [ "$(iptables-save -t raw | sort | uniq -d | grep -c " ")" = "0" ]; then $grn "No Duplicate Rules Detected In RAW"; else $red "Duplicate Rules Detected In RAW"; fi
+				if [ "$(iptables-save -t filter | sort | uniq -d | grep -c " ")" = "0" ]; then $grn "No Duplicate Rules Detected In FILTER"; else $red "Duplicate Rules Detected In FILTER"; fi
+				if iptables -t raw -C PREROUTING -i "$iface" -m set --match-set Whitelist src -j ACCEPT 2>/dev/null; then $grn "Whitelist IPTable Detected"; else $red "Whitelist IPTable Not Detected"; fi
+				if iptables -t raw -C PREROUTING -i "$iface" -m set --match-set Skynet src -j DROP 2>/dev/null; then $grn "Skynet IPTable Detected"; else $red "Skynet IPTable Not Detected"; fi
+				if ipset -L -n Whitelist >/dev/null 2>&1; then $grn "Whitelist IPSet Detected"; else $red "Whitelist IPSet Not Detected"; fi
+				if ipset -L -n BlockedRanges >/dev/null 2>&1; then $grn "BlockedRanges IPSet Detected"; else $red "BlockedRanges IPSet Not Detected"; fi
+				if ipset -L -n Blacklist >/dev/null 2>&1; then $grn "Blacklist IPSet Detected"; else $red "Blacklist IPSet Not Detected"; fi
+				if ipset -L -n Skynet >/dev/null 2>&1; then $grn "Skynet IPSet Detected"; else $red "Skynet IPSet Not Detected"; fi
 			;;
 
 		*)
@@ -1595,7 +1607,7 @@ case "$1" in
 			rm -rf /tmp/skynet.lock
 			exit 1
 		fi
-		if [ ! -f /lib/modules/2.6.36.4brcmarm/kernel/net/netfilter/ipset/ip_set_hash_ipmac.ko ] && [ ! -f /lib/modules/4.1.27/kernel/net/netfilter/ipset/ip_set_hash_ipmac.ko ]; then
+		if [ ! -f /lib/modules/"$(uname -r)"/kernel/net/netfilter/ipset/ip_set_hash_ipmac.ko ]; then
 			logger -st Skynet "[ERROR] IPSet Extensions Not Enabled - Please Update To 380.68 / V26E3 Or Newer Firmware"
 			rm -rf /tmp/skynet.lock
 			exit 1
