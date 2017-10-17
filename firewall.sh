@@ -14,25 +14,7 @@
 #############################################################################################################
 
 
-##############################
-###	  Commands	   ###
-##############################
-#	  "unban"	     # <-- Remove From Blacklist (IP/Range/Domain/Port/Comment/Country/Malware/Autobans/Nomanual/All)
-#	  "ban"		     # <-- Adds Entry To Blacklist (IP/Range/Domain/Port/Country)
-#	  "banmalware"	     # <-- Bans Various Malware Domains
-#	  "whitelist"        # <-- Add Entry To Whitelist (IP/Range/Domain/Port/VPN/Remove/Refresh/List)
-#	  "import"	     # <-- Bans All IPs From URL
-#	  "deport"	     # <-- Unbans All IPs From URL
-#	  "save"	     # <-- Save Blacklists To ipset.txt
-#	  "disable"	     # <-- Disable Firewall
-#	  "update"	     # <-- Update Script To Latest Version (check github for changes)
-#	  "debug"	     # <-- Debug Features (Restart/Disable/Watch/Info)
-#	  "stats"	     # <-- Show/Search Stats Of Banned IPs (Requires debugging enabled)
-#	  "install"          # <-- Install Script (Or Change Boot Args)
-#	  "uninstall"        # <-- Uninstall All Traces Of Skynet
-##############################
-
-head -34 "$0"
+head -16 "$0"
 export LC_ALL=C
 while [ "$(nvram get ntp_ready)" = "0" ]; do
 	sleep 1
@@ -249,12 +231,12 @@ Save_IPSets () {
 }
 
 Unban_PrivateIP () {
-		grep -F "INBOUND" /tmp/syslog.log | Filter_PrivateSRC | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | while IFS= read -r ip; do
+		grep -F "INBOUND" /tmp/syslog.log | Filter_PrivateSRC | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | while IFS= read -r "ip"; do
 			ipset -q -A Whitelist "$ip" comment "PrivateIP"
 			ipset -q -D Blacklist "$ip"
 			sed -i "/SRC=${ip} /d" /tmp/syslog.log
 		done
-		grep -F "OUTBOUND" /tmp/syslog.log | Filter_PrivateDST | grep -oE 'DST=[0-9,\.]* ' | cut -c 5- | while IFS= read -r ip; do
+		grep -F "OUTBOUND" /tmp/syslog.log | Filter_PrivateDST | grep -oE 'DST=[0-9,\.]* ' | cut -c 5- | while IFS= read -r "ip"; do
 			ipset -q -A Whitelist "$ip" comment "PrivateIP"
 			ipset -q -D Blacklist "$ip"
 			sed -i "/DST=${ip} /d" /tmp/syslog.log
@@ -301,7 +283,7 @@ Whitelist_Shared () {
 		if [ -n "$(/usr/bin/find /jffs -name 'shared-*-whitelist')" ]; then
 			echo "Whitelisting Shared Domains"
 			sed '\~add Whitelist ~!d;\~Shared-Whitelist~!d;s~ comment.*~~;s~add~del~g' "${location}/scripts/ipset.txt" | ipset restore -!
-			grep -hvF "#" /jffs/shared-*-whitelist | sed 's~http[s]*://~~;s~/.*~~' | awk '!x[$0]++' | while IFS= read -r domain; do
+			grep -hvF "#" /jffs/shared-*-whitelist | sed 's~http[s]*://~~;s~/.*~~' | awk '!x[$0]++' | while IFS= read -r "domain"; do
 				for ip in $(Domain_Lookup "$domain" 2> /dev/null); do
 					ipset -q -A Whitelist "$ip" comment "Shared-Whitelist: $domain"
 				done
@@ -679,7 +661,7 @@ if [ -z "$1" ]; then
 				echo "Input URL To Import"
 				echo
 				printf "[URL]: "
-				read -r option2
+				read -r "option2"
 				echo
 				break
 				;;
@@ -688,7 +670,7 @@ if [ -z "$1" ]; then
 				echo "Input URL To Deport"
 				echo
 				printf "[URL]: "
-				read -r option2
+				read -r "option2"
 				echo
 				break
 				;;
@@ -960,7 +942,7 @@ case "$1" in
 		Purge_Logs
 		if [ -z "$2" ]; then
 			printf "Input IP: "
-			read -r ip
+			read -r "ip"
 			echo "Unbanning $ip"
 			ipset -D Blacklist "$ip"
 			sed -i "\\~$ip ~d" "${location}/skynet.log"
@@ -974,7 +956,7 @@ case "$1" in
 			sed -i "\\~$3 ~d" "${location}/skynet.log"
 		elif [ "$2" = "domain" ] && [ -z "$3" ]; then
 			printf "Input URL: "
-			read -r unbandomain
+			read -r "unbandomain"
 			logger -st Skynet "[INFO] Removing $unbandomain From Blacklist..."
 			for ip in $(Domain_Lookup "$unbandomain"); do
 				echo "Unbanning $ip"
@@ -990,7 +972,7 @@ case "$1" in
 		done
 		elif [ "$2" = "port" ] && [ -n "$3" ]; then
 			logger -st Skynet "[INFO] Unbanning Autobans Issued On Traffic From Source/Destination Port $3..."
-			grep -F "NEW" "${location}/skynet.log" | grep -F "PT=$3 " | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | while IFS= read -r ip; do
+			grep -F "NEW" "${location}/skynet.log" | grep -F "PT=$3 " | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | while IFS= read -r "ip"; do
 				echo "Unbanning $ip"
 				ipset -D Blacklist "$ip"
 			done
@@ -1005,7 +987,7 @@ case "$1" in
 			echo "Removing Previous Malware Bans"
 			sed '\~add Whitelist ~d;\~BanMalware~!d;s~ comment.*~~;s~add~del~g' "${location}/scripts/ipset.txt" | ipset restore -!
 		elif [ "$2" = "autobans" ]; then
-			grep -F "NEW" "${location}/skynet.log" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | tr -d " " | while IFS= read -r ip; do
+			grep -F "NEW" "${location}/skynet.log" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | tr -d " " | while IFS= read -r "ip"; do
 				echo "Unbanning $ip"
 				ipset -D Blacklist "$ip"
 				sed -i "\\~$ip ~d" "${location}/skynet.log"
@@ -1033,9 +1015,9 @@ case "$1" in
 		Purge_Logs
 		if [ -z "$2" ]; then
 			printf "Input IP: "
-			read -r ip
+			read -r "ip"
 			printf "Input Ban Comment: "
-			read -r desc
+			read -r "desc"
 			echo "Banning $ip"
 			ipset -A Blacklist "$ip" comment "ManualBan: $desc" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Single SRC=$ip COMMENT=$desc " >> "${location}/skynet.log"
 		elif echo "$2" | Is_IP; then
@@ -1054,7 +1036,7 @@ case "$1" in
 			ipset -A BlockedRanges "$3" comment "ManualRBan: $desc" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Range SRC=$3 COMMENT=$4 " >> "${location}/skynet.log"
 		elif [ "$2" = "domain" ] && [ -z "$3" ]; then
 			printf "Input URL: "
-			read -r bandomain
+			read -r "bandomain"
 			logger -st Skynet "[INFO] Adding $bandomain To Blacklist..."
 			for ip in $(Domain_Lookup "$bandomain"); do
 				echo "Banning $ip"
@@ -1130,9 +1112,9 @@ case "$1" in
 		Purge_Logs
 		if [ -z "$2" ]; then
 			printf "Input IP: "
-			read -r ip
+			read -r "ip"
 			printf "Input Whitelist Comment: "
-			read -r desc
+			read -r "desc"
 			echo "Whitelisting $ip"
 			ipset -A Whitelist "$ip" comment "ManualWlist: $desc"
 			ipset -q -D Blacklist "$ip"
@@ -1157,7 +1139,7 @@ case "$1" in
 			sed -i "\\~$3 ~d" "${location}/skynet.log"
 		elif [ "$2" = "domain" ] && [ -z "$3" ];then
 			printf "Input URL: "
-			read -r whitelistdomain
+			read -r "whitelistdomain"
 			logger -st Skynet "[INFO] Adding $whitelistdomain To Whitelist..."
 			for ip in $(Domain_Lookup "$whitelistdomain"); do
 				echo "Whitelisting $ip"
@@ -1175,7 +1157,7 @@ case "$1" in
 		done
 		elif [ "$2" = "port" ] && [ -n "$3" ]; then
 			logger -st Skynet "[INFO] Whitelisting Autobans Issued On Traffic From Port $3..."
-			grep -F "NEW" "${location}/skynet.log" | grep -F "DPT=$3 " | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | while IFS= read -r ip; do
+			grep -F "NEW" "${location}/skynet.log" | grep -F "DPT=$3 " | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | while IFS= read -r "ip"; do
 				echo "Whitelisting $ip"
 				ipset -A Whitelist "$ip" comment "ManualWlist: Port $3 Traffic"
 				ipset -q -D Blacklist "$ip"
@@ -1488,7 +1470,7 @@ case "$1" in
 			echo
 			exit 0
 		elif [ "$2" = "search" ] && [ "$3" = "malware" ] && [ -n "$4" ]; then
-			/usr/sbin/wget https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/filter.list -qO- | while IFS= read -r url; do
+			/usr/sbin/wget https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/filter.list -qO- | while IFS= read -r "url"; do
 				/usr/sbin/wget "$url" -qO /tmp/malwarelist.txt
 				{ grep -E "^$4" /tmp/malwarelist.txt && echo "Found In $url"; } | xargs -r
 				{ grep -F "/" /tmp/malwarelist.txt | grep -E "^$(echo "$4" | cut -d '.' -f1-3)." && echo "Possible CIDR Match In $url"; } | xargs -r
@@ -1582,149 +1564,183 @@ case "$1" in
 		elif [ -f "/jffs/scripts/openvpn-event" ] && ! head -1 /jffs/scripts/openvpn-event | grep -qE "^#!/bin/sh"; then
 			sed -i '1s~^~#!/bin/sh\n~' /jffs/scripts/openvpn-event
 		fi
-		echo "Installing Skynet $(Filter_Version "$0")"
-		echo "This Will Remove Any Old Install Arguements And Can Be Run Multiple Times"
-		echo "[1] --> Vanilla -           Default Installation"
-		echo "[2] --> NoAuto -            Default Installation Without Autobanning"
-		echo "[3] --> Debug -             Default Installation With Debug Print For Extended Stat Reporting"
-		echo "[4] --> NoAuto & Debug -    Default Installation With No Autobanning And Debug Print"
-		echo
-		echo "Please Select Installation Mode"
-		printf "[1-4]: "
-		read -r mode1
-		case "$mode1" in
-			1)
-			echo "Vanilla Selected"
-			set1="start"
-			;;
-			2)
-			echo "NoAuto Selected"
-			set1="start noautoban"
-			;;
-			3)
-			echo "Debug Selected"
-			set1="start debug"
-			;;
-			4)
-			echo "NoAuto Debug Selected"
-			set1="start noautoban debug"
-			;;
-			*)
-			echo "Mode Not Recognised - Please Run The Command And Try Again"
-			rm -rf /tmp/skynet.lock
-			exit 2
-			;;
-		esac
-		echo
-		echo
-		echo "Would You Like To Enable Malwarelist Updating?"
-		echo "[1] --> Yes (Daily)  - (Recommended)"
-		echo "[2] --> Yes (Weekly)"
-		echo "[3] --> No"
-		echo
-		echo "Please Select Option"
-		printf "[1-3]: "
-		read -r mode2
-		case "$mode2" in
-			1)
-			echo "Malware List Updating Enabled & Scheduled For 2.25am Every Day"
-			set2="banmalware"
-			;;
-			2)
-			echo "Malware List Updating Enabled & Scheduled For 2.25am Every Monday"
-			set2="banmalwareweekly"
-			;;
-			*)
-			echo "Malware List Updating Disabled"
-			;;
-		esac
-		echo
-		echo
-		echo "Would You Like To Enable Weekly Skynet Updating?"
-		echo "[1] --> Yes  - (Recommended)"
-		echo "[2] --> No"
-		echo
-		echo "Please Select Option"
-		printf "[1-2]: "
-		read -r mode3
-		case "$mode3" in
-			1)
-			echo "Skynet Updating Enabled & Scheduled For 1.25am Every Monday"
-			set3="autoupdate"
-			;;
-			*)
-			echo "Auto Updating Disabled"
-			;;
-		esac
-		echo
-		echo
-		echo "Where Would You Like To Install Skynet?"
-		echo "[1] --> JFFS"
-		echo "[2] --> USB - (Recommended)"
-		echo
-		echo "Please Select Option"
-		printf "[1-2]: "
-		read -r mode4
-		case "$mode4" in
-			2)
-			echo "USB Installation Selected"
+		while [ "$mode1" != "e" ]; do
+			echo "Installing Skynet $(Filter_Version "$0")"
+			echo "This Will Remove Any Old Install Arguements And Can Be Run Multiple Times"
+			echo "[1] --> Vanilla -           Default Installation"
+			echo "[2] --> NoAuto -            Default Installation Without Autobanning"
+			echo "[3] --> Debug -             Default Installation With Debug Print For Extended Stat Reporting"
+			echo "[4] --> NoAuto & Debug -    Default Installation With No Autobanning And Debug Print"
 			echo
-			echo "Looking For Available Partitions..."
-			i=1
-			IFS="
-			"
-			for mounted in $(/bin/mount | grep -E "ext2|ext3|ext4|tfat|exfat" | awk '{print $3" - ("$1")"}') ; do
-				echo "[$i] --> $mounted"
-				eval mounts$i="$(echo "$mounted" | awk '{print $1}')"
-				i=$((i + 1))
-			done
-			unset IFS
-			if [ $i = "1" ]; then
-				echo "No Compadible Partitions Found. Exiting..."
-				rm -rf /tmp/skynet.lock
-				exit 1
-			fi
+			echo "Please Select Installation Mode"
+			printf "[1-4]: "
+			read -r "mode1"
 			echo
-			echo "Please Enter Partition Number Or 0 To Exit"
-			printf "[0-%s]: " "$((i - 1))"
-			read -r partitionNumber
-			if [ "$partitionNumber" = "0" ]; then
-				echo "Exiting..."
-				rm -rf /tmp/skynet.lock
-				exit 0
-			fi
-			if [ -z "$partitionNumber" ] || [ "$partitionNumber" -gt $((i - 1)) ]; then
-				echo "Invalid Partition Number! Exiting..."
-				rm -rf /tmp/skynet.lock
+			case "$mode1" in
+				1)
+				echo "Vanilla Selected"
+				set1="start"
+				break
+				;;
+				2)
+				echo "NoAuto Selected"
+				set1="start noautoban"
+				break
+				;;
+				3)
+				echo "Debug Selected"
+				set1="start debug"
+				break
+				;;
+				4)
+				echo "NoAuto Debug Selected"
+				set1="start noautoban debug"
+				break
+				;;
+				e)
+				echo "Exiting!"
 				exit 2
-			fi
-			device=""
-			eval device=\$mounts"$partitionNumber"
-			echo "$device Selected."
-			mkdir -p "${device}/skynet"
-			mkdir -p "${device}/skynet/scripts"
-			touch "${device}/skynet/rwtest"
-			if [ ! -w "${device}/skynet/rwtest" ]; then
-				echo "Writing To $device Failed - Exiting Installation"
-				rm -rf /tmp/skynet.lock
-				exit 1
-			else
-				rm -rf "${device}/skynet/rwtest"
-			fi
-			if [ -f "${location}/scripts/ipset.txt" ]; then mv "${location}/scripts/ipset.txt" "${device}/skynet/scripts/"; fi
-			if [ -f "${location}/skynet.log" ]; then mv "${location}/skynet.log" "${device}/skynet/"; fi
-			sed -i '\~ Skynet ~d' /jffs/scripts/firewall-start
-			echo "sh /jffs/scripts/firewall $set1 $set2 $set3 usb=${device} # Skynet Firewall Addition" | tr -s " " >> /jffs/scripts/firewall-start
-			;;
-			*)
-			echo "JFFS Installation Selected"
-			mkdir -p "/jffs/scripts"
-			if [ -f "${location}/scripts/ipset.txt" ]; then mv "${location}/scripts/ipset.txt" "/jffs/scripts/"; fi
-			if [ -f "${location}/skynet.log" ]; then mv "${location}/skynet.log" "/jffs/"; fi
-			sed -i '\~ Skynet ~d' /jffs/scripts/firewall-start
-			echo "sh /jffs/scripts/firewall $set1 $set2 $set3 # Skynet Firewall Addition" | tr -s " " >> /jffs/scripts/firewall-start
-			;;
-		esac
+				;;
+			esac
+		done
+		echo
+		echo
+		while [ "$mode2" != "e" ]; do
+			echo "Would You Like To Enable Malwarelist Updating?"
+			echo "[1] --> Yes (Daily)  - (Recommended)"
+			echo "[2] --> Yes (Weekly)"
+			echo "[3] --> No"
+			echo
+			echo "Please Select Option"
+			printf "[1-3]: "
+			read -r "mode2"
+			echo
+			case "$mode2" in
+				1)
+				echo "Malware List Updating Enabled & Scheduled For 2.25am Every Day"
+				set2="banmalware"
+				break
+				;;
+				2)
+				echo "Malware List Updating Enabled & Scheduled For 2.25am Every Monday"
+				set2="banmalwareweekly"
+				break
+				;;
+				3)
+				echo "Malware List Updating Disabled"
+				break
+				;;
+				e)
+				echo "Exiting!"
+				exit 2
+				;;
+			esac
+		done
+		echo
+		echo
+		while [ "$mode3" != "e" ]; do
+			echo "Would You Like To Enable Weekly Skynet Updating?"
+			echo "[1] --> Yes  - (Recommended)"
+			echo "[2] --> No"
+			echo
+			echo "Please Select Option"
+			printf "[1-2]: "
+			read -r "mode3"
+			echo
+			case "$mode3" in
+				1)
+				echo "Skynet Updating Enabled & Scheduled For 1.25am Every Monday"
+				set3="autoupdate"
+				break
+				;;
+				2)
+				echo "Auto Updating Disabled"
+				break
+				;;
+				e)
+				echo "Exiting!"
+				exit 2
+				;;
+			esac
+		done
+		echo
+		echo
+		while [ "$mode4" != "e" ]; do
+			echo "Where Would You Like To Install Skynet?"
+			echo "[1] --> JFFS"
+			echo "[2] --> USB - (Recommended)"
+			echo
+			echo "Please Select Option"
+			printf "[1-2]: "
+			read -r "mode4"
+			echo
+			case "$mode4" in
+				1)
+				echo "JFFS Installation Selected"
+				mkdir -p "/jffs/scripts"
+				if [ -f "${location}/scripts/ipset.txt" ]; then mv "${location}/scripts/ipset.txt" "/jffs/scripts/"; fi
+				if [ -f "${location}/skynet.log" ]; then mv "${location}/skynet.log" "/jffs/"; fi
+				sed -i '\~ Skynet ~d' /jffs/scripts/firewall-start
+				echo "sh /jffs/scripts/firewall $set1 $set2 $set3 # Skynet Firewall Addition" | tr -s " " >> /jffs/scripts/firewall-start
+				break
+				;;
+				2)
+				echo "USB Installation Selected"
+				echo
+				echo "Looking For Available Partitions..."
+				i=1
+				IFS="
+				"
+				for mounted in $(/bin/mount | grep -E "ext2|ext3|ext4|tfat|exfat" | awk '{print $3" - ("$1")"}') ; do
+					echo "[$i] --> $mounted"
+					eval mounts$i="$(echo "$mounted" | awk '{print $1}')"
+					i=$((i + 1))
+				done
+				unset IFS
+				if [ $i = "1" ]; then
+					echo "No Compadible Partitions Found. Exiting..."
+					rm -rf /tmp/skynet.lock
+					exit 1
+				fi
+				echo
+				echo "Please Enter Partition Number Or 0 To Exit"
+				printf "[0-%s]: " "$((i - 1))"
+				read -r "partitionNumber"
+				if [ "$partitionNumber" = "0" ]; then
+					echo "Exiting..."
+					rm -rf /tmp/skynet.lock
+					exit 0
+				fi
+				if [ -z "$partitionNumber" ] || [ "$partitionNumber" -gt $((i - 1)) ]; then
+					echo "Invalid Partition Number! Exiting..."
+					rm -rf /tmp/skynet.lock
+					exit 2
+				fi
+				device=""
+				eval device=\$mounts"$partitionNumber"
+				echo "$device Selected."
+				mkdir -p "${device}/skynet"
+				mkdir -p "${device}/skynet/scripts"
+				touch "${device}/skynet/rwtest"
+				if [ ! -w "${device}/skynet/rwtest" ]; then
+					echo "Writing To $device Failed - Exiting Installation"
+					rm -rf /tmp/skynet.lock
+					exit 1
+				else
+					rm -rf "${device}/skynet/rwtest"
+				fi
+				if [ -f "${location}/scripts/ipset.txt" ]; then mv "${location}/scripts/ipset.txt" "${device}/skynet/scripts/"; fi
+				if [ -f "${location}/skynet.log" ]; then mv "${location}/skynet.log" "${device}/skynet/"; fi
+				sed -i '\~ Skynet ~d' /jffs/scripts/firewall-start
+				echo "sh /jffs/scripts/firewall $set1 $set2 $set3 usb=${device} # Skynet Firewall Addition" | tr -s " " >> /jffs/scripts/firewall-start
+				break
+				;;
+				e)
+				echo "Exiting!"
+				exit 2
+				;;
+			esac
+		done
 		sed -i '\~ Skynet ~d' /jffs/scripts/openvpn-event
 		echo "sh /jffs/scripts/firewall whitelist vpn # Skynet Firewall Addition" >> /jffs/scripts/openvpn-event
 		chmod +x /jffs/scripts/firewall
@@ -1735,7 +1751,7 @@ case "$1" in
 		if [ "$forcereboot" = "1" ]; then
 			echo "Reboot Required To Complete Installation"
 			printf "Press Enter To Confirm..."
-			read -r continue
+			read -r "continue"
 			reboot
 			exit 0
 		fi
@@ -1756,7 +1772,7 @@ case "$1" in
 		echo "Type 'yes' To Continue Uninstall"
 		echo
 		printf "[yes/no]: "
-		read -r continue
+		read -r "continue"
 		if [ "$continue" = "yes" ]; then
 			echo "Uninstalling And Restarting Firewall"
 			Unload_Cron
