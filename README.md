@@ -7,7 +7,15 @@ This script is an extra line of defense from malicious attackers (mostly bots) w
 
 ## Usage
 
-sh /jffs/scripts/firewall *commandhere*
+Skynet provides both a user interactive menu, and command line interface for those who prefer it.
+
+To open the menu its as simple as;
+
+```sh /jffs/scripts/firewall```
+
+To use the CLI, execute the following;
+
+```sh /jffs/scripts/firewall *commandhere*```
 
     "unban"        # <-- Remove Entry From Blacklist (IP/Range/Domain/Port/Country/Malware/Autobans/Nomanual/All)
     "ban"          # <-- Adds Entry To Blacklist (IP/Range/Domain/Port/Country)
