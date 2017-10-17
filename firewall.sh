@@ -504,6 +504,7 @@ if [ -z "$1" ]; then
 					echo "Input Custom Filter List URL:"
 					printf "[URL]: "
 					read -r "option2"
+					echo
 					;;
 			esac
 			;;
@@ -605,6 +606,7 @@ if [ -z "$1" ]; then
 			echo
 			printf "[URL]: "
 			read -r option2
+			echo
 			;;
 		6)
 			option1="deport"
@@ -612,6 +614,7 @@ if [ -z "$1" ]; then
 			echo
 			printf "[URL]: "
 			read -r option2
+			echo
 			;;
 		7)
 			option1="save"
@@ -752,16 +755,19 @@ if [ -z "$1" ]; then
 							option3="port"
 							printf "[Port]: "
 							read -r "option4"
+							echo
 							;;
 						2)
 							option3="ip"
 							printf "[IP]: "
 							read -r "option4"
+							echo
 							;;
 						3)
 							option3="malware"
 							printf "[IP]: "
 							read -r "option4"
+							echo
 							;;
 						4)
 							option3="autobans"
