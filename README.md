@@ -24,10 +24,10 @@ To use the CLI, execute the following;
     "import"       # <-- Bans All IPs From URL
     "deport"       # <-- Unbans All IPs From URL
     "save"         # <-- Save Blacklists To ipset.txt
-	"restart"	   # <-- Restart Skynet
+    "restart"      # <-- Restart Skynet
     "disable"      # <-- Temporarily Disable Skynet
     "update"       # <-- Update Script To Latest Version (check github for changes)
-    "debug"	       # <-- Debug Features (Restart/Disable/Watch/Info)
+    "debug"	       # <-- Debug Features (Disable/Watch/Info)
     "stats"        # <-- Show/Search Stats Of Banned IPs (Requires debugging enabled)
     "install"      # <-- Install Script (Or Change Boot Args)
     "uninstall     # <-- Uninstall All Traces Of Script
