@@ -24,7 +24,8 @@ To use the CLI, execute the following;
     "import"       # <-- Bans All IPs From URL
     "deport"       # <-- Unbans All IPs From URL
     "save"         # <-- Save Blacklists To ipset.txt
-    "disable"      # <-- Disable Firewall
+	"restart"	   # <-- Restart Skynet
+    "disable"      # <-- Temporarily Disable Skynet
     "update"       # <-- Update Script To Latest Version (check github for changes)
     "debug"	       # <-- Debug Features (Restart/Disable/Watch/Info)
     "stats"        # <-- Show/Search Stats Of Banned IPs (Requires debugging enabled)
@@ -98,7 +99,6 @@ Here Are Some Example Update Commands;
 (sh /jffs/scripts/firewall update -f) Force Update Even If No Changes Detected
 
 Here Are Some Example Debug Commands;
-(sh /jffs/scripts/firewall debug restart) Restart Firewall
 (sh /jffs/scripts/firewall debug disable) Disable Raw Debugging
 (sh /jffs/scripts/firewall debug watch) Show Debug Entries As They Appear
 (sh /jffs/scripts/firewall debug info) Print Usefull Debug Info
