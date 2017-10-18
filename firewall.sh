@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 18/10/2017 -		   Asus Firewall Addition By Adamm v5.3.4				    #
+## - 19/10/2017 -		   Asus Firewall Addition By Adamm v5.3.5				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -196,6 +196,10 @@ Is_IP () {
 
 Is_Range () {
 		grep -wqE '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}'
+}
+
+Is_Port () {
+		grep -wqE '[0-9]{1,5}'
 }
 
 Domain_Lookup () {
@@ -393,6 +397,7 @@ if [ -z "$1" ]; then
 						printf "[IP]: "
 						read -r "option2"
 						echo
+						if ! echo "$option2" | Is_IP; then echo "$option2 Is Not A Valid IP"; echo; continue; fi						
 						break
 						;;
 					2)
@@ -402,6 +407,7 @@ if [ -z "$1" ]; then
 						printf "[Range]: "
 						read -r "option3"
 						echo
+						if ! echo "$option3" | Is_Range; then echo "$option3 Is Not A Valid Range"; echo; continue; fi
 						break
 						;;
 					3)
@@ -420,6 +426,7 @@ if [ -z "$1" ]; then
 						printf "[Port]: "
 						read -r "option3"
 						echo
+						if ! echo "$option3" | Is_Port; then echo "$option3 Is Not A Valid Port"; echo; continue; fi
 						break
 						;;
 					5)
@@ -429,6 +436,7 @@ if [ -z "$1" ]; then
 						printf "[Comment]: "
 						read -r "option3"
 						echo
+						if [ "${#option3}" -gt "255" ]; then echo "$option3 Is Not A Valid Comment. 255 Chars Max"; echo; continue; fi
 						break
 						;;
 					6)
@@ -482,11 +490,13 @@ if [ -z "$1" ]; then
 							printf "[IP]: "
 							read -r "option2"
 							echo
+							if ! echo "$option2" | Is_IP; then echo "$option2 Is Not A Valid IP"; echo; continue; fi	
 							echo "Input Comment For Ban:"
 							echo
 							printf "[Comment]: "
 							read -r "option3"
 							echo
+							if [ "${#option3}" -gt "255" ]; then echo "$option3 Is Not A Valid Comment. 255 Chars Max"; echo; continue; fi
 							break
 							;;
 						2)
@@ -496,11 +506,13 @@ if [ -z "$1" ]; then
 							printf "[Range]: "
 							read -r "option3"
 							echo
+							if ! echo "$option3" | Is_Range; then echo "$option3 Is Not A Valid Range"; echo; continue; fi
 							echo "Input Comment For Ban:"
 							echo
 							printf "[Comment]: "
 							read -r "option4"
 							echo
+							if [ "${#option3}" -gt "255" ]; then echo "$option3 Is Not A Valid Comment. 255 Chars Max"; echo; continue; fi
 							break
 							;;
 						3)
@@ -588,6 +600,13 @@ if [ -z "$1" ]; then
 							printf "[IP/Range]: "
 							read -r "option2"
 							echo
+							if ! echo "$option2" | Is_IP && ! echo "$option2" | Is_Range ; then echo "$option2 Is Not A Valid IP/Range"; echo; continue; fi	
+							echo "Input Comment For Whitelist:"
+							echo
+							printf "[Comment]: "
+							read -r "option3"
+							echo
+							if [ "${#option3}" -gt "255" ]; then echo "$option3 Is Not A Valid Comment. 255 Chars Max"; echo; continue; fi
 							break
 							;;
 						2)
@@ -606,6 +625,7 @@ if [ -z "$1" ]; then
 							printf "[Port]: "
 							read -r "option3"
 							echo
+							if ! echo "$option3" | Is_Port; then echo "$option3 Is Not A Valid Port"; echo; continue; fi
 							break
 							;;
 						4)
@@ -628,19 +648,23 @@ if [ -z "$1" ]; then
 										break
 										;;
 									2)
+										option3="entry"
 										echo "Input IP Or Range To Remove:"
 										echo
 										printf "[IP/Range]: "
-										read -r "option3"
+										read -r "option4"
 										echo
+										if ! echo "$option4" | Is_IP && ! echo "$option4" | Is_Range ; then echo "$option4 Is Not A Valid IP/Range"; echo; continue; fi
 										break
 										;;
 									3)
+										option3="comment"
 										echo "Remove Entries Based On Comment:"
 										echo
 										printf "[Comment]: "
-										read -r "option3"
+										read -r "option4"
 										echo
+										if [ "${#option4}" -gt "255" ]; then echo "$option4 Is Not A Valid Comment. 255 Chars Max"; echo; continue; fi
 										break
 										;;
 									e)
@@ -933,6 +957,7 @@ if [ -z "$1" ]; then
 										printf "[Port]: "
 										read -r "option4"
 										echo
+										if ! echo "$option4" | Is_Port; then echo "$option4 Is Not A Valid Port"; echo; continue; fi
 										break
 										;;
 									2)
@@ -940,6 +965,7 @@ if [ -z "$1" ]; then
 										printf "[IP]: "
 										read -r "option4"
 										echo
+										if ! echo "$option4" | Is_IP && ! echo "$option4" | Is_Range ; then echo "$option4 Is Not A Valid IP/Range"; echo; continue; fi
 										break
 										;;
 									3)
@@ -947,6 +973,7 @@ if [ -z "$1" ]; then
 										printf "[IP]: "
 										read -r "option4"
 										echo
+										if ! echo "$option4" | Is_IP && ! echo "$option4" | Is_Range ; then echo "$option4 Is Not A Valid IP/Range"; echo; continue; fi
 										break
 										;;
 									4)
@@ -1012,6 +1039,7 @@ case "$1" in
 		if [ -z "$2" ]; then
 			printf "Input IP: "
 			read -r "ip"
+			if ! echo "$ip" | Is_IP; then echo "$ip Is Not A Valid IP"; echo; exit 1; fi
 			echo "Unbanning $ip"
 			ipset -D Blacklist "$ip"
 			sed -i "\\~$ip ~d" "${location}/skynet.log"
@@ -1019,7 +1047,7 @@ case "$1" in
 			echo "Unbanning $2"
 			ipset -D Blacklist "$2"
 			sed -i "\\~$2 ~d" "${location}/skynet.log"
-		elif [ "$2" = "range" ] && [ -n "$3" ]; then
+		elif [ "$2" = "range" ] && echo "$3" | Is_Range; then
 			echo "Unbanning $3"
 			ipset -D BlockedRanges "$3"
 			sed -i "\\~$3 ~d" "${location}/skynet.log"
@@ -1039,7 +1067,7 @@ case "$1" in
 			ipset -D Blacklist "$ip"
 			sed -i "\\~$ip ~d" "${location}/skynet.log"
 		done
-		elif [ "$2" = "port" ] && [ -n "$3" ]; then
+		elif [ "$2" = "port" ] && echo "$3" | Is_Port; then
 			logger -st Skynet "[INFO] Unbanning Autobans Issued On Traffic From Source/Destination Port $3..."
 			grep -F "NEW" "${location}/skynet.log" | grep -F "PT=$3 " | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | while IFS= read -r "ip"; do
 				echo "Unbanning $ip"
@@ -1085,8 +1113,10 @@ case "$1" in
 		if [ -z "$2" ]; then
 			printf "Input IP: "
 			read -r "ip"
+			if ! echo "$ip" | Is_IP; then echo "$ip Is Not A Valid IP"; echo; exit 1; fi
 			printf "Input Ban Comment: "
 			read -r "desc"
+			if [ "${#desc}" -gt "255" ]; then echo "$desc Is Not A Valid Comment. 255 Chars Max"; echo; continue; fi
 			echo "Banning $ip"
 			ipset -A Blacklist "$ip" comment "ManualBan: $desc" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Single SRC=$ip COMMENT=$desc " >> "${location}/skynet.log"
 		elif echo "$2" | Is_IP; then
@@ -1182,8 +1212,10 @@ case "$1" in
 		if [ -z "$2" ]; then
 			printf "Input IP: "
 			read -r "ip"
+			if ! echo "$ip" | Is_IP; then echo "$ip Is Not A Valid IP"; echo; exit 1; fi
 			printf "Input Whitelist Comment: "
 			read -r "desc"
+			if [ "${#desc}" -gt "255" ]; then echo "$desc Is Not A Valid Comment. 255 Chars Max"; echo; continue; fi
 			echo "Whitelisting $ip"
 			ipset -A Whitelist "$ip" comment "ManualWlist: $desc"
 			ipset -q -D Blacklist "$ip"
@@ -1197,7 +1229,7 @@ case "$1" in
 			ipset -A Whitelist "$2" comment "ManualWlist: $desc"
 			ipset -q -D Blacklist "$2"
 			sed -i "\\~$2 ~d" "${location}/skynet.log"
-		elif [ "$2" = "range" ] && echo "$3" | Is_IP; then
+		elif [ "$2" = "range" ] && echo "$3" | Is_Range; then
 			echo "Whitelisting $3"
 			desc="$4"
 			if [ -z "$4" ]; then
@@ -1224,7 +1256,7 @@ case "$1" in
 			ipset -q -D Blacklist "$ip"
 			sed -i "\\~$ip ~d" "${location}/skynet.log"
 		done
-		elif [ "$2" = "port" ] && [ -n "$3" ]; then
+		elif [ "$2" = "port" ] && echo "$3" | Is_Port; then
 			logger -st Skynet "[INFO] Whitelisting Autobans Issued On Traffic From Port $3..."
 			grep -F "NEW" "${location}/skynet.log" | grep -F "DPT=$3 " | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | while IFS= read -r "ip"; do
 				echo "Whitelisting $ip"
@@ -1244,7 +1276,7 @@ case "$1" in
 			Whitelist_Extra
 			Whitelist_VPN
 			Whitelist_Shared
-		elif [ "$2" = "remove" ] && [ "$3" = "ip" ] && [ -n "$4" ]; then
+		elif [ "$2" = "remove" ] && [ "$3" = "entry" ] && [ -n "$4" ]; then
 			echo "Removing $4 From Whitelist"
 			ipset -D Whitelist "$4"
 		elif [ "$2" = "remove" ] && [ "$3" = "comment" ] && [ -n "$4" ]; then
@@ -1499,6 +1531,7 @@ case "$1" in
 			proto=ICMP
 		fi
 		if [ "$2" = "search" ] && [ "$3" = "port" ] && [ -n "$4" ]; then
+			if ! echo "$4" | Is_Port; then echo "$ip Is Not A Valid Port"; echo; exit 1; fi
 			echo "Port $4 First Tracked On $(grep -m1 -F "PT=$4 " ${location}/skynet.log | awk '{print $1" "$2" "$3}')"
 			echo "Port $4 Last Tracked On $(grep -F "PT=$4 " ${location}/skynet.log | tail -1 | awk '{print $1" "$2" "$3}')"
 			echo "$(grep -Foc "PT=$4 " ${location}/skynet.log) Attempts Total"
@@ -1512,6 +1545,7 @@ case "$1" in
 			grep -F "PT=$4 " "${location}/skynet.log" | tail -"$counter"
 			exit 0
 		elif [ "$2" = "search" ] && [ "$3" = "ip" ] && [ -n "$4" ]; then
+			if ! echo "$4" | Is_IP; then echo "$ip Is Not A Valid IP"; echo; exit 1; fi
 			ipset test Whitelist "$4" && found1=true
 			ipset test Blacklist "$4" && found2=true
 			ipset test BlockedRanges "$4" && found3=true

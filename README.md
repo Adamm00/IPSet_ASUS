@@ -80,7 +80,7 @@ Here Are Some Example Whitelist Commands;
 (sh /jffs/scripts/firewall whitelist port 23) This Whitelists All Autobans Based On Traffic From Port 23
 (sh /jffs/scripts/firewall whitelist vpn) Refresh VPN Whitelist
 (sh /jffs/scripts/firewall whitelist remove) This Removes All Non-Default Entries
-(sh /jffs/scripts/firewall whitelist remove ip 8.8.8.8) This Removes IP Specified
+(sh /jffs/scripts/firewall whitelist remove entry 8.8.8.8) This Removes IP/Range Specified
 (sh /jffs/scripts/firewall whitelist remove comment "apple" ) This Removes Entries With Comment Containing The Word Apple
 (sh /jffs/scripts/firewall whitelist refresh ) Regenerate Shared Whitelist Files
 (sh /jffs/scripts/firewall whitelist list ) List All Whitelist Entries
