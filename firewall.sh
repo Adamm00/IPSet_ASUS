@@ -461,7 +461,7 @@ if [ -z "$1" ]; then
 						;;
 					e)
 						echo "Exiting!"
-						exit 2
+						exit 0
 						;;
 					*)
 						echo "$menu2 Isn't An Option!"
@@ -535,7 +535,7 @@ if [ -z "$1" ]; then
 							;;
 						e)
 							echo "Exiting!"
-							exit 2
+							exit 0
 							;;
 						*)
 							echo "$menu2 Isn't An Option!"
@@ -568,7 +568,7 @@ if [ -z "$1" ]; then
 							;;
 						e)
 							echo "Exiting!"
-							exit 2
+							exit 0
 							;;
 						*)
 							echo "$menu2 Isn't An Option!"
@@ -669,7 +669,7 @@ if [ -z "$1" ]; then
 										;;
 									e)
 										echo "Exiting!"
-										exit 2
+										exit 0
 										;;
 									*)
 										echo "$menu3 Isn't An Option!"
@@ -708,7 +708,7 @@ if [ -z "$1" ]; then
 										;;
 									e)
 										echo "Exiting!"
-										exit 2
+										exit 0
 										;;
 									*)
 										echo "$menu3 Isn't An Option!"
@@ -777,7 +777,7 @@ if [ -z "$1" ]; then
 							;;
 						e)
 							echo "Exiting!"
-							exit 2
+							exit 0
 							;;
 						*)
 							echo "$menu2 Isn't An Option!"
@@ -813,7 +813,7 @@ if [ -z "$1" ]; then
 							;;
 						e)
 							echo "Exiting!"
-							exit 2
+							exit 0
 							;;
 						*)
 							echo "$menu2 Isn't An Option!"
@@ -860,7 +860,7 @@ if [ -z "$1" ]; then
 										;;
 									e)
 										echo "Exiting!"
-										exit 2
+										exit 0
 										;;
 									*)
 										echo "$menu3 Isn't An Option!"
@@ -896,7 +896,7 @@ if [ -z "$1" ]; then
 										;;
 									e)
 										echo "Exiting!"
-										exit 2
+										exit 0
 										;;
 									*)
 										echo "$menu4 Isn't An Option!"
@@ -932,7 +932,7 @@ if [ -z "$1" ]; then
 										;;
 									e)
 										echo "Exiting!"
-										exit 2
+										exit 0
 										;;
 									*)
 										echo "$menu3 Isn't An Option!"
@@ -986,7 +986,7 @@ if [ -z "$1" ]; then
 										;;
 									e)
 										echo "Exiting!"
-										exit 2
+										exit 0
 										;;
 									*)
 										echo "$menu4 Isn't An Option!"
@@ -1002,7 +1002,7 @@ if [ -z "$1" ]; then
 							;;
 						e)
 							echo "Exiting!"
-							exit 2
+							exit 0
 							;;
 						*)
 						echo "$menu2 Isn't An Option!"
@@ -1039,7 +1039,7 @@ case "$1" in
 		if [ -z "$2" ]; then
 			printf "Input IP: "
 			read -r "ip"
-			if ! echo "$ip" | Is_IP; then echo "$ip Is Not A Valid IP"; echo; exit 1; fi
+			if ! echo "$ip" | Is_IP; then echo "$ip Is Not A Valid IP"; echo; exit 2; fi
 			echo "Unbanning $ip"
 			ipset -D Blacklist "$ip"
 			sed -i "\\~$ip ~d" "${location}/skynet.log"
@@ -1113,14 +1113,14 @@ case "$1" in
 		if [ -z "$2" ]; then
 			printf "Input IP: "
 			read -r "ip"
-			if ! echo "$ip" | Is_IP; then echo "$ip Is Not A Valid IP"; echo; exit 1; fi
+			if ! echo "$ip" | Is_IP; then echo "$ip Is Not A Valid IP"; echo; exit 2; fi
 			printf "Input Ban Comment: "
 			read -r "desc"
-			if [ "${#desc}" -gt "255" ]; then echo "$desc Is Not A Valid Comment. 255 Chars Max"; echo; exit 1; fi
+			if [ "${#desc}" -gt "255" ]; then echo "$desc Is Not A Valid Comment. 255 Chars Max"; echo; exit 2; fi
 			echo "Banning $ip"
 			ipset -A Blacklist "$ip" comment "ManualBan: $desc" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Single SRC=$ip COMMENT=$desc " >> "${location}/skynet.log"
 		elif echo "$2" | Is_IP; then
-			if [ "${#3}" -gt "255" ]; then echo "$3 Is Not A Valid Comment. 255 Chars Max"; echo; exit 1; fi
+			if [ "${#3}" -gt "255" ]; then echo "$3 Is Not A Valid Comment. 255 Chars Max"; echo; exit 2; fi
 			echo "Banning $2"
 			desc="$3"
 			if [ -z "$3" ]; then
@@ -1128,7 +1128,7 @@ case "$1" in
 			fi
 			ipset -A Blacklist "$2" comment "ManualBan: $desc" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Single SRC=$2 COMMENT=$3 " >> "${location}/skynet.log"
 		elif [ "$2" = "range" ] && echo "$3" | Is_Range; then
-			if [ "${#4}" -gt "255" ]; then echo "$4 Is Not A Valid Comment. 255 Chars Max"; echo; exit 1; fi
+			if [ "${#4}" -gt "255" ]; then echo "$4 Is Not A Valid Comment. 255 Chars Max"; echo; exit 2; fi
 			echo "Banning $3"
 			desc="$4"
 			if [ -z "$4" ]; then
@@ -1214,16 +1214,16 @@ case "$1" in
 		if [ -z "$2" ]; then
 			printf "Input IP: "
 			read -r "ip"
-			if ! echo "$ip" | Is_IP; then echo "$ip Is Not A Valid IP"; echo; exit 1; fi
+			if ! echo "$ip" | Is_IP; then echo "$ip Is Not A Valid IP"; echo; exit 2; fi
 			printf "Input Whitelist Comment: "
 			read -r "desc"
-			if [ "${#desc}" -gt "255" ]; then echo "$desc Is Not A Valid Comment. 255 Chars Max"; echo; exit 1; fi
+			if [ "${#desc}" -gt "255" ]; then echo "$desc Is Not A Valid Comment. 255 Chars Max"; echo; exit 2; fi
 			echo "Whitelisting $ip"
 			ipset -A Whitelist "$ip" comment "ManualWlist: $desc"
 			ipset -q -D Blacklist "$ip"
 			sed -i "\\~$ip ~d" "${location}/skynet.log"
 		elif echo "$2" | Is_IP; then
-			if [ "${#3}" -gt "255" ]; then echo "$3 Is Not A Valid Comment. 255 Chars Max"; echo; exit 1; fi
+			if [ "${#3}" -gt "255" ]; then echo "$3 Is Not A Valid Comment. 255 Chars Max"; echo; exit 2; fi
 			echo "Whitelisting $2"
 			desc="$3"
 			if [ -z "$3" ]; then
@@ -1233,7 +1233,7 @@ case "$1" in
 			ipset -q -D Blacklist "$2"
 			sed -i "\\~$2 ~d" "${location}/skynet.log"
 		elif [ "$2" = "range" ] && echo "$3" | Is_Range; then
-			if [ "${#4}" -gt "255" ]; then echo "$4 Is Not A Valid Comment. 255 Chars Max"; echo; exit 1; fi
+			if [ "${#4}" -gt "255" ]; then echo "$4 Is Not A Valid Comment. 255 Chars Max"; echo; exit 2; fi
 			echo "Whitelisting $3"
 			desc="$4"
 			if [ -z "$4" ]; then
@@ -1535,7 +1535,7 @@ case "$1" in
 			proto=ICMP
 		fi
 		if [ "$2" = "search" ] && [ "$3" = "port" ] && [ -n "$4" ]; then
-			if ! echo "$4" | Is_Port; then echo "$4 Is Not A Valid Port"; echo; exit 1; fi
+			if ! echo "$4" | Is_Port; then echo "$4 Is Not A Valid Port"; echo; exit 2; fi
 			echo "Port $4 First Tracked On $(grep -m1 -F "PT=$4 " ${location}/skynet.log | awk '{print $1" "$2" "$3}')"
 			echo "Port $4 Last Tracked On $(grep -F "PT=$4 " ${location}/skynet.log | tail -1 | awk '{print $1" "$2" "$3}')"
 			echo "$(grep -Foc "PT=$4 " ${location}/skynet.log) Attempts Total"
@@ -1549,7 +1549,7 @@ case "$1" in
 			grep -F "PT=$4 " "${location}/skynet.log" | tail -"$counter"
 			exit 0
 		elif [ "$2" = "search" ] && [ "$3" = "ip" ] && [ -n "$4" ]; then
-			if ! echo "$4" | Is_IP; then echo "$4 Is Not A Valid IP"; echo; exit 1; fi
+			if ! echo "$4" | Is_IP; then echo "$4 Is Not A Valid IP"; echo; exit 2; fi
 			ipset test Whitelist "$4" && found1=true
 			ipset test Blacklist "$4" && found2=true
 			ipset test BlockedRanges "$4" && found3=true
@@ -1705,7 +1705,7 @@ case "$1" in
 				;;
 				e)
 				echo "Exiting!"
-				exit 2
+				exit 0
 				;;
 				*)
 				echo "$mode1 Isn't An Option!"
@@ -1742,7 +1742,7 @@ case "$1" in
 				;;
 				e)
 				echo "Exiting!"
-				exit 2
+				exit 0
 				;;
 				*)
 				echo "$mode2 Isn't An Option!"
@@ -1773,7 +1773,7 @@ case "$1" in
 				;;
 				e)
 				echo "Exiting!"
-				exit 2
+				exit 0
 				;;
 				*)
 				echo "$mode3 Isn't An Option!"
@@ -1855,7 +1855,7 @@ case "$1" in
 				;;
 				e)
 				echo "Exiting!"
-				exit 2
+				exit 0
 				;;
 				*)
 				echo "$mode4 Isn't An Option!"
