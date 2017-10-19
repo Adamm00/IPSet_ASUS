@@ -397,7 +397,7 @@ Load_Menu () {
 						printf "[IP]: "
 						read -r "option2"
 						echo
-						if ! echo "$option2" | Is_IP; then echo "$option2 Is Not A Valid IP"; echo; continue; fi						
+						if ! echo "$option2" | Is_IP; then echo "$option2 Is Not A Valid IP"; echo; continue; fi
 						break
 						;;
 					2)
@@ -460,8 +460,7 @@ Load_Menu () {
 						break
 						;;
 					e|exit|back|menu)
-						echo "Returning To Main Menu!"
-						echo
+						clear
 						Load_Menu
 						break
 						;;
@@ -492,7 +491,7 @@ Load_Menu () {
 							printf "[IP]: "
 							read -r "option2"
 							echo
-							if ! echo "$option2" | Is_IP; then echo "$option2 Is Not A Valid IP"; echo; continue; fi	
+							if ! echo "$option2" | Is_IP; then echo "$option2 Is Not A Valid IP"; echo; continue; fi
 							echo "Input Comment For Ban:"
 							echo
 							printf "[Comment]: "
@@ -536,8 +535,7 @@ Load_Menu () {
 							break
 							;;
 						e|exit|back|menu)
-							echo "Returning To Main Menu!"
-							echo
+							clear
 							Load_Menu
 							break
 							;;
@@ -571,8 +569,7 @@ Load_Menu () {
 							break
 							;;
 						e|exit|back|menu)
-							echo "Returning To Main Menu!"
-							echo
+							clear
 							Load_Menu
 							break
 							;;
@@ -606,7 +603,7 @@ Load_Menu () {
 							printf "[IP/Range]: "
 							read -r "option2"
 							echo
-							if ! echo "$option2" | Is_IP && ! echo "$option2" | Is_Range ; then echo "$option2 Is Not A Valid IP/Range"; echo; continue; fi	
+							if ! echo "$option2" | Is_IP && ! echo "$option2" | Is_Range ; then echo "$option2 Is Not A Valid IP/Range"; echo; continue; fi
 							echo "Input Comment For Whitelist:"
 							echo
 							printf "[Comment]: "
@@ -674,8 +671,7 @@ Load_Menu () {
 										break
 										;;
 									e|exit|back|menu)
-										echo "Returning To Main Menu!"
-										echo
+										clear
 										Load_Menu
 										break
 										;;
@@ -715,8 +711,7 @@ Load_Menu () {
 										break
 										;;
 									e|exit|back|menu)
-										echo "Returning To Main Menu!"
-										echo
+										clear
 										Load_Menu
 										break
 										;;
@@ -786,8 +781,7 @@ Load_Menu () {
 							break
 							;;
 						e|exit|back|menu)
-							echo "Returning To Main Menu!"
-							echo
+							clear
 							Load_Menu
 							break
 							;;
@@ -824,10 +818,9 @@ Load_Menu () {
 							break
 							;;
 						e|exit|back|menu)
-							echo "Returning To Main Menu!"
-							echo
+							clear
 							Load_Menu
-							break							
+							break
 							;;
 						*)
 							echo "$menu2 Isn't An Option!"
@@ -873,8 +866,7 @@ Load_Menu () {
 										break
 										;;
 									e|exit|back|menu)
-										echo "Returning To Main Menu!"
-										echo
+										clear
 										Load_Menu
 										break
 										;;
@@ -911,8 +903,7 @@ Load_Menu () {
 										break
 										;;
 									e|exit|back|menu)
-										echo "Returning To Main Menu!"
-										echo
+										clear
 										Load_Menu
 										break
 										;;
@@ -949,8 +940,7 @@ Load_Menu () {
 										break
 										;;
 									e|exit|back|menu)
-										echo "Returning To Main Menu!"
-										echo
+										clear
 										Load_Menu
 										break
 										;;
@@ -1005,8 +995,7 @@ Load_Menu () {
 										break
 										;;
 									e|exit|back|menu)
-										echo "Returning To Main Menu!"
-										echo
+										clear
 										Load_Menu
 										break
 										;;
@@ -1023,8 +1012,7 @@ Load_Menu () {
 							break
 							;;
 						e|exit)
-							echo "Returning To Main Menu!"
-							echo
+							clear
 							Load_Menu
 							break
 							;;
