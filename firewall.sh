@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 19/10/2017 -		   Asus Firewall Addition By Adamm v5.3.5				    #
+## - 20/10/2017 -		   Asus Firewall Addition By Adamm v5.3.6				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -330,7 +330,7 @@ Logging () {
 # -   unban / ban / banmalware / whitelist / import / deport / save / start / restart / disable / update / debug / stats / install / uninstall   - #
 ####################################################################################################################################################
 
-if [ -z "$1" ]; then
+Load_Menu () {
 	echo "Router Model; $(nvram get productid)"
 	echo "Skynet Version; $(Filter_Version "$0") ($(Filter_Date "$0"))"
 	echo "$(iptables --version) - ($iface @ $(nvram get lan_ipaddr))"
@@ -459,9 +459,11 @@ if [ -z "$1" ]; then
 						option2="all"
 						break
 						;;
-					e)
-						echo "Exiting!"
-						exit 0
+					e|exit|back|menu)
+						echo "Returning To Main Menu!"
+						echo
+						Load_Menu
+						break
 						;;
 					*)
 						echo "$menu2 Isn't An Option!"
@@ -533,9 +535,11 @@ if [ -z "$1" ]; then
 							echo
 							break
 							;;
-						e)
-							echo "Exiting!"
-							exit 0
+						e|exit|back|menu)
+							echo "Returning To Main Menu!"
+							echo
+							Load_Menu
+							break
 							;;
 						*)
 							echo "$menu2 Isn't An Option!"
@@ -566,9 +570,11 @@ if [ -z "$1" ]; then
 							echo
 							break
 							;;
-						e)
-							echo "Exiting!"
-							exit 0
+						e|exit|back|menu)
+							echo "Returning To Main Menu!"
+							echo
+							Load_Menu
+							break
 							;;
 						*)
 							echo "$menu2 Isn't An Option!"
@@ -667,9 +673,11 @@ if [ -z "$1" ]; then
 										if [ "${#option4}" -gt "255" ]; then echo "$option4 Is Not A Valid Comment. 255 Chars Max"; echo; continue; fi
 										break
 										;;
-									e)
-										echo "Exiting!"
-										exit 0
+									e|exit|back|menu)
+										echo "Returning To Main Menu!"
+										echo
+										Load_Menu
+										break
 										;;
 									*)
 										echo "$menu3 Isn't An Option!"
@@ -706,9 +714,11 @@ if [ -z "$1" ]; then
 										option3="domains"
 										break
 										;;
-									e)
-										echo "Exiting!"
-										exit 0
+									e|exit|back|menu)
+										echo "Returning To Main Menu!"
+										echo
+										Load_Menu
+										break
 										;;
 									*)
 										echo "$menu3 Isn't An Option!"
@@ -775,9 +785,11 @@ if [ -z "$1" ]; then
 							option2="-f"
 							break
 							;;
-						e)
-							echo "Exiting!"
-							exit 0
+						e|exit|back|menu)
+							echo "Returning To Main Menu!"
+							echo
+							Load_Menu
+							break
 							;;
 						*)
 							echo "$menu2 Isn't An Option!"
@@ -811,9 +823,11 @@ if [ -z "$1" ]; then
 							option2="info"
 							break
 							;;
-						e)
-							echo "Exiting!"
-							exit 0
+						e|exit|back|menu)
+							echo "Returning To Main Menu!"
+							echo
+							Load_Menu
+							break							
 							;;
 						*)
 							echo "$menu2 Isn't An Option!"
@@ -858,9 +872,11 @@ if [ -z "$1" ]; then
 										option3="50"
 										break
 										;;
-									e)
-										echo "Exiting!"
-										exit 0
+									e|exit|back|menu)
+										echo "Returning To Main Menu!"
+										echo
+										Load_Menu
+										break
 										;;
 									*)
 										echo "$menu3 Isn't An Option!"
@@ -894,9 +910,11 @@ if [ -z "$1" ]; then
 										option2="icmp"
 										break
 										;;
-									e)
-										echo "Exiting!"
-										exit 0
+									e|exit|back|menu)
+										echo "Returning To Main Menu!"
+										echo
+										Load_Menu
+										break
 										;;
 									*)
 										echo "$menu4 Isn't An Option!"
@@ -930,9 +948,11 @@ if [ -z "$1" ]; then
 										option5="50"
 										break
 										;;
-									e)
-										echo "Exiting!"
-										exit 0
+									e|exit|back|menu)
+										echo "Returning To Main Menu!"
+										echo
+										Load_Menu
+										break
 										;;
 									*)
 										echo "$menu3 Isn't An Option!"
@@ -984,9 +1004,11 @@ if [ -z "$1" ]; then
 										option3="manualbans"
 										break
 										;;
-									e)
-										echo "Exiting!"
-										exit 0
+									e|exit|back|menu)
+										echo "Returning To Main Menu!"
+										echo
+										Load_Menu
+										break
 										;;
 									*)
 										echo "$menu4 Isn't An Option!"
@@ -1000,9 +1022,11 @@ if [ -z "$1" ]; then
 							option2="reset"
 							break
 							;;
-						e)
-							echo "Exiting!"
-							exit 0
+						e|exit)
+							echo "Returning To Main Menu!"
+							echo
+							Load_Menu
+							break
 							;;
 						*)
 						echo "$menu2 Isn't An Option!"
@@ -1022,7 +1046,7 @@ if [ -z "$1" ]; then
 				;;
 			e)
 				echo "Exiting!"
-				exit
+				exit 0
 				;;
 			*)
 				echo "$menu Isn't An Option!"
@@ -1030,6 +1054,13 @@ if [ -z "$1" ]; then
 				;;
 		esac
 	done
+}
+
+if [ -z "$1" ]; then
+	Load_Menu
+fi
+
+if [ -n "$option1" ]; then
 	set "$option1" "$option2" "$option3" "$option4" "$option5"
 fi
 
