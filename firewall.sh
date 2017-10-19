@@ -723,6 +723,15 @@ Load_Menu () {
 							done
 							break
 							;;
+						e|exit|back|menu)
+							clear
+							Load_Menu
+							break
+							;;
+						*)
+							echo "$menu2 Isn't An Option!"
+							echo
+							;;
 					esac
 				done
 				break
