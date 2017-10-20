@@ -460,6 +460,7 @@ Load_Menu () {
 						break
 						;;
 					e|exit|back|menu)
+						unset "$option1" "$option2" "$option3" "$option4" "$option5"
 						clear
 						Load_Menu
 						break
@@ -535,6 +536,7 @@ Load_Menu () {
 							break
 							;;
 						e|exit|back|menu)
+							unset "$option1" "$option2" "$option3" "$option4" "$option5"
 							clear
 							Load_Menu
 							break
@@ -569,6 +571,7 @@ Load_Menu () {
 							break
 							;;
 						e|exit|back|menu)
+							unset "$option1" "$option2" "$option3" "$option4" "$option5"
 							clear
 							Load_Menu
 							break
@@ -671,6 +674,7 @@ Load_Menu () {
 										break
 										;;
 									e|exit|back|menu)
+										unset "$option1" "$option2" "$option3" "$option4" "$option5"
 										clear
 										Load_Menu
 										break
@@ -711,6 +715,7 @@ Load_Menu () {
 										break
 										;;
 									e|exit|back|menu)
+										unset "$option1" "$option2" "$option3" "$option4" "$option5"
 										clear
 										Load_Menu
 										break
@@ -724,6 +729,7 @@ Load_Menu () {
 							break
 							;;
 						e|exit|back|menu)
+							unset "$option1" "$option2" "$option3" "$option4" "$option5"
 							clear
 							Load_Menu
 							break
@@ -790,6 +796,7 @@ Load_Menu () {
 							break
 							;;
 						e|exit|back|menu)
+							unset "$option1" "$option2" "$option3" "$option4" "$option5"
 							clear
 							Load_Menu
 							break
@@ -827,6 +834,7 @@ Load_Menu () {
 							break
 							;;
 						e|exit|back|menu)
+							unset "$option1" "$option2" "$option3" "$option4" "$option5"
 							clear
 							Load_Menu
 							break
@@ -875,6 +883,7 @@ Load_Menu () {
 										break
 										;;
 									e|exit|back|menu)
+										unset "$option1" "$option2" "$option3" "$option4" "$option5"
 										clear
 										Load_Menu
 										break
@@ -912,6 +921,7 @@ Load_Menu () {
 										break
 										;;
 									e|exit|back|menu)
+										unset "$option1" "$option2" "$option3" "$option4" "$option5"
 										clear
 										Load_Menu
 										break
@@ -949,6 +959,7 @@ Load_Menu () {
 										break
 										;;
 									e|exit|back|menu)
+										unset "$option1" "$option2" "$option3" "$option4" "$option5"
 										clear
 										Load_Menu
 										break
@@ -1004,6 +1015,7 @@ Load_Menu () {
 										break
 										;;
 									e|exit|back|menu)
+										unset "$option1" "$option2" "$option3" "$option4" "$option5"
 										clear
 										Load_Menu
 										break
@@ -1021,6 +1033,7 @@ Load_Menu () {
 							break
 							;;
 						e|exit)
+							unset "$option1" "$option2" "$option3" "$option4" "$option5"
 							clear
 							Load_Menu
 							break
