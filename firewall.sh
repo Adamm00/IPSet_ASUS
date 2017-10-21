@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 20/10/2017 -		   Asus Firewall Addition By Adamm v5.3.6				    #
+## - 22/10/2017 -		   Asus Firewall Addition By Adamm v5.3.6				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -323,7 +323,11 @@ Logging () {
 			hits2="$(iptables -xnvL -t raw | grep -Fv "LOG" | grep -F "Skynet dst" | awk '{print $1}')"
 		fi
 		ftime="$(($(date +%s) - stime))"
-		logger -st Skynet "[Complete] $newips IPs / $newranges Ranges Banned. $((newips - oldips)) New IPs / $((newranges - oldranges)) New Ranges Banned. $hits1 Inbound / $hits2 Outbound Connections Blocked! [${ftime}s]"
+		if [ "$1" = "minimal" ]; then
+			$grn "$newips IPs / $newranges Ranges Banned. $((newips - oldips)) New IPs / $((newranges - oldranges)) New Ranges Banned. $hits1 Inbound / $hits2 Outbound Connections Blocked!"
+		else
+			logger -st Skynet "[Complete] $newips IPs / $newranges Ranges Banned. $((newips - oldips)) New IPs / $((newranges - oldranges)) New Ranges Banned. $hits1 Inbound / $hits2 Outbound Connections Blocked! [${ftime}s]"
+		fi
 }
 
 ####################################################################################################################################################
@@ -347,6 +351,7 @@ Load_Menu () {
 	if ! ipset -L -n BlockedRanges >/dev/null 2>&1; then $red "BlockedRanges IPSet Not Detected"; fi
 	if ! ipset -L -n Blacklist >/dev/null 2>&1; then $red "Blacklist IPSet Not Detected"; fi
 	if ! ipset -L -n Skynet >/dev/null 2>&1; then $red "Skynet IPSet Not Detected"; fi
+	Logging minimal
 	echo
 	echo
 	while true; do
