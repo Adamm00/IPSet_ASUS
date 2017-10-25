@@ -13,6 +13,8 @@ To open the menu its as simple as;
 
 ```sh /jffs/scripts/firewall```
 
+[![Skynet GUI](https://i.imgur.com/0S3zpn8.png "Skynet GUI")](https://i.imgur.com/0S3zpn8.png "Skynet GUI")
+
 To use the CLI, execute the following;
 
 ```sh /jffs/scripts/firewall *commandhere*```
