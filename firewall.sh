@@ -1197,11 +1197,6 @@ case "$1" in
 			ipset -A Blacklist "$ip" comment "ManualBan: $3" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$3 " >> "${location}/skynet.log"
 		done
 		elif [ "$2" = "country" ] && [ -n "$3" ]; then
-			if [ -f "${location}/scripts/countrylist.txt" ]; then
-				echo "Removing Previous Legacy Country Bans"
-				sed 's/add/del/g' "${location}/scripts/countrylist.txt" | ipset restore -!
-				rm -rf "${location}/scripts/countrylist.txt"
-			fi
 			echo "Removing Previous Country Bans"
 			sed '\~add Whitelist ~d;\~Country: ~!d;s~ comment.*~~;s~add~del~g' "${location}/scripts/ipset.txt" | ipset restore -!
 			echo "Banning Known IP Ranges For $3"
@@ -1228,11 +1223,6 @@ case "$1" in
 		fi
 		/usr/sbin/wget "$listurl" -t2 -T2 -qO- >/dev/null 2>&1 || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Banmalware" ; exit 1; }
 		Check_Lock "$@"
-		if [ -f "${location}/scripts/malwarelist.txt" ]; then
-			echo "Removing Previous Legacy Malware Bans"
-			sed 's/add/del/g' "${location}/scripts/malwarelist.txt" | ipset restore -!
-			rm -rf "${location}/scripts/malwarelist.txt"
-		fi
 		btime="$(date +%s)" && printf "Removing Previous Malware Bans "
 		sed '\~add Whitelist ~d;\~BanMalware~!d;s~ comment.*~~;s~add~del~g' "${location}/scripts/ipset.txt" | ipset restore -! && echo "[$(($(date +%s) - btime))s]"
 		btime="$(date +%s)" && printf "Downloading filter.list "
@@ -1649,7 +1639,7 @@ case "$1" in
 					;;
 				esac
 			;;
-			*)		
+			*)
 				if [ "$2" -eq "$2" ] 2>/dev/null; then
 					counter="$2"
 				elif [ "$3" -eq "$3" ] 2>/dev/null; then
