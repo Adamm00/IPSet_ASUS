@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 22/10/2017 -		   Asus Firewall Addition By Adamm v5.3.6				    #
+## - 26/10/2017 -		   Asus Firewall Addition By Adamm v5.3.7				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -305,6 +305,7 @@ Purge_Logs () {
 		sed -i '/BLOCKED -/d' /tmp/syslog.log >/dev/null 2>&1
 		if [ "$(du ${location}/skynet.log | awk '{print $1}')" -ge "7000" ]; then
 			sed -i '/BLOCKED - .*BOUND/d' "${location}/skynet.log"
+			echo "$(awk '!x[$0]++' "${location}/skynet.log")" > "${location}/skynet.log"
 			if [ "$(du ${location}/skynet.log | awk '{print $1}')" -ge "3000" ]; then
 				true > "${location}/skynet.log"
 			fi
@@ -1551,137 +1552,152 @@ case "$1" in
 			echo "No Debug Data Detected - Give This Time To Generate"
 			exit 0
 		fi
-		if [ "$2" = "reset" ]; then
-			sed -i '/BLOCKED - .*BOUND/d' "${location}/skynet.log"
-			iptables -Z PREROUTING -t raw
-			echo "Stat Data Reset"
-			exit 0
-		fi
 		echo "Monitoring From $(grep -m1 -E 'INBOUND|OUTBOUND' ${location}/skynet.log | awk '{print $1" "$2" "$3}') To $(grep -E 'INBOUND|OUTBOUND' ${location}/skynet.log | tail -1 | awk '{print $1" "$2" "$3}')"
-		echo "$(wc -l ${location}/skynet.log | awk '{print $1}') Total Events Detected"
+		echo "$(grep -Ec ".*BOUND" ${location}/skynet.log) Block Events Detected"
 		echo "$({ grep -F "INBOUND" ${location}/skynet.log | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- ; grep -F "OUTBOUND" ${location}/skynet.log | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- ; } | awk '!x[$0]++' | wc -l) Unique IPs"
 		echo "$(grep -Fc "NEW BAN" ${location}/skynet.log) Autobans Issued"
 		echo "$(grep -Fc "Manual Ban" ${location}/skynet.log) Manual Bans Issued"
 		echo
 		counter=10
-		if [ -n "$2" ] && [ "$2" != "search" ] && [ "$2" -eq "$2" ] 2>/dev/null; then
-			counter="$2"
-		elif [ -n "$5" ] && [ "$5" -eq "$5" ] 2>/dev/null; then
-			counter="$5"
-		elif [ "$3" = "autobans" ] && [ "$4" -eq "$4" ] 2>/dev/null; then
-			counter="$4"
-		elif [ "$3" = "manualbans" ] && [ "$4" -eq "$4" ] 2>/dev/null; then
-			counter="$4"
-		fi
-		if [ "$2" = "tcp" ] || [ "$3" = "tcp" ]; then
-			proto=TCP
-		elif [ "$2" = "udp" ] || [ "$3" = "udp" ]; then
-			proto=UDP
-		elif [ "$2" = "icmp" ] || [ "$3" = "icmp" ]; then
-			proto=ICMP
-		fi
-		if [ "$2" = "search" ] && [ "$3" = "port" ] && [ -n "$4" ]; then
-			if ! echo "$4" | Is_Port; then echo "$4 Is Not A Valid Port"; echo; exit 2; fi
-			echo "Port $4 First Tracked On $(grep -m1 -F "PT=$4 " ${location}/skynet.log | awk '{print $1" "$2" "$3}')"
-			echo "Port $4 Last Tracked On $(grep -F "PT=$4 " ${location}/skynet.log | tail -1 | awk '{print $1" "$2" "$3}')"
-			echo "$(grep -Foc "PT=$4 " ${location}/skynet.log) Attempts Total"
-			echo "$(grep -F "PT=$4 " ${location}/skynet.log | grep -oE ' SRC=[0-9,\.]* ' | awk '!x[$0]++' | wc -l) Unique IPs"
-			echo "$(grep -F "PT=$4 " ${location}/skynet.log | grep -cF NEW) Autobans From This Port"
-			echo
-			echo "First Block Tracked On Port $4;"
-			grep -m1 -F "PT=$4 " "${location}/skynet.log"
-			echo
-			echo "$counter Most Recent Blocks On Port $4;";
-			grep -F "PT=$4 " "${location}/skynet.log" | tail -"$counter"
-			exit 0
-		elif [ "$2" = "search" ] && [ "$3" = "ip" ] && [ -n "$4" ]; then
-			if ! echo "$4" | Is_IP; then echo "$4 Is Not A Valid IP"; echo; exit 2; fi
-			ipset test Whitelist "$4" && found1=true
-			ipset test Blacklist "$4" && found2=true
-			ipset test BlockedRanges "$4" && found3=true
-			echo
-			if [ -n "$found1" ]; then echo "Whitelist Reason; $(grep -E "Whitelist.*$4 " ${location}/scripts/ipset.txt | awk '{$1=$2=$3=$4=""; print $0}' | tr -s " ")"; fi
-			if [ -n "$found2" ]; then echo "Blacklist Reason; $(grep -E "Blacklist.*$4 " ${location}/scripts/ipset.txt | awk '{$1=$2=$3=$4=""; print $0}' | tr -s " ")"; fi
-			if [ -n "$found3" ]; then echo "BlockedRanges Reason; $(grep -E "BlockedRanges.*$(echo "$4" | cut -d '.' -f1-3)." ${location}/scripts/ipset.txt | awk '{$1=$2=$4=""; print $0}' | tr -s " ")"; fi
-			echo
-			echo "$4 First Tracked On $(grep -m1 -F "=$4 " ${location}/skynet.log | awk '{print $1" "$2" "$3}')"
-			echo "$4 Last Tracked On $(grep -F "=$4 " ${location}/skynet.log | tail -1 | awk '{print $1" "$2" "$3}')"
-			echo "$(grep -Foc "=$4 " ${location}/skynet.log) Events Total"
-			echo
-			echo "First Block Tracked From $4;"
-			grep -m1 -F "=$4 " "${location}/skynet.log"
-			echo
-			echo "$counter Most Recent Blocks From $4;"
-			grep -F "=$4 " "${location}/skynet.log" | tail -"$counter"
-			echo
-			echo "Top $counter Targeted Ports From $4 (Inbound);"
-			grep -E "INBOUND.*SRC=$4.*$proto" "${location}/skynet.log" | grep -oE 'DPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://www.speedguide.net/port.php?port="$2}'
-			echo
-			echo "Top $counter Sourced Ports From $4 (Inbound);"
-			grep -E "INBOUND.*SRC=$4.*$proto" "${location}/skynet.log" | grep -oE 'SPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://www.speedguide.net/port.php?port="$2}'
-			echo
-			exit 0
-		elif [ "$2" = "search" ] && [ "$3" = "malware" ] && [ -n "$4" ]; then
-			/usr/sbin/wget https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/filter.list -qO- | while IFS= read -r "url"; do
-				/usr/sbin/wget "$url" -qO /tmp/malwarelist.txt
-				{ grep -E "^$4" /tmp/malwarelist.txt && echo "Found In $url"; } | xargs -r
-				{ grep -F "/" /tmp/malwarelist.txt | grep -E "^$(echo "$4" | cut -d '.' -f1-3)." && echo "Possible CIDR Match In $url"; } | xargs -r
-			done
-			rm -rf /tmp/malwarelist.txt
-			echo
-			Logging
-			exit 0
-		elif [ "$2" = "search" ] && [ "$3" = "autobans" ]; then
-			echo "First Autoban Issued On $(grep -m1 -F "NEW BAN" ${location}/skynet.log | awk '{print $1" "$2" "$3}')"
-			echo "Last Autoban Issued On $(grep -F "NEW BAN" ${location}/skynet.log | tail -1 | awk '{print $1" "$2" "$3}')"
-			echo
-			echo "First Autoban Issued;"
-			grep -m1 -F "NEW BAN" "${location}/skynet.log"
-			echo
-			echo "$counter Most Recent Autobans;"
-			grep -F "NEW BAN" "${location}/skynet.log" | tail -"$counter"
-			exit 0
-		elif [ "$2" = "search" ] && [ "$3" = "manualbans" ]; then
-			echo "First Manual Ban Issued On $(grep -m1 -F "Manual Ban" ${location}/skynet.log | awk '{print $1" "$2" "$3}')"
-			echo "Last Manual Ban Issued On $(grep -F "Manual Ban" ${location}/skynet.log | tail -1 | awk '{print $1" "$2" "$3}')"
-			echo
-			echo "First Manual Ban Issued;"
-			grep -m1 -F "Manual Ban" "${location}/skynet.log"
-			echo
-			echo "$counter Most Recent Manual Bans;"
-			grep -F "Manual Ban" "${location}/skynet.log" | tail -"$counter"
-			exit 0
-		fi
-		echo "Top $counter Targeted Ports (Inbound); (Torrent Clients May Cause Excess Hits In Debug Mode)"
-		grep -E "INBOUND.*$proto" "${location}/skynet.log" | grep -oE 'DPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://www.speedguide.net/port.php?port="$2}'
-		echo
-		echo "Top $counter Source Ports (Inbound);"
-		grep -E "INBOUND.*$proto" "${location}/skynet.log" | grep -oE 'SPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://www.speedguide.net/port.php?port="$2}'
-		echo
-		echo "Last $counter Unique Connections Blocked (Inbound);"
-		grep -E "INBOUND.*$proto" "${location}/skynet.log" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | awk '!x[$0]++' | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
-		echo
-		echo "Last $counter Unique Connections Blocked (Outbound);"
-		grep -E "OUTBOUND.*$proto" "${location}/skynet.log" | grep -vE 'DPT=80 |DPT=443 ' | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | awk '!x[$0]++' | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
-		echo
-		echo "Last $counter Autobans;"
-		grep -E "NEW BAN.*$proto" "${location}/skynet.log" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
-		echo
-		echo "Last $counter Manual Bans;"
-		grep -F "Manual Ban" "${location}/skynet.log" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
-		echo
-		echo "Last $counter Unique HTTP(s) Blocks (Outbound);"
-		grep -E 'DPT=80 |DPT=443 ' "${location}/skynet.log" | grep -E "OUTBOUND.*$proto" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | awk '!x[$0]++' | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
-		echo
-		echo "Top $counter HTTP(s) Blocks (Outbound);"
-		grep -E 'DPT=80 |DPT=443 ' "${location}/skynet.log" | grep -E "OUTBOUND.*$proto" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}'
-		echo
-		echo "Top $counter Blocks (Inbound);"
-		grep -E "INBOUND.*$proto" "${location}/skynet.log" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}'
-		echo
-		echo "Top $counter Blocks (Outbound);"
-		grep -E "OUTBOUND.*$proto" "${location}/skynet.log" | grep -vE 'DPT=80 |DPT=443 ' | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}'
-		echo
+		case "$2" in
+			reset)
+				sed -i '/BLOCKED - .*BOUND/d' "${location}/skynet.log"
+				echo "$(awk '!x[$0]++' "${location}/skynet.log")" > "${location}/skynet.log"
+				iptables -Z PREROUTING -t raw
+				echo "Stat Data Reset"
+			;;
+			search)
+				case "$3" in
+					port)
+						if ! echo "$4" | Is_Port; then echo "$4 Is Not A Valid Port"; echo; exit 2; fi
+						if [ "$5" -eq "$5" ] 2>/dev/null; then counter="$5"; fi
+						echo "Port $4 First Tracked On $(grep -m1 -F "PT=$4 " ${location}/skynet.log | awk '{print $1" "$2" "$3}')"
+						echo "Port $4 Last Tracked On $(grep -F "PT=$4 " ${location}/skynet.log | tail -1 | awk '{print $1" "$2" "$3}')"
+						echo "$(grep -Foc "PT=$4 " ${location}/skynet.log) Attempts Total"
+						echo "$(grep -F "PT=$4 " ${location}/skynet.log | grep -oE ' SRC=[0-9,\.]* ' | awk '!x[$0]++' | wc -l) Unique IPs"
+						echo "$(grep -F "PT=$4 " ${location}/skynet.log | grep -cF NEW) Autobans From This Port"
+						echo
+						echo "First Block Tracked On Port $4;"
+						grep -m1 -F "PT=$4 " "${location}/skynet.log"
+						echo
+						echo "$counter Most Recent Blocks On Port $4;";
+						grep -F "PT=$4 " "${location}/skynet.log" | tail -"$counter"
+						echo
+					;;
+					ip)
+						if ! echo "$4" | Is_IP; then echo "$4 Is Not A Valid IP"; echo; exit 2; fi
+						if [ "$5" -eq "$5" ] 2>/dev/null; then counter="$5"; fi
+						ipset test Whitelist "$4" && found1=true
+						ipset test Blacklist "$4" && found2=true
+						ipset test BlockedRanges "$4" && found3=true
+						echo
+						if [ -n "$found1" ]; then echo "Whitelist Reason; $(grep -E "Whitelist.*$4 " ${location}/scripts/ipset.txt | awk '{$1=$2=$3=$4=""; print $0}' | tr -s " ")"; fi
+						if [ -n "$found2" ]; then echo "Blacklist Reason; $(grep -E "Blacklist.*$4 " ${location}/scripts/ipset.txt | awk '{$1=$2=$3=$4=""; print $0}' | tr -s " ")"; fi
+						if [ -n "$found3" ]; then echo "BlockedRanges Reason; $(grep -E "BlockedRanges.*$(echo "$4" | cut -d '.' -f1-3)." ${location}/scripts/ipset.txt | awk '{$1=$2=$4=""; print $0}' | tr -s " ")"; fi
+						echo
+						echo "$4 First Tracked On $(grep -m1 -F "=$4 " ${location}/skynet.log | awk '{print $1" "$2" "$3}')"
+						echo "$4 Last Tracked On $(grep -F "=$4 " ${location}/skynet.log | tail -1 | awk '{print $1" "$2" "$3}')"
+						echo "$(grep -Foc "=$4 " ${location}/skynet.log) Events Total"
+						echo
+						echo "First Block Tracked From $4;"
+						grep -m1 -F "=$4 " "${location}/skynet.log"
+						echo
+						echo "$counter Most Recent Blocks From $4;"
+						grep -F "=$4 " "${location}/skynet.log" | tail -"$counter"
+						echo
+						echo "Top $counter Targeted Ports From $4 (Inbound);"
+						grep -E "INBOUND.*SRC=$4 " "${location}/skynet.log" | grep -oE 'DPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://www.speedguide.net/port.php?port="$2}'
+						echo
+						echo "Top $counter Sourced Ports From $4 (Inbound);"
+						grep -E "INBOUND.*SRC=$4 " "${location}/skynet.log" | grep -oE 'SPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://www.speedguide.net/port.php?port="$2}'
+						echo
+					;;
+					malware)
+						if ! echo "$4" | Is_IP && ! echo "$4" | Is_Range ; then echo "$4 Is Not A Valid IP/Range"; echo; exit 2; fi
+						/usr/sbin/wget https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/filter.list -qO- | while IFS= read -r "url"; do
+							/usr/sbin/wget "$url" -qO /tmp/malwarelist.txt
+							echo "Searching $url"
+							{ grep -E "^$4" /tmp/malwarelist.txt && $red "Found In $url"; } | xargs -r
+							{ grep -F "/" /tmp/malwarelist.txt | grep -E "^$(echo "$4" | cut -d '.' -f1-3)." && $red "Possible CIDR Match In $url"; } | xargs -r
+						done
+						rm -rf /tmp/malwarelist.txt
+						echo
+					;;
+					autobans)
+						if [ "$4" -eq "$4" ] 2>/dev/null; then counter="$4"; fi
+						echo "First Autoban Issued On $(grep -m1 -F "NEW BAN" ${location}/skynet.log | awk '{print $1" "$2" "$3}')"
+						echo "Last Autoban Issued On $(grep -F "NEW BAN" ${location}/skynet.log | tail -1 | awk '{print $1" "$2" "$3}')"
+						echo
+						echo "First Autoban Issued;"
+						grep -m1 -F "NEW BAN" "${location}/skynet.log"
+						echo
+						echo "$counter Most Recent Autobans;"
+						grep -F "NEW BAN" "${location}/skynet.log" | tail -"$counter"
+						echo
+					;;
+					manualbans)
+						if [ "$4" -eq "$4" ] 2>/dev/null; then counter="$4"; fi
+						echo "First Manual Ban Issued On $(grep -m1 -F "Manual Ban" ${location}/skynet.log | awk '{print $1" "$2" "$3}')"
+						echo "Last Manual Ban Issued On $(grep -F "Manual Ban" ${location}/skynet.log | tail -1 | awk '{print $1" "$2" "$3}')"
+						echo
+						echo "First Manual Ban Issued;"
+						grep -m1 -F "Manual Ban" "${location}/skynet.log"
+						echo
+						echo "$counter Most Recent Manual Bans;"
+						grep -F "Manual Ban" "${location}/skynet.log" | tail -"$counter"
+						echo
+					;;
+				esac
+			;;
+			*)		
+				if [ "$2" -eq "$2" ] 2>/dev/null; then
+					counter="$2"
+				elif [ "$3" -eq "$3" ] 2>/dev/null; then
+					counter="$3"
+				fi
+				case "$2" in
+					tcp)
+						proto=TCP
+					;;
+					udp)
+						proto=UDP
+					;;
+					icmp)
+						proto=ICMP
+					;;
+				esac
+				echo "Top $counter Targeted Ports (Inbound); (Torrent Clients May Cause Excess Hits In Debug Mode)"
+				grep -E "INBOUND.*$proto" "${location}/skynet.log" | grep -oE 'DPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://www.speedguide.net/port.php?port="$2}'
+				echo
+				echo "Top $counter Source Ports (Inbound);"
+				grep -E "INBOUND.*$proto" "${location}/skynet.log" | grep -oE 'SPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://www.speedguide.net/port.php?port="$2}'
+				echo
+				echo "Last $counter Unique Connections Blocked (Inbound);"
+				grep -E "INBOUND.*$proto" "${location}/skynet.log" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | awk '!x[$0]++' | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
+				echo
+				echo "Last $counter Unique Connections Blocked (Outbound);"
+				grep -E "OUTBOUND.*$proto" "${location}/skynet.log" | grep -vE 'DPT=80 |DPT=443 ' | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | awk '!x[$0]++' | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
+				echo
+				echo "Last $counter Autobans;"
+				grep -E "NEW BAN.*$proto" "${location}/skynet.log" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
+				echo
+				echo "Last $counter Manual Bans;"
+				grep -F "Manual Ban" "${location}/skynet.log" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
+				echo
+				echo "Last $counter Unique HTTP(s) Blocks (Outbound);"
+				grep -E 'DPT=80 |DPT=443 ' "${location}/skynet.log" | grep -E "OUTBOUND.*$proto" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | awk '!x[$0]++' | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
+				echo
+				echo "Top $counter HTTP(s) Blocks (Outbound);"
+				grep -E 'DPT=80 |DPT=443 ' "${location}/skynet.log" | grep -E "OUTBOUND.*$proto" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}'
+				echo
+				echo "Top $counter Blocks (Inbound);"
+				grep -E "INBOUND.*$proto" "${location}/skynet.log" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}'
+				echo
+				echo "Top $counter Blocks (Outbound);"
+				grep -E "OUTBOUND.*$proto" "${location}/skynet.log" | grep -vE 'DPT=80 |DPT=443 ' | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}'
+				echo
+			;;
+		esac
 		;;
 
 	install)
