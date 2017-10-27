@@ -49,10 +49,8 @@ sh /jffs/scripts/firewall install
 
 ```
 Here Are Some Example Unban Commands;
-(sh /jffs/scripts/firewall unban) This Requires Manual Input (Only IPs accepted)
-(sh /jffs/scripts/firewall unban 8.8.8.8) This Unbans The IP Specified
+(sh /jffs/scripts/firewall unban ip 8.8.8.8) This Unbans The IP Specified
 (sh /jffs/scripts/firewall unban range 8.8.8.8/24) This Unbans the CIDR Block Specified
-(sh /jffs/scripts/firewall unban domain) This Requires Manual Input (Only Domains Accepted)
 (sh /jffs/scripts/firewall unban domain google.com) This Unbans the URL Specified
 (sh /jffs/scripts/firewall unban port 23) This Unbans All Autobans Based On Traffic From Port 23
 (sh /jffs/scripts/firewall unban comment "Apples") This Unbans Entries With Comment Containing The Word Apples
@@ -63,10 +61,8 @@ Here Are Some Example Unban Commands;
 (sh /jffs/scripts/firewall unban all) This Unbans All Entries From Both Blacklists
 
 Here Are Some Example Ban Commands;
-(sh /jffs/scripts/firewall ban) This Requires Manual Input (Only IPs accepted)
-(sh /jffs/scripts/firewall ban 8.8.8.8 Apples) This Bans The IP Specified With Comment Apples
+(sh /jffs/scripts/firewall ban ip 8.8.8.8 Apples) This Bans The IP Specified With Comment Apples
 (sh /jffs/scripts/firewall ban range 8.8.8.8/24 Apples) This Bans the CIDR Block Specified With Comment Apples
-(sh /jffs/scripts/firewall ban domain) This Requires Manual Input (Only Domains Accepted)
 (sh /jffs/scripts/firewall ban domain google.com) This Bans the URL Specified
 (sh /jffs/scripts/firewall ban country "pk cn sa") This Bans The Known IPs For The Specified Countries (accepts single/multiple inputs if quoted) http://www.ipdeny.com/ipblocks/data/countries/
 
@@ -75,9 +71,8 @@ Here Are Some Example Banmalware Commands;
 (sh /jffs/scripts/firewall banmalware google.com/filter.list) This Uses The Fitler List From The Specified URL
 
 Here Are Some Example Whitelist Commands;
-(sh /jffs/scripts/firewall whitelist) This Requires Manual Input (Only IPs accepted)
-(sh /jffs/scripts/firewall whitelist 8.8.8.8 Apples) This Whitelists The IP or Range Specified With Comment Apples
-(sh /jffs/scripts/firewall whitelist domain) This Requires Manual Input (Only Domains Accepted)
+(sh /jffs/scripts/firewall whitelist ip 8.8.8.8 Apples) This Whitelists The IP Specified With Comment Apples
+(sh /jffs/scripts/firewall whitelist range 8.8.8.8/24 Apples) This Whitelists The Range Specified With Comment Apples
 (sh /jffs/scripts/firewall whitelist domain google.com) This Whitelists the URL Specified
 (sh /jffs/scripts/firewall whitelist port 23) This Whitelists All Autobans Based On Traffic From Port 23
 (sh /jffs/scripts/firewall whitelist vpn) Refresh VPN Whitelist

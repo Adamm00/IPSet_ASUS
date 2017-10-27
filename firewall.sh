@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 27/10/2017 -		   Asus Firewall Addition By Adamm v5.3.7				    #
+## - 27/10/2017 -		   Asus Firewall Addition By Adamm v5.3.8				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -398,12 +398,13 @@ Load_Menu () {
 					echo
 					case "$menu2" in
 					1)
+						option2="ip"
 						echo "Input IP To Unban:"
 						echo
 						printf "[IP]: "
-						read -r "option2"
+						read -r "option3"
 						echo
-						if ! echo "$option2" | Is_IP; then echo "$option2 Is Not A Valid IP"; echo; continue; fi
+						if ! echo "$option3" | Is_IP; then echo "$option3 Is Not A Valid IP"; echo; continue; fi
 						break
 						;;
 					2)
@@ -493,18 +494,19 @@ Load_Menu () {
 					echo
 					case "$menu2" in
 						1)
+							option2="ip"
 							echo "Input IP To Ban:"
 							echo
 							printf "[IP]: "
-							read -r "option2"
+							read -r "option3"
 							echo
-							if ! echo "$option2" | Is_IP; then echo "$option2 Is Not A Valid IP"; echo; continue; fi
+							if ! echo "$option3" | Is_IP; then echo "$option3 Is Not A Valid IP"; echo; continue; fi
 							echo "Input Comment For Ban:"
 							echo
 							printf "[Comment]: "
-							read -r "option3"
+							read -r "option4"
 							echo
-							if [ "${#option3}" -gt "255" ]; then echo "$option3 Is Not A Valid Comment. 255 Chars Max"; echo; continue; fi
+							if [ "${#option4}" -gt "255" ]; then echo "$option4 Is Not A Valid Comment. 255 Chars Max"; echo; continue; fi
 							break
 							;;
 						2)
@@ -607,18 +609,19 @@ Load_Menu () {
 					echo
 					case "$menu2" in
 						1)
+							option2="ip"
 							echo "Input IP Or Range To Whitelist:"
 							echo
 							printf "[IP/Range]: "
-							read -r "option2"
+							read -r "option3"
 							echo
-							if ! echo "$option2" | Is_IP && ! echo "$option2" | Is_Range ; then echo "$option2 Is Not A Valid IP/Range"; echo; continue; fi
+							if ! echo "$option3" | Is_IP && ! echo "$option3" | Is_Range ; then echo "$option3 Is Not A Valid IP/Range"; echo; continue; fi
 							echo "Input Comment For Whitelist:"
 							echo
 							printf "[Comment]: "
-							read -r "option3"
+							read -r "option4"
 							echo
-							if [ "${#option3}" -gt "255" ]; then echo "$option3 Is Not A Valid Comment. 255 Chars Max"; echo; continue; fi
+							if [ "${#option4}" -gt "255" ]; then echo "$option4 Is Not A Valid Comment. 255 Chars Max"; echo; continue; fi
 							break
 							;;
 						2)
@@ -1083,134 +1086,128 @@ fi
 case "$1" in
 	unban)
 		Purge_Logs
-		if [ -z "$2" ]; then
-			printf "Input IP: "
-			read -r "ip"
-			if ! echo "$ip" | Is_IP; then echo "$ip Is Not A Valid IP"; echo; exit 2; fi
-			echo "Unbanning $ip"
-			ipset -D Blacklist "$ip"
-			sed -i "\\~$ip ~d" "${location}/skynet.log"
-		elif echo "$2" | Is_IP; then
-			echo "Unbanning $2"
-			ipset -D Blacklist "$2"
-			sed -i "\\~$2 ~d" "${location}/skynet.log"
-		elif [ "$2" = "range" ] && echo "$3" | Is_Range; then
-			echo "Unbanning $3"
-			ipset -D BlockedRanges "$3"
-			sed -i "\\~$3 ~d" "${location}/skynet.log"
-		elif [ "$2" = "domain" ] && [ -z "$3" ]; then
-			printf "Input URL: "
-			read -r "unbandomain"
-			logger -st Skynet "[INFO] Removing $unbandomain From Blacklist..."
-			for ip in $(Domain_Lookup "$unbandomain"); do
-				echo "Unbanning $ip"
-				ipset -D Blacklist "$ip"
-				sed -i "\\~$ip ~d" "${location}/skynet.log"
-			done
-		elif [ "$2" = "domain" ] && [ -n "$3" ]; then
-		logger -st Skynet "[INFO] Removing $3 From Blacklist..."
-		for ip in $(Domain_Lookup "$3"); do
-			echo "Unbanning $ip"
-			ipset -D Blacklist "$ip"
-			sed -i "\\~$ip ~d" "${location}/skynet.log"
-		done
-		elif [ "$2" = "port" ] && echo "$3" | Is_Port; then
-			logger -st Skynet "[INFO] Unbanning Autobans Issued On Traffic From Source/Destination Port $3..."
-			grep -F "NEW" "${location}/skynet.log" | grep -F "PT=$3 " | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | while IFS= read -r "ip"; do
-				echo "Unbanning $ip"
-				ipset -D Blacklist "$ip"
-			done
-			sed -i "/PT=${3} /d" "${location}/skynet.log"
-		elif [ "$2" = "comment" ] && [ -n "$3" ]; then
-			echo "Removing Bans With Comment Containing ($3)"
-			sed "\\~add Whitelist ~d;\\~$3~!d;s~ comment.*~~;s~add~del~g" "${location}/scripts/ipset.txt" | ipset restore -!
-		elif [ "$2" = "country" ]; then
-			echo "Removing Previous Country Bans"
-			sed '\~add Whitelist ~d;\~Country: ~!d;s~ comment.*~~;s~add~del~g' "${location}/scripts/ipset.txt" | ipset restore -!
-		elif [ "$2" = "malware" ]; then
-			echo "Removing Previous Malware Bans"
-			sed '\~add Whitelist ~d;\~BanMalware~!d;s~ comment.*~~;s~add~del~g' "${location}/scripts/ipset.txt" | ipset restore -!
-		elif [ "$2" = "autobans" ]; then
-			grep -F "NEW" "${location}/skynet.log" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | tr -d " " | while IFS= read -r "ip"; do
-				echo "Unbanning $ip"
-				ipset -D Blacklist "$ip"
-				sed -i "\\~$ip ~d" "${location}/skynet.log"
-			done
-		elif [ "$2" = "nomanual" ]; then
-			sed -i '/Manual /!d' "${location}/skynet.log"
-			ipset flush Blacklist
-			ipset flush BlockedRanges
-			sed '\~add Whitelist ~d;\~Manual[R]*Ban: ~!d' "${location}/scripts/ipset.txt" | ipset restore -!
-			iptables -Z PREROUTING -t raw
-		elif [ "$2" = "all" ]; then
-			logger -st Skynet "[INFO] Removing All $(($(sed -n '1p' /tmp/counter.txt) + $(sed -n '2p' /tmp/counter.txt))) Entries From Blacklist..."
-			ipset flush Blacklist
-			ipset flush BlockedRanges
-			iptables -Z PREROUTING -t raw
-			true > "${location}/skynet.log"
-		else
-			echo "Command Not Recognised, Please Try Again"
-			exit 2
-		fi
+		case "$2" in
+			ip)
+				if ! echo "$3" | Is_IP; then echo "$3 Is Not A Valid IP"; echo; exit 2; fi
+				echo "Unbanning $3"
+				ipset -D Blacklist "$3"
+				sed -i "\\~$3 ~d" "${location}/skynet.log"
+			;;
+			range)
+				if ! echo "$3" | Is_Range; then echo "$3  Is Not A Valid Range"; echo; exit 2; fi
+				echo "Unbanning $3"
+				ipset -D BlockedRanges "$3"
+				sed -i "\\~$3 ~d" "${location}/skynet.log"
+			;;
+			domain)
+				if [ -z "$3" ]; then echo "Domain Field Can't Be Empty - Please Try Again"; echo; exit 2; fi
+				logger -st Skynet "[INFO] Removing $3 From Blacklist..."
+				for ip in $(Domain_Lookup "$3"); do
+					echo "Unbanning $ip"
+					ipset -D Blacklist "$ip"
+					sed -i "\\~$ip ~d" "${location}/skynet.log"
+				done
+			;;
+			port)
+				if ! echo "$3" | Is_Port; then echo "$3 Is Not A Valid Port"; echo; exit 2; fi
+				logger -st Skynet "[INFO] Unbanning Autobans Issued On Traffic From Source/Destination Port $3..."
+				grep -F "NEW" "${location}/skynet.log" | grep -F "PT=$3 " | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | while IFS= read -r "ip"; do
+					echo "Unbanning $ip"
+					ipset -D Blacklist "$ip"
+				done
+				sed -i "/PT=${3} /d" "${location}/skynet.log"
+			;;
+			comment)
+				if [ -z "$3" ]; then echo "Comment Field Can't Be Empty - Please Try Again"; echo; exit 2; fi
+				echo "Removing Bans With Comment Containing ($3)"
+				sed "\\~add Whitelist ~d;\\~$3~!d;s~ comment.*~~;s~add~del~g" "${location}/scripts/ipset.txt" | ipset restore -!
+			;;
+			country)
+				echo "Removing Previous Country Bans"
+				sed '\~add Whitelist ~d;\~Country: ~!d;s~ comment.*~~;s~add~del~g' "${location}/scripts/ipset.txt" | ipset restore -!
+			;;
+			malware)
+				echo "Removing Previous Malware Bans"
+				sed '\~add Whitelist ~d;\~BanMalware~!d;s~ comment.*~~;s~add~del~g' "${location}/scripts/ipset.txt" | ipset restore -!
+			;;
+			autobans)
+				grep -F "NEW" "${location}/skynet.log" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | tr -d " " | while IFS= read -r "ip"; do
+					echo "Unbanning $ip"
+					ipset -D Blacklist "$ip"
+					sed -i "\\~$ip ~d" "${location}/skynet.log"
+				done
+			;;
+			nomanual)
+				sed -i '/Manual /!d' "${location}/skynet.log"
+				ipset flush Blacklist
+				ipset flush BlockedRanges
+				sed '\~add Whitelist ~d;\~Manual[R]*Ban: ~!d' "${location}/scripts/ipset.txt" | ipset restore -!
+				iptables -Z PREROUTING -t raw
+			;;
+			all)
+				logger -st Skynet "[INFO] Removing All $(($(sed -n '1p' /tmp/counter.txt) + $(sed -n '2p' /tmp/counter.txt))) Entries From Blacklist..."
+				ipset flush Blacklist
+				ipset flush BlockedRanges
+				iptables -Z PREROUTING -t raw
+				true > "${location}/skynet.log"
+			;;
+			*)
+				echo "Command Not Recognised, Please Try Again"
+				exit 2
+			;;
+		esac
 		Save_IPSets
 		;;
 
 	ban)
 		Purge_Logs
-		if [ -z "$2" ]; then
-			printf "Input IP: "
-			read -r "ip"
-			if ! echo "$ip" | Is_IP; then echo "$ip Is Not A Valid IP"; echo; exit 2; fi
-			printf "Input Ban Comment: "
-			read -r "desc"
-			if [ "${#desc}" -gt "255" ]; then echo "$desc Is Not A Valid Comment. 255 Chars Max"; echo; exit 2; fi
-			echo "Banning $ip"
-			ipset -A Blacklist "$ip" comment "ManualBan: $desc" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Single SRC=$ip COMMENT=$desc " >> "${location}/skynet.log"
-		elif echo "$2" | Is_IP; then
-			if [ "${#3}" -gt "255" ]; then echo "$3 Is Not A Valid Comment. 255 Chars Max"; echo; exit 2; fi
-			echo "Banning $2"
-			desc="$3"
-			if [ -z "$3" ]; then
-				desc="$(date +"%b %d %T")"
-			fi
-			ipset -A Blacklist "$2" comment "ManualBan: $desc" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Single SRC=$2 COMMENT=$3 " >> "${location}/skynet.log"
-		elif [ "$2" = "range" ] && echo "$3" | Is_Range; then
-			if [ "${#4}" -gt "255" ]; then echo "$4 Is Not A Valid Comment. 255 Chars Max"; echo; exit 2; fi
-			echo "Banning $3"
-			desc="$4"
-			if [ -z "$4" ]; then
-				desc="$(date +"%b %d %T")"
-			fi
-			ipset -A BlockedRanges "$3" comment "ManualRBan: $desc" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Range SRC=$3 COMMENT=$4 " >> "${location}/skynet.log"
-		elif [ "$2" = "domain" ] && [ -z "$3" ]; then
-			printf "Input URL: "
-			read -r "bandomain"
-			logger -st Skynet "[INFO] Adding $bandomain To Blacklist..."
-			for ip in $(Domain_Lookup "$bandomain"); do
-				echo "Banning $ip"
-				ipset -A Blacklist "$ip" comment "ManualBan: $bandomain" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$bandomain " >> "${location}/skynet.log"
-			done
-		elif [ "$2" = "domain" ] && [ -n "$3" ]; then
-		logger -st Skynet "[INFO] Adding $3 To Blacklist..."
-		for ip in $(Domain_Lookup "$3"); do
-			echo "Banning $ip"
-			ipset -A Blacklist "$ip" comment "ManualBan: $3" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$3 " >> "${location}/skynet.log"
-		done
-		elif [ "$2" = "country" ] && [ -n "$3" ]; then
-			echo "Removing Previous Country Bans"
-			sed '\~add Whitelist ~d;\~Country: ~!d;s~ comment.*~~;s~add~del~g' "${location}/scripts/ipset.txt" | ipset restore -!
-			echo "Banning Known IP Ranges For $3"
-			echo "Downloading Lists"
-			for country in $3; do
-				/usr/sbin/wget http://ipdeny.com/ipblocks/data/aggregated/"$country"-aggregated.zone -t2 -T2 -qO- >> /tmp/countrylist.txt
-			done
-			echo "Filtering IPv4 Ranges & Applying Blacklists"
-			grep -F "/" /tmp/countrylist.txt | sed -n "s/\\r//;/^$/d;/^[0-9,\\.,\\/]*$/s/^/add BlockedRanges /p" | sed "s/$/& comment \"Country: $3\"/" | ipset restore -!
-			rm -rf "/tmp/countrylist.txt"
-		else
-			echo "Command Not Recognised, Please Try Again"
-			exit 2
-		fi
+		case "$2" in
+			ip)
+				if ! echo "$3" | Is_IP; then echo "$3 Is Not A Valid IP"; echo; exit 2; fi
+				if [ "${#4}" -gt "255" ]; then echo "$4 Is Not A Valid Comment. 255 Chars Max"; echo; exit 2; fi
+				echo "Banning $3"
+				desc="$4"
+				if [ -z "$4" ]; then
+					desc="$(date +"%b %d %T")"
+				fi
+				ipset -A Blacklist "$3" comment "ManualBan: $desc" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Single SRC=$3 COMMENT=$4 " >> "${location}/skynet.log"
+			;;
+			range)
+				if ! echo "$3" | Is_Range; then echo "$3 Is Not A Valid Range"; echo; exit 2; fi
+				if [ "${#4}" -gt "255" ]; then echo "$4 Is Not A Valid Comment. 255 Chars Max"; echo; exit 2; fi
+				echo "Banning $3"
+				desc="$4"
+				if [ -z "$4" ]; then
+					desc="$(date +"%b %d %T")"
+				fi
+				ipset -A BlockedRanges "$3" comment "ManualRBan: $desc" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Range SRC=$3 COMMENT=$4 " >> "${location}/skynet.log"
+			;;
+			domain)
+				if [ -z "$3" ]; then echo "Domain Field Can't Be Empty - Please Try Again"; echo; exit 2; fi
+				logger -st Skynet "[INFO] Adding $3 To Blacklist..."
+				for ip in $(Domain_Lookup "$3"); do
+					echo "Banning $ip"
+					ipset -A Blacklist "$ip" comment "ManualBan: $3" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$3 " >> "${location}/skynet.log"
+				done
+			;;
+			country)
+				if [ -z "$3" ]; then echo "Country Field Can't Be Empty - Please Try Again"; echo; exit 2; fi
+				echo "Removing Previous Country Bans"
+				sed '\~add Whitelist ~d;\~Country: ~!d;s~ comment.*~~;s~add~del~g' "${location}/scripts/ipset.txt" | ipset restore -!
+				echo "Banning Known IP Ranges For $3"
+				echo "Downloading Lists"
+				for country in $3; do
+					/usr/sbin/wget http://ipdeny.com/ipblocks/data/aggregated/"$country"-aggregated.zone -t2 -T2 -qO- >> /tmp/countrylist.txt
+				done
+				echo "Filtering IPv4 Ranges & Applying Blacklists"
+				grep -F "/" /tmp/countrylist.txt | sed -n "s/\\r//;/^$/d;/^[0-9,\\.,\\/]*$/s/^/add BlockedRanges /p" | sed "s/$/& comment \"Country: $3\"/" | ipset restore -!
+				rm -rf "/tmp/countrylist.txt"
+			;;
+			*)
+				echo "Command Not Recognised, Please Try Again"
+				exit 2
+			;;
+		esac
 		Save_IPSets
 		;;
 
@@ -1249,96 +1246,91 @@ case "$1" in
 
 	whitelist)
 		Purge_Logs
-		if [ -z "$2" ]; then
-			printf "Input IP: "
-			read -r "ip"
-			if ! echo "$ip" | Is_IP; then echo "$ip Is Not A Valid IP"; echo; exit 2; fi
-			printf "Input Whitelist Comment: "
-			read -r "desc"
-			if [ "${#desc}" -gt "255" ]; then echo "$desc Is Not A Valid Comment. 255 Chars Max"; echo; exit 2; fi
-			echo "Whitelisting $ip"
-			ipset -A Whitelist "$ip" comment "ManualWlist: $desc"
-			ipset -q -D Blacklist "$ip"
-			sed -i "\\~$ip ~d" "${location}/skynet.log"
-		elif echo "$2" | Is_IP; then
-			if [ "${#3}" -gt "255" ]; then echo "$3 Is Not A Valid Comment. 255 Chars Max"; echo; exit 2; fi
-			echo "Whitelisting $2"
-			desc="$3"
-			if [ -z "$3" ]; then
-				desc="$(date +"%b %d %T")"
-			fi
-			ipset -A Whitelist "$2" comment "ManualWlist: $desc"
-			ipset -q -D Blacklist "$2"
-			sed -i "\\~$2 ~d" "${location}/skynet.log"
-		elif [ "$2" = "range" ] && echo "$3" | Is_Range; then
-			if [ "${#4}" -gt "255" ]; then echo "$4 Is Not A Valid Comment. 255 Chars Max"; echo; exit 2; fi
-			echo "Whitelisting $3"
-			desc="$4"
-			if [ -z "$4" ]; then
-				desc="$(date +"%b %d %T")"
-			fi
-			ipset -A Whitelist "$3" comment "ManualWlist: $desc"
-			ipset -q -D Blacklist "$3"
-			sed -i "\\~$3 ~d" "${location}/skynet.log"
-		elif [ "$2" = "domain" ] && [ -z "$3" ];then
-			printf "Input URL: "
-			read -r "whitelistdomain"
-			logger -st Skynet "[INFO] Adding $whitelistdomain To Whitelist..."
-			for ip in $(Domain_Lookup "$whitelistdomain"); do
-				echo "Whitelisting $ip"
-				ipset -A Whitelist "$ip" comment "ManualWlistD: $whitelistdomain"
-				ipset -q -D Blacklist "$ip"
-				sed -i "\\~$ip ~d" "${location}/skynet.log"
-			done
-		elif [ "$2" = "domain" ] && [ -n "$3" ]; then
-		logger -st Skynet "[INFO] Adding $3 To Whitelist..."
-		for ip in $(Domain_Lookup "$3"); do
-			echo "Whitelisting $ip"
-			ipset -A Whitelist "$ip" comment "ManualWlistD: $3"
-			ipset -q -D Blacklist "$ip"
-			sed -i "\\~$ip ~d" "${location}/skynet.log"
-		done
-		elif [ "$2" = "port" ] && echo "$3" | Is_Port; then
-			logger -st Skynet "[INFO] Whitelisting Autobans Issued On Traffic From Port $3..."
-			grep -F "NEW" "${location}/skynet.log" | grep -F "DPT=$3 " | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | while IFS= read -r "ip"; do
-				echo "Whitelisting $ip"
-				ipset -A Whitelist "$ip" comment "ManualWlist: Port $3 Traffic"
-				ipset -q -D Blacklist "$ip"
-				sed -i "\\~$ip ~d" "${location}/skynet.log"
-			done
-		elif [ "$2" = "vpn" ]; then
-			logger -st Skynet "[INFO] Updating VPN Whitelist..."
-			Whitelist_VPN
-			exit 0
-		elif [ "$2" = "remove" ] && [ -z "$3" ]; then
-			echo "Flushing Whitelist"
-			ipset flush Whitelist
-			echo "Adding Default Entries"
-			true > "${location}/scripts/ipset.txt"
-			Whitelist_Extra
-			Whitelist_VPN
-			Whitelist_Shared
-		elif [ "$2" = "remove" ] && [ "$3" = "entry" ] && [ -n "$4" ]; then
-			echo "Removing $4 From Whitelist"
-			ipset -D Whitelist "$4"
-		elif [ "$2" = "remove" ] && [ "$3" = "comment" ] && [ -n "$4" ]; then
-			echo "Removing All Entries With Comment Matching \"$4\" From Whitelist"
-			sed "\\~add Whitelist ~!d;\\~$4~!d;s~ comment.*~~;s~add~del~g" "${location}/scripts/ipset.txt" | ipset restore -!
-		elif [ "$2" = "refresh" ]; then
-			echo "Refreshing Shared Whitelist Files"
-			Whitelist_Extra
-			Whitelist_VPN
-			Whitelist_Shared
-		elif [ "$2" = "list" ] && [ -z "$3" ]; then
-			sed '\~add Whitelist ~!d;s~add Whitelist ~~' "${location}/scripts/ipset.txt"
-		elif [ "$2" = "list" ] && [ "$3" = "ips" ]; then
-			sed '\~add Whitelist ~!d;\~ManualWlist:~!d;s~add Whitelist ~~' "${location}/scripts/ipset.txt"
-		elif [ "$2" = "list" ] && [ "$3" = "domains" ]; then
-			sed '\~add Whitelist ~!d;\~ManualWlistD:~!d;s~add Whitelist ~~' "${location}/scripts/ipset.txt"
-		else
-			echo "Command Not Recognised, Please Try Again"
-			exit 2
-		fi
+		case "$2" in
+			ip|range)
+				if ! echo "$3" | Is_IP && ! echo "$3" | Is_Range ; then echo "$3 Is Not A Valid IP/Range"; echo; exit 2; fi
+				if [ "${#4}" -gt "255" ]; then echo "$4 Is Not A Valid Comment. 255 Chars Max"; echo; exit 2; fi
+				echo "Whitelisting $3"
+				desc="$4"
+				if [ -z "$4" ]; then
+					desc="$(date +"%b %d %T")"
+				fi
+				ipset -A Whitelist "$3" comment "ManualWlist: $desc"
+				ipset -q -D Blacklist "$3"
+				ipset -q -D BlockedRanges "$3"
+				sed -i "\\~$3 ~d" "${location}/skynet.log"
+			;;
+			domain)
+				if [ -z "$3" ]; then echo "Domain Field Can't Be Empty - Please Try Again"; echo; exit 2; fi
+				logger -st Skynet "[INFO] Adding $3 To Whitelist..."
+				for ip in $(Domain_Lookup "$3"); do
+					echo "Whitelisting $ip"
+					ipset -A Whitelist "$ip" comment "ManualWlistD: $3"
+					ipset -q -D Blacklist "$ip"
+					sed -i "\\~$ip ~d" "${location}/skynet.log"
+				done
+			;;
+			port)
+				if ! echo "$3" | Is_Port; then echo "$3 Is Not A Valid Port"; echo; exit 2; fi
+				logger -st Skynet "[INFO] Whitelisting Autobans Issued On Traffic From Port $3..."
+				grep -F "NEW" "${location}/skynet.log" | grep -F "DPT=$3 " | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | while IFS= read -r "ip"; do
+					echo "Whitelisting $ip"
+					ipset -A Whitelist "$ip" comment "ManualWlist: Port $3 Traffic"
+					ipset -q -D Blacklist "$ip"
+					sed -i "\\~$ip ~d" "${location}/skynet.log"
+				done
+			;;
+			vpn)
+				logger -st Skynet "[INFO] Updating VPN Whitelist..."
+				Whitelist_VPN
+			;;
+			remove)
+				case "$3" in
+					entry)
+						if ! echo "$4" | Is_IP && ! echo "$4" | Is_Range ; then echo "$4 Is Not A Valid IP/Range"; echo; exit 2; fi
+						echo "Removing $4 From Whitelist"
+						ipset -D Whitelist "$4"
+					;;
+					comment)
+						if [ -z "$4" ]; then echo "Comment Field Can't Be Empty - Please Try Again"; echo; exit 2; fi
+						echo "Removing All Entries With Comment Matching \"$4\" From Whitelist"
+						sed "\\~add Whitelist ~!d;\\~$4~!d;s~ comment.*~~;s~add~del~g" "${location}/scripts/ipset.txt" | ipset restore -!
+					;;
+					*)
+						echo "Flushing Whitelist"
+						ipset flush Whitelist
+						echo "Adding Default Entries"
+						true > "${location}/scripts/ipset.txt"
+						Whitelist_Extra
+						Whitelist_VPN
+						Whitelist_Shared
+					;;
+				esac
+			;;
+			refresh)
+				echo "Refreshing Shared Whitelist Files"
+				Whitelist_Extra
+				Whitelist_VPN
+				Whitelist_Shared
+			;;
+			list)
+				case "$3" in
+					ips)
+						sed '\~add Whitelist ~!d;\~ManualWlist:~!d;s~add Whitelist ~~' "${location}/scripts/ipset.txt"
+					;;
+					domains)
+						sed '\~add Whitelist ~!d;\~ManualWlistD:~!d;s~add Whitelist ~~' "${location}/scripts/ipset.txt"
+					;;
+					*)
+						sed '\~add Whitelist ~!d;s~add Whitelist ~~' "${location}/scripts/ipset.txt"
+					;;
+				esac
+			;;
+			*)
+				echo "Command Not Recognised, Please Try Again"
+				exit 2
+			;;
+		esac
 		Save_IPSets
 		;;
 
@@ -1974,4 +1966,4 @@ case "$1" in
 
 esac
 
-Logging
+Logging; echo
