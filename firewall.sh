@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 26/10/2017 -		   Asus Firewall Addition By Adamm v5.3.7				    #
+## - 27/10/2017 -		   Asus Firewall Addition By Adamm v5.3.7				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -1215,6 +1215,7 @@ case "$1" in
 		;;
 
 	banmalware)
+		trap '' 2
 		if [ -n "$2" ]; then
 			listurl="$2"
 			echo "Custom List Detected: $2"
@@ -1393,6 +1394,7 @@ case "$1" in
 		;;
 
 	start)
+		trap '' 2
 		Check_Lock "$@"
 		logger -st Skynet "[INFO] Startup Initiated... ( $(echo "$@" | sed "s/start //g") )"
 		Unload_Cron
@@ -1453,6 +1455,7 @@ case "$1" in
 	;;
 
 	update)
+		trap '' 2
 		remoteurl="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh"
 		/usr/sbin/wget "$remoteurl" -t2 -T2 -qO- | grep -qF "Adamm" || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Update" ; exit 1; }
 		localver="$(Filter_Version "$0")"
@@ -1491,6 +1494,7 @@ case "$1" in
 			;;
 			watch)
 				Purge_Logs
+				trap 'echo; echo "Stopping Log Monitoring"; Purge_Logs' 2
 				echo "Watching Logs For Debug Entries (ctrl +c) To Stop"
 				echo
 				tail -f /tmp/syslog.log | grep -F "BLOCKED"
@@ -1575,7 +1579,7 @@ case "$1" in
 						echo
 					;;
 					ip)
-						if ! echo "$4" | Is_IP; then echo "$4 Is Not A Valid IP"; echo; exit 2; fi
+						if ! echo "$4" | Is_IP && ! echo "$4" | Is_Range ; then echo "$4 Is Not A Valid IP/Range"; echo; exit 2; fi
 						if [ "$5" -eq "$5" ] 2>/dev/null; then counter="$5"; fi
 						ipset test Whitelist "$4" && found1=true
 						ipset test Blacklist "$4" && found2=true
