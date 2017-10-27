@@ -34,9 +34,9 @@ Check_Lock () {
 		fi
 }
 
-if grep -F "Skynet" /jffs/scripts/firewall-start 2>/dev/null | grep -qF "usb"; then
+if grep -qE "usb=.* # Skynet" /jffs/scripts/firewall-start; then
 	location="$(grep -ow "usb=.*" /jffs/scripts/firewall-start | awk '{print $1}' | cut -c 5-)/skynet"
-	if [ ! -d "$location" ]; then
+	if [ ! -d "$location" ] && ! echo "$@" | grep -wqE "(install|uninstall|disable|update|restart|info)"; then
 		Check_Lock "$@"
 		retry=1
 		while [ ! -d "$location" ] && [ "$retry" -lt "11" ]; do
@@ -44,7 +44,7 @@ if grep -F "Skynet" /jffs/scripts/firewall-start 2>/dev/null | grep -qF "usb"; t
 			retry=$((retry+1))
 			sleep 10
 		done
-		if [ ! -d "$location" ] && ! echo "$@" | grep -wqE "(install|uninstall|disable|update|restart|info)"; then
+		if [ ! -d "$location" ]; then
 			logger -st Skynet "[ERROR] USB Not Found After 10 Attempts - Please Fix Immediately!"
 			logger -st Skynet "[ERROR] When Fixed Run ( sh $0 debug restart )"
 			rm -rf /tmp/skynet.lock
@@ -91,7 +91,7 @@ Check_Settings () {
 			cru a Skynet_banmalware "25 2 * * Mon sh /jffs/scripts/firewall banmalware"
 		fi
 
-		if echo "$@" | grep -qF "autoupdate"; then
+		if echo "$@" | grep -qF "autoupdate "; then
 			cru a Skynet_autoupdate "25 1 * * Mon sh /jffs/scripts/firewall update"
 		else
 			cru a Skynet_checkupdate "25 1 * * Mon sh /jffs/scripts/firewall update check"
