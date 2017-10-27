@@ -397,89 +397,89 @@ Load_Menu () {
 					read -r "menu2"
 					echo
 					case "$menu2" in
-					1)
-						option2="ip"
-						echo "Input IP To Unban:"
-						echo
-						printf "[IP]: "
-						read -r "option3"
-						echo
-						if ! echo "$option3" | Is_IP; then echo "$option3 Is Not A Valid IP"; echo; continue; fi
-						break
+						1)
+							option2="ip"
+							echo "Input IP To Unban:"
+							echo
+							printf "[IP]: "
+							read -r "option3"
+							echo
+							if ! echo "$option3" | Is_IP; then echo "$option3 Is Not A Valid IP"; echo; continue; fi
+							break
 						;;
-					2)
-						option2="range"
-						echo "Input Range To Unban:"
-						echo
-						printf "[Range]: "
-						read -r "option3"
-						echo
-						if ! echo "$option3" | Is_Range; then echo "$option3 Is Not A Valid Range"; echo; continue; fi
-						break
+						2)
+							option2="range"
+							echo "Input Range To Unban:"
+							echo
+							printf "[Range]: "
+							read -r "option3"
+							echo
+							if ! echo "$option3" | Is_Range; then echo "$option3 Is Not A Valid Range"; echo; continue; fi
+							break
 						;;
-					3)
-						option2="domain"
-						echo "Input Domain To Unban:"
-						echo
-						printf "[Domain]: "
-						read -r "option3"
-						echo
-						break
+						3)
+							option2="domain"
+							echo "Input Domain To Unban:"
+							echo
+							printf "[Domain]: "
+							read -r "option3"
+							echo
+							break
 						;;
-					4)
-						option2="port"
-						echo "Remove Autobans Based On Port:"
-						echo
-						printf "[Port]: "
-						read -r "option3"
-						echo
-						if ! echo "$option3" | Is_Port; then echo "$option3 Is Not A Valid Port"; echo; continue; fi
-						break
+						4)
+							option2="port"
+							echo "Remove Autobans Based On Port:"
+							echo
+							printf "[Port]: "
+							read -r "option3"
+							echo
+							if ! echo "$option3" | Is_Port; then echo "$option3 Is Not A Valid Port"; echo; continue; fi
+							break
 						;;
-					5)
-						option2="comment"
-						echo "Remove Bans Matching Comment:"
-						echo
-						printf "[Comment]: "
-						read -r "option3"
-						echo
-						if [ "${#option3}" -gt "255" ]; then echo "$option3 Is Not A Valid Comment. 255 Chars Max"; echo; continue; fi
-						break
+						5)
+							option2="comment"
+							echo "Remove Bans Matching Comment:"
+							echo
+							printf "[Comment]: "
+							read -r "option3"
+							echo
+							if [ "${#option3}" -gt "255" ]; then echo "$option3 Is Not A Valid Comment. 255 Chars Max"; echo; continue; fi
+							break
 						;;
-					6)
-						option2="country"
-						break
+						6)
+							option2="country"
+							break
 						;;
-					7)
-						option2="malware"
-						break
+						7)
+							option2="malware"
+							break
 						;;
-					8)
-						option2="autobans"
-						break
+						8)
+							option2="autobans"
+							break
 						;;
-					9)
-						option2="nomanual"
-						break
+						9)
+							option2="nomanual"
+							break
 						;;
-					10)
-						option2="all"
-						break
+						10)
+							option2="all"
+							break
 						;;
-					e|exit|back|menu)
-						unset "$option1" "$option2" "$option3" "$option4" "$option5"
-						clear
-						Load_Menu
-						break
+						e|exit|back|menu)
+							unset "$option1" "$option2" "$option3" "$option4" "$option5"
+							clear
+							Load_Menu
+							break
 						;;
-					*)
-						echo "$menu2 Isn't An Option!"
-						echo
+						*)
+							echo "$menu2 Isn't An Option!"
+							echo
 						;;
 					esac
 				done
 				break
-				;;
+			;;
 			2)
 				option1="ban"
 				while true; do
@@ -508,7 +508,7 @@ Load_Menu () {
 							echo
 							if [ "${#option4}" -gt "255" ]; then echo "$option4 Is Not A Valid Comment. 255 Chars Max"; echo; continue; fi
 							break
-							;;
+						;;
 						2)
 							option2="range"
 							echo "Input Range To Ban:"
@@ -524,7 +524,7 @@ Load_Menu () {
 							echo
 							if [ "${#option3}" -gt "255" ]; then echo "$option3 Is Not A Valid Comment. 255 Chars Max"; echo; continue; fi
 							break
-							;;
+						;;
 						3)
 							option2="domain"
 							echo "Input Domain To Ban:"
@@ -533,7 +533,7 @@ Load_Menu () {
 							read -r "option3"
 							echo
 							break
-							;;
+						;;
 						4)
 							option2="country"
 							echo "Input Country Abbreviations To Ban:"
@@ -542,21 +542,21 @@ Load_Menu () {
 							read -r "option3"
 							echo
 							break
-							;;
+						;;
 						e|exit|back|menu)
 							unset "$option1" "$option2" "$option3" "$option4" "$option5"
 							clear
 							Load_Menu
 							break
-							;;
+						;;
 						*)
 							echo "$menu2 Isn't An Option!"
 							echo
-							;;
+						;;
 					esac
 				done
 				break
-				;;
+			;;
 			3)
 				option1="banmalware"
 				while true; do
@@ -570,28 +570,28 @@ Load_Menu () {
 					case "$menu2" in
 						1)
 							break
-							;;
+						;;
 						2)
 							echo "Input Custom Filter List URL:"
 							printf "[URL]: "
 							read -r "option2"
 							echo
 							break
-							;;
+						;;
 						e|exit|back|menu)
 							unset "$option1" "$option2" "$option3" "$option4" "$option5"
 							clear
 							Load_Menu
 							break
-							;;
+						;;
 						*)
 							echo "$menu2 Isn't An Option!"
 							echo
-							;;
+						;;
 					esac
 				done
 				break
-				;;
+			;;
 			4)
 				option1="whitelist"
 				while true; do
@@ -623,7 +623,7 @@ Load_Menu () {
 							echo
 							if [ "${#option4}" -gt "255" ]; then echo "$option4 Is Not A Valid Comment. 255 Chars Max"; echo; continue; fi
 							break
-							;;
+						;;
 						2)
 							option2="domain"
 							echo "Input Domain To Whitelist:"
@@ -632,7 +632,7 @@ Load_Menu () {
 							read -r "option3"
 							echo
 							break
-							;;
+						;;
 						3)
 							option2="port"
 							echo "Whitelist Autobans Based On Port:"
@@ -642,11 +642,11 @@ Load_Menu () {
 							echo
 							if ! echo "$option3" | Is_Port; then echo "$option3 Is Not A Valid Port"; echo; continue; fi
 							break
-							;;
+						;;
 						4)
 							option2="vpn"
 							break
-							;;
+						;;
 						5)
 							option2="remove"
 							while true; do
@@ -661,7 +661,7 @@ Load_Menu () {
 								case "$menu3" in
 									1)
 										break
-										;;
+									;;
 									2)
 										option3="entry"
 										echo "Input IP Or Range To Remove:"
@@ -671,7 +671,7 @@ Load_Menu () {
 										echo
 										if ! echo "$option4" | Is_IP && ! echo "$option4" | Is_Range ; then echo "$option4 Is Not A Valid IP/Range"; echo; continue; fi
 										break
-										;;
+									;;
 									3)
 										option3="comment"
 										echo "Remove Entries Based On Comment:"
@@ -681,25 +681,25 @@ Load_Menu () {
 										echo
 										if [ "${#option4}" -gt "255" ]; then echo "$option4 Is Not A Valid Comment. 255 Chars Max"; echo; continue; fi
 										break
-										;;
+									;;
 									e|exit|back|menu)
 										unset "$option1" "$option2" "$option3" "$option4" "$option5"
 										clear
 										Load_Menu
 										break
-										;;
+									;;
 									*)
 										echo "$menu3 Isn't An Option!"
 										echo
-										;;
+									;;
 								esac
 							done
 							break
-							;;
+						;;
 						6)
 							option2="refresh"
 							break
-							;;
+						;;
 						7)
 							option2="list"
 							while true; do
@@ -714,43 +714,43 @@ Load_Menu () {
 								case "$menu3" in
 									1)
 										break
-										;;
+									;;
 									2)
 										option3="ips"
 										break
-										;;
+									;;
 									3)
 										option3="domains"
 										break
-										;;
+									;;
 									e|exit|back|menu)
 										unset "$option1" "$option2" "$option3" "$option4" "$option5"
 										clear
 										Load_Menu
 										break
-										;;
+									;;
 									*)
 										echo "$menu3 Isn't An Option!"
 										echo
-										;;
+									;;
 								esac
 							done
 							break
-							;;
+						;;
 						e|exit|back|menu)
 							unset "$option1" "$option2" "$option3" "$option4" "$option5"
 							clear
 							Load_Menu
 							break
-							;;
+						;;
 						*)
 							echo "$menu2 Isn't An Option!"
 							echo
-							;;
+						;;
 					esac
 				done
 				break
-				;;
+			;;
 			5)
 				option1="import"
 				echo "Input URL To Import"
@@ -759,7 +759,7 @@ Load_Menu () {
 				read -r "option2"
 				echo
 				break
-				;;
+			;;
 			6)
 				option1="deport"
 				echo "Input URL To Deport"
@@ -768,19 +768,19 @@ Load_Menu () {
 				read -r "option2"
 				echo
 				break
-				;;
+			;;
 			7)
 				option1="save"
 				break
-				;;
+			;;
 			8)
 				option1="restart"
 				break
-				;;
+			;;
 			9)
 				option1="disable"
 				break
-				;;
+			;;
 			10)
 				option1="update"
 				while true; do
@@ -795,29 +795,29 @@ Load_Menu () {
 					case "$menu2" in
 						1)
 							break
-							;;
+						;;
 						2)
 							option2="check"
 							break
-							;;
+						;;
 						3)
 							option2="-f"
 							break
-							;;
+						;;
 						e|exit|back|menu)
 							unset "$option1" "$option2" "$option3" "$option4" "$option5"
 							clear
 							Load_Menu
 							break
-							;;
+						;;
 						*)
 							echo "$menu2 Isn't An Option!"
 							echo
-							;;
+						;;
 					esac
 				done
 				break
-				;;
+			;;
 			11)
 				option1="debug"
 				while true; do
@@ -833,29 +833,29 @@ Load_Menu () {
 						1)
 							option2="disable"
 							break
-							;;
+						;;
 						2)
 							option2="watch"
 							break
-							;;
+						;;
 						3)
 							option2="info"
 							break
-							;;
+						;;
 						e|exit|back|menu)
 							unset "$option1" "$option2" "$option3" "$option4" "$option5"
 							clear
 							Load_Menu
 							break
-							;;
+						;;
 						*)
 							echo "$menu2 Isn't An Option!"
 							echo
-							;;
+						;;
 					esac
 				done
 				break
-				;;
+			;;
 			12)
 				option1="stats"
 				while true; do
@@ -882,25 +882,25 @@ Load_Menu () {
 									1)
 										option3="10"
 										break
-										;;
+									;;
 									2)
 										option3="20"
 										break
-										;;
+									;;
 									3)
 										option3="50"
 										break
-										;;
+									;;
 									e|exit|back|menu)
 										unset "$option1" "$option2" "$option3" "$option4" "$option5"
 										clear
 										Load_Menu
 										break
-										;;
+									;;
 									*)
 										echo "$menu3 Isn't An Option!"
 										echo
-										;;
+									;;
 								esac
 							done
 							while true; do
@@ -916,33 +916,33 @@ Load_Menu () {
 								case "$menu4" in
 									1)
 										break
-										;;
+									;;
 									2)
 										option2="tcp"
 										break
-										;;
+									;;
 									3)
 										option2="udp"
 										break
-										;;
+									;;
 									4)
 										option2="icmp"
 										break
-										;;
+									;;
 									e|exit|back|menu)
 										unset "$option1" "$option2" "$option3" "$option4" "$option5"
 										clear
 										Load_Menu
 										break
-										;;
+									;;
 									*)
 										echo "$menu4 Isn't An Option!"
 										echo
-										;;
+									;;
 								esac
 							done
 							break
-							;;
+						;;
 						2)
 							option2="search"
 							while true; do
@@ -958,25 +958,25 @@ Load_Menu () {
 									1)
 										option5="10"
 										break
-										;;
+									;;
 									2)
 										option5="20"
 										break
-										;;
+									;;
 									3)
 										option5="50"
 										break
-										;;
+									;;
 									e|exit|back|menu)
 										unset "$option1" "$option2" "$option3" "$option4" "$option5"
 										clear
 										Load_Menu
 										break
-										;;
+									;;
 									*)
 										echo "$menu3 Isn't An Option!"
 										echo
-										;;
+									;;
 								esac
 							done
 							while true; do
@@ -998,7 +998,7 @@ Load_Menu () {
 										echo
 										if ! echo "$option4" | Is_Port; then echo "$option4 Is Not A Valid Port"; echo; continue; fi
 										break
-										;;
+									;;
 									2)
 										option3="ip"
 										printf "[IP]: "
@@ -1006,7 +1006,7 @@ Load_Menu () {
 										echo
 										if ! echo "$option4" | Is_IP && ! echo "$option4" | Is_Range ; then echo "$option4 Is Not A Valid IP/Range"; echo; continue; fi
 										break
-										;;
+									;;
 									3)
 										option3="malware"
 										printf "[IP]: "
@@ -1014,63 +1014,63 @@ Load_Menu () {
 										echo
 										if ! echo "$option4" | Is_IP && ! echo "$option4" | Is_Range ; then echo "$option4 Is Not A Valid IP/Range"; echo; continue; fi
 										break
-										;;
+									;;
 									4)
 										option3="autobans"
 										break
-										;;
+									;;
 									5)
 										option3="manualbans"
 										break
-										;;
+									;;
 									e|exit|back|menu)
 										unset "$option1" "$option2" "$option3" "$option4" "$option5"
 										clear
 										Load_Menu
 										break
-										;;
+									;;
 									*)
 										echo "$menu4 Isn't An Option!"
 										echo
-										;;
+									;;
 								esac
 							done
 							break
-							;;
+						;;
 						3)
 							option2="reset"
 							break
-							;;
+						;;
 						e|exit)
 							unset "$option1" "$option2" "$option3" "$option4" "$option5"
 							clear
 							Load_Menu
 							break
-							;;
+						;;
 						*)
-						echo "$menu2 Isn't An Option!"
-						echo
+							echo "$menu2 Isn't An Option!"
+							echo
 						;;
 					esac
 				done
 				break
-				;;
+			;;
 			13)
 				option1="install"
 				break
-				;;
+			;;
 			14)
 				option1="uninstall"
 				break
-				;;
+			;;
 			e)
 				echo "Exiting!"
 				exit 0
-				;;
+			;;
 			*)
 				echo "$menu Isn't An Option!"
 				echo
-				;;
+			;;
 		esac
 	done
 }
@@ -1153,11 +1153,12 @@ case "$1" in
 			;;
 			*)
 				echo "Command Not Recognised, Please Try Again"
+				echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
 				exit 2
 			;;
 		esac
 		Save_IPSets
-		;;
+	;;
 
 	ban)
 		Purge_Logs
@@ -1205,11 +1206,12 @@ case "$1" in
 			;;
 			*)
 				echo "Command Not Recognised, Please Try Again"
+				echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
 				exit 2
 			;;
 		esac
 		Save_IPSets
-		;;
+	;;
 
 	banmalware)
 		trap '' 2
@@ -1242,7 +1244,7 @@ case "$1" in
 		Save_IPSets >/dev/null 2>&1 && echo "[$(($(date +%s) - btime))s]"
 		echo "Warning! This May Have Blocked Your Favorite Website. To Unblock It Use; ( sh $0 whitelist domain URL )"
 		rm -rf /tmp/skynet.lock
-		;;
+	;;
 
 	whitelist)
 		Purge_Logs
@@ -1328,11 +1330,12 @@ case "$1" in
 			;;
 			*)
 				echo "Command Not Recognised, Please Try Again"
+				echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
 				exit 2
 			;;
 		esac
 		Save_IPSets
-		;;
+	;;
 
 	import)
 		echo "This Function Extracts All IPs And Adds Them ALL To Blacklist"
@@ -1354,7 +1357,7 @@ case "$1" in
 		rm -rf /tmp/iplist-unfiltered.txt /tmp/iplist-filtered.txt
 		Save_IPSets
 		rm -rf /tmp/skynet.lock
-		;;
+	;;
 
 	deport)
 		echo "This Function Extracts All IPs And Removes Them ALL From Blacklist"
@@ -1374,7 +1377,7 @@ case "$1" in
 		ipset restore -! -f "/tmp/iplist-filtered.txt"
 		rm -rf /tmp/iplist-unfiltered.txt /tmp/iplist-filtered.txt
 		Save_IPSets
-		;;
+	;;
 
 	save)
 		Check_Lock "$@"
@@ -1383,7 +1386,7 @@ case "$1" in
 		Save_IPSets
 		sed -i "\\~USER $(nvram get http_username) pid .*/jffs/scripts/firewall ~d" /tmp/syslog.log
 		rm -rf /tmp/skynet.lock
-		;;
+	;;
 
 	start)
 		trap '' 2
@@ -1417,7 +1420,7 @@ case "$1" in
 		sed -i '/DROP IN=/d' /tmp/syslog.log-1 2>/dev/null
 		sed -i '/DROP IN=/d' /tmp/syslog.log 2>/dev/null
 		rm -rf /tmp/skynet.lock
-		;;
+	;;
 
 	restart)
 		Unload_Cron
@@ -1475,7 +1478,7 @@ case "$1" in
 			service restart_firewall
 			exit 0
 		fi
-		;;
+	;;
 
 	debug)
 		case "$2" in
@@ -1519,10 +1522,13 @@ case "$1" in
 				if ipset -L -n Skynet >/dev/null 2>&1; then $grn "Skynet IPSet Detected"; else $red "Skynet IPSet Not Detected"; fi
 			;;
 
-		*)
-			echo "Error - Use Syntax 'sh $0 debug (restart/disable/watch/info)'"
+			*)
+				echo "Command Not Recognised, Please Try Again"
+				echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
+				exit 2
+			;;
 		esac
-		;;
+	;;
 
 	stats)
 		Purge_Logs
@@ -1684,7 +1690,7 @@ case "$1" in
 				echo
 			;;
 		esac
-		;;
+	;;
 
 	install)
 		Check_Lock "$@"
@@ -1732,32 +1738,32 @@ case "$1" in
 			echo
 			case "$mode1" in
 				1)
-				echo "Vanilla Selected"
-				set1="start"
-				break
+					echo "Vanilla Selected"
+					set1="start"
+					break
 				;;
 				2)
-				echo "NoAuto Selected"
-				set1="start noautoban"
-				break
+					echo "NoAuto Selected"
+					set1="start noautoban"
+					break
 				;;
 				3)
-				echo "Debug Selected"
-				set1="start debug"
-				break
+					echo "Debug Selected"
+					set1="start debug"
+					break
 				;;
 				4)
-				echo "NoAuto Debug Selected"
-				set1="start noautoban debug"
-				break
+					echo "NoAuto Debug Selected"
+					set1="start noautoban debug"
+					break
 				;;
 				e)
-				echo "Exiting!"
-				exit 0
+					echo "Exiting!"
+					exit 0
 				;;
 				*)
-				echo "$mode1 Isn't An Option!"
-				echo
+					echo "$mode1 Isn't An Option!"
+					echo
 				;;
 			esac
 		done
@@ -1775,26 +1781,26 @@ case "$1" in
 			echo
 			case "$mode2" in
 				1)
-				echo "Malware List Updating Enabled & Scheduled For 2.25am Every Day"
-				set2="banmalware"
-				break
+					echo "Malware List Updating Enabled & Scheduled For 2.25am Every Day"
+					set2="banmalware"
+					break
 				;;
 				2)
-				echo "Malware List Updating Enabled & Scheduled For 2.25am Every Monday"
-				set2="banmalwareweekly"
-				break
+					echo "Malware List Updating Enabled & Scheduled For 2.25am Every Monday"
+					set2="banmalwareweekly"
+					break
 				;;
 				3)
-				echo "Malware List Updating Disabled"
-				break
+					echo "Malware List Updating Disabled"
+					break
 				;;
 				e)
-				echo "Exiting!"
-				exit 0
+					echo "Exiting!"
+					exit 0
 				;;
 				*)
-				echo "$mode2 Isn't An Option!"
-				echo
+					echo "$mode2 Isn't An Option!"
+					echo
 				;;
 			esac
 		done
@@ -1811,21 +1817,21 @@ case "$1" in
 			echo
 			case "$mode3" in
 				1)
-				echo "Skynet Updating Enabled & Scheduled For 1.25am Every Monday"
-				set3="autoupdate"
-				break
+					echo "Skynet Updating Enabled & Scheduled For 1.25am Every Monday"
+					set3="autoupdate"
+					break
 				;;
 				2)
-				echo "Auto Updating Disabled"
-				break
+					echo "Auto Updating Disabled"
+					break
 				;;
 				e)
-				echo "Exiting!"
-				exit 0
+					echo "Exiting!"
+					exit 0
 				;;
 				*)
-				echo "$mode3 Isn't An Option!"
-				echo
+					echo "$mode3 Isn't An Option!"
+					echo
 				;;
 			esac
 		done
@@ -1842,72 +1848,72 @@ case "$1" in
 			echo
 			case "$mode4" in
 				1)
-				echo "JFFS Installation Selected"
-				mkdir -p "/jffs/scripts"
-				if [ -f "${location}/scripts/ipset.txt" ]; then mv "${location}/scripts/ipset.txt" "/jffs/scripts/"; fi
-				if [ -f "${location}/skynet.log" ]; then mv "${location}/skynet.log" "/jffs/"; fi
-				sed -i '\~ Skynet ~d' /jffs/scripts/firewall-start
-				echo "sh /jffs/scripts/firewall $set1 $set2 $set3 # Skynet Firewall Addition" | tr -s " " >> /jffs/scripts/firewall-start
-				break
+					echo "JFFS Installation Selected"
+					mkdir -p "/jffs/scripts"
+					if [ -f "${location}/scripts/ipset.txt" ]; then mv "${location}/scripts/ipset.txt" "/jffs/scripts/"; fi
+					if [ -f "${location}/skynet.log" ]; then mv "${location}/skynet.log" "/jffs/"; fi
+					sed -i '\~ Skynet ~d' /jffs/scripts/firewall-start
+					echo "sh /jffs/scripts/firewall $set1 $set2 $set3 # Skynet Firewall Addition" | tr -s " " >> /jffs/scripts/firewall-start
+					break
 				;;
 				2)
-				echo "USB Installation Selected"
-				echo
-				echo "Looking For Available Partitions..."
-				i=1
-				IFS="
-				"
-				for mounted in $(/bin/mount | grep -E "ext2|ext3|ext4|tfat|exfat" | awk '{print $3" - ("$1")"}') ; do
-					echo "[$i] --> $mounted"
-					eval mounts$i="$(echo "$mounted" | awk '{print $1}')"
-					i=$((i + 1))
-				done
-				unset IFS
-				if [ $i = "1" ]; then
-					echo "No Compadible Partitions Found. Exiting..."
-					rm -rf /tmp/skynet.lock
-					exit 1
-				fi
-				echo
-				echo "Please Enter Partition Number Or 0 To Exit"
-				printf "[0-%s]: " "$((i - 1))"
-				read -r "partitionNumber"
-				if [ "$partitionNumber" = "0" ]; then
-					echo "Exiting..."
-					rm -rf /tmp/skynet.lock
-					exit 0
-				fi
-				if [ -z "$partitionNumber" ] || [ "$partitionNumber" -gt $((i - 1)) ]; then
-					echo "Invalid Partition Number! Exiting..."
-					rm -rf /tmp/skynet.lock
-					exit 2
-				fi
-				device=""
-				eval device=\$mounts"$partitionNumber"
-				echo "$device Selected."
-				mkdir -p "${device}/skynet"
-				mkdir -p "${device}/skynet/scripts"
-				touch "${device}/skynet/rwtest"
-				if [ ! -w "${device}/skynet/rwtest" ]; then
-					echo "Writing To $device Failed - Exiting Installation"
-					rm -rf /tmp/skynet.lock
-					exit 1
-				else
-					rm -rf "${device}/skynet/rwtest"
-				fi
-				if [ -f "${location}/scripts/ipset.txt" ]; then mv "${location}/scripts/ipset.txt" "${device}/skynet/scripts/"; fi
-				if [ -f "${location}/skynet.log" ]; then mv "${location}/skynet.log" "${device}/skynet/"; fi
-				sed -i '\~ Skynet ~d' /jffs/scripts/firewall-start
-				echo "sh /jffs/scripts/firewall $set1 $set2 $set3 usb=${device} # Skynet Firewall Addition" | tr -s " " >> /jffs/scripts/firewall-start
-				break
+					echo "USB Installation Selected"
+					echo
+					echo "Looking For Available Partitions..."
+					i=1
+					IFS="
+					"
+					for mounted in $(/bin/mount | grep -E "ext2|ext3|ext4|tfat|exfat" | awk '{print $3" - ("$1")"}') ; do
+						echo "[$i] --> $mounted"
+						eval mounts$i="$(echo "$mounted" | awk '{print $1}')"
+						i=$((i + 1))
+					done
+					unset IFS
+					if [ $i = "1" ]; then
+						echo "No Compadible Partitions Found. Exiting..."
+						rm -rf /tmp/skynet.lock
+						exit 1
+					fi
+					echo
+					echo "Please Enter Partition Number Or 0 To Exit"
+					printf "[0-%s]: " "$((i - 1))"
+					read -r "partitionNumber"
+					if [ "$partitionNumber" = "0" ]; then
+						echo "Exiting..."
+						rm -rf /tmp/skynet.lock
+						exit 0
+					fi
+					if [ -z "$partitionNumber" ] || [ "$partitionNumber" -gt $((i - 1)) ]; then
+						echo "Invalid Partition Number! Exiting..."
+						rm -rf /tmp/skynet.lock
+						exit 2
+					fi
+					device=""
+					eval device=\$mounts"$partitionNumber"
+					echo "$device Selected."
+					mkdir -p "${device}/skynet"
+					mkdir -p "${device}/skynet/scripts"
+					touch "${device}/skynet/rwtest"
+					if [ ! -w "${device}/skynet/rwtest" ]; then
+						echo "Writing To $device Failed - Exiting Installation"
+						rm -rf /tmp/skynet.lock
+						exit 1
+					else
+						rm -rf "${device}/skynet/rwtest"
+					fi
+					if [ -f "${location}/scripts/ipset.txt" ]; then mv "${location}/scripts/ipset.txt" "${device}/skynet/scripts/"; fi
+					if [ -f "${location}/skynet.log" ]; then mv "${location}/skynet.log" "${device}/skynet/"; fi
+					sed -i '\~ Skynet ~d' /jffs/scripts/firewall-start
+					echo "sh /jffs/scripts/firewall $set1 $set2 $set3 usb=${device} # Skynet Firewall Addition" | tr -s " " >> /jffs/scripts/firewall-start
+					break
 				;;
 				e)
-				echo "Exiting!"
-				exit 0
+					echo "Exiting!"
+					exit 0
 				;;
 				*)
-				echo "$mode4 Isn't An Option!"
-				echo
+					echo "$mode4 Isn't An Option!"
+					echo
 				;;
 			esac
 		done
@@ -1934,7 +1940,7 @@ case "$1" in
 		rm -rf /tmp/skynet.lock
 		service restart_firewall
 		exit 0
-		;;
+	;;
 
 	uninstall)
 		echo "If You Were Experiencing Issues, Try Update Or Visit SNBForums/Github For Support"
@@ -1957,12 +1963,12 @@ case "$1" in
 			service restart_firewall
 			exit 0
 		fi
-		;;
+	;;
 
 	*)
 		echo "Command Not Recognised, Please Try Again"
 		echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
-		;;
+	;;
 
 esac
 
