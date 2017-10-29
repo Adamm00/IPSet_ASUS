@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 29/10/2017 -		   Asus Firewall Addition By Adamm v5.3.9				    #
+## - 30/10/2017 -		   Asus Firewall Addition By Adamm v5.3.9				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -118,10 +118,8 @@ Check_Settings () {
 Unload_IPTables () {
 		iptables -D logdrop -m state --state NEW -j LOG --log-prefix "DROP " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
 		ip6tables -D logdrop -m state --state NEW -j LOG --log-prefix "DROP " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
-		iptables -t raw -D PREROUTING -i "$iface" -m set --match-set Skynet src -j DROP >/dev/null 2>&1
-		iptables -t raw -D PREROUTING -i "$iface" -m set --match-set Whitelist src -j ACCEPT >/dev/null 2>&1
-		iptables -t raw -D PREROUTING -i br0 -m set --match-set Skynet dst -j DROP >/dev/null 2>&1
-		iptables -t raw -D PREROUTING -i br0 -m set --match-set Whitelist dst -j ACCEPT >/dev/null 2>&1
+		iptables -t raw -D PREROUTING -i "$iface" -m set ! --match-set Whitelist src -m set --match-set Skynet src -j DROP >/dev/null 2>&1
+		iptables -t raw -D PREROUTING -i br0 -m set ! --match-set Whitelist dst -m set --match-set Skynet dst -j DROP >/dev/null 2>&1
 		iptables -D logdrop -i "$iface" -m state --state INVALID -j SET --add-set Skynet src >/dev/null 2>&1
 		iptables -D logdrop -i "$iface" -m state --state INVALID -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
 		iptables -D logdrop -i "$iface" -p tcp -m multiport --sports 80,443,143,993,110,995,25,465 -m state --state INVALID -j DROP >/dev/null 2>&1
@@ -137,10 +135,8 @@ Unload_IPTables () {
 }
 
 Load_IPTables () {
-		iptables -t raw -I PREROUTING -i "$iface" -m set --match-set Skynet src -j DROP >/dev/null 2>&1
-		iptables -t raw -I PREROUTING -i "$iface" -m set --match-set Whitelist src -j ACCEPT >/dev/null 2>&1
-		iptables -t raw -I PREROUTING -i br0 -m set --match-set Skynet dst -j DROP >/dev/null 2>&1
-		iptables -t raw -I PREROUTING -i br0 -m set --match-set Whitelist dst -j ACCEPT >/dev/null 2>&1
+		iptables -t raw -I PREROUTING -i "$iface" -m set ! --match-set Whitelist src -m set --match-set Skynet src -j DROP >/dev/null 2>&1
+		iptables -t raw -I PREROUTING -i br0 -m set ! --match-set Whitelist dst -m set --match-set Skynet dst -j DROP >/dev/null 2>&1
 		if echo "$@" | grep -qF "noautoban"; then
 			logger -st Skynet "[INFO] Enabling No-Autoban Mode..."
 		else
@@ -163,16 +159,16 @@ Load_IPTables () {
 }
 
 Unload_DebugIPTables () {
-		iptables -t raw -D PREROUTING -i "$iface" -m set --match-set Skynet src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
-		iptables -t raw -D PREROUTING -i br0 -m set --match-set Skynet dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
+		iptables -t raw -D PREROUTING -i "$iface" -m set ! --match-set Whitelist src -m set --match-set Skynet src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
+		iptables -t raw -D PREROUTING -i br0 -m set ! --match-set Whitelist dst -m set --match-set Skynet dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
 }
 
 Load_DebugIPTables () {
 		if echo "$@" | grep -qF "debug"; then
 			pos1="$(iptables --line -nL PREROUTING -t raw | grep -F "Skynet src" | grep -F "DROP" | awk '{print $1}')"
-			iptables -t raw -I PREROUTING "$pos1" -i "$iface" -m set --match-set Skynet src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
+			iptables -t raw -I PREROUTING "$pos1" -i "$iface" -m set ! --match-set Whitelist src -m set --match-set Skynet src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
 			pos2="$(iptables --line -nL PREROUTING -t raw | grep -F "Skynet dst" | grep -F "DROP" | awk '{print $1}')"
-			iptables -t raw -I PREROUTING "$pos2" -i br0 -m set --match-set Skynet dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
+			iptables -t raw -I PREROUTING "$pos2" -i br0 -m set ! --match-set Whitelist dst -m set --match-set Skynet dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
 		fi
 }
 
@@ -219,7 +215,7 @@ Filter_Date () {
 }
 
 Filter_PrivateIP () {
-		grep -vE '(^127\.)|(^10\.)|(^172\.1[6-9]\.)|(^172\.2[0-9]\.)|(^172\.3[0-1]\.)|(^192\.168\.)|(^0.)|(^169\.254\.)'
+		grep -vE '(^127\.)|(^10\.)|(^172\.1[6-9]\.)|(^172\.2[0-9]\.)|(^172\.3[0-1]\.)|(^192\.168\.)|(^0.)|(^169\.254\.)|(^22[4-9]\.)|(23[0-9]\.)'
 }
 
 Filter_PrivateSRC () {
@@ -319,7 +315,7 @@ Logging () {
 		grep -Foc "add Block" "${location}/scripts/ipset.txt" 2> /dev/null >> /tmp/counter.txt
 		newips="$(sed -n '1p' /tmp/counter.txt)"
 		newranges="$(sed -n '2p' /tmp/counter.txt)"
-		if iptables -t raw -C PREROUTING -i "$iface" -m set --match-set Skynet src -j DROP 2>/dev/null; then
+		if iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Whitelist src -m set --match-set Skynet src -j DROP 2>/dev/null; then
 			hits1="$(iptables -xnvL -t raw | grep -Fv "LOG" | grep -F "Skynet src" | awk '{print $1}')"
 			hits2="$(iptables -xnvL -t raw | grep -Fv "LOG" | grep -F "Skynet dst" | awk '{print $1}')"
 		fi
@@ -347,8 +343,7 @@ Load_Menu () {
 	if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(sed -n '2p' /tmp/skynet.lock)" ]; then $red "Lock File Detected ($(sed -n '1p' /tmp/skynet.lock)) (pid=$(sed -n '2p' /tmp/skynet.lock))"; fi
 	echo
 	if ! grep -qF "Skynet" /jffs/scripts/firewall-start 2>/dev/null; then printf "Checking Firewall-Start Entry...			"; $red "[Failed]"; fi
-	if ! iptables -t raw -C PREROUTING -i "$iface" -m set --match-set Whitelist src -j ACCEPT 2>/dev/null; then printf "Checking Whitelist IPTable...				"; $red "[Failed]"; NoLog="1"; fi
-	if ! iptables -t raw -C PREROUTING -i "$iface" -m set --match-set Skynet src -j DROP 2>/dev/null; then printf "Checking Skynet IPTable...				"; $red "[Failed]"; NoLog="1"; fi
+	if ! iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Whitelist src -m set --match-set Skynet src -j DROP 2>/dev/null; then printf "Checking Skynet IPTable...				"; $red "[Failed]"; NoLog="1"; fi
 	if ! ipset -L -n Whitelist >/dev/null 2>&1; then printf "Checking Whitelist IPSet...				"; $red "[Failed]"; NoLog="1"; fi
 	if ! ipset -L -n BlockedRanges >/dev/null 2>&1; then printf "Checking BlockedRanges IPSet...				"; $red "[Failed]"; NoLog="1"; fi
 	if ! ipset -L -n Blacklist >/dev/null 2>&1; then printf "Checking Blacklist IPSet...				"; $red "[Failed]"; NoLog="1"; fi
@@ -1530,7 +1525,7 @@ case "$1" in
 				trap 'echo; echo "Stopping Log Monitoring"; Purge_Logs' 2
 				echo "Watching Logs For Debug Entries (ctrl +c) To Stop"
 				echo
-				tail -f /tmp/syslog.log | grep -F "BLOCKED"
+				tail -F /tmp/syslog.log | grep -F "BLOCKED"
 			;;
 			info)
 				echo "Router Model; $(nvram get productid)"
@@ -1558,15 +1553,13 @@ case "$1" in
 				printf "Checking Autobanning Status...				"
 				if iptables -C logdrop -i "$iface" -m state --state INVALID -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null; then $grn "[Passed]"; else $red "[Failed]"; fi
 				printf "Checking Debug Mode Status...				"
-				if iptables -t raw -C PREROUTING -i "$iface" -m set --match-set Skynet src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null; then $grn "[Passed]"; else $red "[Failed]"; fi
+				if iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Whitelist src -m set --match-set Skynet src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null; then $grn "[Passed]"; else $red "[Failed]"; fi
 				printf "Checking For Duplicate Rules In RAW...			"
 				if [ "$(iptables-save -t raw | sort | uniq -d | grep -c " ")" = "0" ]; then $grn "[Passed]"; else $red "[Failed]"; fi
 				printf "Checking For Duplicate Rules In Filter...		"
 				if [ "$(iptables-save -t filter | sort | uniq -d | grep -c " ")" = "0" ]; then $grn "[Passed]"; else $red "[Failed]"; fi
-				printf "Checking Whitelist IPTable...				"
-				if iptables -t raw -C PREROUTING -i "$iface" -m set --match-set Whitelist src -j ACCEPT 2>/dev/null; then $grn "[Passed]"; else $red "[Failed]"; fi
 				printf "Checking Skynet IPTable...				"
-				if iptables -t raw -C PREROUTING -i "$iface" -m set --match-set Skynet src -j DROP 2>/dev/null; then $grn "[Passed]"; else $red "[Failed]"; fi
+				if iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Whitelist src -m set --match-set Skynet src -j DROP 2>/dev/null; then $grn "[Passed]"; else $red "[Failed]"; fi
 				printf "Checking Whitelist IPSet...				"
 				if ipset -L -n Whitelist >/dev/null 2>&1; then $grn "[Passed]"; else $red "[Failed]"; fi
 				printf "Checking BlockedRanges IPSet...				"
