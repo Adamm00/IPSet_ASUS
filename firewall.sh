@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 29/10/2017 -		   Asus Firewall Addition By Adamm v5.3.8				    #
+## - 29/10/2017 -		   Asus Firewall Addition By Adamm v5.3.9				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -34,7 +34,7 @@ Check_Lock () {
 		fi
 }
 
-if grep -qE "usb=.* # Skynet" /jffs/scripts/firewall-start; then
+if grep -qE "usb=.* # Skynet" /jffs/scripts/firewall-start 2>/dev/null; then
 	location="$(grep -ow "usb=.*" /jffs/scripts/firewall-start | awk '{print $1}' | cut -c 5-)/skynet"
 	if [ ! -d "$location" ] && ! echo "$@" | grep -wqE "(install|uninstall|disable|update|restart|info)"; then
 		Check_Lock "$@"
@@ -342,17 +342,17 @@ Load_Menu () {
 	ipset -v
 	echo "FW Version; $(nvram get buildno)_$(nvram get extendno) ($(uname -v | awk '{print $5" "$6" "$9}')) ($(uname -r))"
 	echo "Install Dir; $location ($(df -h $location | xargs | awk '{print $9}') Space Available)"
-	echo "Boot Args; $(grep -F "Skynet" /jffs/scripts/firewall-start | cut -c 4- | cut -d '#' -f1)"
-	if grep -qF "Country:" "$location/scripts/ipset.txt"; then echo "Banned Countries; $(grep -m1 -F "Country:" "$location/scripts/ipset.txt" | sed 's~.*Country: ~~;s~"~~')"; fi
-	if ! grep -qF "Skynet" /jffs/scripts/firewall-start; then $red "Startup Entry Not Detected"; fi
+	echo "Boot Args; $(grep -F "Skynet" /jffs/scripts/firewall-start 2>/dev/null | cut -c 4- | cut -d '#' -f1)"
+	if grep -qF "Country:" "$location/scripts/ipset.txt" 2>/dev/null; then echo "Banned Countries; $(grep -m1 -F "Country:" "$location/scripts/ipset.txt" | sed 's~.*Country: ~~;s~"~~')"; fi
+	if ! grep -qF "Skynet" /jffs/scripts/firewall-start 2>/dev/null; then $red "Startup Entry Not Detected"; fi
 	if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(sed -n '2p' /tmp/skynet.lock)" ]; then $red "Lock File Detected ($(sed -n '1p' /tmp/skynet.lock)) (pid=$(sed -n '2p' /tmp/skynet.lock))"; fi
-	if ! iptables -t raw -C PREROUTING -i "$iface" -m set --match-set Whitelist src -j ACCEPT 2>/dev/null; then $red "Whitelist IPTable Not Detected"; fi
-	if ! iptables -t raw -C PREROUTING -i "$iface" -m set --match-set Skynet src -j DROP 2>/dev/null; then $red "Skynet IPTable Not Detected"; fi
-	if ! ipset -L -n Whitelist >/dev/null 2>&1; then $red "Whitelist IPSet Not Detected"; fi
-	if ! ipset -L -n BlockedRanges >/dev/null 2>&1; then $red "BlockedRanges IPSet Not Detected"; fi
-	if ! ipset -L -n Blacklist >/dev/null 2>&1; then $red "Blacklist IPSet Not Detected"; fi
-	if ! ipset -L -n Skynet >/dev/null 2>&1; then $red "Skynet IPSet Not Detected"; fi
-	Logging minimal
+	if ! iptables -t raw -C PREROUTING -i "$iface" -m set --match-set Whitelist src -j ACCEPT 2>/dev/null; then $red "Whitelist IPTable Not Detected"; NoLog="1"; fi
+	if ! iptables -t raw -C PREROUTING -i "$iface" -m set --match-set Skynet src -j DROP 2>/dev/null; then $red "Skynet IPTable Not Detected"; NoLog="1"; fi
+	if ! ipset -L -n Whitelist >/dev/null 2>&1; then $red "Whitelist IPSet Not Detected"; NoLog="1"; fi
+	if ! ipset -L -n BlockedRanges >/dev/null 2>&1; then $red "BlockedRanges IPSet Not Detected"; NoLog="1"; fi
+	if ! ipset -L -n Blacklist >/dev/null 2>&1; then $red "Blacklist IPSet Not Detected"; NoLog="1"; fi
+	if ! ipset -L -n Skynet >/dev/null 2>&1; then $red "Skynet IPSet Not Detected"; NoLog="1"; fi
+	if [ -z "$NoLog" ]; then Logging minimal; fi
 	echo
 	echo
 	while true; do
