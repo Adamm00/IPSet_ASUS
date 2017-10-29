@@ -421,9 +421,10 @@ Load_Menu () {
 							option2="domain"
 							echo "Input Domain To Unban:"
 							echo
-							printf "[Domain]: "
+							printf "[URL]: "
 							read -r "option3"
 							echo
+							if [ -z "$option3" ]; then echo "URL Field Can't Be Empty - Please Try Again"; echo; continue; fi
 							break
 						;;
 						4)
@@ -529,9 +530,10 @@ Load_Menu () {
 							option2="domain"
 							echo "Input Domain To Ban:"
 							echo
-							printf "[Domain]: "
+							printf "[URL]: "
 							read -r "option3"
 							echo
+							if [ -z "$option3" ]; then echo "URL Field Can't Be Empty - Please Try Again"; echo; continue; fi
 							break
 						;;
 						4)
@@ -576,6 +578,7 @@ Load_Menu () {
 							printf "[URL]: "
 							read -r "option2"
 							echo
+							if [ -z "$option2" ]; then echo "URL Field Can't Be Empty - Please Try Again"; echo; continue; fi
 							break
 						;;
 						e|exit|back|menu)
@@ -628,9 +631,10 @@ Load_Menu () {
 							option2="domain"
 							echo "Input Domain To Whitelist:"
 							echo
-							printf "[Domain]: "
+							printf "[URL]: "
 							read -r "option3"
 							echo
+							if [ -z "$option3" ]; then echo "URL Field Can't Be Empty - Please Try Again"; echo; continue; fi
 							break
 						;;
 						3)
@@ -758,6 +762,7 @@ Load_Menu () {
 				printf "[URL]: "
 				read -r "option2"
 				echo
+				if [ -z "$option2" ]; then echo "URL Field Can't Be Empty - Please Try Again"; echo; continue; fi
 				break
 			;;
 			6)
@@ -767,6 +772,7 @@ Load_Menu () {
 				printf "[URL]: "
 				read -r "option2"
 				echo
+				if [ -z "$option2" ]; then echo "URL Field Can't Be Empty - Please Try Again"; echo; continue; fi
 				break
 			;;
 			7)
@@ -1372,7 +1378,7 @@ case "$1" in
 			echo "Custom List Detected: $2"
 			/usr/sbin/wget "$2" --no-check-certificate -t2 -T2 -qO /tmp/iplist-unfiltered.txt || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Import" ; exit 1; }
 		else
-			echo "No List URL Specified - Exiting"
+			echo "URL Field Can't Be Empty - Please Try Again"
 			exit 2
 		fi
 		imptime="$(date +"%b %d %T")"
@@ -1395,7 +1401,7 @@ case "$1" in
 			echo "Custom List Detected: $2"
 			/usr/sbin/wget "$2" --no-check-certificate -t2 -T2 -qO /tmp/iplist-unfiltered.txt || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Deport" ; exit 1; }
 		else
-			echo "No List URL Specified - Exiting"
+			echo "URL Field Can't Be Empty - Please Try Again"
 			exit 2
 		fi
 		echo "Filtering IPv4 Addresses"
