@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 27/10/2017 -		   Asus Firewall Addition By Adamm v5.3.8				    #
+## - 29/10/2017 -		   Asus Firewall Addition By Adamm v5.3.8				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -874,8 +874,9 @@ Load_Menu () {
 								echo "[1]  --> 10"
 								echo "[2]  --> 20"
 								echo "[3]  --> 50"
+								echo "[4]  --> Custom"
 								echo
-								printf "[1-3]: "
+								printf "[1-4]: "
 								read -r "menu3"
 								echo
 								case "$menu3" in
@@ -889,6 +890,15 @@ Load_Menu () {
 									;;
 									3)
 										option3="50"
+										break
+									;;
+									4)
+										echo "Enter Custom Amount:"
+										echo
+										printf "[Number]: "
+										read -r "option3"
+										echo
+										if ! [ "$option3" -eq "$option3" ] 2>/dev/null; then echo "$option3 Isn't A Valid Number!"; echo; continue; fi
 										break
 									;;
 									e|exit|back|menu)
@@ -950,8 +960,9 @@ Load_Menu () {
 								echo "[1]  --> 10"
 								echo "[2]  --> 20"
 								echo "[3]  --> 50"
+								echo "[4]  --> Custom"
 								echo
-								printf "[1-3]: "
+								printf "[1-4]: "
 								read -r "menu3"
 								echo
 								case "$menu3" in
@@ -965,6 +976,15 @@ Load_Menu () {
 									;;
 									3)
 										option5="50"
+										break
+									;;
+									4)
+										echo "Enter Custom Amount:"
+										echo
+										printf "[Number]: "
+										read -r "option5"
+										echo
+										if ! [ "$option5" -eq "$option5" ] 2>/dev/null; then echo "$option5 Isn't A Valid Number!"; echo; continue; fi
 										break
 									;;
 									e|exit|back|menu)
@@ -1121,6 +1141,10 @@ case "$1" in
 				if [ -z "$3" ]; then echo "Comment Field Can't Be Empty - Please Try Again"; echo; exit 2; fi
 				echo "Removing Bans With Comment Containing ($3)"
 				sed "\\~add Whitelist ~d;\\~$3~!d;s~ comment.*~~;s~add~del~g" "${location}/scripts/ipset.txt" | ipset restore -!
+				sed "\\~add Whitelist ~d;\\~$3~!d;s~ comment.*~~" "${location}/scripts/ipset.txt" | cut -d' ' -f3 | while IFS= read -r "ip"; do
+					echo "Unbanning $ip"
+					sed -i "\\~$ip ~d" "${location}/skynet.log"
+				done				
 			;;
 			country)
 				echo "Removing Previous Country Bans"
