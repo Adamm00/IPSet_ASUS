@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 30/10/2017 -		   Asus Firewall Addition By Adamm v5.3.9				    #
+## - 30/10/2017 -		   Asus Firewall Addition By Adamm v5.4.0				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -117,6 +117,7 @@ Check_Settings () {
 
 Unload_IPTables () {
 		iptables -D logdrop -m state --state NEW -j LOG --log-prefix "DROP " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
+		iptables -D logdrop -m state --state NEW -j LOG --log-prefix --log --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1 # Temp .382 Codebase Fix
 		ip6tables -D logdrop -m state --state NEW -j LOG --log-prefix "DROP " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
 		iptables -t raw -D PREROUTING -i "$iface" -m set ! --match-set Whitelist src -m set --match-set Skynet src -j DROP >/dev/null 2>&1
 		iptables -t raw -D PREROUTING -i br0 -m set ! --match-set Whitelist dst -m set --match-set Skynet dst -j DROP >/dev/null 2>&1
@@ -1180,7 +1181,7 @@ case "$1" in
 			*)
 				echo "Command Not Recognised, Please Try Again"
 				echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
-				exit 2
+				echo; exit 2
 			;;
 		esac
 		Save_IPSets
@@ -1234,7 +1235,7 @@ case "$1" in
 			*)
 				echo "Command Not Recognised, Please Try Again"
 				echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
-				exit 2
+				echo; exit 2
 			;;
 		esac
 		Save_IPSets
@@ -1362,7 +1363,7 @@ case "$1" in
 			*)
 				echo "Command Not Recognised, Please Try Again"
 				echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
-				exit 2
+				echo; exit 2
 			;;
 		esac
 		Save_IPSets
@@ -1551,7 +1552,7 @@ case "$1" in
 				if cru l | grep -qF "Skynet"; then $grn "[Passed]"; else $red "[Failed]"; fi
 				printf "Checking IPSet Comment Support...			"
 				if [ -f /lib/modules/"$(uname -r)"/kernel/net/netfilter/ipset/ip_set_hash_ipmac.ko ] || [ -d /lib/modules/4.1.27 ]; then $grn "[Passed]"; else $red "[Failed]"; fi
-				printf "Checking Log Level $(nvram get message_loglevel) Settings...			"
+				printf "Checking Log Level %s Settings...			" "$(nvram get message_loglevel)"
 				if [ "$(nvram get message_loglevel)" -le "$(nvram get log_level)" ]; then $grn "[Passed]"; else $red "[Failed]"; fi
 				printf "Checking Autobanning Status...				"
 				if iptables -C logdrop -i "$iface" -m state --state INVALID -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null; then $grn "[Passed]"; else $red "[Failed]"; fi
@@ -1572,11 +1573,10 @@ case "$1" in
 				printf "Checking Skynet IPSet...				"
 				if ipset -L -n Skynet >/dev/null 2>&1; then $grn "[Passed]"; else $red "[Failed]"; fi
 			;;
-
 			*)
 				echo "Command Not Recognised, Please Try Again"
 				echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
-				exit 2
+				echo; exit 2
 			;;
 		esac
 		echo
@@ -1656,14 +1656,15 @@ case "$1" in
 						grep -E "INBOUND.*SRC=$4 " "${location}/skynet.log" | grep -oE 'SPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://www.speedguide.net/port.php?port="$2}'
 					;;
 					malware)
+						Check_Lock "$@"
 						if ! echo "$4" | Is_IP && ! echo "$4" | Is_Range ; then echo "$4 Is Not A Valid IP/Range"; echo; exit 2; fi
-						/usr/sbin/curl -fs https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/filter.list | while IFS= read -r "url"; do
-							/usr/sbin/curl -fs "$url" -o /tmp/malwarelist.txt
-							echo "Searching $url"
-							{ grep -E "^$4" /tmp/malwarelist.txt && $red "Found In $url"; } | xargs -r
-							{ grep -F "/" /tmp/malwarelist.txt | grep -E "^$(echo "$4" | cut -d '.' -f1-3)." && $red "Possible CIDR Match In $url"; } | xargs -r
-						done
-						rm -rf /tmp/malwarelist.txt
+						/usr/sbin/curl -fs https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/filter.list -o /jffs/shared-Skynet-whitelist
+						{ mkdir -p /tmp/skynet && cd /tmp/skynet && xargs -P0 -n1 /usr/sbin/curl -fs -O < /jffs/shared-Skynet-whitelist; }
+						grep -E "^$4" /tmp/skynet/* | cut -d '/' -f4- | sed 's~:~ - ~g;s~^~https://iplists.firehol.org/files/~' && $red "Exact Matches"
+						echo
+						grep -E "^$(echo "$4" | cut -d '.' -f1-3)..*/" /tmp/skynet/* | cut -d '/' -f4- | sed 's~:~ - ~g;s~^~https://iplists.firehol.org/files/~' && $red "Possible CIDR Matches"
+						rm -rf /tmp/skynet
+						rm -rf /tmp/skynet.lock
 					;;
 					autobans)
 						if [ "$4" -eq "$4" ] 2>/dev/null; then counter="$4"; fi
@@ -1686,6 +1687,11 @@ case "$1" in
 						echo
 						echo "$counter Most Recent Manual Bans;"
 						grep -F "Manual Ban" "${location}/skynet.log" | tail -"$counter"
+					;;
+					*)
+						echo "Command Not Recognised, Please Try Again"
+						echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
+						echo; exit 2
 					;;
 				esac
 			;;
