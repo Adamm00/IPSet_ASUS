@@ -1272,7 +1272,8 @@ case "$1" in
 		rm -rf "/tmp/malwarelist.txt" "/tmp/malwarelist2.txt"
 		btime="$(date +%s)" && printf "Saving Changes 			"
 		Save_IPSets >/dev/null 2>&1 && echo "[$(($(date +%s) - btime))s]"
-		echo "Warning! This May Have Blocked Your Favorite Website. To Unblock It Use; ( sh $0 whitelist domain URL )"
+		echo
+		echo "For False Positive Website Bans Use; ( sh $0 whitelist domain URL )"
 		rm -rf /tmp/skynet.lock
 		rm -rf /tmp/skynet
 		echo
