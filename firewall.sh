@@ -1225,7 +1225,7 @@ case "$1" in
 				echo "Banning Known IP Ranges For $3"
 				echo "Downloading Lists"
 				for country in $3; do
-					/usr/sbin/wget http://ipdeny.com/ipblocks/data/aggregated/"$country"-aggregated.zone -t2 -T2 -qO- >> /tmp/countrylist.txt
+					/usr/sbin/curl -fs http://ipdeny.com/ipblocks/data/aggregated/"$country"-aggregated.zone >> /tmp/countrylist.txt
 				done
 				echo "Filtering IPv4 Ranges & Applying Blacklists"
 				grep -F "/" /tmp/countrylist.txt | sed -n "s/\\r//;/^$/d;/^[0-9,\\.,\\/]*$/s/^/add BlockedRanges /p" | sed "s/$/& comment \"Country: $3\"/" | ipset restore -!
@@ -1249,18 +1249,19 @@ case "$1" in
 		else
 			listurl="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/filter.list"
 		fi
-		/usr/sbin/wget "$listurl" -t2 -T2 -qO- >/dev/null 2>&1 || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Banmalware" ; exit 1; }
+		/usr/sbin/curl -fs "$listurl" >/dev/null 2>&1 || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Banmalware" ; exit 1; }
 		Check_Lock "$@"
 		btime="$(date +%s)" && printf "Removing Previous Malware Bans  "
 		sed '\~add Whitelist ~d;\~BanMalware~!d;s~ comment.*~~;s~add~del~g' "${location}/scripts/ipset.txt" | ipset restore -! && echo "[$(($(date +%s) - btime))s]"
 		btime="$(date +%s)" && printf "Downloading filter.list 	"
-		/usr/sbin/wget "$listurl" -qO /jffs/shared-Skynet-whitelist && echo "[$(($(date +%s) - btime))s]"
+		/usr/sbin/curl -fs "$listurl" -o /jffs/shared-Skynet-whitelist && echo "[$(($(date +%s) - btime))s]"
 		btime="$(date +%s)" && printf "Whitelisting Shared Domains 	"
 		Whitelist_Extra
 		Whitelist_VPN
 		Whitelist_Shared >/dev/null 2>&1 && echo "[$(($(date +%s) - btime))s]"
 		btime="$(date +%s)" && printf "Consolidating Blacklist 	"
-		/usr/sbin/wget -t2 -T2 -i /jffs/shared-Skynet-whitelist -qO- | sed -n "s/\\r//;/^$/d;/^[0-9,\\.,\\/]*$/p" | awk '!x[$0]++' | Filter_PrivateIP > /tmp/malwarelist.txt && echo "[$(($(date +%s) - btime))s]"
+		{ mkdir -p /tmp/skynet && cd /tmp/skynet && xargs -P0 -n1 /usr/sbin/curl -fs -O < /jffs/shared-Skynet-whitelist; }
+		cat /tmp/skynet/* | sed -n "s/\\r//;/^$/d;/^[0-9,\\.,\\/]*$/p" | awk '!x[$0]++' | Filter_PrivateIP > /tmp/malwarelist.txt && echo "[$(($(date +%s) - btime))s]"
 		btime="$(date +%s)" && printf "Filtering IPv4 Addresses 	"
 		grep -vF "/" /tmp/malwarelist.txt | awk '{print "add Blacklist " $1 " comment BanMalware"}' > "/tmp/malwarelist2.txt" && echo "[$(($(date +%s) - btime))s]"
 		btime="$(date +%s)" && printf "Filtering IPv4 Ranges 		"
@@ -1272,6 +1273,7 @@ case "$1" in
 		Save_IPSets >/dev/null 2>&1 && echo "[$(($(date +%s) - btime))s]"
 		echo "Warning! This May Have Blocked Your Favorite Website. To Unblock It Use; ( sh $0 whitelist domain URL )"
 		rm -rf /tmp/skynet.lock
+		rm -rf /tmp/skynet
 		echo
 	;;
 
@@ -1372,7 +1374,7 @@ case "$1" in
 		if [ -n "$2" ]; then
 			Check_Lock "$@"
 			echo "Custom List Detected: $2"
-			/usr/sbin/wget "$2" --no-check-certificate -t2 -T2 -qO /tmp/iplist-unfiltered.txt || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Import" ; exit 1; }
+			/usr/sbin/curl -fs "$2" -o /tmp/iplist-unfiltered.txt  || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Import" ; exit 1; }
 		else
 			echo "URL Field Can't Be Empty - Please Try Again"
 			exit 2
@@ -1395,7 +1397,7 @@ case "$1" in
 		if [ -n "$2" ]; then
 			Check_Lock "$@"
 			echo "Custom List Detected: $2"
-			/usr/sbin/wget "$2" --no-check-certificate -t2 -T2 -qO /tmp/iplist-unfiltered.txt || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Deport" ; exit 1; }
+			/usr/sbin/curl -fs "$2" -o /tmp/iplist-unfiltered.txt  || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Deport" ; exit 1; }
 		else
 			echo "URL Field Can't Be Empty - Please Try Again"
 			exit 2
@@ -1486,9 +1488,9 @@ case "$1" in
 	update)
 		trap '' 2
 		remoteurl="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh"
-		/usr/sbin/wget "$remoteurl" -t2 -T2 -qO- | grep -qF "Adamm" || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Update" ; exit 1; }
+		/usr/sbin/curl -fs "$remoteurl" >/dev/null 2>&1 || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Update" ; exit 1; }
 		localver="$(Filter_Version "$0")"
-		remotever="$(/usr/sbin/wget "$remoteurl" -qO- | Filter_Version)"
+		remotever="$(/usr/sbin/curl -fs "$remoteurl" | Filter_Version)"
 		if [ "$localver" = "$remotever" ] && [ "$2" != "-f" ]; then
 			logger -st Skynet "[INFO] Skynet Up To Date - $localver"
 			exit 0
@@ -1507,7 +1509,7 @@ case "$1" in
 			Unload_DebugIPTables
 			Unload_IPSets
 			iptables -t raw -F
-			/usr/sbin/wget "$remoteurl" -qO "$0" && logger -st Skynet "[INFO] Skynet Sucessfully Updated - Restarting Firewall"
+			/usr/sbin/curl -fs "$remoteurl" -o "$0" && logger -st Skynet "[INFO] Skynet Sucessfully Updated - Restarting Firewall"
 			rm -rf /tmp/skynet.lock
 			service restart_firewall
 			exit 0
@@ -1655,8 +1657,8 @@ case "$1" in
 					;;
 					malware)
 						if ! echo "$4" | Is_IP && ! echo "$4" | Is_Range ; then echo "$4 Is Not A Valid IP/Range"; echo; exit 2; fi
-						/usr/sbin/wget https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/filter.list -qO- | while IFS= read -r "url"; do
-							/usr/sbin/wget "$url" -qO /tmp/malwarelist.txt
+						/usr/sbin/curl -fs https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/filter.list | while IFS= read -r "url"; do
+							/usr/sbin/curl -fs "$url" -o /tmp/malwarelist.txt
 							echo "Searching $url"
 							{ grep -E "^$4" /tmp/malwarelist.txt && $red "Found In $url"; } | xargs -r
 							{ grep -F "/" /tmp/malwarelist.txt | grep -E "^$(echo "$4" | cut -d '.' -f1-3)." && $red "Possible CIDR Match In $url"; } | xargs -r
