@@ -290,7 +290,7 @@ Whitelist_Shared () {
 			grep -hvF "#" /jffs/shared-*-whitelist | sed 's~http[s]*://~~;s~/.*~~' | awk '!x[$0]++' | while IFS= read -r "domain"; do
 				for ip in $(Domain_Lookup "$domain" 2> /dev/null); do
 					ipset -q -A Whitelist "$ip" comment "Shared-Whitelist: $domain"
-				done
+				done &
 			done
 		fi
 }
