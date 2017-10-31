@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 30/10/2017 -		   Asus Firewall Addition By Adamm v5.4.0				    #
+## - 31/10/2017 -		   Asus Firewall Addition By Adamm v5.4.1				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -1261,7 +1261,13 @@ case "$1" in
 		Whitelist_VPN
 		Whitelist_Shared >/dev/null 2>&1 && echo "[$(($(date +%s) - btime))s]"
 		btime="$(date +%s)" && printf "Consolidating Blacklist 	"
-		{ mkdir -p /tmp/skynet && cd /tmp/skynet && xargs -P0 -n1 /usr/sbin/curl -fs -O < /jffs/shared-Skynet-whitelist; }
+		mkdir -p /tmp/skynet
+		cd /tmp/skynet
+		for domain in $(cat /jffs/shared-Skynet-whitelist); do
+			/usr/sbin/curl -fs "$domain" -O &
+		done
+		wait
+		cd "$home"
 		cat /tmp/skynet/* | sed -n "s/\\r//;/^$/d;/^[0-9,\\.,\\/]*$/p" | awk '!x[$0]++' | Filter_PrivateIP > /tmp/malwarelist.txt && echo "[$(($(date +%s) - btime))s]"
 		btime="$(date +%s)" && printf "Filtering IPv4 Addresses 	"
 		grep -vF "/" /tmp/malwarelist.txt | awk '{print "add Blacklist " $1 " comment BanMalware"}' > "/tmp/malwarelist2.txt" && echo "[$(($(date +%s) - btime))s]"
