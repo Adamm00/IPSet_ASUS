@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 31/10/2017 -		   Asus Firewall Addition By Adamm v5.4.1				    #
+## - 1/11/2017 -		   Asus Firewall Addition By Adamm v5.4.2				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -1252,8 +1252,12 @@ case "$1" in
 		fi
 		/usr/sbin/curl -fs "$listurl" >/dev/null 2>&1 || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Banmalware" ; exit 1; }
 		Check_Lock "$@"
+		btime="$(date +%s)" && printf "Saving Changes 			"
+		Save_IPSets >/dev/null 2>&1 && echo "[$(($(date +%s) - btime))s]"
 		btime="$(date +%s)" && printf "Removing Previous Malware Bans  "
-		sed '\~add Whitelist ~d;\~BanMalware~!d;s~ comment.*~~;s~add~del~g' "${location}/scripts/ipset.txt" | ipset restore -! && echo "[$(($(date +%s) - btime))s]"
+		sed -i "\\~comment \"BanMalware\"~d" "${location}/scripts/ipset.txt" 
+		ipset flush Blacklist; ipset flush BlockedRanges
+		ipset restore -! -f "${location}/scripts/ipset.txt" && echo "[$(($(date +%s) - btime))s]"
 		btime="$(date +%s)" && printf "Downloading filter.list 	"
 		/usr/sbin/curl -fs "$listurl" -o /jffs/shared-Skynet-whitelist && echo "[$(($(date +%s) - btime))s]"
 		btime="$(date +%s)" && printf "Whitelisting Shared Domains 	"
@@ -1268,16 +1272,13 @@ case "$1" in
 		done < /jffs/shared-Skynet-whitelist
 		wait
 		cd /tmp/home/root || exit 1
-		cat /tmp/skynet/* | sed -n "s/\\r//;/^$/d;/^[0-9,\\.,\\/]*$/p" | awk '!x[$0]++' | Filter_PrivateIP > /tmp/malwarelist.txt && echo "[$(($(date +%s) - btime))s]"
+		cat /tmp/skynet/* | sed -n "s/\\r//;/^$/d;/^[0-9,\\.,\\/]*$/p" | awk '!x[$0]++' | Filter_PrivateIP > /tmp/skynet/malwarelist.txt && echo "[$(($(date +%s) - btime))s]"
 		btime="$(date +%s)" && printf "Filtering IPv4 Addresses 	"
-		grep -vF "/" /tmp/malwarelist.txt | awk '{print "add Blacklist " $1 " comment BanMalware"}' > "/tmp/malwarelist2.txt" && echo "[$(($(date +%s) - btime))s]"
+		grep -vF "/" /tmp/skynet/malwarelist.txt | awk '{print "add Blacklist " $1 " comment \"BanMalware\""}' >> "${location}/scripts/ipset.txt" && echo "[$(($(date +%s) - btime))s]"
 		btime="$(date +%s)" && printf "Filtering IPv4 Ranges 		"
-		grep -F "/" /tmp/malwarelist.txt | awk '{print "add BlockedRanges " $1 " comment BanMalware"}' >> "/tmp/malwarelist2.txt" && echo "[$(($(date +%s) - btime))s]"
+		grep -F "/" /tmp/skynet/malwarelist.txt | awk '{print "add BlockedRanges " $1 " comment \"BanMalware\""}' >> "${location}/scripts/ipset.txt" && echo "[$(($(date +%s) - btime))s]"
 		btime="$(date +%s)" && printf "Applying Blacklists 		"
-		ipset restore -! -f "/tmp/malwarelist2.txt" && echo "[$(($(date +%s) - btime))s]"
-		rm -rf "/tmp/malwarelist.txt" "/tmp/malwarelist2.txt"
-		btime="$(date +%s)" && printf "Saving Changes 			"
-		Save_IPSets >/dev/null 2>&1 && echo "[$(($(date +%s) - btime))s]"
+		ipset restore -! -f "${location}/scripts/ipset.txt" && echo "[$(($(date +%s) - btime))s]"
 		echo
 		echo "For False Positive Website Bans Use; ( sh $0 whitelist domain URL )"
 		rm -rf /tmp/skynet.lock
