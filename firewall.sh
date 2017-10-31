@@ -1252,6 +1252,7 @@ case "$1" in
 		fi
 		/usr/sbin/curl -fs "$listurl" >/dev/null 2>&1 || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Banmalware" ; exit 1; }
 		Check_Lock "$@"
+		ulimit -p 3000
 		btime="$(date +%s)" && printf "Saving Changes 			"
 		Save_IPSets >/dev/null 2>&1 && echo "[$(($(date +%s) - btime))s]"
 		btime="$(date +%s)" && printf "Removing Previous Malware Bans  "
