@@ -1262,12 +1262,12 @@ case "$1" in
 		Whitelist_Shared >/dev/null 2>&1 && echo "[$(($(date +%s) - btime))s]"
 		btime="$(date +%s)" && printf "Consolidating Blacklist 	"
 		mkdir -p /tmp/skynet
-		cd /tmp/skynet
-		for domain in $(cat /jffs/shared-Skynet-whitelist); do
+		cd /tmp/skynet || exit 1
+		while IFS= read -r "domain"; do
 			/usr/sbin/curl -fs "$domain" -O &
-		done
+		done < /jffs/shared-Skynet-whitelist
 		wait
-		cd "$home"
+		cd /tmp/home/root || exit 1
 		cat /tmp/skynet/* | sed -n "s/\\r//;/^$/d;/^[0-9,\\.,\\/]*$/p" | awk '!x[$0]++' | Filter_PrivateIP > /tmp/malwarelist.txt && echo "[$(($(date +%s) - btime))s]"
 		btime="$(date +%s)" && printf "Filtering IPv4 Addresses 	"
 		grep -vF "/" /tmp/malwarelist.txt | awk '{print "add Blacklist " $1 " comment BanMalware"}' > "/tmp/malwarelist2.txt" && echo "[$(($(date +%s) - btime))s]"
