@@ -828,6 +828,7 @@ Load_Menu () {
 					echo "[1]  --> Temporarily Disable Debug Output"
 					echo "[2]  --> Show Debug Entries As They Appear"
 					echo "[3]  --> Print Debug Info"
+					echo "[4]  --> Cleanup Syslog Entries"
 					echo
 					printf "[1-4]: "
 					read -r "menu2"
@@ -843,6 +844,10 @@ Load_Menu () {
 						;;
 						3)
 							option2="info"
+							break
+						;;
+						4)
+							option2="clean"
 							break
 						;;
 						e|exit|back|menu)
@@ -1591,6 +1596,14 @@ case "$1" in
 				if ipset -L -n Blacklist >/dev/null 2>&1; then $grn "[Passed]"; else $red "[Failed]"; fi
 				printf "Checking Skynet IPSet...				"
 				if ipset -L -n Skynet >/dev/null 2>&1; then $grn "[Passed]"; else $red "[Failed]"; fi
+			;;
+			clean)
+				echo "Cleaning Syslog Entries..."
+				Purge_Logs
+				sed -i "\\~Skynet: ~d" /tmp/syslog.log 2>/dev/null; sed -i "\\~Skynet: ~d" /tmp/syslog.log-1 2>/dev/null
+				echo "Complete!"
+				echo
+				exit 0
 			;;
 			*)
 				echo "Command Not Recognised, Please Try Again"

@@ -99,6 +99,7 @@ Here Are Some Example Debug Commands;
 (sh /jffs/scripts/firewall debug disable) Disable Raw Debugging
 (sh /jffs/scripts/firewall debug watch) Show Debug Entries As They Appear
 (sh /jffs/scripts/firewall debug info) Print Usefull Debug Info
+(sh /jffs/scripts/firewall debug clean) Cleanup Syslog Entries
 
 Here Are Some Example Stats Commands;
 (sh /jffs/scripts/firewall stats) Compile Stats With Default Top10 Output
