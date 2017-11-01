@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 1/11/2017 -		   Asus Firewall Addition By Adamm v5.4.2				    #
+## - 1/11/2017 -		   Asus Firewall Addition By Adamm v5.4.3				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -1256,7 +1256,7 @@ case "$1" in
 		btime="$(date +%s)" && printf "Saving Changes 			"
 		Save_IPSets >/dev/null 2>&1 && echo "[$(($(date +%s) - btime))s]"
 		btime="$(date +%s)" && printf "Removing Previous Malware Bans  "
-		sed -i "\\~comment \"BanMalware\"~d" "${location}/scripts/ipset.txt" 
+		sed -i "\\~comment \"BanMalware\"~d" "${location}/scripts/ipset.txt"
 		ipset flush Blacklist; ipset flush BlockedRanges
 		ipset restore -! -f "${location}/scripts/ipset.txt" && echo "[$(($(date +%s) - btime))s]"
 		btime="$(date +%s)" && printf "Downloading filter.list 	"
@@ -1268,10 +1268,20 @@ case "$1" in
 		btime="$(date +%s)" && printf "Consolidating Blacklist 	"
 		mkdir -p /tmp/skynet
 		cd /tmp/skynet || exit 1
-		while IFS= read -r "domain"; do
-			/usr/sbin/curl -fs "$domain" -O &
-		done < /jffs/shared-Skynet-whitelist
-		wait
+		case "$(nvram get model)" in
+			AC-86U) # AC86U Fork () Patch
+				while IFS= read -r "domain"; do
+					/usr/sbin/curl -fs "$domain" -O
+				done < /jffs/shared-Skynet-whitelist
+				wait
+			;;
+			*)
+				while IFS= read -r "domain"; do
+					/usr/sbin/curl -fs "$domain" -O &
+				done < /jffs/shared-Skynet-whitelist
+				wait
+			;;
+		esac
 		cd /tmp/home/root || exit 1
 		cat /tmp/skynet/* | sed -n "s/\\r//;/^$/d;/^[0-9,\\.,\\/]*$/p" | awk '!x[$0]++' | Filter_PrivateIP > /tmp/skynet/malwarelist.txt && echo "[$(($(date +%s) - btime))s]"
 		btime="$(date +%s)" && printf "Filtering IPv4 Addresses 	"
