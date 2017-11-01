@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 1/11/2017 -		   Asus Firewall Addition By Adamm v5.4.3				    #
+## - 2/11/2017 -		   Asus Firewall Addition By Adamm v5.4.4				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -1691,9 +1691,26 @@ case "$1" in
 						Check_Lock "$@"
 						if ! echo "$4" | Is_IP && ! echo "$4" | Is_Range ; then echo "$4 Is Not A Valid IP/Range"; echo; exit 2; fi
 						/usr/sbin/curl -fs https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/filter.list -o /jffs/shared-Skynet-whitelist
-						{ mkdir -p /tmp/skynet && cd /tmp/skynet && xargs -P0 -n1 /usr/sbin/curl -fs -O < /jffs/shared-Skynet-whitelist; }
+						mkdir -p /tmp/skynet
+						cd /tmp/skynet || exit 1
+						case "$(nvram get model)" in
+							AC-86U) # AC86U Fork () Patch
+								sync && echo 3 > /proc/sys/vm/drop_caches
+								while IFS= read -r "domain"; do
+									/usr/sbin/curl -fs "$domain" -O
+								done < /jffs/shared-Skynet-whitelist
+								wait
+							;;
+							*)
+								while IFS= read -r "domain"; do
+									/usr/sbin/curl -fs "$domain" -O &
+								done < /jffs/shared-Skynet-whitelist
+								wait
+							;;
+						esac
+						cd /tmp/home/root || exit 1
 						$red "Exact Matches;"
-						grep -E "^$4" /tmp/skynet/* | cut -d '/' -f4- | sed 's~:~ - ~g;s~^~https://iplists.firehol.org/files/~'
+						grep -E "^$4$" /tmp/skynet/* | cut -d '/' -f4- | sed 's~:~ - ~g;s~^~https://iplists.firehol.org/files/~'
 						echo;echo
 						$red "Possible CIDR Matches;"
 						grep -E "^$(echo "$4" | cut -d '.' -f1-3)..*/" /tmp/skynet/* | cut -d '/' -f4- | sed 's~:~ - ~g;s~^~https://iplists.firehol.org/files/~'

@@ -29,7 +29,7 @@ To use the CLI, execute the following;
     "restart"      # <-- Restart Skynet
     "disable"      # <-- Temporarily Disable Skynet
     "update"       # <-- Update Script To Latest Version (check github for changes)
-    "debug"	       # <-- Debug Features (Disable/Watch/Info)
+    "debug"	       # <-- Debug Features (Disable/Watch/Info/Clean)
     "stats"        # <-- Show/Search Stats Of Banned IPs (Requires debugging enabled)
     "install"      # <-- Install Script (Or Change Boot Args)
     "uninstall     # <-- Uninstall All Traces Of Script
