@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 2/11/2017 -		   Asus Firewall Addition By Adamm v5.4.5				    #
+## - 3/11/2017 -		   Asus Firewall Addition By Adamm v5.4.6				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -83,6 +83,11 @@ Check_Settings () {
 		conflicting_scripts="(IPSet_Block.sh|malware-filter|privacy-filter|ipBLOCKer.sh|ya-malware-block.sh|iblocklist-loader.sh|firewall-reinstate.sh)$"
 		if /usr/bin/find /jffs /tmp/mnt | grep -qE "$conflicting_scripts"; then
 			logger -st Skynet "[ERROR] $(/usr/bin/find /jffs /tmp/mnt | grep -E "$conflicting_scripts" | xargs) Detected - This Script Will Cause Conflicts! Please Uninstall It ASAP"
+		fi
+		
+		if [ "$(nvram get model)" = "AC86U" ] && ! grep -qF "swapon" /jffs/scripts/post-mount; then
+			logger -st Skynet "[ERROR] Unfortunately This Model Requires A SWAP File - Install One By Running ( $0 debug swap install )"
+			exit 2
 		fi
 
 		if echo "$@" | grep -qF "banmalware "; then
@@ -1616,6 +1621,97 @@ case "$1" in
 				echo
 				exit 0
 			;;
+			swap)
+				case "$3" in
+					install)
+						if ! grep -qE "usb=.* # Skynet" /jffs/scripts/firewall-start 2>/dev/null; then echo "Skynet Requires A USB Installation To Create A SWAP File - Please Run ( sh $0 install )"; exit 2; fi
+						if [ ! -f "/jffs/scripts/post-mount" ]; then
+							echo "#!/bin/sh" > /jffs/scripts/post-mount
+						elif [ -f "/jffs/scripts/post-mount" ] && ! head -1 /jffs/scripts/post-mount | grep -qE "^#!/bin/sh"; then
+							sed -i '1s~^~#!/bin/sh\n~' /jffs/scripts/post-mount
+						fi
+						Check_Lock "$@"
+						if ! grep -qF "swapon" /jffs/scripts/post-mount; then
+							while true; do
+								echo "Select SWAP File Size:"
+								echo "[1]  --> 256MB"
+								echo "[2]  --> 512MB"
+								echo "[3]  --> 1GB"
+								echo "[4]  --> 2GB"
+								echo
+								echo "[e]  --> Exit Menu"
+								echo
+								printf "[1-4]: "
+								read -r "menu"
+								echo
+								case "$menu" in
+									1)
+										swapsize=262144
+										break
+									;;
+									2)
+										swapsize=524288
+										break
+									;;
+									3)
+										swapsize=1048576
+										break
+									;;
+									4)
+										swapsize=2097152
+										break
+									;;
+									e|exit)
+										echo "Exiting!"
+										exit 0
+									;;
+									*)
+										echo "$menu Isn't An Option!"
+										echo
+									;;
+								esac
+							done
+							echo "Creating SWAP File..."
+							dd if=/dev/zero of="$location/myswap.swp" bs=1k count="$swapsize"
+							mkswap "$location/myswap.swp"
+							swapon "$location/myswap.swp"
+							echo "swapon $location/myswap.swp # Skynet Firewall Addition" >> /jffs/scripts/post-mount
+							echo "SWAP File Located At $location/myswap.swp"
+							echo
+							echo "Restarting Firewall Service"
+							Save_IPSets >/dev/null 2>&1
+							Unload_Cron
+							Unload_IPTables
+							Unload_DebugIPTables
+							Unload_IPSets
+							rm -rf /tmp/skynet.lock
+							service restart_firewall
+							exit 0
+						else
+							echo "Pre-existing SWAP File Detected - Exiting"
+							echo
+						fi
+					;;
+					uninstall)
+						if ! grep -qE "swapon .* # Skynet" /jffs/scripts/post-mount 2>/dev/null; then echo "No Skynet Generated SWAP File Detected - Exiting"; exit 2; fi
+						Check_Lock "$@"
+						echo "Removing Skynet Generated SWAP File..."
+						sed -i '\~ Skynet ~d' /jffs/scripts/post-mount
+						swapoff "$location/myswap.swp"
+						rm -rf "$location/myswap.swp"
+						echo "SWAP File Removed"
+						echo "Restarting Firewall Service"
+						Save_IPSets >/dev/null 2>&1
+						Unload_Cron
+						Unload_IPTables
+						Unload_DebugIPTables
+						Unload_IPSets
+						rm -rf /tmp/skynet.lock
+						service restart_firewall
+						exit 0
+					;;
+				esac
+			;;
 			*)
 				echo "Command Not Recognised, Please Try Again"
 				echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
@@ -2067,7 +2163,7 @@ case "$1" in
 		printf "[yes/no]: "
 		read -r "continue"
 		if [ "$continue" = "yes" ]; then
-			echo "Uninstalling And Restarting Firewall"
+			echo "Uninstalling Skynet And Restarting Firewall"
 			Unload_Cron
 			Kill_Lock
 			Unload_IPTables
@@ -2075,6 +2171,12 @@ case "$1" in
 			Unload_IPSets
 			sed -i '\~ Skynet ~d' /jffs/scripts/firewall-start
 			sed -i '\~ Skynet ~d' /jffs/scripts/openvpn-event
+			if grep -qE "swapon .* # Skynet" /jffs/scripts/post-mount 2>/dev/null; then
+				echo "Removing Skynet Generated SWAP File..."
+				sed -i '\~ Skynet ~d' /jffs/scripts/post-mount
+				swapoff "$location/myswap.swp"
+				rm -rf "$location/myswap.swp"
+			fi
 			rm -rf "${location}/scripts/ipset.txt" "${location}/skynet.log" "/jffs/shared-Skynet-whitelist" "/jffs/shared-Skynet2-whitelist" "/opt/bin/firewall" "/jffs/scripts/firewall"
 			iptables -t raw -F
 			service restart_firewall
