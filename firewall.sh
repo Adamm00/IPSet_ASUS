@@ -846,6 +846,7 @@ Load_Menu () {
 					echo "[2]  --> Show Debug Entries As They Appear"
 					echo "[3]  --> Print Debug Info"
 					echo "[4]  --> Cleanup Syslog Entries"
+					echo "[5]  --> SWAP File Management"
 					echo
 					printf "[1-4]: "
 					read -r "menu2"
@@ -865,6 +866,39 @@ Load_Menu () {
 						;;
 						4)
 							option2="clean"
+							break
+						;;
+						5)
+							option2="swap"
+							while true; do
+								echo "Select SWAP Option:"
+								echo "[1]  --> Install"
+								echo "[2]  --> Uninstall"
+								echo
+								printf "[1-2]: "
+								read -r "menu3"
+								echo
+								case "$menu3" in
+									1)
+										option3="install"
+										break
+									;;
+									2)
+										option3="uninstall"
+										break
+									;;
+									e|exit|back|menu)
+										unset "$option1" "$option2" "$option3" "$option4" "$option5"
+										clear
+										Load_Menu
+										break
+									;;
+									*)
+										echo "$menu2 Isn't An Option!"
+										echo
+									;;
+								esac
+							done
 							break
 						;;
 						e|exit|back|menu)
@@ -1693,7 +1727,6 @@ case "$1" in
 							exit 0
 						else
 							echo "Pre-existing SWAP File Detected - Exiting"
-							echo
 						fi
 					;;
 					uninstall)
