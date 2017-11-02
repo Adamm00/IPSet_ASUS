@@ -84,7 +84,7 @@ Check_Settings () {
 		if /usr/bin/find /jffs /tmp/mnt | grep -qE "$conflicting_scripts"; then
 			logger -st Skynet "[ERROR] $(/usr/bin/find /jffs /tmp/mnt | grep -E "$conflicting_scripts" | xargs) Detected - This Script Will Cause Conflicts! Please Uninstall It ASAP"
 		fi
-		
+
 		if [ "$(nvram get model)" = "AC86U" ] && ! grep -qF "swapon" /jffs/scripts/post-mount; then
 			logger -st Skynet "[ERROR] Unfortunately This Model Requires A SWAP File - Install One By Running ( $0 debug swap install )"
 			exit 1
@@ -1676,6 +1676,7 @@ case "$1" in
 							dd if=/dev/zero of="$location/myswap.swp" bs=1k count="$swapsize"
 							mkswap "$location/myswap.swp"
 							swapon "$location/myswap.swp"
+							nvram set usb_idle_timeout=0
 							echo "swapon $location/myswap.swp # Skynet Firewall Addition" >> /jffs/scripts/post-mount
 							echo "SWAP File Located At $location/myswap.swp"
 							echo
@@ -1710,6 +1711,11 @@ case "$1" in
 						rm -rf /tmp/skynet.lock
 						service restart_firewall
 						exit 0
+					;;
+					*)
+						echo "Command Not Recognised, Please Try Again"
+						echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
+						echo; exit 2
 					;;
 				esac
 			;;
