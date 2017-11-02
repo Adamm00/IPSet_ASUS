@@ -357,7 +357,7 @@ Load_Menu () {
 	ipset -v
 	echo "FW Version; $(nvram get buildno)_$(nvram get extendno) ($(uname -v | awk '{print $5" "$6" "$9}')) ($(uname -r))"
 	echo "Install Dir; $location ($(df -h $location | xargs | awk '{print $11 " / " $9}') Space Available)"
-	if grep -qE "swapon .* # Skynet" /jffs/scripts/post-mount 2>/dev/null; then echo "SWAP File; $location/myswap.swp ($(du -h $location/myswap.swp | awk '{print $1}'))"; fi
+	if grep -qF "swapon" /jffs/scripts/post-mount 2>/dev/null; then swaplocation="$(grep -F "swapon" /jffs/scripts/post-mount | awk '{print $2}')"; echo "SWAP File; $swaplocation ($(du -h $swaplocation | awk '{print $1}'))"; fi
 	echo "Boot Args; $(grep -F "Skynet" /jffs/scripts/firewall-start 2>/dev/null | cut -c 4- | cut -d '#' -f1)"
 	if grep -qF "Country:" "$location/scripts/ipset.txt" 2>/dev/null; then echo "Banned Countries; $(grep -m1 -F "Country:" "$location/scripts/ipset.txt" | sed 's~.*Country: ~~;s~"~~')"; fi
 	if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(sed -n '2p' /tmp/skynet.lock)" ]; then $red "Lock File Detected ($(sed -n '1p' /tmp/skynet.lock)) (pid=$(sed -n '2p' /tmp/skynet.lock))"; fi
@@ -1614,7 +1614,7 @@ case "$1" in
 				ipset -v
 				echo "FW Version; $(nvram get buildno)_$(nvram get extendno) ($(uname -v | awk '{print $5" "$6" "$9}')) ($(uname -r))"
 				echo "Install Dir; $location ($(df -h $location | xargs | awk '{print $11 " / " $9}') Space Available)"
-				if grep -qE "swapon .* # Skynet" /jffs/scripts/post-mount 2>/dev/null; then echo "SWAP File; $location/myswap.swp ($(du -h $location/myswap.swp | awk '{print $1}'))"; fi
+				if grep -qF "swapon" /jffs/scripts/post-mount 2>/dev/null; then swaplocation="$(grep -F "swapon" /jffs/scripts/post-mount | awk '{print $2}')"; echo "SWAP File; $swaplocation ($(du -h $swaplocation | awk '{print $1}'))"; fi
 				echo "Boot Args; $(grep -F "Skynet" /jffs/scripts/firewall-start | cut -c 4- | cut -d '#' -f1)"
 				if grep -qF "Country:" "$location/scripts/ipset.txt"; then echo "Banned Countries; $(grep -m1 -F "Country:" "$location/scripts/ipset.txt" | sed 's~.*Country: ~~;s~"~~')"; fi
 				if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(sed -n '2p' /tmp/skynet.lock)" ]; then $red "Lock File Detected ($(sed -n '1p' /tmp/skynet.lock)) (pid=$(sed -n '2p' /tmp/skynet.lock))"; else $grn "No Lock File Found"; fi
@@ -1731,10 +1731,10 @@ case "$1" in
 						fi
 					;;
 					uninstall)
-						if ! grep -qE "swapon" /jffs/scripts/post-mount 2>/dev/null; then echo "No SWAP File Detected - Exiting"; exit 1; fi
+						if ! grep -qF "swapon" /jffs/scripts/post-mount 2>/dev/null; then echo "No SWAP File Detected - Exiting"; exit 1; fi
 						Check_Lock "$@"
 						echo "Removing SWAP File..."
-						swaplocation="$(grep "swapon" /jffs/scripts/post-mount | awk '{print $2}')"
+						swaplocation="$(grep -F "swapon" /jffs/scripts/post-mount | awk '{print $2}')"
 						if [ -f "$swaplocation" ]; then
 							swapoff "$swaplocation"
 							rm -rf "$swaplocation"
@@ -1751,6 +1751,8 @@ case "$1" in
 							exit 0
 						else
 							echo "Unable To Remove Existing SWAP File - Please Remove Manually"
+							echo
+							exit 1
 						fi
 					;;
 					*)
