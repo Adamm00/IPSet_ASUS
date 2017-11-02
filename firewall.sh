@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 3/11/2017 -		   Asus Firewall Addition By Adamm v5.4.6				    #
+## - 3/11/2017 -		   Asus Firewall Addition By Adamm v5.4.7				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -27,6 +27,7 @@ stime="$(date +%s)"
 Check_Lock () {
 		if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(sed -n '2p' /tmp/skynet.lock)" ]; then
 			logger -st Skynet "[INFO] Lock File Detected ($(sed -n '1p' /tmp/skynet.lock)) (pid=$(sed -n '2p' /tmp/skynet.lock)) - Exiting"
+			echo
 			exit 1
 		else
 			echo "$@" > /tmp/skynet.lock
@@ -1730,22 +1731,27 @@ case "$1" in
 						fi
 					;;
 					uninstall)
-						if ! grep -qE "swapon .* # Skynet" /jffs/scripts/post-mount 2>/dev/null; then echo "No Skynet Generated SWAP File Detected - Exiting"; exit 1; fi
+						if ! grep -qE "swapon" /jffs/scripts/post-mount 2>/dev/null; then echo "No SWAP File Detected - Exiting"; exit 1; fi
 						Check_Lock "$@"
-						echo "Removing Skynet Generated SWAP File..."
-						sed -i '\~ Skynet ~d' /jffs/scripts/post-mount
-						swapoff "$location/myswap.swp"
-						rm -rf "$location/myswap.swp"
-						echo "SWAP File Removed"
-						echo "Restarting Firewall Service"
-						Save_IPSets >/dev/null 2>&1
-						Unload_Cron
-						Unload_IPTables
-						Unload_DebugIPTables
-						Unload_IPSets
-						rm -rf /tmp/skynet.lock
-						service restart_firewall
-						exit 0
+						echo "Removing SWAP File..."
+						swaplocation="$(grep "swapon" /jffs/scripts/post-mount | awk '{print $2}')"
+						if [ -f "$swaplocation" ]; then
+							swapoff "$swaplocation"
+							rm -rf "$swaplocation"
+							sed -i '\~swapon ~d' /jffs/scripts/post-mount
+							echo "SWAP File Removed"
+							echo "Restarting Firewall Service"
+							Save_IPSets >/dev/null 2>&1
+							Unload_Cron
+							Unload_IPTables
+							Unload_DebugIPTables
+							Unload_IPSets
+							rm -rf /tmp/skynet.lock
+							service restart_firewall
+							exit 0
+						else
+							echo "Unable To Remove Existing SWAP File - Please Remove Manually"
+						fi
 					;;
 					*)
 						echo "Command Not Recognised, Please Try Again"
