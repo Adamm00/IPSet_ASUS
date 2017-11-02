@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 2/11/2017 -		   Asus Firewall Addition By Adamm v5.4.4				    #
+## - 2/11/2017 -		   Asus Firewall Addition By Adamm v5.4.5				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -288,11 +288,22 @@ Whitelist_Shared () {
 		if [ -n "$(/usr/bin/find /jffs -name 'shared-*-whitelist')" ]; then
 			echo "Whitelisting Shared Domains"
 			sed '\~add Whitelist ~!d;\~Shared-Whitelist~!d;s~ comment.*~~;s~add~del~g' "${location}/scripts/ipset.txt" | ipset restore -!
-			grep -hvF "#" /jffs/shared-*-whitelist | sed 's~http[s]*://~~;s~/.*~~' | awk '!x[$0]++' | while IFS= read -r "domain"; do
-				for ip in $(Domain_Lookup "$domain" 2> /dev/null); do
-					ipset -q -A Whitelist "$ip" comment "Shared-Whitelist: $domain"
-				done &
-			done
+			case "$(nvram get model)" in
+				AC-86U) # AC86U Fork () Patch
+					grep -hvF "#" /jffs/shared-*-whitelist | sed 's~http[s]*://~~;s~/.*~~' | awk '!x[$0]++' | while IFS= read -r "domain"; do
+						for ip in $(Domain_Lookup "$domain" 2> /dev/null); do
+							ipset -q -A Whitelist "$ip" comment "Shared-Whitelist: $domain"
+						done
+					done
+				;;
+				*)
+					grep -hvF "#" /jffs/shared-*-whitelist | sed 's~http[s]*://~~;s~/.*~~' | awk '!x[$0]++' | while IFS= read -r "domain"; do
+						for ip in $(Domain_Lookup "$domain" 2> /dev/null); do
+							ipset -q -A Whitelist "$ip" comment "Shared-Whitelist: $domain"
+						done &
+					done
+				;;
+			esac
 		fi
 }
 
