@@ -2187,6 +2187,9 @@ case "$1" in
 		chmod +x /jffs/scripts/openvpn-event
 		echo
 		nvram commit
+		if [ "$(nvram get model)" = "AC86U" ] && ! grep -qF "swapon" /jffs/scripts/post-mount; then
+			echo "Unfortunately This Model Requires A SWAP File - Install One By Running ( $0 debug swap install )"
+		fi
 		if [ "$forcereboot" = "1" ]; then
 			echo "Reboot Required To Complete Installation"
 			printf "Press Enter To Confirm..."
