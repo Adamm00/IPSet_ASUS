@@ -87,7 +87,7 @@ Check_Settings () {
 		
 		if [ "$(nvram get model)" = "AC86U" ] && ! grep -qF "swapon" /jffs/scripts/post-mount; then
 			logger -st Skynet "[ERROR] Unfortunately This Model Requires A SWAP File - Install One By Running ( $0 debug swap install )"
-			exit 2
+			exit 1
 		fi
 
 		if echo "$@" | grep -qF "banmalware "; then
@@ -355,7 +355,7 @@ Load_Menu () {
 	echo "$(iptables --version) - ($iface @ $(nvram get lan_ipaddr))"
 	ipset -v
 	echo "FW Version; $(nvram get buildno)_$(nvram get extendno) ($(uname -v | awk '{print $5" "$6" "$9}')) ($(uname -r))"
-	echo "Install Dir; $location ($(df -h $location | xargs | awk '{print $9}') Space Available)"
+	echo "Install Dir; $location ($(df -h $location | xargs | awk '{print $11 " / " $9}') Space Available)"
 	echo "Boot Args; $(grep -F "Skynet" /jffs/scripts/firewall-start 2>/dev/null | cut -c 4- | cut -d '#' -f1)"
 	if grep -qF "Country:" "$location/scripts/ipset.txt" 2>/dev/null; then echo "Banned Countries; $(grep -m1 -F "Country:" "$location/scripts/ipset.txt" | sed 's~.*Country: ~~;s~"~~')"; fi
 	if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(sed -n '2p' /tmp/skynet.lock)" ]; then $red "Lock File Detected ($(sed -n '1p' /tmp/skynet.lock)) (pid=$(sed -n '2p' /tmp/skynet.lock))"; fi
@@ -1577,7 +1577,7 @@ case "$1" in
 				echo "$(iptables --version) - ($iface @ $(nvram get lan_ipaddr))"
 				ipset -v
 				echo "FW Version; $(nvram get buildno)_$(nvram get extendno) ($(uname -v | awk '{print $5" "$6" "$9}')) ($(uname -r))"
-				echo "Install Dir; $location ($(df -h $location | xargs | awk '{print $9}') Space Available)"
+				echo "Install Dir; $location ($(df -h $location | xargs | awk '{print $11 " / " $9}') Space Available)"
 				echo "Boot Args; $(grep -F "Skynet" /jffs/scripts/firewall-start | cut -c 4- | cut -d '#' -f1)"
 				if grep -qF "Country:" "$location/scripts/ipset.txt"; then echo "Banned Countries; $(grep -m1 -F "Country:" "$location/scripts/ipset.txt" | sed 's~.*Country: ~~;s~"~~')"; fi
 				if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(sed -n '2p' /tmp/skynet.lock)" ]; then $red "Lock File Detected ($(sed -n '1p' /tmp/skynet.lock)) (pid=$(sed -n '2p' /tmp/skynet.lock))"; else $grn "No Lock File Found"; fi
@@ -1624,7 +1624,7 @@ case "$1" in
 			swap)
 				case "$3" in
 					install)
-						if ! grep -qE "usb=.* # Skynet" /jffs/scripts/firewall-start 2>/dev/null; then echo "Skynet Requires A USB Installation To Create A SWAP File - Please Run ( sh $0 install )"; exit 2; fi
+						if ! grep -qE "usb=.* # Skynet" /jffs/scripts/firewall-start 2>/dev/null; then echo "Skynet Requires A USB Installation To Create A SWAP File - Please Run ( sh $0 install )"; exit 1; fi
 						if [ ! -f "/jffs/scripts/post-mount" ]; then
 							echo "#!/bin/sh" > /jffs/scripts/post-mount
 						elif [ -f "/jffs/scripts/post-mount" ] && ! head -1 /jffs/scripts/post-mount | grep -qE "^#!/bin/sh"; then
@@ -1671,6 +1671,7 @@ case "$1" in
 									;;
 								esac
 							done
+							if [ "$(df $location | xargs | awk '{print $11}')" -le "$swapsize" ]; then echo "Not Enough Free Space Available On $location - Exiting"; exit 1; fi
 							echo "Creating SWAP File..."
 							dd if=/dev/zero of="$location/myswap.swp" bs=1k count="$swapsize"
 							mkswap "$location/myswap.swp"
@@ -1693,7 +1694,7 @@ case "$1" in
 						fi
 					;;
 					uninstall)
-						if ! grep -qE "swapon .* # Skynet" /jffs/scripts/post-mount 2>/dev/null; then echo "No Skynet Generated SWAP File Detected - Exiting"; exit 2; fi
+						if ! grep -qE "swapon .* # Skynet" /jffs/scripts/post-mount 2>/dev/null; then echo "No Skynet Generated SWAP File Detected - Exiting"; exit 1; fi
 						Check_Lock "$@"
 						echo "Removing Skynet Generated SWAP File..."
 						sed -i '\~ Skynet ~d' /jffs/scripts/post-mount
