@@ -1451,7 +1451,7 @@ case "$1" in
 		if [ -n "$2" ]; then
 			Check_Lock "$@"
 			echo "Custom List Detected: $2"
-			/usr/sbin/curl -fs "$2" -o /tmp/iplist-unfiltered.txt  || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Import" ; exit 1; }
+			/usr/sbin/curl -fs "$2" -o /tmp/iplist-unfiltered.txt || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Import" ; exit 1; }
 		else
 			echo "URL Field Can't Be Empty - Please Try Again"
 			exit 2
@@ -1474,7 +1474,7 @@ case "$1" in
 		if [ -n "$2" ]; then
 			Check_Lock "$@"
 			echo "Custom List Detected: $2"
-			/usr/sbin/curl -fs "$2" -o /tmp/iplist-unfiltered.txt  || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Deport" ; exit 1; }
+			/usr/sbin/curl -fs "$2" -o /tmp/iplist-unfiltered.txt || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Deport" ; exit 1; }
 		else
 			echo "URL Field Can't Be Empty - Please Try Again"
 			exit 2
@@ -1565,7 +1565,7 @@ case "$1" in
 	update)
 		trap '' 2
 		remoteurl="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh"
-		/usr/sbin/curl -fs "$remoteurl" >/dev/null 2>&1 || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Update" ; exit 1; }
+		/usr/sbin/curl -fs "$remoteurl" | grep -qF "Adamm" || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Update" ; exit 1; }
 		localver="$(Filter_Version "$0")"
 		remotever="$(/usr/sbin/curl -fs "$remoteurl" | Filter_Version)"
 		if [ "$localver" = "$remotever" ] && [ "$2" != "-f" ]; then
