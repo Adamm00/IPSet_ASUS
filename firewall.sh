@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 3/11/2017 -		   Asus Firewall Addition By Adamm v5.4.7				    #
+## - 5/11/2017 -		   Asus Firewall Addition By Adamm v5.4.7				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -1950,6 +1950,18 @@ case "$1" in
 				echo
 				$red "Top $counter Blocks (Outbound);"
 				grep -E "OUTBOUND.*$proto" "${location}/skynet.log" | grep -vE 'DPT=80 |DPT=443 ' | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}'
+				echo
+				$red "Top $counter Blocked Devices (Outbound);"
+				grep -E "OUTBOUND.*$proto" "${location}/skynet.log" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1 "x "$2}' > /tmp/skynetstats.txt
+				awk '{print $2}' /tmp/skynetstats.txt | while IFS= read -r "localip"; do
+					if grep -qF " $localip " /tmp/var/lib/misc/dnsmasq.leases; then
+						sed -i "s~$localip~$localip $(grep -F " $localip " /tmp/var/lib/misc/dnsmasq.leases | awk '{print $4}')~g" /tmp/skynetstats.txt
+					else
+						sed -i "s~$localip~$localip (No Name Found)~g" /tmp/skynetstats.txt
+					fi
+				done
+				cat /tmp/skynetstats.txt
+				rm -rf /tmp/skynetstats.txt
 			;;
 		esac
 		echo
