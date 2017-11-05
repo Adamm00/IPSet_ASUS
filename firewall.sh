@@ -1191,18 +1191,16 @@ case "$1" in
 			port)
 				if ! echo "$3" | Is_Port; then echo "$3 Is Not A Valid Port"; echo; exit 2; fi
 				logger -st Skynet "[INFO] Unbanning Autobans Issued On Traffic From Source/Destination Port $3..."
-				grep -F "NEW" "${location}/skynet.log" | grep -F "PT=$3 " | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | while IFS= read -r "ip"; do
-					echo "Unbanning $ip"
-					ipset -D Blacklist "$ip"
-				done
+				grep -F "NEW" "${location}/skynet.log" | grep -F "PT=$3 " | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | awk '{print "del Blacklist "$1}' | ipset restore -!
 				sed -i "/PT=${3} /d" "${location}/skynet.log"
 			;;
 			comment)
 				if [ -z "$3" ]; then echo "Comment Field Can't Be Empty - Please Try Again"; echo; exit 2; fi
 				echo "Removing Bans With Comment Containing ($3)"
 				sed "\\~add Whitelist ~d;\\~$3~!d;s~ comment.*~~;s~add~del~g" "${location}/scripts/ipset.txt" | ipset restore -!
+				echo "Removing Old Logs - This May Take Awhile (To Skip Type ctrl+c)"
+				trap 'break; echo' 2
 				sed "\\~add Whitelist ~d;\\~$3~!d;s~ comment.*~~" "${location}/scripts/ipset.txt" | cut -d' ' -f3 | while IFS= read -r "ip"; do
-					echo "Unbanning $ip"
 					sed -i "\\~$ip ~d" "${location}/skynet.log"
 				done
 			;;
@@ -1215,9 +1213,10 @@ case "$1" in
 				sed '\~add Whitelist ~d;\~BanMalware~!d;s~ comment.*~~;s~add~del~g' "${location}/scripts/ipset.txt" | ipset restore -!
 			;;
 			autobans)
+				grep -F "NEW" "${location}/skynet.log" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | tr -d " " | awk '{print "del Blacklist "$1}' | ipset restore -!
+				echo "Removing Old Logs - This May Take Awhile (To Skip Type ctrl+c)"
+				trap 'break; echo' 2
 				grep -F "NEW" "${location}/skynet.log" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | tr -d " " | while IFS= read -r "ip"; do
-					echo "Unbanning $ip"
-					ipset -D Blacklist "$ip"
 					sed -i "\\~$ip ~d" "${location}/skynet.log"
 				done
 			;;
