@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 5/11/2017 -		   Asus Firewall Addition By Adamm v5.4.8				    #
+## - 5/11/2017 -		   Asus Firewall Addition By Adamm v5.4.9				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -64,6 +64,10 @@ else
 	iface="$(nvram get wan0_ifname)"
 fi
 
+if [ "$(nvram get model)" = "RT-AC86U" ]; then
+	sync && echo 3 > /proc/sys/vm/drop_caches
+fi
+
 
 Kill_Lock () {
 		if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(sed -n '2p' /tmp/skynet.lock)" ]; then
@@ -86,7 +90,7 @@ Check_Settings () {
 			logger -st Skynet "[ERROR] $(/usr/bin/find /jffs /tmp/mnt | grep -E "$conflicting_scripts" | xargs) Detected - This Script Will Cause Conflicts! Please Uninstall It ASAP"
 		fi
 
-		if [ "$(nvram get model)" = "AC86U" ] && ! grep -qF "swapon" /jffs/scripts/post-mount; then
+		if [ "$(nvram get model)" = "RT-AC86U" ] && ! grep -qF "swapon" /jffs/scripts/post-mount; then
 			logger -st Skynet "[ERROR] Unfortunately This Model Requires A SWAP File - Install One By Running ( $0 debug swap install )"
 			exit 1
 		fi
@@ -295,7 +299,7 @@ Whitelist_Shared () {
 			echo "Whitelisting Shared Domains"
 			sed '\~add Whitelist ~!d;\~Shared-Whitelist~!d;s~ comment.*~~;s~add~del~g' "${location}/scripts/ipset.txt" | ipset restore -!
 			case "$(nvram get model)" in
-				AC-86U) # AC86U Fork () Patch
+				RT-AC86U) # AC86U Fork () Patch
 					grep -hvF "#" /jffs/shared-*-whitelist | sed 's~http[s]*://~~;s~/.*~~' | awk '!x[$0]++' | while IFS= read -r "domain"; do
 						for ip in $(Domain_Lookup "$domain" 2> /dev/null); do
 							ipset -q -A Whitelist "$ip" comment "Shared-Whitelist: $domain"
@@ -1318,8 +1322,7 @@ case "$1" in
 		mkdir -p /tmp/skynet
 		cd /tmp/skynet || exit 1
 		case "$(nvram get model)" in
-			AC-86U) # AC86U Fork () Patch
-				sync && echo 3 > /proc/sys/vm/drop_caches
+			RT-AC86U) # AC86U Fork () Patch
 				while IFS= read -r "domain"; do
 					/usr/sbin/curl -fs "$domain" -O
 				done < /jffs/shared-Skynet-whitelist
@@ -1834,7 +1837,7 @@ case "$1" in
 						$red "First Event Tracked From $4;"
 						grep -m1 -F "=$4 " "${location}/skynet.log"
 						echo
-						$red "$counter Event Recent Blocks From $4;"
+						$red "$counter Most Recent Events From $4;"
 						grep -F "=$4 " "${location}/skynet.log" | tail -"$counter"
 						echo
 						$red "Top $counter Targeted Ports From $4 (Inbound);"
@@ -1850,8 +1853,7 @@ case "$1" in
 						mkdir -p /tmp/skynet
 						cd /tmp/skynet || exit 1
 						case "$(nvram get model)" in
-							AC-86U) # AC86U Fork () Patch
-								sync && echo 3 > /proc/sys/vm/drop_caches
+							RT-AC86U) # AC86U Fork () Patch
 								while IFS= read -r "domain"; do
 									/usr/sbin/curl -fs "$domain" -O
 								done < /jffs/shared-Skynet-whitelist
@@ -2198,7 +2200,7 @@ case "$1" in
 		chmod +x /jffs/scripts/openvpn-event
 		echo
 		nvram commit
-		if [ "$(nvram get model)" = "AC86U" ] && ! grep -qF "swapon" /jffs/scripts/post-mount; then
+		if [ "$(nvram get model)" = "RT-AC86U" ] && ! grep -qF "swapon" /jffs/scripts/post-mount; then
 			echo "Unfortunately This Model Requires A SWAP File - Install One By Running ( $0 debug swap install )"
 		fi
 		if [ "$forcereboot" = "1" ]; then
@@ -2233,6 +2235,7 @@ case "$1" in
 			Unload_IPTables
 			Unload_DebugIPTables
 			Unload_IPSets
+			nvram set fw_log_x=none
 			sed -i '\~ Skynet ~d' /jffs/scripts/firewall-start
 			sed -i '\~ Skynet ~d' /jffs/scripts/openvpn-event
 			if grep -qE "swapon .* # Skynet" /jffs/scripts/post-mount 2>/dev/null; then
