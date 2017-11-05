@@ -1809,10 +1809,10 @@ case "$1" in
 						echo "$(grep -F "PT=$4 " ${location}/skynet.log | grep -oE ' SRC=[0-9,\.]* ' | awk '!x[$0]++' | wc -l) Unique IPs"
 						echo "$(grep -F "PT=$4 " ${location}/skynet.log | grep -cF NEW) Autobans From This Port"
 						echo
-						$red "First Block Tracked On Port $4;"
+						$red "First Event Tracked On Port $4;"
 						grep -m1 -F "PT=$4 " "${location}/skynet.log"
 						echo
-						$red "$counter Most Recent Blocks On Port $4;";
+						$red "$counter Most Recent Events On Port $4;";
 						grep -F "PT=$4 " "${location}/skynet.log" | tail -"$counter"
 						echo
 					;;
@@ -1823,18 +1823,18 @@ case "$1" in
 						ipset test Blacklist "$4" && found2=true
 						ipset test BlockedRanges "$4" && found3=true
 						echo
-						if [ -n "$found1" ]; then echo "Whitelist Reason; $(grep -E "Whitelist.*$4 " ${location}/scripts/ipset.txt | awk '{$1=$2=$3=$4=""; print $0}' | tr -s " ")"; fi
-						if [ -n "$found2" ]; then echo "Blacklist Reason; $(grep -E "Blacklist.*$4 " ${location}/scripts/ipset.txt | awk '{$1=$2=$3=$4=""; print $0}' | tr -s " ")"; fi
-						if [ -n "$found3" ]; then echo "BlockedRanges Reason; $(grep -E "BlockedRanges.*$(echo "$4" | cut -d '.' -f1-3)." ${location}/scripts/ipset.txt | awk '{$1=$2=$4=""; print $0}' | tr -s " ")"; fi
+						if [ -n "$found1" ]; then $red "Whitelist Reason;"; echo "$(grep -F "add Whitelist $4 " ${location}/scripts/ipset.txt | awk '{$1=$2=$3=$4=""; print $0}' | tr -s " ")"; echo; fi
+						if [ -n "$found2" ]; then $red "Blacklist Reason;"; echo "$(grep -F "add Blacklist $4 " ${location}/scripts/ipset.txt | awk '{$1=$2=$3=$4=""; print $0}' | tr -s " ")"; echo; fi
+						if [ -n "$found3" ]; then $red "BlockedRanges Reason;"; echo "$(grep -F "add BlockedRanges $(echo "$4" | cut -d '.' -f1-3)." ${location}/scripts/ipset.txt | awk '{$1=$2=$4=""; print $0}' | tr -s " ")"; fi
 						echo
 						echo "$4 First Tracked On $(grep -m1 -F "=$4 " ${location}/skynet.log | awk '{print $1" "$2" "$3}')"
 						echo "$4 Last Tracked On $(grep -F "=$4 " ${location}/skynet.log | tail -1 | awk '{print $1" "$2" "$3}')"
 						echo "$(grep -Foc "=$4 " ${location}/skynet.log) Events Total"
 						echo
-						$red "First Block Tracked From $4;"
+						$red "First Event Tracked From $4;"
 						grep -m1 -F "=$4 " "${location}/skynet.log"
 						echo
-						$red "$counter Most Recent Blocks From $4;"
+						$red "$counter Event Recent Blocks From $4;"
 						grep -F "=$4 " "${location}/skynet.log" | tail -"$counter"
 						echo
 						$red "Top $counter Targeted Ports From $4 (Inbound);"
