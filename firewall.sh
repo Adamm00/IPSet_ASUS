@@ -1735,8 +1735,8 @@ case "$1" in
 					uninstall)
 						if ! grep -qF "swapon" /jffs/scripts/post-mount 2>/dev/null; then echo "No SWAP File Detected - Exiting"; exit 1; fi
 						Check_Lock "$@"
-						echo "Removing SWAP File..."
 						swaplocation="$(grep -F "swapon" /jffs/scripts/post-mount | awk '{print $2}')"
+						echo "Removing SWAP File... ($swaplocation)"
 						if [ -f "$swaplocation" ]; then
 							swapoff "$swaplocation"
 							rm -rf "$swaplocation"
