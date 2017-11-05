@@ -1255,7 +1255,7 @@ case "$1" in
 				if [ -z "$4" ]; then
 					desc="$(date +"%b %d %T")"
 				fi
-				ipset -A Blacklist "$3" comment "ManualBan: $desc" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Single SRC=$3 COMMENT=$4 " >> "${location}/skynet.log"
+				ipset -A Blacklist "$3" comment "ManualBan: $desc" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Single SRC=$3 COMMENT=$desc " >> "${location}/skynet.log"
 			;;
 			range)
 				if ! echo "$3" | Is_Range; then echo "$3 Is Not A Valid Range"; echo; exit 2; fi
@@ -1265,7 +1265,7 @@ case "$1" in
 				if [ -z "$4" ]; then
 					desc="$(date +"%b %d %T")"
 				fi
-				ipset -A BlockedRanges "$3" comment "ManualRBan: $desc" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Range SRC=$3 COMMENT=$4 " >> "${location}/skynet.log"
+				ipset -A BlockedRanges "$3" comment "ManualRBan: $desc" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Range SRC=$3 COMMENT=$desc " >> "${location}/skynet.log"
 			;;
 			domain)
 				if [ -z "$3" ]; then echo "Domain Field Can't Be Empty - Please Try Again"; echo; exit 2; fi
