@@ -37,7 +37,7 @@ Check_Lock () {
 
 if grep -qE "usb=.* # Skynet" /jffs/scripts/firewall-start 2>/dev/null; then
 	location="$(grep -ow "usb=.*" /jffs/scripts/firewall-start | awk '{print $1}' | cut -c 5-)/skynet"
-	if [ ! -d "$location" ] && ! echo "$@" | grep -wqE "(install|uninstall|disable|update|restart|info)"; then
+	if [ ! -d "$location" ] && ! echo "$@" | grep -qE "(install|uninstall|disable|update|restart|info)"; then
 		Check_Lock "$@"
 		retry=1
 		while [ ! -d "$location" ] && [ "$retry" -lt "11" ]; do
@@ -194,19 +194,19 @@ Unload_Cron () {
 }
 
 Is_IP () {
-		grep -wqE '([0-9]{1,3}\.){3}[0-9]{1,3}'
+		grep -qE '^([0-9]{1,3}\.){3}[0-9]{1,3}$'
 }
 
 Is_Range () {
-		grep -wqE '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}'
+		grep -qE '^([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}$'
 }
 
 Is_Port () {
-		grep -wqE '[0-9]{1,5}'
+		grep -qE '^[0-9]{1,5}$'
 }
 
 Domain_Lookup () {
-		nslookup "$(echo "$1" | sed 's~http[s]*://~~;s~/.*~~')" | grep -woE '([0-9]{1,3}\.){3}[0-9]{1,3}' | awk 'NR>2'
+		nslookup "$(echo "$1" | sed 's~http[s]*://~~;s~/.*~~')" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' | awk 'NR>2'
 }
 
 Filter_Version () {
@@ -1457,9 +1457,9 @@ case "$1" in
 		fi
 		imptime="$(date +"%b %d %T")"
 		echo "Filtering IPv4 Addresses"
-		grep -woE '(^[0-9]{1,3}\.){3}[0-9]{1,3}$' /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk -v imptime="$imptime" '{print "add Blacklist " $1 " comment \"Imported: " imptime "\""}' > /tmp/iplist-filtered.txt
+		grep -oE '(^[0-9]{1,3}\.){3}[0-9]{1,3}$' /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk -v imptime="$imptime" '{print "add Blacklist " $1 " comment \"Imported: " imptime "\""}' > /tmp/iplist-filtered.txt
 		echo "Filtering IPv4 Ranges"
-		grep -woE '(^[0-9]{1,3}\.){3}[0-9]{1,3}\/[0-9]{1,2}$' /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk -v imptime="$imptime" '{print "add BlockedRanges " $1 " comment \"Imported: " imptime "\""}' >> /tmp/iplist-filtered.txt
+		grep -oE '(^[0-9]{1,3}\.){3}[0-9]{1,3}\/[0-9]{1,2}$' /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk -v imptime="$imptime" '{print "add BlockedRanges " $1 " comment \"Imported: " imptime "\""}' >> /tmp/iplist-filtered.txt
 		echo "Adding IPs To Blacklist"
 		ipset restore -! -f "/tmp/iplist-filtered.txt"
 		rm -rf /tmp/iplist-unfiltered.txt /tmp/iplist-filtered.txt
@@ -1479,9 +1479,9 @@ case "$1" in
 			exit 2
 		fi
 		echo "Filtering IPv4 Addresses"
-		grep -woE '(^[0-9]{1,3}\.){3}[0-9]{1,3}$' /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk '{print "del Blacklist " $1}' > /tmp/iplist-filtered.txt
+		grep -oE '(^[0-9]{1,3}\.){3}[0-9]{1,3}$' /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk '{print "del Blacklist " $1}' > /tmp/iplist-filtered.txt
 		echo "Filtering IPv4 Ranges"
-		grep -woE '(^[0-9]{1,3}\.){3}[0-9]{1,3}\/[0-9]{1,2}$' /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk '{print "del BlockedRanges " $1}' >> /tmp/iplist-filtered.txt
+		grep -oE '(^[0-9]{1,3}\.){3}[0-9]{1,3}\/[0-9]{1,2}$' /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk '{print "del BlockedRanges " $1}' >> /tmp/iplist-filtered.txt
 		echo "Removing IPs From Blacklist"
 		ipset restore -! -f "/tmp/iplist-filtered.txt"
 		rm -rf /tmp/iplist-unfiltered.txt /tmp/iplist-filtered.txt
