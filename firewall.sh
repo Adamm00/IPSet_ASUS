@@ -1286,7 +1286,7 @@ case "$1" in
 				echo "Banning Known IP Ranges For $3"
 				echo "Downloading Lists"
 				for country in $3; do
-					/usr/sbin/curl -fs http://ipdeny.com/ipblocks/data/aggregated/"$country"-aggregated.zone >> /tmp/countrylist.txt
+					/usr/sbin/curl -fs --retry 3 http://ipdeny.com/ipblocks/data/aggregated/"$country"-aggregated.zone >> /tmp/countrylist.txt
 				done
 				echo "Filtering IPv4 Ranges & Applying Blacklists"
 				grep -F "/" /tmp/countrylist.txt | sed -n "s/\\r//;/^$/d;/^[0-9,\\.,\\/]*$/s/^/add BlockedRanges /p" | sed "s/$/& comment \"Country: $3\"/" | ipset restore -!
@@ -1310,10 +1310,10 @@ case "$1" in
 		else
 			listurl="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/filter.list"
 		fi
-		/usr/sbin/curl -fs "$listurl" >/dev/null 2>&1 || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Banmalware" ; exit 1; }
+		/usr/sbin/curl -fs --retry 3 "$listurl" >/dev/null 2>&1 || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Banmalware" ; exit 1; }
 		Check_Lock "$@"
 		btime="$(date +%s)" && printf "Downloading filter.list 	"
-		/usr/sbin/curl -fs "$listurl" -o /jffs/shared-Skynet-whitelist && $grn "[$(($(date +%s) - btime))s]"
+		/usr/sbin/curl -fs --retry 3 "$listurl" -o /jffs/shared-Skynet-whitelist && $grn "[$(($(date +%s) - btime))s]"
 		btime="$(date +%s)" && printf "Whitelisting Shared Domains 	"
 		Whitelist_Extra
 		Whitelist_VPN
@@ -1324,13 +1324,13 @@ case "$1" in
 		case "$(nvram get model)" in
 			RT-AC86U) # AC86U Fork () Patch
 				while IFS= read -r "domain"; do
-					/usr/sbin/curl -fs "$domain" -O
+					/usr/sbin/curl -fs --retry 3 "$domain" -O
 				done < /jffs/shared-Skynet-whitelist
 				wait
 			;;
 			*)
 				while IFS= read -r "domain"; do
-					/usr/sbin/curl -fs "$domain" -O &
+					/usr/sbin/curl -fs --retry 3 "$domain" -O &
 				done < /jffs/shared-Skynet-whitelist
 				wait
 			;;
@@ -1453,7 +1453,7 @@ case "$1" in
 		if [ -n "$2" ]; then
 			Check_Lock "$@"
 			echo "Custom List Detected: $2"
-			/usr/sbin/curl -fs "$2" -o /tmp/iplist-unfiltered.txt || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Import" ; exit 1; }
+			/usr/sbin/curl -fs --retry 3 "$2" -o /tmp/iplist-unfiltered.txt || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Import" ; exit 1; }
 		else
 			echo "URL Field Can't Be Empty - Please Try Again"
 			exit 2
@@ -1476,7 +1476,7 @@ case "$1" in
 		if [ -n "$2" ]; then
 			Check_Lock "$@"
 			echo "Custom List Detected: $2"
-			/usr/sbin/curl -fs "$2" -o /tmp/iplist-unfiltered.txt || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Deport" ; exit 1; }
+			/usr/sbin/curl -fs --retry 3 "$2" -o /tmp/iplist-unfiltered.txt || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Deport" ; exit 1; }
 		else
 			echo "URL Field Can't Be Empty - Please Try Again"
 			exit 2
@@ -1567,9 +1567,9 @@ case "$1" in
 	update)
 		trap '' 2
 		remoteurl="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh"
-		/usr/sbin/curl -fs "$remoteurl" | grep -qF "Adamm" || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Update" ; exit 1; }
+		/usr/sbin/curl -fs --retry 3 "$remoteurl" | grep -qF "Adamm" || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Update" ; exit 1; }
 		localver="$(Filter_Version "$0")"
-		remotever="$(/usr/sbin/curl -fs "$remoteurl" | Filter_Version)"
+		remotever="$(/usr/sbin/curl -fs --retry 3 "$remoteurl" | Filter_Version)"
 		if [ "$localver" = "$remotever" ] && [ "$2" != "-f" ]; then
 			logger -st Skynet "[INFO] Skynet Up To Date - $localver"
 			exit 0
@@ -1588,7 +1588,7 @@ case "$1" in
 			Unload_DebugIPTables
 			Unload_IPSets
 			iptables -t raw -F
-			/usr/sbin/curl -fs "$remoteurl" -o "$0" && logger -st Skynet "[INFO] Skynet Sucessfully Updated - Restarting Firewall"
+			/usr/sbin/curl -fs --retry 3 "$remoteurl" -o "$0" && logger -st Skynet "[INFO] Skynet Sucessfully Updated - Restarting Firewall"
 			rm -rf /tmp/skynet.lock
 			service restart_firewall
 			exit 0
@@ -1849,19 +1849,19 @@ case "$1" in
 					malware)
 						Check_Lock "$@"
 						if ! echo "$4" | Is_IP && ! echo "$4" | Is_Range ; then echo "$4 Is Not A Valid IP/Range"; echo; exit 2; fi
-						/usr/sbin/curl -fs https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/filter.list -o /jffs/shared-Skynet-whitelist
+						/usr/sbin/curl -fs --retry 3 https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/filter.list -o /jffs/shared-Skynet-whitelist
 						mkdir -p /tmp/skynet
 						cd /tmp/skynet || exit 1
 						case "$(nvram get model)" in
 							RT-AC86U) # AC86U Fork () Patch
 								while IFS= read -r "domain"; do
-									/usr/sbin/curl -fs "$domain" -O
+									/usr/sbin/curl -fs --retry 3 "$domain" -O
 								done < /jffs/shared-Skynet-whitelist
 								wait
 							;;
 							*)
 								while IFS= read -r "domain"; do
-									/usr/sbin/curl -fs "$domain" -O &
+									/usr/sbin/curl -fs --retry 3 "$domain" -O &
 								done < /jffs/shared-Skynet-whitelist
 								wait
 							;;
