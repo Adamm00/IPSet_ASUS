@@ -1524,7 +1524,7 @@ case "$1" in
 		Check_Settings "$@"
 		cru a Skynet_save "0 * * * * sh /jffs/scripts/firewall save"
 		modprobe xt_set
-		ipset restore -! -f "${location}/scripts/ipset.txt" || touch "${location}/scripts/ipset.txt"
+		if [ -f "${location}/scripts/ipset.txt" ]; then ipset restore -! -f "${location}/scripts/ipset.txt"; else logger -st Skynet "[INFO] Setting Up Skynet..."; touch "${location}/scripts/ipset.txt"; fi
 		if ! ipset -L -n Whitelist >/dev/null 2>&1; then ipset -q create Whitelist hash:net comment; forcesave=1; fi
 		if ! ipset -L -n Blacklist >/dev/null 2>&1; then ipset -q create Blacklist hash:ip --maxelem 500000 comment; forcesave=1; fi
 		if ! ipset -L -n BlockedRanges >/dev/null 2>&1; then ipset -q create BlockedRanges hash:net comment; forcesave=1; fi
