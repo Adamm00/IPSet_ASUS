@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 5/11/2017 -		   Asus Firewall Addition By Adamm v5.4.9				    #
+## - 7/11/2017 -		   Asus Firewall Addition By Adamm v5.5.0				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -22,6 +22,8 @@ while [ "$(nvram get ntp_ready)" = "0" ]; do
 done
 red="printf \\e[1;31m%s\\e[0m\\n"
 grn="printf \\e[1;32m%s\\e[0m\\n"
+blue="printf \\e[1;36m%s\\e[0m\\n"
+ylow="printf \\e[1;33m%s\\e[0m\\n"
 stime="$(date +%s)"
 
 Check_Lock () {
@@ -1170,6 +1172,7 @@ fi
 case "$1" in
 	unban)
 		Purge_Logs
+		Check_Lock "$@"
 		case "$2" in
 			ip)
 				if ! echo "$3" | Is_IP; then echo "$3 Is Not A Valid IP"; echo; exit 2; fi
@@ -1241,15 +1244,18 @@ case "$1" in
 			*)
 				echo "Command Not Recognised, Please Try Again"
 				echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
+				rm -rf /tmp/skynet.lock
 				echo; exit 2
 			;;
 		esac
 		Save_IPSets
+		rm -rf /tmp/skynet.lock
 		echo
 	;;
 
 	ban)
 		Purge_Logs
+		Check_Lock "$@"
 		case "$2" in
 			ip)
 				if ! echo "$3" | Is_IP; then echo "$3 Is Not A Valid IP"; echo; exit 2; fi
@@ -1295,10 +1301,12 @@ case "$1" in
 			*)
 				echo "Command Not Recognised, Please Try Again"
 				echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
+				rm -rf /tmp/skynet.lock
 				echo; exit 2
 			;;
 		esac
 		Save_IPSets
+		rm -rf /tmp/skynet.lock
 		echo
 	;;
 
@@ -1358,6 +1366,7 @@ case "$1" in
 
 	whitelist)
 		Purge_Logs
+		Check_Lock "$@"
 		case "$2" in
 			ip|range)
 				if ! echo "$3" | Is_IP && ! echo "$3" | Is_Range ; then echo "$3 Is Not A Valid IP/Range"; echo; exit 2; fi
@@ -1441,14 +1450,17 @@ case "$1" in
 			*)
 				echo "Command Not Recognised, Please Try Again"
 				echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
+				rm -rf /tmp/skynet.lock
 				echo; exit 2
 			;;
 		esac
 		Save_IPSets
+		rm -rf /tmp/skynet.lock
 		echo
 	;;
 
 	import)
+		Purge_Logs
 		echo "This Function Extracts All IPs And Adds Them ALL To Blacklist"
 		if [ -n "$2" ]; then
 			Check_Lock "$@"
@@ -1472,6 +1484,7 @@ case "$1" in
 	;;
 
 	deport)
+		Purge_Logs
 		echo "This Function Extracts All IPs And Removes Them ALL From Blacklist"
 		if [ -n "$2" ]; then
 			Check_Lock "$@"
@@ -1516,8 +1529,6 @@ case "$1" in
 		if ! ipset -L -n Blacklist >/dev/null 2>&1; then ipset -q create Blacklist hash:ip --maxelem 500000 comment; forcesave=1; fi
 		if ! ipset -L -n BlockedRanges >/dev/null 2>&1; then ipset -q create BlockedRanges hash:net comment; forcesave=1; fi
 		if ! ipset -L -n Skynet >/dev/null 2>&1; then ipset -q create Skynet list:set; ipset -q -A Skynet Blacklist; ipset -q -A Skynet BlockedRanges; forcesave=1; fi
-		ipset -q -A Skynet Blacklist
-		ipset -q -A Skynet BlockedRanges
 		Unban_PrivateIP
 		Purge_Logs
 		sed '\~add Whitelist ~!d;\~nvram: ~!d;s~ comment.*~~;s~add~del~g' "${location}/scripts/ipset.txt" | ipset restore -!
@@ -1538,8 +1549,10 @@ case "$1" in
 	;;
 
 	restart)
+		Check_Lock "$@"
+		Purge_Logs
+		logger -st Skynet "[INFO] Restarting Skynet..."
 		Unload_Cron
-		Kill_Lock
 		Save_IPSets
 		Unload_IPTables
 		Unload_DebugIPTables
@@ -1547,11 +1560,14 @@ case "$1" in
 		echo "Restarting Firewall Service"
 		iptables -t raw -F
 		service restart_firewall
+		rm -rf /tmp/skynet.lock
 		exit 0
 	;;
 
 	disable)
+		Check_Lock "$@"
 		logger -st Skynet "[INFO] Disabling Skynet..."
+		Unload_Cron
 		Save_IPSets
 		echo "Unloading IPTables Rules"
 		Unload_IPTables
@@ -1559,8 +1575,7 @@ case "$1" in
 		echo "Unloading IPSets"
 		Unload_IPSets
 		Purge_Logs
-		Unload_Cron
-		Kill_Lock
+		rm -rf /tmp/skynet.lock
 		exit 0
 	;;
 
@@ -1607,7 +1622,7 @@ case "$1" in
 				trap 'echo; echo "Stopping Log Monitoring"; Purge_Logs' 2
 				echo "Watching Logs For Debug Entries (ctrl +c) To Stop"
 				echo
-				tail -F /tmp/syslog.log | grep -F "BLOCKED"
+				tail -F /tmp/syslog.log | while read -r logoutput; do if echo "$logoutput" | grep -q "NEW BAN"; then $blue "$logoutput"; elif echo "$logoutput" | grep -q "INBOUND"; then $ylow "$logoutput"; elif echo "$logoutput" | grep -q "OUTBOUND"; then $red "$logoutput"; fi; done
 			;;
 			info)
 				echo "Router Model; $(nvram get productid)"
@@ -1826,9 +1841,9 @@ case "$1" in
 						ipset test Blacklist "$4" && found2=true
 						ipset test BlockedRanges "$4" && found3=true
 						echo
-						if [ -n "$found1" ]; then $red "Whitelist Reason;"; echo "$(grep -F "add Whitelist $4 " ${location}/scripts/ipset.txt | awk '{$1=$2=$3=$4=""; print $0}' | tr -s " ")"; echo; fi
-						if [ -n "$found2" ]; then $red "Blacklist Reason;"; echo "$(grep -F "add Blacklist $4 " ${location}/scripts/ipset.txt | awk '{$1=$2=$3=$4=""; print $0}' | tr -s " ")"; echo; fi
-						if [ -n "$found3" ]; then $red "BlockedRanges Reason;"; echo "$(grep -F "add BlockedRanges $(echo "$4" | cut -d '.' -f1-3)." ${location}/scripts/ipset.txt | awk '{$1=$2=$4=""; print $0}' | tr -s " ")"; fi
+						if [ -n "$found1" ]; then $red "Whitelist Reason;"; grep -F "add Whitelist $4 " "${location}/scripts/ipset.txt" | awk '{$1=$2=$3=$4=""; print $0}' | tr -s " "; echo; fi
+						if [ -n "$found2" ]; then $red "Blacklist Reason;"; grep -F "add Blacklist $4 " "${location}/scripts/ipset.txt" | awk '{$1=$2=$3=$4=""; print $0}' | tr -s " "; echo; fi
+						if [ -n "$found3" ]; then $red "BlockedRanges Reason;"; grep -F "add BlockedRanges $(echo "$4" | cut -d '.' -f1-3)." "${location}/scripts/ipset.txt" | awk '{$1=$2=$4=""; print $0}' | tr -s " "; fi
 						echo
 						echo "$4 First Tracked On $(grep -m1 -F "=$4 " ${location}/skynet.log | awk '{print $1" "$2" "$3}')"
 						echo "$4 Last Tracked On $(grep -F "=$4 " ${location}/skynet.log | tail -1 | awk '{print $1" "$2" "$3}')"
@@ -2230,6 +2245,7 @@ case "$1" in
 		read -r "continue"
 		if [ "$continue" = "yes" ]; then
 			echo "Uninstalling Skynet And Restarting Firewall"
+			Purge_Logs
 			Unload_Cron
 			Kill_Lock
 			Unload_IPTables
