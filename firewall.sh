@@ -66,7 +66,7 @@ else
 	iface="$(nvram get wan0_ifname)"
 fi
 
-if [ "$(nvram get model)" = "RT-AC86U" ]; then
+if [ "$(nvram get productid)" = "RT-AC86U" ]; then
 	sync && echo 3 > /proc/sys/vm/drop_caches
 fi
 
@@ -92,7 +92,7 @@ Check_Settings () {
 			logger -st Skynet "[ERROR] $(/usr/bin/find /jffs /tmp/mnt | grep -E "$conflicting_scripts" | xargs) Detected - This Script Will Cause Conflicts! Please Uninstall It ASAP"
 		fi
 
-		if [ "$(nvram get model)" = "RT-AC86U" ] && ! grep -qF "swapon" /jffs/scripts/post-mount; then
+		if [ "$(nvram get productid)" = "RT-AC86U" ] && ! grep -qF "swapon" /jffs/scripts/post-mount; then
 			logger -st Skynet "[ERROR] Unfortunately This Model Requires A SWAP File - Install One By Running ( $0 debug swap install )"
 			exit 1
 		fi
@@ -300,7 +300,7 @@ Whitelist_Shared () {
 		if [ -n "$(/usr/bin/find /jffs -name 'shared-*-whitelist')" ]; then
 			echo "Whitelisting Shared Domains"
 			sed '\~add Whitelist ~!d;\~Shared-Whitelist~!d;s~ comment.*~~;s~add~del~g' "${location}/scripts/ipset.txt" | ipset restore -!
-			case "$(nvram get model)" in
+			case "$(nvram get productid)" in
 				RT-AC86U) # AC86U Fork () Patch
 					grep -hvF "#" /jffs/shared-*-whitelist | sed 's~http[s]*://~~;s~/.*~~' | awk '!x[$0]++' | while IFS= read -r "domain"; do
 						for ip in $(Domain_Lookup "$domain" 2> /dev/null); do
@@ -1329,7 +1329,7 @@ case "$1" in
 		btime="$(date +%s)" && printf "Consolidating Blacklist 	"
 		mkdir -p /tmp/skynet
 		cd /tmp/skynet || exit 1
-		case "$(nvram get model)" in
+		case "$(nvram get productid)" in
 			RT-AC86U) # AC86U Fork () Patch
 				while IFS= read -r "domain"; do
 					/usr/sbin/curl -fs --retry 3 "$domain" -O
@@ -1867,7 +1867,7 @@ case "$1" in
 						/usr/sbin/curl -fs --retry 3 https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/filter.list -o /jffs/shared-Skynet-whitelist
 						mkdir -p /tmp/skynet
 						cd /tmp/skynet || exit 1
-						case "$(nvram get model)" in
+						case "$(nvram get productid)" in
 							RT-AC86U) # AC86U Fork () Patch
 								while IFS= read -r "domain"; do
 									/usr/sbin/curl -fs --retry 3 "$domain" -O
@@ -2215,7 +2215,7 @@ case "$1" in
 		chmod +x /jffs/scripts/openvpn-event
 		echo
 		nvram commit
-		if [ "$(nvram get model)" = "RT-AC86U" ] && ! grep -qF "swapon" /jffs/scripts/post-mount; then
+		if [ "$(nvram get productid)" = "RT-AC86U" ] && ! grep -qF "swapon" /jffs/scripts/post-mount; then
 			echo "Unfortunately This Model Requires A SWAP File - Install One By Running ( $0 debug swap install )"
 		fi
 		if [ "$forcereboot" = "1" ]; then
