@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 8/11/2017 -		   Asus Firewall Addition By Adamm v5.5.1				    #
+## - 9/11/2017 -		   Asus Firewall Addition By Adamm v5.5.1				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -38,8 +38,8 @@ Check_Lock () {
 }
 
 if grep -qE "usb=.* # Skynet" /jffs/scripts/firewall-start 2>/dev/null; then
-	location="$(grep -ow "usb=.*" /jffs/scripts/firewall-start | awk '{print $1}' | cut -c 5-)/skynet"
-	if [ ! -d "$location" ] && ! echo "$@" | grep -qE "(install|uninstall|disable|update|restart|info)"; then
+	location="$(grep -ow "usb=.* # Skynet" /jffs/scripts/firewall-start | awk '{print $1}' | cut -c 5-)/skynet"
+	if [ ! -d "$location" ] && ! echo "$@" | grep -qE "( install| uninstall| disable| update| restart| info)"; then
 		Check_Lock "$@"
 		retry=1
 		while [ ! -d "$location" ] && [ "$retry" -lt "11" ]; do
@@ -49,7 +49,7 @@ if grep -qE "usb=.* # Skynet" /jffs/scripts/firewall-start 2>/dev/null; then
 		done
 		if [ ! -d "$location" ]; then
 			logger -st Skynet "[ERROR] USB Not Found After 10 Attempts - Please Fix Immediately!"
-			logger -st Skynet "[ERROR] When Fixed Run ( sh $0 debug restart )"
+			logger -st Skynet "[ERROR] When Fixed Run ( sh $0 restart )"
 			rm -rf /tmp/skynet.lock
 			exit 1
 		fi
@@ -82,7 +82,7 @@ Kill_Lock () {
 
 Check_Settings () {
 		if ! grep -qF "Skynet" /jffs/scripts/firewall-start; then
-			logger -st Skynet "[ERROR] Installation Not Detected - Please Use Install Command To Continue"
+			logger -st Skynet "[ERROR] Installation Not Detected - Please Use ( sh $0 install ) To Continue"
 			rm -rf /tmp/skynet.lock
 			exit 1
 		fi
@@ -506,10 +506,10 @@ Load_Menu () {
 				option1="ban"
 				while true; do
 					echo "What Type Of Input Would You Like To Ban:"
-					echo "[1] --> IP"
-					echo "[2] --> Range"
-					echo "[3] --> Domain"
-					echo "[4] --> Country"
+					echo "[1]  --> IP"
+					echo "[2]  --> Range"
+					echo "[3]  --> Domain"
+					echo "[4]  --> Country"
 					echo
 					printf "[1-4]: "
 					read -r "menu2"
@@ -584,8 +584,8 @@ Load_Menu () {
 				option1="banmalware"
 				while true; do
 					echo "Select Filter List:"
-					echo "[1] --> Default"
-					echo "[2] --> Custom"
+					echo "[1]  --> Default"
+					echo "[2]  --> Custom"
 					echo
 					printf "[1-2]: "
 					read -r "menu2"
@@ -2051,10 +2051,12 @@ case "$1" in
 		while true; do
 			echo "Installing Skynet $(Filter_Version "$0")"
 			echo "This Will Remove Any Old Install Arguements And Can Be Run Multiple Times"
-			echo "[1] --> Vanilla -           Default Installation"
-			echo "[2] --> NoAuto -            Default Installation Without Autobanning"
-			echo "[3] --> Debug -             Default Installation With Debug Print For Extended Stat Reporting"
-			echo "[4] --> NoAuto & Debug -    Default Installation With No Autobanning And Debug Print"
+			echo "[1]  --> Vanilla -           Default Installation"
+			echo "[2]  --> NoAuto -            Default Installation Without Autobanning"
+			echo "[3]  --> Debug -             Default Installation With Debug Print For Extended Stat Reporting"
+			echo "[4]  --> NoAuto & Debug -    Default Installation With No Autobanning And Debug Print"
+			echo
+			echo "[e]  --> Exit Menu"
 			echo
 			echo "Please Select Installation Mode"
 			printf "[1-4]: "
@@ -2095,9 +2097,9 @@ case "$1" in
 		echo
 		while true; do
 			echo "Would You Like To Enable Malwarelist Updating?"
-			echo "[1] --> Yes (Daily)  - (Recommended)"
-			echo "[2] --> Yes (Weekly)"
-			echo "[3] --> No"
+			echo "[1]  --> Yes (Daily)  - (Recommended)"
+			echo "[2]  --> Yes (Weekly)"
+			echo "[3]  --> No"
 			echo
 			echo "Please Select Option"
 			printf "[1-3]: "
@@ -2132,8 +2134,8 @@ case "$1" in
 		echo
 		while true; do
 			echo "Would You Like To Enable Weekly Skynet Updating?"
-			echo "[1] --> Yes  - (Recommended)"
-			echo "[2] --> No"
+			echo "[1]  --> Yes  - (Recommended)"
+			echo "[2]  --> No"
 			echo
 			echo "Please Select Option"
 			printf "[1-2]: "
@@ -2163,8 +2165,8 @@ case "$1" in
 		echo
 		while true; do
 			echo "Where Would You Like To Install Skynet?"
-			echo "[1] --> JFFS"
-			echo "[2] --> USB - (Recommended)"
+			echo "[1]  --> JFFS"
+			echo "[2]  --> USB - (Recommended)"
 			echo
 			echo "Please Select Option"
 			printf "[1-2]: "
@@ -2188,7 +2190,7 @@ case "$1" in
 					IFS="
 					"
 					for mounted in $(/bin/mount | grep -E "ext2|ext3|ext4|tfat|exfat" | awk '{print $3" - ("$1")"}') ; do
-						echo "[$i] --> $mounted"
+						echo "[$i]  --> $mounted"
 						eval mounts$i="$(echo "$mounted" | awk '{print $1}')"
 						i=$((i + 1))
 					done

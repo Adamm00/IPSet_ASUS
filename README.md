@@ -13,7 +13,7 @@ To open the menu its as simple as;
 
 ```sh /jffs/scripts/firewall```
 
-[![Skynet GUI](https://i.imgur.com/0S3zpn8.png "Skynet GUI")](https://i.imgur.com/0S3zpn8.png "Skynet GUI")
+[![Skynet GUI](https://i.imgur.com/prbZj9I.png "Skynet GUI")](https://i.imgur.com/prbZj9I.png "Skynet GUI")
 
 To use the CLI, execute the following;
 
@@ -40,9 +40,7 @@ To use the CLI, execute the following;
 In your favorite SSH Client;
 
 ```sh
-/usr/sbin/wget -O /jffs/scripts/firewall https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh
-chmod +x /jffs/scripts/firewall
-sh /jffs/scripts/firewall install
+/usr/sbin/curl --retry 3 "https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh" -o "/jffs/scripts/firewall" && chmod +x /jffs/scripts/firewall && sh /jffs/scripts/firewall install
 ```
 
 ## Help
