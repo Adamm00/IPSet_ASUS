@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 7/11/2017 -		   Asus Firewall Addition By Adamm v5.5.0				    #
+## - 8/11/2017 -		   Asus Firewall Addition By Adamm v5.5.0				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -1535,7 +1535,7 @@ case "$1" in
 		Whitelist_Extra
 		Whitelist_VPN
 		Whitelist_Shared
-		if [ -z "$forcesave" ]; then Save_IPSets; fi
+		if [ -n "$forcesave" ]; then Save_IPSets; fi
 		while [ "$(($(date +%s) - stime))" -lt "20" ]; do
 			sleep 1
 		done
