@@ -115,6 +115,7 @@ Here Are Some Example Stats Commands;
 (sh /jffs/scripts/firewall stats search malware 8.8.8.8) Search Malwarelists For Specified IP
 (sh /jffs/scripts/firewall stats search autobans) Search For All Autobans
 (sh /jffs/scripts/firewall stats search manualbans) Search For All Manual Bans
+(sh /jffs/scripts/firewall stats search device 192.168.1.134) Search For All Outbound Entries From Local Device 192.168.1.134
 (sh /jffs/scripts/firewall stats reset) Reset All Collected Debug Data
 ```
 

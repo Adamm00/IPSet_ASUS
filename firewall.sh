@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 8/11/2017 -		   Asus Firewall Addition By Adamm v5.5.0				    #
+## - 8/11/2017 -		   Asus Firewall Addition By Adamm v5.5.1				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -1072,8 +1072,9 @@ Load_Menu () {
 								echo "[3]  --> Search Malwarelists For IP"
 								echo "[4]  --> Search Autobans"
 								echo "[5]  --> Search Manualbans"
+								echo "[6]  --> Search For Outbound Entries From Local Device"
 								echo
-								printf "[1-5]: "
+								printf "[1-6]: "
 								read -r "menu4"
 								echo
 								case "$menu4" in
@@ -1107,6 +1108,14 @@ Load_Menu () {
 									;;
 									5)
 										option3="manualbans"
+										break
+									;;
+									6)
+										option3="device"
+										printf "[Local IP]: "
+										read -r "option4"
+										echo
+										if ! echo "$option4" | Is_IP; then echo "$option4 Is Not A Valid IP"; echo; continue; fi
 										break
 									;;
 									e|exit|back|menu)
@@ -1912,6 +1921,30 @@ case "$1" in
 						echo
 						$red "$counter Most Recent Manual Bans;"
 						grep -F "Manual Ban" "${location}/skynet.log" | tail -"$counter"
+					;;
+					device)
+						if ! echo "$4" | Is_IP; then echo "$4 Is Not A Valid IP"; echo; exit 2; fi
+						if [ "$5" -eq "$5" ] 2>/dev/null; then counter="$5"; fi
+						ipset test Whitelist "$4" && found1=true
+						ipset test Blacklist "$4" && found2=true
+						ipset test BlockedRanges "$4" && found3=true
+						echo
+						if [ -n "$found1" ]; then $red "Whitelist Reason;"; grep -F "add Whitelist $4 " "${location}/scripts/ipset.txt" | awk '{$1=$2=$3=$4=""; print $0}' | tr -s " "; echo; fi
+						if [ -n "$found2" ]; then $red "Blacklist Reason;"; grep -F "add Blacklist $4 " "${location}/scripts/ipset.txt" | awk '{$1=$2=$3=$4=""; print $0}' | tr -s " "; echo; fi
+						if [ -n "$found3" ]; then $red "BlockedRanges Reason;"; grep -F "add BlockedRanges $(echo "$4" | cut -d '.' -f1-3)." "${location}/scripts/ipset.txt" | awk '{$1=$2=$4=""; print $0}' | tr -s " "; fi
+						echo
+						echo "$4 First Tracked On $(grep -m1 -E "OUTBOUND.* SRC=$4 " ${location}/skynet.log | awk '{print $1" "$2" "$3}')"
+						echo "$4 Last Tracked On $(grep -E "OUTBOUND.* SRC=$4 " ${location}/skynet.log | tail -1 | awk '{print $1" "$2" "$3}')"
+						echo "$(grep -Eoc -E "OUTBOUND.* SRC=$4 " ${location}/skynet.log) Events Total"
+						echo
+						$red "Device Name;"
+						if grep -qF " $4 " /tmp/var/lib/misc/dnsmasq.leases; then grep -F " $4 " /tmp/var/lib/misc/dnsmasq.leases | awk '{print $4}'; else echo "No Name Found"; fi
+						echo
+						$red "First Event Tracked From $4;"
+						grep -m1 -E "OUTBOUND.* SRC=$4 " "${location}/skynet.log"
+						echo
+						$red "$counter Most Recent Events From $4;"
+						grep -E "OUTBOUND.* SRC=$4 " "${location}/skynet.log" | tail -"$counter"
 					;;
 					*)
 						echo "Command Not Recognised, Please Try Again"
