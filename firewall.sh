@@ -39,7 +39,7 @@ Check_Lock () {
 
 if grep -qE "usb=.* # Skynet" /jffs/scripts/firewall-start 2>/dev/null; then
 	location="$(grep -ow "usb=.* # Skynet" /jffs/scripts/firewall-start | awk '{print $1}' | cut -c 5-)/skynet"
-	if [ ! -d "$location" ] && ! echo "$@" | grep -qE "( install| uninstall| disable| update| restart| info)"; then
+	if [ ! -d "$location" ] && ! echo "$@" | grep -qE "(install|uninstall|disable|update|restart|info)"; then
 		Check_Lock "$@"
 		retry=1
 		while [ ! -d "$location" ] && [ "$retry" -lt "11" ]; do
