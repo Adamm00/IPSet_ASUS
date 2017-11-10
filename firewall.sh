@@ -96,6 +96,18 @@ Check_Settings () {
 			logger -st Skynet "[ERROR] Unfortunately This Model Requires A SWAP File - Install One By Running ( $0 debug swap install )"
 			exit 1
 		fi
+		
+		# Temporary Update Code 10/11/2017
+		if ! grep -qF "Skynet" "/jffs/scripts/services-stop" 2>/dev/null; then
+			if [ ! -f "/jffs/scripts/services-stop" ]; then
+				echo "#!/bin/sh" > /jffs/scripts/services-stop
+			elif [ -f "/jffs/scripts/services-stop" ] && ! head -1 /jffs/scripts/services-stop | grep -qE "^#!/bin/sh"; then
+				sed -i '1s~^~#!/bin/sh\n~' /jffs/scripts/services-stop
+			fi
+			sed -i '\~ Skynet ~d' /jffs/scripts/services-stop
+			echo "sh /jffs/scripts/firewall save # Skynet Firewall Addition" >> /jffs/scripts/services-stop
+		fi
+		# Temporary Update Code
 
 		if echo "$@" | grep -qF "banmalware "; then
 			cru a Skynet_banmalware "25 2 * * * sh /jffs/scripts/firewall banmalware"
@@ -224,7 +236,7 @@ Filter_Version () {
 }
 
 Filter_Date () {
-		grep -oE '[0-9]{1,2}([/][0-9]{1,2})([/][0-9]{1,4})' "$1"
+		grep -m1 -oE '[0-9]{1,2}([/][0-9]{1,2})([/][0-9]{1,4})' "$1"
 }
 
 Filter_PrivateIP () {
@@ -2050,6 +2062,11 @@ case "$1" in
 		elif [ -f "/jffs/scripts/openvpn-event" ] && ! head -1 /jffs/scripts/openvpn-event | grep -qE "^#!/bin/sh"; then
 			sed -i '1s~^~#!/bin/sh\n~' /jffs/scripts/openvpn-event
 		fi
+		if [ ! -f "/jffs/scripts/services-stop" ]; then
+			echo "#!/bin/sh" > /jffs/scripts/services-stop
+		elif [ -f "/jffs/scripts/services-stop" ] && ! head -1 /jffs/scripts/services-stop | grep -qE "^#!/bin/sh"; then
+			sed -i '1s~^~#!/bin/sh\n~' /jffs/scripts/services-stop
+		fi
 		while true; do
 			echo "Installing Skynet $(Filter_Version "$0")"
 			echo "This Will Remove Any Old Install Arguements And Can Be Run Multiple Times"
@@ -2247,6 +2264,8 @@ case "$1" in
 		done
 		sed -i '\~ Skynet ~d' /jffs/scripts/openvpn-event
 		echo "sh /jffs/scripts/firewall whitelist vpn # Skynet Firewall Addition" >> /jffs/scripts/openvpn-event
+		sed -i '\~ Skynet ~d' /jffs/scripts/services-stop
+		echo "sh /jffs/scripts/firewall save # Skynet Firewall Addition" >> /jffs/scripts/services-stop
 		chmod +x /jffs/scripts/firewall
 		chmod +x /jffs/scripts/firewall-start
 		chmod +x /jffs/scripts/openvpn-event
@@ -2291,6 +2310,7 @@ case "$1" in
 			nvram set fw_log_x=none
 			sed -i '\~ Skynet ~d' /jffs/scripts/firewall-start
 			sed -i '\~ Skynet ~d' /jffs/scripts/openvpn-event
+			sed -i '\~ Skynet ~d' /jffs/scripts/services-stop
 			if grep -qE "swapon .* # Skynet" /jffs/scripts/post-mount 2>/dev/null; then
 				echo "Removing Skynet Generated SWAP File..."
 				sed -i '\~ Skynet ~d' /jffs/scripts/post-mount
