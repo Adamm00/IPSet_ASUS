@@ -1939,9 +1939,8 @@ case "$1" in
 						echo "$4 Last Tracked On $(grep -E "OUTBOUND.* SRC=$4 " ${location}/skynet.log | tail -1 | awk '{print $1" "$2" "$3}')"
 						echo "$(grep -Eoc -E "OUTBOUND.* SRC=$4 " ${location}/skynet.log) Events Total"
 						echo
-						if nvram get buildno | grep -qF "382"; then leaselocation="/var/lib/misc/dnsmasq.leases"; else leaselocation="/tmp/var/lib/misc/dnsmasq.leases"; fi
 						$red "Device Name;"
-						if grep -qF " $4 " "$leaselocation"; then grep -F " $4 " "$leaselocation" | awk '{print $4}'; else echo "No Name Found"; fi
+						if grep -qF " $4 " "/var/lib/misc/dnsmasq.leases"; then grep -F " $4 " "/var/lib/misc/dnsmasq.leases" | awk '{print $4}'; else echo "No Name Found"; fi
 						echo
 						$red "First Event Tracked From $4;"
 						grep -m1 -E "OUTBOUND.* SRC=$4 " "${location}/skynet.log"
@@ -2004,11 +2003,10 @@ case "$1" in
 				grep -E "OUTBOUND.*$proto" "${location}/skynet.log" | grep -vE 'DPT=80 |DPT=443 ' | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}'
 				echo
 				$red "Top $counter Blocked Devices (Outbound);"
-				if nvram get buildno | grep -qF "382"; then leaselocation="/var/lib/misc/dnsmasq.leases"; else leaselocation="/tmp/var/lib/misc/dnsmasq.leases"; fi
 				grep -E "OUTBOUND.*$proto" "${location}/skynet.log" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1 "x "$2}' > /tmp/skynetstats.txt
 				awk '{print $2}' /tmp/skynetstats.txt | while IFS= read -r "localip"; do
-					if grep -qF " $localip " "$leaselocation"; then
-						sed -i "s~$localip~$localip $(grep -F " $localip " "$leaselocation" | awk '{print $4}')~g" /tmp/skynetstats.txt
+					if grep -qF " $localip " "/var/lib/misc/dnsmasq.leases"; then
+						sed -i "s~$localip~$localip $(grep -F " $localip " "/var/lib/misc/dnsmasq.leases" | awk '{print $4}')~g" /tmp/skynetstats.txt
 					else
 						sed -i "s~$localip~$localip (No Name Found)~g" /tmp/skynetstats.txt
 					fi
