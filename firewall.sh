@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 10/11/2017 -		   Asus Firewall Addition By Adamm v5.5.2				    #
+## - 11/11/2017 -		   Asus Firewall Addition By Adamm v5.5.3				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -39,7 +39,7 @@ Check_Lock () {
 
 if grep -qE "usb=.* # Skynet" /jffs/scripts/firewall-start 2>/dev/null; then
 	location="$(grep -ow "usb=.* # Skynet" /jffs/scripts/firewall-start | awk '{print $1}' | cut -c 5-)/skynet"
-	if [ ! -d "$location" ] && ! echo "$@" | grep -qE "(install|uninstall|disable|update|restart|info)"; then
+	if [ ! -d "$location" ] && ! echo "$@" | grep -wqE "(install|uninstall|disable|update|restart|info)"; then
 		Check_Lock "$@"
 		retry=1
 		while [ ! -d "$location" ] && [ "$retry" -lt "11" ]; do
@@ -97,7 +97,7 @@ Check_Settings () {
 			exit 1
 		fi
 		
-		# Temporary Update Code 10/11/2017
+		# Temporary Update Code
 		if ! grep -qF "Skynet" "/jffs/scripts/services-stop" 2>/dev/null; then
 			if [ ! -f "/jffs/scripts/services-stop" ]; then
 				echo "#!/bin/sh" > /jffs/scripts/services-stop
