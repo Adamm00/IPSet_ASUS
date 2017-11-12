@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 11/11/2017 -		   Asus Firewall Addition By Adamm v5.5.3				    #
+## - 12/11/2017 -		   Asus Firewall Addition By Adamm v5.5.3				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -2018,9 +2018,9 @@ case "$1" in
 				grep -E "OUTBOUND.*$proto" "${location}/skynet.log" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1 "x "$2}' > /tmp/skynetstats.txt
 				awk '{print $2}' /tmp/skynetstats.txt | while IFS= read -r "localip"; do
 					if grep -qF " $localip " "/var/lib/misc/dnsmasq.leases"; then
-						sed -i "s~$localip~$localip $(grep -F " $localip " "/var/lib/misc/dnsmasq.leases" | awk '{print $4}')~g" /tmp/skynetstats.txt
+						sed -i "s~$localip$~$localip $(grep -F " $localip " "/var/lib/misc/dnsmasq.leases" | awk '{print $4}')~g" /tmp/skynetstats.txt
 					else
-						sed -i "s~$localip~$localip (No Name Found)~g" /tmp/skynetstats.txt
+						sed -i "s~$localip$~$localip (No Name Found)~g" /tmp/skynetstats.txt
 					fi
 				done
 				cat /tmp/skynetstats.txt
