@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 12/11/2017 -		   Asus Firewall Addition By Adamm v5.5.3				    #
+## - 15/11/2017 -		   Asus Firewall Addition By Adamm v5.5.3				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -332,12 +332,10 @@ Whitelist_Shared () {
 }
 
 Purge_Logs () {
-		sed '/BLOCKED -/!d' /tmp/syslog.log-1 >/dev/null 2>&1 >> "${location}/skynet.log"
-		sed -i '/BLOCKED -/d' /tmp/syslog.log-1 >/dev/null 2>&1
-		sed '/BLOCKED -/!d' /tmp/syslog.log >/dev/null 2>&1 >> "${location}/skynet.log"
-		sed -i '/BLOCKED -/d' /tmp/syslog.log >/dev/null 2>&1
+		sed '\~BLOCKED -~!d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null >> "${location}/skynet.log"
+		sed -i '\~BLOCKED -~d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null
 		if [ "$(du ${location}/skynet.log | awk '{print $1}')" -ge "7000" ]; then
-			sed -i '/BLOCKED - .*BOUND/d' "${location}/skynet.log"
+			sed -i '\~BLOCKED - .*BOUND~d' "${location}/skynet.log"
 			echo "$(awk '!x[$0]++' "${location}/skynet.log")" > "${location}/skynet.log"
 			if [ "$(du ${location}/skynet.log | awk '{print $1}')" -ge "3000" ]; then
 				true > "${location}/skynet.log"
@@ -1250,7 +1248,7 @@ case "$1" in
 				done
 			;;
 			nomanual)
-				sed -i '/Manual /!d' "${location}/skynet.log"
+				sed -i '\~Manual ~!d' "${location}/skynet.log"
 				ipset flush Blacklist
 				ipset flush BlockedRanges
 				sed '\~add Whitelist ~d;\~Manual[R]*Ban: ~!d' "${location}/scripts/ipset.txt" | ipset restore -!
@@ -1370,7 +1368,7 @@ case "$1" in
 		btime="$(date +%s)" && printf "Saving Changes 			"
 		Save_IPSets >/dev/null 2>&1 && $grn "[$(($(date +%s) - btime))s]"
 		btime="$(date +%s)" && printf "Removing Previous Malware Bans  "
-		sed -i "\\~comment \"BanMalware\"~d" "${location}/scripts/ipset.txt"
+		sed -i '\~comment \"BanMalware\"~d' "${location}/scripts/ipset.txt"
 		ipset flush Blacklist; ipset flush BlockedRanges
 		ipset restore -! -f "${location}/scripts/ipset.txt" && $grn "[$(($(date +%s) - btime))s]"
 		btime="$(date +%s)" && printf "Filtering IPv4 Addresses 	"
@@ -1541,7 +1539,7 @@ case "$1" in
 	start)
 		trap '' 2
 		Check_Lock "$@"
-		logger -st Skynet "[INFO] Startup Initiated... ( $(echo "$@" | sed "s/start //g") )"
+		logger -st Skynet "[INFO] Startup Initiated... ( $(echo "$@" | sed 's~start ~~g') )"
 		Unload_Cron
 		Check_Settings "$@"
 		cru a Skynet_save "0 * * * * sh /jffs/scripts/firewall save"
@@ -1565,8 +1563,7 @@ case "$1" in
 		Unload_DebugIPTables
 		Load_IPTables "$@"
 		Load_DebugIPTables "$@"
-		sed -i '/DROP IN=/d' /tmp/syslog.log-1 2>/dev/null
-		sed -i '/DROP IN=/d' /tmp/syslog.log 2>/dev/null
+		sed -i '\~DROP IN=~d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null
 		rm -rf /tmp/skynet.lock
 	;;
 
@@ -1693,7 +1690,7 @@ case "$1" in
 			clean)
 				echo "Cleaning Syslog Entries..."
 				Purge_Logs
-				sed -i "\\~Skynet: ~d" /tmp/syslog.log 2>/dev/null; sed -i "\\~Skynet: ~d" /tmp/syslog.log-1 2>/dev/null
+				sed -i '\~Skynet: ~d' /tmp/syslog.log /tmp/syslog.log-1 2>/dev/null
 				echo "Complete!"
 				echo
 				exit 0
@@ -1834,7 +1831,7 @@ case "$1" in
 		counter=10
 		case "$2" in
 			reset)
-				sed -i '/BLOCKED - .*BOUND/d' "${location}/skynet.log"
+				sed -i '\~BLOCKED - .*BOUND~d' "${location}/skynet.log"
 				echo "$(awk '!x[$0]++' "${location}/skynet.log")" > "${location}/skynet.log"
 				iptables -Z PREROUTING -t raw
 				echo "Stat Data Reset"
@@ -2308,9 +2305,7 @@ case "$1" in
 			Unload_DebugIPTables
 			Unload_IPSets
 			nvram set fw_log_x=none
-			sed -i '\~ Skynet ~d' /jffs/scripts/firewall-start
-			sed -i '\~ Skynet ~d' /jffs/scripts/openvpn-event
-			sed -i '\~ Skynet ~d' /jffs/scripts/services-stop
+			sed -i '\~ Skynet ~d' /jffs/scripts/firewall-start /jffs/scripts/openvpn-event /jffs/scripts/services-stop
 			if grep -qE "swapon .* # Skynet" /jffs/scripts/post-mount 2>/dev/null; then
 				echo "Removing Skynet Generated SWAP File..."
 				sed -i '\~ Skynet ~d' /jffs/scripts/post-mount
