@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 15/11/2017 -		   Asus Firewall Addition By Adamm v5.5.3				    #
+## - 16/11/2017 -		   Asus Firewall Addition By Adamm v5.5.4				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -1341,7 +1341,7 @@ case "$1" in
 		/usr/sbin/curl -fs --retry 3 "$listurl" >/dev/null 2>&1 || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Banmalware" ; exit 1; }
 		Check_Lock "$@"
 		btime="$(date +%s)" && printf "Downloading filter.list 	"
-		/usr/sbin/curl -fs --retry 3 "$listurl" -o /jffs/shared-Skynet-whitelist && $grn "[$(($(date +%s) - btime))s]"
+		/usr/sbin/curl -fs --retry 3 "$listurl" | dos2unix > /jffs/shared-Skynet-whitelist && $grn "[$(($(date +%s) - btime))s]"
 		btime="$(date +%s)" && printf "Whitelisting Shared Domains 	"
 		Whitelist_Extra
 		Whitelist_VPN
@@ -1485,7 +1485,7 @@ case "$1" in
 		if [ -n "$2" ]; then
 			Check_Lock "$@"
 			echo "Custom List Detected: $2"
-			/usr/sbin/curl -fs --retry 3 "$2" -o /tmp/iplist-unfiltered.txt || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Import" ; exit 1; }
+			/usr/sbin/curl -fs --retry 3 "$2" | dos2unix > /tmp/iplist-unfiltered.txt || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Import" ; exit 1; }
 		else
 			echo "URL Field Can't Be Empty - Please Try Again"
 			exit 2
@@ -1509,7 +1509,7 @@ case "$1" in
 		if [ -n "$2" ]; then
 			Check_Lock "$@"
 			echo "Custom List Detected: $2"
-			/usr/sbin/curl -fs --retry 3 "$2" -o /tmp/iplist-unfiltered.txt || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Deport" ; exit 1; }
+			/usr/sbin/curl -fs --retry 3 "$2" | dos2unix > /tmp/iplist-unfiltered.txt || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Deport" ; exit 1; }
 		else
 			echo "URL Field Can't Be Empty - Please Try Again"
 			exit 2
