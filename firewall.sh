@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 16/11/2017 -		   Asus Firewall Addition By Adamm v5.5.4				    #
+## - 18/11/2017 -		   Asus Firewall Addition By Adamm v5.5.4				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -306,6 +306,8 @@ Whitelist_Shared () {
 		ipset -q -A Whitelist "$(nvram get wan0_dns2_x)"/32 comment "nvram: wan0_dns2_x"
 		ipset -q -A Whitelist "$(nvram get wan_dns | awk '{print $1}')"/32 comment "nvram: wan_dns"
 		ipset -q -A Whitelist "$(nvram get wan_dns | awk '{print $2}')"/32 comment "nvram: wan_dns"
+		ipset -q -A Whitelist "$(nvram get wan0_dns | awk '{print $1}')"/32 comment "nvram: wan0_dns"
+		ipset -q -A Whitelist "$(nvram get wan0_dns | awk '{print $2}')"/32 comment "nvram: wan0_dns"
 		ipset -q -A Whitelist "$(nvram get wan0_xdns | awk '{print $1}')"/32 comment "nvram: wan0_xdns"
 		ipset -q -A Whitelist "$(nvram get wan0_xdns | awk '{print $2}')"/32 comment "nvram: wan0_xdns"
 		ipset -q -A Whitelist 192.168.1.0/24 comment "nvram: LAN Subnet"
