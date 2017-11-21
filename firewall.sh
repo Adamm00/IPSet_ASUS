@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 18/11/2017 -		   Asus Firewall Addition By Adamm v5.5.4				    #
+## - 21/11/2017 -		   Asus Firewall Addition By Adamm v5.5.4				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -1672,9 +1672,9 @@ case "$1" in
 				printf "Checking Log Level %s Settings...			" "$(nvram get message_loglevel)"
 				if [ "$(nvram get message_loglevel)" -le "$(nvram get log_level)" ]; then $grn "[Passed]"; else $red "[Failed]"; fi
 				printf "Checking Autobanning Status...				"
-				if iptables -C logdrop -i "$iface" -m state --state INVALID -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null; then $grn "[Passed]"; else $red "[Failed]"; fi
+				if iptables -C logdrop -i "$iface" -m state --state INVALID -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null; then $grn "[Passed]"; elif grep -qE " noautoban .* # Skynet" /jffs/scripts/firewall-start 2>/dev/null; then $ylow "[Disabled]"; else $red "[Failed]"; fi
 				printf "Checking Debug Mode Status...				"
-				if iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Whitelist src -m set --match-set Skynet src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null; then $grn "[Passed]"; else $red "[Failed]"; fi
+				if iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Whitelist src -m set --match-set Skynet src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null; then $grn "[Passed]"; elif ! grep -qE " debug .* # Skynet" /jffs/scripts/firewall-start 2>/dev/null; then $ylow "[Disabled]"; else $red "[Failed]"; fi
 				printf "Checking For Duplicate Rules In RAW...			"
 				if [ "$(iptables-save -t raw | sort | uniq -d | grep -c " ")" = "0" ]; then $grn "[Passed]"; else $red "[Failed]"; fi
 				printf "Checking For Duplicate Rules In Filter...		"
