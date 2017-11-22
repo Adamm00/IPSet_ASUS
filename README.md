@@ -129,5 +129,4 @@ Here Are Some Example Stats Commands;
 
 Want to help support Skynet future developement? All donations are appreciated.
 
-[Donate With PayPal](https://www.paypal.me/SkynetProject)
-
+[Donate With PayPal](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=BPN4LTRZKDTML)
