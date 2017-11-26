@@ -2324,5 +2324,5 @@ case "$1" in
 
 esac
 
-if [ -n "$reloadmenu" ]; then echo; echo; sh "$0" noreload; exit 0; fi
+if [ -n "$reloadmenu" ]; then echo; echo; exec "$0" noreload; fi
 Logging; echo
