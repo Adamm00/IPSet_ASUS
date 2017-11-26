@@ -14,7 +14,7 @@
 #############################################################################################################
 
 
-clear
+if [ "$1" != "noreload" ]; then clear; fi
 head -16 "$0"
 export LC_ALL=C
 
@@ -1177,7 +1177,7 @@ Load_Menu () {
 	done
 }
 
-if [ -z "$1" ]; then
+if [ -z "$1" ] || [ "$1" = "noreload" ]; then
 	Load_Menu
 fi
 
@@ -2324,5 +2324,5 @@ case "$1" in
 
 esac
 
-if [ -n "$reloadmenu" ]; then clear; Load_Menu; fi
+if [ -n "$reloadmenu" ]; then echo; echo; sh "$0" noreload; exit 0; fi
 Logging; echo
