@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 21/11/2017 -		   Asus Firewall Addition By Adamm v5.5.4				    #
+## - 27/11/2017 -		   Asus Firewall Addition By Adamm v5.5.5				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -17,9 +17,14 @@
 clear
 head -16 "$0"
 export LC_ALL=C
-while [ "$(nvram get ntp_ready)" = "0" ]; do
+
+retry=1
+while [ "$(nvram get ntp_ready)" = "0" ] && [ "$retry" -lt "300" ]; do
+	retry=$((retry+1))
 	sleep 1
 done
+if [ "$retry" -ge "300" ]; then logger -st Skynet "[ERROR] NTP Failed To Start After 5 Minutes - Please Fix Immediately!"; exit 1; fi
+
 red="printf \\e[1;31m%s\\e[0m\\n"
 grn="printf \\e[1;32m%s\\e[0m\\n"
 blue="printf \\e[1;36m%s\\e[0m\\n"
@@ -96,18 +101,6 @@ Check_Settings () {
 			logger -st Skynet "[ERROR] Unfortunately This Model Requires A SWAP File - Install One By Running ( $0 debug swap install )"
 			exit 1
 		fi
-		
-		# Temporary Update Code
-		if ! grep -qF "Skynet" "/jffs/scripts/services-stop" 2>/dev/null; then
-			if [ ! -f "/jffs/scripts/services-stop" ]; then
-				echo "#!/bin/sh" > /jffs/scripts/services-stop
-			elif [ -f "/jffs/scripts/services-stop" ] && ! head -1 /jffs/scripts/services-stop | grep -qE "^#!/bin/sh"; then
-				sed -i '1s~^~#!/bin/sh\n~' /jffs/scripts/services-stop
-			fi
-			sed -i '\~ Skynet ~d' /jffs/scripts/services-stop
-			echo "sh /jffs/scripts/firewall save # Skynet Firewall Addition" >> /jffs/scripts/services-stop
-		fi
-		# Temporary Update Code
 
 		if echo "$@" | grep -qF "banmalware "; then
 			cru a Skynet_banmalware "25 2 * * * sh /jffs/scripts/firewall banmalware"
@@ -140,60 +133,59 @@ Check_Settings () {
 }
 
 Unload_IPTables () {
-		iptables -D logdrop -m state --state NEW -j LOG --log-prefix "DROP " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
-		iptables -D logdrop -m state --state NEW -j LOG --log-prefix --log --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1 # Temp .382 Codebase Fix
-		ip6tables -D logdrop -m state --state NEW -j LOG --log-prefix "DROP " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
-		iptables -t raw -D PREROUTING -i "$iface" -m set ! --match-set Whitelist src -m set --match-set Skynet src -j DROP >/dev/null 2>&1
-		iptables -t raw -D PREROUTING -i br0 -m set ! --match-set Whitelist dst -m set --match-set Skynet dst -j DROP >/dev/null 2>&1
-		iptables -D logdrop -i "$iface" -m state --state INVALID -j SET --add-set Skynet src >/dev/null 2>&1
-		iptables -D logdrop -i "$iface" -m state --state INVALID -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
-		iptables -D logdrop -i "$iface" -p tcp -m multiport --sports 80,443,143,993,110,995,25,465 -m state --state INVALID -j DROP >/dev/null 2>&1
-		iptables -D logdrop -i "$iface" -m set --match-set Whitelist src -j ACCEPT >/dev/null 2>&1
-		iptables -D logdrop -p tcp --tcp-flags ALL RST,ACK -j ACCEPT >/dev/null 2>&1
-		iptables -D logdrop -p tcp --tcp-flags ALL RST -j ACCEPT >/dev/null 2>&1
-		iptables -D logdrop -p tcp --tcp-flags ALL FIN,ACK -j ACCEPT >/dev/null 2>&1
-		iptables -D logdrop -p tcp --tcp-flags ALL ACK,PSH,FIN -j ACCEPT >/dev/null 2>&1
-		iptables -D logdrop -p icmp --icmp-type 3 -j ACCEPT >/dev/null 2>&1
-		iptables -D logdrop -p icmp --icmp-type 11 -j ACCEPT >/dev/null 2>&1
-		iptables -D SSHBFP -m recent --update --seconds 60 --hitcount 4 --name SSH --rsource -j SET --add-set Blacklist src >/dev/null 2>&1
-		iptables -D SSHBFP -m recent --update --seconds 60 --hitcount 4 --name SSH --rsource -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
+		iptables -D logdrop -m state --state NEW -j LOG --log-prefix "DROP " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
+		ip6tables -D logdrop -m state --state NEW -j LOG --log-prefix "DROP " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
+		iptables -t raw -D PREROUTING -i "$iface" -m set ! --match-set Whitelist src -m set --match-set Skynet src -j DROP 2>/dev/null
+		iptables -t raw -D PREROUTING -i br0 -m set ! --match-set Whitelist dst -m set --match-set Skynet dst -j DROP 2>/dev/null
+		iptables -D logdrop -i "$iface" -m state --state INVALID -j SET --add-set Skynet src 2>/dev/null
+		iptables -D logdrop -i "$iface" -m state --state INVALID -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
+		iptables -D logdrop -i "$iface" -p tcp -m multiport --sports 80,443,143,993,110,995,25,465 -m state --state INVALID -j DROP 2>/dev/null
+		iptables -D logdrop -i "$iface" -m set --match-set Whitelist src -j ACCEPT 2>/dev/null
+		iptables -D logdrop -p tcp --tcp-flags ALL RST,ACK -j ACCEPT 2>/dev/null
+		iptables -D logdrop -p tcp --tcp-flags ALL RST -j ACCEPT 2>/dev/null
+		iptables -D logdrop -p tcp --tcp-flags ALL FIN,ACK -j ACCEPT 2>/dev/null
+		iptables -D logdrop -p tcp --tcp-flags ALL ACK,PSH,FIN -j ACCEPT 2>/dev/null
+		iptables -D logdrop -p icmp --icmp-type 3 -j ACCEPT 2>/dev/null
+		iptables -D logdrop -p icmp --icmp-type 11 -j ACCEPT 2>/dev/null
+		iptables -D SSHBFP -m recent --update --seconds 60 --hitcount 4 --name SSH --rsource -j SET --add-set Blacklist src 2>/dev/null
+		iptables -D SSHBFP -m recent --update --seconds 60 --hitcount 4 --name SSH --rsource -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 }
 
 Load_IPTables () {
-		iptables -t raw -I PREROUTING -i "$iface" -m set ! --match-set Whitelist src -m set --match-set Skynet src -j DROP >/dev/null 2>&1
-		iptables -t raw -I PREROUTING -i br0 -m set ! --match-set Whitelist dst -m set --match-set Skynet dst -j DROP >/dev/null 2>&1
+		iptables -t raw -I PREROUTING -i "$iface" -m set ! --match-set Whitelist src -m set --match-set Skynet src -j DROP 2>/dev/null
+		iptables -t raw -I PREROUTING -i br0 -m set ! --match-set Whitelist dst -m set --match-set Skynet dst -j DROP 2>/dev/null
 		if echo "$@" | grep -qF "noautoban"; then
 			logger -st Skynet "[INFO] Enabling No-Autoban Mode..."
 		else
-			iptables -I logdrop -i "$iface" -m state --state INVALID -j SET --add-set Skynet src >/dev/null 2>&1
-			iptables -I logdrop -i "$iface" -m state --state INVALID -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
-			iptables -I logdrop -p tcp --tcp-flags ALL RST,ACK -j ACCEPT >/dev/null 2>&1
-			iptables -I logdrop -p tcp --tcp-flags ALL RST -j ACCEPT >/dev/null 2>&1
-			iptables -I logdrop -p tcp --tcp-flags ALL FIN,ACK -j ACCEPT >/dev/null 2>&1
-			iptables -I logdrop -p tcp --tcp-flags ALL ACK,PSH,FIN -j ACCEPT >/dev/null 2>&1
-			iptables -I logdrop -p icmp --icmp-type 3 -j ACCEPT >/dev/null 2>&1
-			iptables -I logdrop -p icmp --icmp-type 11 -j ACCEPT >/dev/null 2>&1
-			iptables -I logdrop -i "$iface" -p tcp -m multiport --sports 80,443,143,993,110,995,25,465 -m state --state INVALID -j DROP >/dev/null 2>&1
-			iptables -I logdrop -i "$iface" -m set --match-set Whitelist src -j ACCEPT >/dev/null 2>&1
+			iptables -I logdrop -i "$iface" -m state --state INVALID -j SET --add-set Skynet src 2>/dev/null
+			iptables -I logdrop -i "$iface" -m state --state INVALID -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
+			iptables -I logdrop -p tcp --tcp-flags ALL RST,ACK -j ACCEPT 2>/dev/null
+			iptables -I logdrop -p tcp --tcp-flags ALL RST -j ACCEPT 2>/dev/null
+			iptables -I logdrop -p tcp --tcp-flags ALL FIN,ACK -j ACCEPT 2>/dev/null
+			iptables -I logdrop -p tcp --tcp-flags ALL ACK,PSH,FIN -j ACCEPT 2>/dev/null
+			iptables -I logdrop -p icmp --icmp-type 3 -j ACCEPT 2>/dev/null
+			iptables -I logdrop -p icmp --icmp-type 11 -j ACCEPT 2>/dev/null
+			iptables -I logdrop -i "$iface" -p tcp -m multiport --sports 80,443,143,993,110,995,25,465 -m state --state INVALID -j DROP 2>/dev/null
+			iptables -I logdrop -i "$iface" -m set --match-set Whitelist src -j ACCEPT 2>/dev/null
 		fi
 		if [ "$(nvram get sshd_enable)" = "1" ] && [ "$(nvram get sshd_bfp)" = "1" ]; then
 			pos3="$(iptables --line -nL SSHBFP | grep -F "seconds: 60 hit_count: 4" | grep -F "logdrop" | awk '{print $1}')"
-			iptables -I SSHBFP "$pos3" -m recent --update --seconds 60 --hitcount 4 --name SSH --rsource -j SET --add-set Skynet src >/dev/null 2>&1
-			iptables -I SSHBFP "$pos3" -m recent --update --seconds 60 --hitcount 4 --name SSH --rsource -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
+			iptables -I SSHBFP "$pos3" -m recent --update --seconds 60 --hitcount 4 --name SSH --rsource -j SET --add-set Skynet src 2>/dev/null
+			iptables -I SSHBFP "$pos3" -m recent --update --seconds 60 --hitcount 4 --name SSH --rsource -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 		fi
 }
 
 Unload_DebugIPTables () {
-		iptables -t raw -D PREROUTING -i "$iface" -m set ! --match-set Whitelist src -m set --match-set Skynet src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
-		iptables -t raw -D PREROUTING -i br0 -m set ! --match-set Whitelist dst -m set --match-set Skynet dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
+		iptables -t raw -D PREROUTING -i "$iface" -m set ! --match-set Whitelist src -m set --match-set Skynet src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
+		iptables -t raw -D PREROUTING -i br0 -m set ! --match-set Whitelist dst -m set --match-set Skynet dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 }
 
 Load_DebugIPTables () {
 		if echo "$@" | grep -qF "debug"; then
 			pos1="$(iptables --line -nL PREROUTING -t raw | grep -F "Skynet src" | grep -F "DROP" | awk '{print $1}')"
-			iptables -t raw -I PREROUTING "$pos1" -i "$iface" -m set ! --match-set Whitelist src -m set --match-set Skynet src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
+			iptables -t raw -I PREROUTING "$pos1" -i "$iface" -m set ! --match-set Whitelist src -m set --match-set Skynet src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 			pos2="$(iptables --line -nL PREROUTING -t raw | grep -F "Skynet dst" | grep -F "DROP" | awk '{print $1}')"
-			iptables -t raw -I PREROUTING "$pos2" -i br0 -m set ! --match-set Whitelist dst -m set --match-set Skynet dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options >/dev/null 2>&1
+			iptables -t raw -I PREROUTING "$pos2" -i br0 -m set ! --match-set Whitelist dst -m set --match-set Skynet dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 		fi
 }
 
@@ -240,15 +232,15 @@ Filter_Date () {
 }
 
 Filter_PrivateIP () {
-		grep -vE '(^127\.)|(^10\.)|(^172\.1[6-9]\.)|(^172\.2[0-9]\.)|(^172\.3[0-1]\.)|(^192\.168\.)|(^0.)|(^169\.254\.)|(^22[4-9]\.)|(^23[0-9]\.)'
+		grep -vE '(^127\.)|(^10\.)|(^172\.1[6-9]\.)|(^172\.2[0-9]\.)|(^172\.3[0-1]\.)|(^192\.168\.)|(^0.)|(^169\.254\.)|(^22[4-9]\.)|(^23[0-9]\.)|(^255\.255\.255\.255)'
 }
 
 Filter_PrivateSRC () {
-		grep -E '(SRC=127\.)|(SRC=10\.)|(SRC=172\.1[6-9]\.)|(SRC=172\.2[0-9]\.)|(SRC=172\.3[0-1]\.)|(SRC=192\.168\.)|(SRC=0.)|(SRC=169\.254\.)'
+		grep -E '(SRC=127\.)|(SRC=10\.)|(SRC=172\.1[6-9]\.)|(SRC=172\.2[0-9]\.)|(SRC=172\.3[0-1]\.)|(SRC=192\.168\.)|(SRC=0.)|(SRC=169\.254\.)|(SRC=22[4-9]\.)|(SRC=23[0-9]\.)|(SRC=255\.255\.255\.255)'
 }
 
 Filter_PrivateDST () {
-		grep -E '(DST=127\.)|(DST=10\.)|(DST=172\.1[6-9]\.)|(DST=172\.2[0-9]\.)|(DST=172\.3[0-1]\.)|(DST=192\.168\.)|(DST=0.)|(DST=169\.254\.)'
+		grep -E '(DST=127\.)|(DST=10\.)|(DST=172\.1[6-9]\.)|(DST=172\.2[0-9]\.)|(DST=172\.3[0-1]\.)|(DST=192\.168\.)|(DST=0.)|(DST=169\.254\.)|(DST=22[4-9]\.)|(DST=23[0-9]\.)|(DST=255\.255\.255\.255)'
 }
 
 Save_IPSets () {
@@ -300,6 +292,7 @@ Whitelist_VPN () {
 Whitelist_Shared () {
 		ipset -q -A Whitelist "$(nvram get wan0_ipaddr)"/32 comment "nvram: wan0_ipaddr"
 		ipset -q -A Whitelist "$(nvram get lan_ipaddr)"/24 comment "nvram: lan_ipaddr"
+		ipset -q -A Whitelist "$(nvram get lan_netmask)"/24 comment "nvram: lan_netmask"
 		ipset -q -A Whitelist "$(nvram get wan_dns1_x)"/32 comment "nvram: wan_dns1_x"
 		ipset -q -A Whitelist "$(nvram get wan_dns2_x)"/32 comment "nvram: wan_dns2_x"
 		ipset -q -A Whitelist "$(nvram get wan0_dns1_x)"/32 comment "nvram: wan0_dns1_x"
@@ -382,12 +375,13 @@ Load_Menu () {
 	if [ -n "$lockedwarning" ]; then $ylow "Locked Processes Generally Take 20-60s To Complete And May Result In Temporarily \"Failed\" Tests"; fi
 	echo
 	if ! grep -qF "Skynet" /jffs/scripts/firewall-start 2>/dev/null; then printf "Checking Firewall-Start Entry...			"; $red "[Failed]"; fi
-	if ! iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Whitelist src -m set --match-set Skynet src -j DROP 2>/dev/null; then printf "Checking Skynet IPTable...				"; $red "[Failed]"; NoLog="1"; fi
-	if ! ipset -L -n Whitelist >/dev/null 2>&1; then printf "Checking Whitelist IPSet...				"; $red "[Failed]"; NoLog="1"; fi
-	if ! ipset -L -n BlockedRanges >/dev/null 2>&1; then printf "Checking BlockedRanges IPSet...				"; $red "[Failed]"; NoLog="1"; fi
-	if ! ipset -L -n Blacklist >/dev/null 2>&1; then printf "Checking Blacklist IPSet...				"; $red "[Failed]"; NoLog="1"; fi
-	if ! ipset -L -n Skynet >/dev/null 2>&1; then printf "Checking Skynet IPSet...				"; $red "[Failed]"; NoLog="1"; fi
-	if [ -z "$NoLog" ]; then Logging minimal; fi
+	if ! iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Whitelist src -m set --match-set Skynet src -j DROP 2>/dev/null; then printf "Checking Skynet IPTable...				"; $red "[Failed]"; nolog="1"; fi
+	if ! ipset -L -n Whitelist >/dev/null 2>&1; then printf "Checking Whitelist IPSet...				"; $red "[Failed]"; nolog="1"; fi
+	if ! ipset -L -n BlockedRanges >/dev/null 2>&1; then printf "Checking BlockedRanges IPSet...				"; $red "[Failed]"; nolog="1"; fi
+	if ! ipset -L -n Blacklist >/dev/null 2>&1; then printf "Checking Blacklist IPSet...				"; $red "[Failed]"; nolog="1"; fi
+	if ! ipset -L -n Skynet >/dev/null 2>&1; then printf "Checking Skynet IPSet...				"; $red "[Failed]"; nolog="1"; fi
+	if [ -z "$nolog" ]; then Logging minimal; fi
+	reloadmenu=1
 	echo
 	while true; do
 		echo "Select Menu Option:"
@@ -1665,6 +1659,8 @@ case "$1" in
 				if grep -qF "Skynet" /jffs/scripts/firewall-start; then $grn "[Passed]"; else $red "[Failed]"; fi
 				printf "Checking OpenVPN-Event Entry...				"
 				if grep -qF "Skynet" /jffs/scripts/openvpn-event; then $grn "[Passed]"; else $red "[Failed]"; fi
+				printf "Checking Services-Stop Entry...				"
+				if grep -qF "Skynet" /jffs/scripts/services-stop; then $grn "[Passed]"; else $red "[Failed]"; fi
 				printf "Checking CronJobs...					"
 				if cru l | grep -qF "Skynet"; then $grn "[Passed]"; else $red "[Failed]"; fi
 				printf "Checking IPSet Comment Support...			"
@@ -2267,9 +2263,7 @@ case "$1" in
 		echo "sh /jffs/scripts/firewall whitelist vpn # Skynet Firewall Addition" >> /jffs/scripts/openvpn-event
 		sed -i '\~ Skynet ~d' /jffs/scripts/services-stop
 		echo "sh /jffs/scripts/firewall save # Skynet Firewall Addition" >> /jffs/scripts/services-stop
-		chmod +x /jffs/scripts/firewall
-		chmod +x /jffs/scripts/firewall-start
-		chmod +x /jffs/scripts/openvpn-event
+		chmod 0755 /jffs/scripts/*
 		echo
 		nvram commit
 		if [ "$(nvram get productid)" = "RT-AC86U" ] && ! grep -qF "swapon" /jffs/scripts/post-mount; then
@@ -2330,4 +2324,5 @@ case "$1" in
 
 esac
 
+if [ -n "$reloadmenu" ]; then clear; Load_Menu; fi
 Logging; echo
