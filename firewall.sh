@@ -9,12 +9,12 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 27/11/2017 -		   Asus Firewall Addition By Adamm v5.5.5				    #
+## - 29/11/2017 -		   Asus Firewall Addition By Adamm v5.5.6				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
 
-if [ "$1" != "noreload" ]; then clear; fi
+if [ "$1" != "noclear" ]; then clear; fi
 head -16 "$0"
 export LC_ALL=C
 
@@ -593,8 +593,9 @@ Load_Menu () {
 					echo "Select Filter List:"
 					echo "[1]  --> Default"
 					echo "[2]  --> Custom"
+					echo "[3]  --> Reset Filter URL"
 					echo
-					printf "[1-2]: "
+					printf "[1-3]: "
 					read -r "menu2"
 					echo
 					case "$menu2" in
@@ -607,6 +608,10 @@ Load_Menu () {
 							read -r "option2"
 							echo
 							if [ -z "$option2" ]; then echo "URL Field Can't Be Empty - Please Try Again"; echo; continue; fi
+							break
+						;;
+						3)
+							option2="reset"
 							break
 						;;
 						e|exit|back|menu)
@@ -1177,7 +1182,7 @@ Load_Menu () {
 	done
 }
 
-if [ -z "$1" ] || [ "$1" = "noreload" ]; then
+if [ -z "$1" ] || [ "$1" = "noclear" ]; then
 	Load_Menu
 fi
 
@@ -1328,16 +1333,29 @@ case "$1" in
 
 	banmalware)
 		trap '' 2
-		if [ -n "$2" ]; then
+		Purge_Logs
+		if [ "$2" = "reset" ]; then
+			echo "Filter URL Reset"
+			sed -i '\~New Banmalware Filter~d' "${location}/skynet.log"
+		fi
+		if [ -n "$2" ] && [ "$2" != "reset" ]; then
 			listurl="$2"
-			echo "Custom List Detected: $2"
+			echo "Custom List Detected: $listurl"
+			sed -i '\~New Banmalware Filter~d' "${location}/skynet.log"
+			echo "$(date +"%b %d %T") Skynet: [New Banmalware Filter] URL=$listurl " >> "${location}/skynet.log"
 		else
-			listurl="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/filter.list"
+			if grep -qF "New Banmalware Filter" "${location}/skynet.log"; then
+				listurl="$(grep -F "New Banmalware Filter" "${location}/skynet.log" | sed 's~.*New Banmalware Filter.*URL=~~g')"
+				echo "Custom List Detected: $listurl"
+			else
+				listurl="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/filter.list"
+			fi
 		fi
 		/usr/sbin/curl -fs --retry 3 "$listurl" >/dev/null 2>&1 || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Banmalware" ; exit 1; }
 		Check_Lock "$@"
 		btime="$(date +%s)" && printf "Downloading filter.list 	"
 		/usr/sbin/curl -fs --retry 3 "$listurl" | dos2unix > /jffs/shared-Skynet-whitelist && $grn "[$(($(date +%s) - btime))s]"
+		if [ "$(wc -l < /jffs/shared-Skynet-whitelist)" = "0" ]; then echo >> /jffs/shared-Skynet-whitelist; fi
 		btime="$(date +%s)" && printf "Whitelisting Shared Domains 	"
 		Whitelist_Extra
 		Whitelist_VPN
@@ -2324,5 +2342,5 @@ case "$1" in
 
 esac
 
-if [ -n "$reloadmenu" ]; then echo; echo; exec "$0" noreload; fi
+if [ -n "$reloadmenu" ]; then echo; echo; exec "$0" noclear; fi
 Logging; echo
