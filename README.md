@@ -21,7 +21,7 @@ To use the CLI, execute the following;
 
     "unban"        # <-- Remove Entry From Blacklist (IP/Range/Domain/Port/Country/Malware/Autobans/Nomanual/All)
     "ban"          # <-- Adds Entry To Blacklist (IP/Range/Domain/Port/Country)
-    "banmalware"   # <-- Bans Various Malware Domains
+    "banmalware"   # <-- Bans Various Malware Domains/IPs
     "whitelist"    # <-- Add Entry To Whitelist (IP/Range/Domain/Port/VPN/Remove/Refresh/List)
     "import"       # <-- Bans All IPs From URL
     "deport"       # <-- Unbans All IPs From URL
@@ -67,6 +67,7 @@ Here Are Some Example Ban Commands;
 Here Are Some Example Banmalware Commands;
 (sh /jffs/scripts/firewall banmalware) This Bans IPs From The Predefined Filter List
 (sh /jffs/scripts/firewall banmalware google.com/filter.list) This Uses The Fitler List From The Specified URL
+(sh /jffs/scripts/firewall banmalware reset) This Will Reset Skynet Back To The Default Filter URL
 
 Here Are Some Example Whitelist Commands;
 (sh /jffs/scripts/firewall whitelist ip 8.8.8.8 Apples) This Whitelists The IP Specified With Comment Apples
