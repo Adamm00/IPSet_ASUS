@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 29/11/2017 -		   Asus Firewall Addition By Adamm v5.5.6				    #
+## - 03/12/2017 -		   Asus Firewall Addition By Adamm v5.5.7				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -129,6 +129,10 @@ Check_Settings () {
 
 		if [ "$(nvram get fw_log_x)" != "drop" ] && [ "$(nvram get fw_log_x)" != "both" ]; then
 			nvram set fw_log_x=drop
+		fi
+
+		if grep "# Skynet" "/jffs/scripts/openvpn-event"; then
+			sed -i '\~ Skynet ~d' /jffs/scripts/openvpn-event
 		fi
 }
 
@@ -2072,11 +2076,11 @@ case "$1" in
 		elif [ -f "/jffs/scripts/firewall-start" ] && ! head -1 /jffs/scripts/firewall-start | grep -qE "^#!/bin/sh"; then
 			sed -i '1s~^~#!/bin/sh\n~' /jffs/scripts/firewall-start
 		fi
-		if [ ! -f "/jffs/scripts/openvpn-event" ]; then
-			echo "#!/bin/sh" > /jffs/scripts/openvpn-event
-		elif [ -f "/jffs/scripts/openvpn-event" ] && ! head -1 /jffs/scripts/openvpn-event | grep -qE "^#!/bin/sh"; then
-			sed -i '1s~^~#!/bin/sh\n~' /jffs/scripts/openvpn-event
-		fi
+		# if [ ! -f "/jffs/scripts/openvpn-event" ]; then
+			# echo "#!/bin/sh" > /jffs/scripts/openvpn-event
+		# elif [ -f "/jffs/scripts/openvpn-event" ] && ! head -1 /jffs/scripts/openvpn-event | grep -qE "^#!/bin/sh"; then
+			# sed -i '1s~^~#!/bin/sh\n~' /jffs/scripts/openvpn-event
+		# fi
 		if [ ! -f "/jffs/scripts/services-stop" ]; then
 			echo "#!/bin/sh" > /jffs/scripts/services-stop
 		elif [ -f "/jffs/scripts/services-stop" ] && ! head -1 /jffs/scripts/services-stop | grep -qE "^#!/bin/sh"; then
@@ -2277,8 +2281,8 @@ case "$1" in
 				;;
 			esac
 		done
-		sed -i '\~ Skynet ~d' /jffs/scripts/openvpn-event
-		echo "sh /jffs/scripts/firewall whitelist vpn # Skynet Firewall Addition" >> /jffs/scripts/openvpn-event
+		# sed -i '\~ Skynet ~d' /jffs/scripts/openvpn-event
+		# echo "sh /jffs/scripts/firewall whitelist vpn # Skynet Firewall Addition" >> /jffs/scripts/openvpn-event
 		sed -i '\~ Skynet ~d' /jffs/scripts/services-stop
 		echo "sh /jffs/scripts/firewall save # Skynet Firewall Addition" >> /jffs/scripts/services-stop
 		chmod 0755 /jffs/scripts/*
