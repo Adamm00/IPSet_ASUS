@@ -1678,8 +1678,8 @@ case "$1" in
 				printf "Checking Install Directory Write Permissions...		"
 				if [ -w "$location" ]; then $grn "[Passed]"; else $red "[Failed]"; fi
 				printf "Checking Firewall-Start Entry...			"
-				if grep -qF "Skynet" /jffs/scripts/firewall-start; then $grn "[Passed]"; else $red "[Failed]"; fi
-				printf "Checking OpenVPN-Event Entry...				"
+				# if grep -qF "Skynet" /jffs/scripts/firewall-start; then $grn "[Passed]"; else $red "[Failed]"; fi
+				# printf "Checking OpenVPN-Event Entry...				"
 				if grep -qF "Skynet" /jffs/scripts/openvpn-event; then $grn "[Passed]"; else $red "[Failed]"; fi
 				printf "Checking Services-Stop Entry...				"
 				if grep -qF "Skynet" /jffs/scripts/services-stop; then $grn "[Passed]"; else $red "[Failed]"; fi
@@ -2345,6 +2345,10 @@ case "$1" in
 	;;
 
 esac
+
+if [ "$(nvram get productid)" = "RT-AC86U" ]; then
+	sync && echo 3 > /proc/sys/vm/drop_caches
+fi
 
 if [ -n "$reloadmenu" ]; then echo; echo; exec "$0" noclear; fi
 Logging; echo
