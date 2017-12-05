@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 03/12/2017 -		   Asus Firewall Addition By Adamm v5.5.7				    #
+## - 05/12/2017 -		   Asus Firewall Addition By Adamm v5.5.8				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -1200,19 +1200,19 @@ case "$1" in
 		Check_Lock "$@"
 		case "$2" in
 			ip)
-				if ! echo "$3" | Is_IP; then echo "$3 Is Not A Valid IP"; echo; exit 2; fi
+				if ! echo "$3" | Is_IP; then echo "$3 Is Not A Valid IP"; echo; rm -rf /tmp/skynet.lock; exit 2; fi
 				echo "Unbanning $3"
 				ipset -D Blacklist "$3"
 				sed -i "\\~$3 ~d" "${location}/skynet.log"
 			;;
 			range)
-				if ! echo "$3" | Is_Range; then echo "$3  Is Not A Valid Range"; echo; exit 2; fi
+				if ! echo "$3" | Is_Range; then echo "$3  Is Not A Valid Range"; echo; rm -rf /tmp/skynet.lock; exit 2; fi
 				echo "Unbanning $3"
 				ipset -D BlockedRanges "$3"
 				sed -i "\\~$3 ~d" "${location}/skynet.log"
 			;;
 			domain)
-				if [ -z "$3" ]; then echo "Domain Field Can't Be Empty - Please Try Again"; echo; exit 2; fi
+				if [ -z "$3" ]; then echo "Domain Field Can't Be Empty - Please Try Again"; echo; rm -rf /tmp/skynet.lock; exit 2; fi
 				logger -st Skynet "[INFO] Removing $3 From Blacklist..."
 				for ip in $(Domain_Lookup "$3"); do
 					echo "Unbanning $ip"
@@ -1221,13 +1221,13 @@ case "$1" in
 				done
 			;;
 			port)
-				if ! echo "$3" | Is_Port; then echo "$3 Is Not A Valid Port"; echo; exit 2; fi
+				if ! echo "$3" | Is_Port; then echo "$3 Is Not A Valid Port"; echo; rm -rf /tmp/skynet.lock; exit 2; fi
 				logger -st Skynet "[INFO] Unbanning Autobans Issued On Traffic From Source/Destination Port $3..."
 				grep -F "NEW" "${location}/skynet.log" | grep -F "PT=$3 " | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | awk '{print "del Blacklist "$1}' | ipset restore -!
 				sed -i "/PT=${3} /d" "${location}/skynet.log"
 			;;
 			comment)
-				if [ -z "$3" ]; then echo "Comment Field Can't Be Empty - Please Try Again"; echo; exit 2; fi
+				if [ -z "$3" ]; then echo "Comment Field Can't Be Empty - Please Try Again"; echo; rm -rf /tmp/skynet.lock; exit 2; fi
 				echo "Removing Bans With Comment Containing ($3)"
 				sed "\\~add Whitelist ~d;\\~$3~!d;s~ comment.*~~;s~add~del~g" "${location}/scripts/ipset.txt" | ipset restore -!
 				echo "Removing Old Logs - This May Take Awhile (To Skip Type ctrl+c)"
@@ -1270,7 +1270,7 @@ case "$1" in
 				echo "Command Not Recognised, Please Try Again"
 				echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
 				rm -rf /tmp/skynet.lock
-				echo; exit 2
+				echo; rm -rf /tmp/skynet.lock; exit 2
 			;;
 		esac
 		Save_IPSets
@@ -1283,8 +1283,8 @@ case "$1" in
 		Check_Lock "$@"
 		case "$2" in
 			ip)
-				if ! echo "$3" | Is_IP; then echo "$3 Is Not A Valid IP"; echo; exit 2; fi
-				if [ "${#4}" -gt "255" ]; then echo "$4 Is Not A Valid Comment. 255 Chars Max"; echo; exit 2; fi
+				if ! echo "$3" | Is_IP; then echo "$3 Is Not A Valid IP"; echo; rm -rf /tmp/skynet.lock; exit 2; fi
+				if [ "${#4}" -gt "255" ]; then echo "$4 Is Not A Valid Comment. 255 Chars Max"; echo; rm -rf /tmp/skynet.lock; exit 2; fi
 				echo "Banning $3"
 				desc="$4"
 				if [ -z "$4" ]; then
@@ -1293,8 +1293,8 @@ case "$1" in
 				ipset -A Blacklist "$3" comment "ManualBan: $desc" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Single SRC=$3 COMMENT=$desc " >> "${location}/skynet.log"
 			;;
 			range)
-				if ! echo "$3" | Is_Range; then echo "$3 Is Not A Valid Range"; echo; exit 2; fi
-				if [ "${#4}" -gt "255" ]; then echo "$4 Is Not A Valid Comment. 255 Chars Max"; echo; exit 2; fi
+				if ! echo "$3" | Is_Range; then echo "$3 Is Not A Valid Range"; echo; rm -rf /tmp/skynet.lock; exit 2; fi
+				if [ "${#4}" -gt "255" ]; then echo "$4 Is Not A Valid Comment. 255 Chars Max"; echo; rm -rf /tmp/skynet.lock; exit 2; fi
 				echo "Banning $3"
 				desc="$4"
 				if [ -z "$4" ]; then
@@ -1303,7 +1303,7 @@ case "$1" in
 				ipset -A BlockedRanges "$3" comment "ManualRBan: $desc" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Range SRC=$3 COMMENT=$desc " >> "${location}/skynet.log"
 			;;
 			domain)
-				if [ -z "$3" ]; then echo "Domain Field Can't Be Empty - Please Try Again"; echo; exit 2; fi
+				if [ -z "$3" ]; then echo "Domain Field Can't Be Empty - Please Try Again"; echo; rm -rf /tmp/skynet.lock; exit 2; fi
 				logger -st Skynet "[INFO] Adding $3 To Blacklist..."
 				for ip in $(Domain_Lookup "$3"); do
 					echo "Banning $ip"
@@ -1311,7 +1311,7 @@ case "$1" in
 				done
 			;;
 			country)
-				if [ -z "$3" ]; then echo "Country Field Can't Be Empty - Please Try Again"; echo; exit 2; fi
+				if [ -z "$3" ]; then echo "Country Field Can't Be Empty - Please Try Again"; echo; rm -rf /tmp/skynet.lock; exit 2; fi
 				echo "Removing Previous Country Bans"
 				sed '\~add Whitelist ~d;\~Country: ~!d;s~ comment.*~~;s~add~del~g' "${location}/scripts/ipset.txt" | ipset restore -!
 				echo "Banning Known IP Ranges For $3"
@@ -1366,7 +1366,7 @@ case "$1" in
 		Whitelist_Shared >/dev/null 2>&1 && $grn "[$(($(date +%s) - btime))s]"
 		btime="$(date +%s)" && printf "Consolidating Blacklist 	"
 		mkdir -p /tmp/skynet
-		cd /tmp/skynet || exit 1
+		cd /tmp/skynet || rm -rf /tmp/skynet.lock && exit 1
 		case "$(nvram get productid)" in
 			RT-AC86U) # AC86U Fork () Patch
 				while IFS= read -r "domain"; do
@@ -1381,7 +1381,7 @@ case "$1" in
 				wait
 			;;
 		esac
-		cd /tmp/home/root || exit 1
+		cd /tmp/home/root || rm -rf /tmp/skynet.lock && exit 1
 		dos2unix /tmp/skynet/*
 		cat /tmp/skynet/* | sed -n "s/\\r//;/^$/d;/^[0-9,\\.,\\/]*$/p" | awk '!x[$0]++' | Filter_PrivateIP > /tmp/skynet/malwarelist.txt && $grn "[$(($(date +%s) - btime))s]"
 		btime="$(date +%s)" && printf "Saving Changes 			"
@@ -1408,8 +1408,8 @@ case "$1" in
 		Check_Lock "$@"
 		case "$2" in
 			ip|range)
-				if ! echo "$3" | Is_IP && ! echo "$3" | Is_Range ; then echo "$3 Is Not A Valid IP/Range"; echo; exit 2; fi
-				if [ "${#4}" -gt "255" ]; then echo "$4 Is Not A Valid Comment. 255 Chars Max"; echo; exit 2; fi
+				if ! echo "$3" | Is_IP && ! echo "$3" | Is_Range ; then echo "$3 Is Not A Valid IP/Range"; echo; rm -rf /tmp/skynet.lock; exit 2; fi
+				if [ "${#4}" -gt "255" ]; then echo "$4 Is Not A Valid Comment. 255 Chars Max"; echo; rm -rf /tmp/skynet.lock; exit 2; fi
 				echo "Whitelisting $3"
 				desc="$4"
 				if [ -z "$4" ]; then
@@ -1421,7 +1421,7 @@ case "$1" in
 				sed -i "\\~$3 ~d" "${location}/skynet.log"
 			;;
 			domain)
-				if [ -z "$3" ]; then echo "Domain Field Can't Be Empty - Please Try Again"; echo; exit 2; fi
+				if [ -z "$3" ]; then echo "Domain Field Can't Be Empty - Please Try Again"; echo; rm -rf /tmp/skynet.lock; exit 2; fi
 				logger -st Skynet "[INFO] Adding $3 To Whitelist..."
 				for ip in $(Domain_Lookup "$3"); do
 					echo "Whitelisting $ip"
@@ -1431,7 +1431,7 @@ case "$1" in
 				done
 			;;
 			port)
-				if ! echo "$3" | Is_Port; then echo "$3 Is Not A Valid Port"; echo; exit 2; fi
+				if ! echo "$3" | Is_Port; then echo "$3 Is Not A Valid Port"; echo; rm -rf /tmp/skynet.lock; exit 2; fi
 				logger -st Skynet "[INFO] Whitelisting Autobans Issued On Traffic From Port $3..."
 				grep -F "NEW" "${location}/skynet.log" | grep -F "DPT=$3 " | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | while IFS= read -r "ip"; do
 					echo "Whitelisting $ip"
@@ -1447,12 +1447,12 @@ case "$1" in
 			remove)
 				case "$3" in
 					entry)
-						if ! echo "$4" | Is_IP && ! echo "$4" | Is_Range ; then echo "$4 Is Not A Valid IP/Range"; echo; exit 2; fi
+						if ! echo "$4" | Is_IP && ! echo "$4" | Is_Range ; then echo "$4 Is Not A Valid IP/Range"; echo; rm -rf /tmp/skynet.lock; exit 2; fi
 						echo "Removing $4 From Whitelist"
 						ipset -D Whitelist "$4"
 					;;
 					comment)
-						if [ -z "$4" ]; then echo "Comment Field Can't Be Empty - Please Try Again"; echo; exit 2; fi
+						if [ -z "$4" ]; then echo "Comment Field Can't Be Empty - Please Try Again"; echo; rm -rf /tmp/skynet.lock; exit 2; fi
 						echo "Removing All Entries With Comment Matching \"$4\" From Whitelist"
 						sed "\\~add Whitelist ~!d;\\~$4~!d;s~ comment.*~~;s~add~del~g" "${location}/scripts/ipset.txt" | ipset restore -!
 					;;
@@ -1504,9 +1504,10 @@ case "$1" in
 		if [ -n "$2" ]; then
 			Check_Lock "$@"
 			echo "Custom List Detected: $2"
-			/usr/sbin/curl -fs --retry 3 "$2" | dos2unix > /tmp/iplist-unfiltered.txt || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Import" ; exit 1; }
+			/usr/sbin/curl -fs --retry 3 "$2" | dos2unix > /tmp/iplist-unfiltered.txt || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Import"; rm -rf /tmp/skynet.lock; exit 1; }
 		else
 			echo "URL Field Can't Be Empty - Please Try Again"
+			rm -rf /tmp/skynet.lock
 			exit 2
 		fi
 		imptime="$(date +"%b %d %T")"
@@ -1528,9 +1529,10 @@ case "$1" in
 		if [ -n "$2" ]; then
 			Check_Lock "$@"
 			echo "Custom List Detected: $2"
-			/usr/sbin/curl -fs --retry 3 "$2" | dos2unix > /tmp/iplist-unfiltered.txt || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Deport" ; exit 1; }
+			/usr/sbin/curl -fs --retry 3 "$2" | dos2unix > /tmp/iplist-unfiltered.txt || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Deport"; rm -rf /tmp/skynet.lock; exit 1; }
 		else
 			echo "URL Field Can't Be Empty - Please Try Again"
+			rm -rf /tmp/skynet.lock;
 			exit 2
 		fi
 		echo "Filtering IPv4 Addresses"
@@ -1620,7 +1622,7 @@ case "$1" in
 	update)
 		trap '' 2
 		remoteurl="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh"
-		/usr/sbin/curl -fs --retry 3 "$remoteurl" | grep -qF "Adamm" || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Update" ; exit 1; }
+		/usr/sbin/curl -fs --retry 3 "$remoteurl" | grep -qF "Adamm" || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Update"; exit 1; }
 		localver="$(Filter_Version "$0")"
 		remotever="$(/usr/sbin/curl -fs --retry 3 "$remoteurl" | Filter_Version)"
 		if [ "$localver" = "$remotever" ] && [ "$2" != "-f" ]; then
@@ -1679,8 +1681,6 @@ case "$1" in
 				if [ -w "$location" ]; then $grn "[Passed]"; else $red "[Failed]"; fi
 				printf "Checking Firewall-Start Entry...			"
 				if grep -qF "Skynet" /jffs/scripts/firewall-start; then $grn "[Passed]"; else $red "[Failed]"; fi
-				# printf "Checking OpenVPN-Event Entry...				"
-				# if grep -qF "Skynet" /jffs/scripts/openvpn-event; then $grn "[Passed]"; else $red "[Failed]"; fi
 				printf "Checking Services-Stop Entry...				"
 				if grep -qF "Skynet" /jffs/scripts/services-stop; then $grn "[Passed]"; else $red "[Failed]"; fi
 				printf "Checking CronJobs...					"
@@ -1719,7 +1719,6 @@ case "$1" in
 			swap)
 				case "$3" in
 					install)
-						if ! grep -qE "usb=.* # Skynet" /jffs/scripts/firewall-start 2>/dev/null; then echo "Skynet Requires A USB Installation To Create A SWAP File - Please Run ( sh $0 install )"; exit 1; fi
 						if [ ! -f "/jffs/scripts/post-mount" ]; then
 							echo "#!/bin/sh" > /jffs/scripts/post-mount
 						elif [ -f "/jffs/scripts/post-mount" ] && ! head -1 /jffs/scripts/post-mount | grep -qE "^#!/bin/sh"; then
@@ -1766,14 +1765,54 @@ case "$1" in
 									;;
 								esac
 							done
-							if [ "$(df $location | xargs | awk '{print $11}')" -le "$swapsize" ]; then echo "Not Enough Free Space Available On $location - Exiting"; exit 1; fi
+							echo "Looking For Available Partitions..."
+							i=1
+							IFS="
+							"
+							for mounted in $(/bin/mount | grep -E "ext2|ext3|ext4|tfat|exfat" | awk '{print $3" - ("$1")"}') ; do
+								echo "[$i]  --> $mounted"
+								eval mounts$i="$(echo "$mounted" | awk '{print $1}')"
+								i=$((i + 1))
+							done
+							unset IFS
+							if [ $i = "1" ]; then
+								echo "No Compadible Partitions Found. Exiting..."
+								rm -rf /tmp/skynet.lock
+								exit 1
+							fi
+							echo
+							echo "Please Enter Partition Number Or 0 To Exit"
+							printf "[0-%s]: " "$((i - 1))"
+							read -r "partitionNumber"
+							if [ "$partitionNumber" = "0" ]; then
+								echo "Exiting..."
+								rm -rf /tmp/skynet.lock
+								exit 0
+							fi
+							if [ -z "$partitionNumber" ] || [ "$partitionNumber" -gt $((i - 1)) ]; then
+								echo "Invalid Partition Number! Exiting..."
+								rm -rf /tmp/skynet.lock
+								exit 2
+							fi
+							device=""
+							eval device=\$mounts"$partitionNumber"
+							echo
+							touch "${device}/rwtest"
+							if [ ! -w "${device}/rwtest" ]; then
+								echo "Writing To $device Failed - Exiting Installation"
+								rm -rf /tmp/skynet.lock
+								exit 1
+							else
+								rm -rf "${device}/rwtest"
+							fi
+							if [ "$(df $device | xargs | awk '{print $11}')" -le "$swapsize" ]; then echo "Not Enough Free Space Available On $device - Exiting"; rm -rf /tmp/skynet.lock; exit 1; fi
 							echo "Creating SWAP File..."
-							dd if=/dev/zero of="$location/myswap.swp" bs=1k count="$swapsize"
-							mkswap "$location/myswap.swp"
-							swapon "$location/myswap.swp"
+							dd if=/dev/zero of="${device}/myswap.swp" bs=1k count="$swapsize"
+							mkswap "${device}/myswap.swp"
+							swapon "${device}/myswap.swp"
 							nvram set usb_idle_timeout=0
-							echo "swapon $location/myswap.swp # Skynet Firewall Addition" >> /jffs/scripts/post-mount
-							echo "SWAP File Located At $location/myswap.swp"
+							echo "swapon ${device}/myswap.swp # Skynet Firewall Addition" >> /jffs/scripts/post-mount
+							echo "SWAP File Located At ${device}/myswap.swp"
 							echo
 							echo "Restarting Firewall Service"
 							Save_IPSets >/dev/null 2>&1
@@ -1786,6 +1825,7 @@ case "$1" in
 							exit 0
 						else
 							echo "Pre-existing SWAP File Detected - Exiting"
+							rm -rf /tmp/skynet.lock
 						fi
 					;;
 					uninstall)
@@ -1810,6 +1850,7 @@ case "$1" in
 						else
 							echo "Unable To Remove Existing SWAP File - Please Remove Manually"
 							echo
+							rm -rf /tmp/skynet.lock
 							exit 1
 						fi
 					;;
@@ -1907,7 +1948,7 @@ case "$1" in
 						if ! echo "$4" | Is_IP && ! echo "$4" | Is_Range ; then echo "$4 Is Not A Valid IP/Range"; echo; exit 2; fi
 						/usr/sbin/curl -fs --retry 3 https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/filter.list -o /jffs/shared-Skynet-whitelist
 						mkdir -p /tmp/skynet
-						cd /tmp/skynet || exit 1
+						cd /tmp/skynet || rm -rf /tmp/skynet.lock && exit 1
 						case "$(nvram get productid)" in
 							RT-AC86U) # AC86U Fork () Patch
 								while IFS= read -r "domain"; do
@@ -1923,7 +1964,7 @@ case "$1" in
 							;;
 						esac
 						dos2unix /tmp/skynet/*
-						cd /tmp/home/root || exit 1
+						cd /tmp/home/root || rm -rf /tmp/skynet.lock && exit 1
 						$red "Exact Matches;"
 						grep -E "^$4$" /tmp/skynet/* | cut -d '/' -f4- | sed 's~:~ - ~g;s~^~https://iplists.firehol.org/files/~'
 						echo;echo
@@ -2076,11 +2117,6 @@ case "$1" in
 		elif [ -f "/jffs/scripts/firewall-start" ] && ! head -1 /jffs/scripts/firewall-start | grep -qE "^#!/bin/sh"; then
 			sed -i '1s~^~#!/bin/sh\n~' /jffs/scripts/firewall-start
 		fi
-		# if [ ! -f "/jffs/scripts/openvpn-event" ]; then
-			# echo "#!/bin/sh" > /jffs/scripts/openvpn-event
-		# elif [ -f "/jffs/scripts/openvpn-event" ] && ! head -1 /jffs/scripts/openvpn-event | grep -qE "^#!/bin/sh"; then
-			# sed -i '1s~^~#!/bin/sh\n~' /jffs/scripts/openvpn-event
-		# fi
 		if [ ! -f "/jffs/scripts/services-stop" ]; then
 			echo "#!/bin/sh" > /jffs/scripts/services-stop
 		elif [ -f "/jffs/scripts/services-stop" ] && ! head -1 /jffs/scripts/services-stop | grep -qE "^#!/bin/sh"; then
@@ -2281,8 +2317,6 @@ case "$1" in
 				;;
 			esac
 		done
-		# sed -i '\~ Skynet ~d' /jffs/scripts/openvpn-event
-		# echo "sh /jffs/scripts/firewall whitelist vpn # Skynet Firewall Addition" >> /jffs/scripts/openvpn-event
 		sed -i '\~ Skynet ~d' /jffs/scripts/services-stop
 		echo "sh /jffs/scripts/firewall save # Skynet Firewall Addition" >> /jffs/scripts/services-stop
 		chmod 0755 /jffs/scripts/*
@@ -2327,10 +2361,18 @@ case "$1" in
 			nvram set fw_log_x=none
 			sed -i '\~ Skynet ~d' /jffs/scripts/firewall-start /jffs/scripts/openvpn-event /jffs/scripts/services-stop
 			if grep -qE "swapon .* # Skynet" /jffs/scripts/post-mount 2>/dev/null; then
-				echo "Removing Skynet Generated SWAP File..."
-				sed -i '\~ Skynet ~d' /jffs/scripts/post-mount
-				swapoff "$location/myswap.swp"
-				rm -rf "$location/myswap.swp"
+				echo "Would You Like To Remove Skynet Generated Swap File?"
+				echo
+				printf "[yes/no]: "
+				read -r "removeswap"
+				echo
+				if [ "$removeswap" = "yes" ]; then
+					echo "Removing Skynet Generated SWAP File..."
+					swaplocation="$(grep -F "swapon" /jffs/scripts/post-mount | awk '{print $2}')"
+					sed -i '\~ Skynet ~d' /jffs/scripts/post-mount
+					swapoff "$swaplocation"
+					rm -rf "$swaplocation"
+				fi
 			fi
 			rm -rf "${location}/scripts/ipset.txt" "${location}/skynet.log" "/jffs/shared-Skynet-whitelist" "/jffs/shared-Skynet2-whitelist" "/opt/bin/firewall" "/jffs/scripts/firewall"
 			iptables -t raw -F
