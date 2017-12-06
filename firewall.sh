@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 05/12/2017 -		   Asus Firewall Addition By Adamm v5.5.8				    #
+## - 06/12/2017 -		   Asus Firewall Addition By Adamm v5.5.9				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -1366,7 +1366,7 @@ case "$1" in
 		Whitelist_Shared >/dev/null 2>&1 && $grn "[$(($(date +%s) - btime))s]"
 		btime="$(date +%s)" && printf "Consolidating Blacklist 	"
 		mkdir -p /tmp/skynet
-		cd /tmp/skynet || rm -rf /tmp/skynet.lock && exit 1
+		cd /tmp/skynet || exit 1
 		case "$(nvram get productid)" in
 			RT-AC86U) # AC86U Fork () Patch
 				while IFS= read -r "domain"; do
@@ -1381,7 +1381,7 @@ case "$1" in
 				wait
 			;;
 		esac
-		cd /tmp/home/root || rm -rf /tmp/skynet.lock && exit 1
+		cd /tmp/home/root || exit 1
 		dos2unix /tmp/skynet/*
 		cat /tmp/skynet/* | sed -n "s/\\r//;/^$/d;/^[0-9,\\.,\\/]*$/p" | awk '!x[$0]++' | Filter_PrivateIP > /tmp/skynet/malwarelist.txt && $grn "[$(($(date +%s) - btime))s]"
 		btime="$(date +%s)" && printf "Saving Changes 			"
@@ -1948,7 +1948,7 @@ case "$1" in
 						if ! echo "$4" | Is_IP && ! echo "$4" | Is_Range ; then echo "$4 Is Not A Valid IP/Range"; echo; exit 2; fi
 						/usr/sbin/curl -fs --retry 3 https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/filter.list -o /jffs/shared-Skynet-whitelist
 						mkdir -p /tmp/skynet
-						cd /tmp/skynet || rm -rf /tmp/skynet.lock && exit 1
+						cd /tmp/skynet || exit 1
 						case "$(nvram get productid)" in
 							RT-AC86U) # AC86U Fork () Patch
 								while IFS= read -r "domain"; do
@@ -1964,7 +1964,7 @@ case "$1" in
 							;;
 						esac
 						dos2unix /tmp/skynet/*
-						cd /tmp/home/root || rm -rf /tmp/skynet.lock && exit 1
+						cd /tmp/home/root || exit 1
 						$red "Exact Matches;"
 						grep -E "^$4$" /tmp/skynet/* | cut -d '/' -f4- | sed 's~:~ - ~g;s~^~https://iplists.firehol.org/files/~'
 						echo;echo
