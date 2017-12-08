@@ -9,11 +9,12 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 06/12/2017 -		   Asus Firewall Addition By Adamm v5.5.9				    #
+## - 08/12/2017 -		   Asus Firewall Addition By Adamm v5.6.0				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
 
+export PATH=/sbin:/bin:/usr/sbin:/usr/bin$PATH
 if [ "$1" != "noclear" ]; then clear; fi
 head -16 "$0"
 export LC_ALL=C
@@ -133,6 +134,16 @@ Check_Settings () {
 
 		if grep "# Skynet" "/jffs/scripts/openvpn-event"; then
 			sed -i '\~ Skynet ~d' /jffs/scripts/openvpn-event
+		fi
+		
+		if [ -f "$(/usr/bin/find /mnt/*/adblocking/.config/ab-solution.cfg 2>/dev/null)" ]; then
+			abcfg="$(find /mnt/*/adblocking/.config/ab-solution.cfg)"
+			ablocation="$(dirname "$abcfg")"
+			if ! grep -qE "hostsFileType=.*\+" "$abcfg"; then
+				if [ ! -f "${ablocation}/AddPlusHosts" ] && [ ! -f "${ablocation}/AddPlusHostsDismissed" ]; then
+					touch "${ablocation}/AddPlusHosts"
+				fi
+			fi
 		fi
 }
 
@@ -1707,6 +1718,18 @@ case "$1" in
 				if ipset -L -n Blacklist >/dev/null 2>&1; then $grn "[Passed]"; else $red "[Failed]"; fi
 				printf "Checking Skynet IPSet...				"
 				if ipset -L -n Skynet >/dev/null 2>&1; then $grn "[Passed]"; else $red "[Failed]"; fi
+				if [ -f "$(/usr/bin/find /mnt/*/adblocking/.config/ab-solution.cfg 2>/dev/null)" ]; then
+					printf "Checking For AB-Solution Plus Content...		"
+					abcfg="$(find /mnt/*/adblocking/.config/ab-solution.cfg)"
+					ablocation="$(dirname "$abcfg")"
+					if grep -qE "hostsFileType=.*\+" "$abcfg"; then
+						$grn "[Passed]"
+					elif [ -f "${ablocation}/AddPlusHostsDismissed" ]; then
+						$ylow "[Dismissed]"
+					else
+						$red "[Failed]"
+					fi
+				fi
 			;;
 			clean)
 				echo "Cleaning Syslog Entries..."
