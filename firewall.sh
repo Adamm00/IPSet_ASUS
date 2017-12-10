@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 08/12/2017 -		   Asus Firewall Addition By Adamm v5.6.0				    #
+## - 11/12/2017 -		   Asus Firewall Addition By Adamm v5.6.0				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -287,6 +287,7 @@ Whitelist_Extra () {
 		echo "iplists.firehol.org"
 		echo "astrill.com"
 		echo "strongpath.net"
+		echo "snbforums.com"
 		nvram get ntp_server0
 		nvram get ntp_server1
 		nvram get firmware_server; } | awk '!x[$0]++' > /jffs/shared-Skynet2-whitelist
