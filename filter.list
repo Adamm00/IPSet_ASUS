@@ -27,3 +27,6 @@ https://iplists.firehol.org/files/bds_atif.ipset
 https://iplists.firehol.org/files/taichung.ipset
 https://iplists.firehol.org/files/urandomusto_telnet.ipset
 https://iplists.firehol.org/files/urandomusto_ssh.ipset
+https://iplists.firehol.org/files/normshield_high_attack.ipset
+https://iplists.firehol.org/files/normshield_high_bruteforce.ipset
+https://iplists.firehol.org/files/coinbl_hosts.ipset
