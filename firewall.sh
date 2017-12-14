@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 11/12/2017 -		   Asus Firewall Addition By Adamm v5.6.0				    #
+## - 15/12/2017 -		   Asus Firewall Addition By Adamm v5.6.1				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -237,7 +237,7 @@ Domain_Lookup () {
 Filter_Version () {
 		if [ -n "$1" ]; then
 			grep -oE 'v[0-9]{1,2}([.][0-9]{1,2})([.][0-9]{1,2})' "$1"
-		elif [ -z "$1" ]; then
+		else
 			grep -oE 'v[0-9]{1,2}([.][0-9]{1,2})([.][0-9]{1,2})'
 		fi
 }
@@ -1648,7 +1648,7 @@ case "$1" in
 		fi
 		if [ "$localver" != "$remotever" ] || [ "$2" = "-f" ]; then
 			Check_Lock "$@"
-			logger -st Skynet "[INFO] New Version Detected - Updating To $remotever... ... ..."
+			logger -st Skynet "[INFO] New Version Detected - Updating To $remotever..."
 			Save_IPSets >/dev/null 2>&1
 			Unload_Cron
 			Unload_IPTables
@@ -1800,36 +1800,42 @@ case "$1" in
 							done
 							unset IFS
 							if [ $i = "1" ]; then
-								echo "No Compadible Partitions Found. Exiting..."
+								echo "No Compadible Partitions Found - Exiting!"
 								rm -rf /tmp/skynet.lock
 								exit 1
 							fi
+							Select_Device(){
 							echo
-							echo "Please Enter Partition Number Or 0 To Exit"
+							echo "Please Enter Partition Number Or e To Exit"
 							printf "[0-%s]: " "$((i - 1))"
 							read -r "partitionNumber"
-							if [ "$partitionNumber" = "0" ]; then
-								echo "Exiting..."
+							echo
+							if [ "$partitionNumber" = "e" ] || [ "$partitionNumber" = "exit" ]; then
+								echo "Exiting!"
 								rm -rf /tmp/skynet.lock
 								exit 0
+							elif [ -z "$partitionNumber" ] || [ "$partitionNumber" -gt $((i - 1)) ] 2>/dev/null; then
+								echo "Invalid Partition Number!"
+								Select_Device
+							elif [ "$partitionNumber" -eq "$partitionNumber" ] 2>/dev/null;then
+								true
+							else
+								echo "$partitionNumber Isn't An Option!"
+								Select_Device
 							fi
-							if [ -z "$partitionNumber" ] || [ "$partitionNumber" -gt $((i - 1)) ]; then
-								echo "Invalid Partition Number! Exiting..."
-								rm -rf /tmp/skynet.lock
-								exit 2
-							fi
+							}
+							Select_Device
 							device=""
 							eval device=\$mounts"$partitionNumber"
-							echo
 							touch "${device}/rwtest"
 							if [ ! -w "${device}/rwtest" ]; then
-								echo "Writing To $device Failed - Exiting Installation"
+								echo "Writing To $device Failed - Exiting!"
 								rm -rf /tmp/skynet.lock
 								exit 1
 							else
 								rm -rf "${device}/rwtest"
 							fi
-							if [ "$(df $device | xargs | awk '{print $11}')" -le "$swapsize" ]; then echo "Not Enough Free Space Available On $device - Exiting"; rm -rf /tmp/skynet.lock; exit 1; fi
+							if [ "$(df $device | xargs | awk '{print $11}')" -le "$swapsize" ]; then echo "Not Enough Free Space Available On $device - Exiting!"; rm -rf /tmp/skynet.lock; exit 1; fi
 							echo "Creating SWAP File..."
 							dd if=/dev/zero of="${device}/myswap.swp" bs=1k count="$swapsize"
 							mkswap "${device}/myswap.swp"
@@ -1848,12 +1854,12 @@ case "$1" in
 							service restart_firewall
 							exit 0
 						else
-							echo "Pre-existing SWAP File Detected - Exiting"
+							echo "Pre-existing SWAP File Detected - Exiting!"
 							rm -rf /tmp/skynet.lock
 						fi
 					;;
 					uninstall)
-						if ! grep -qF "swapon" /jffs/scripts/post-mount 2>/dev/null; then echo "No SWAP File Detected - Exiting"; exit 1; fi
+						if ! grep -qF "swapon" /jffs/scripts/post-mount 2>/dev/null; then echo "No SWAP File Detected - Exiting!"; exit 1; fi
 						Check_Lock "$@"
 						swaplocation="$(grep -F "swapon" /jffs/scripts/post-mount | awk '{print $2}')"
 						echo "Removing SWAP File... ($swaplocation)"
@@ -1990,10 +1996,12 @@ case "$1" in
 						dos2unix /tmp/skynet/*
 						cd /tmp/home/root || exit 1
 						$red "Exact Matches;"
-						grep -E "^$4$" /tmp/skynet/* | cut -d '/' -f4- | sed 's~:~ - ~g;s~^~https://iplists.firehol.org/files/~'
+						grep -E "^$4$" /tmp/skynet/[!telemetry.list]* | cut -d '/' -f4- | sed 's~:~ - ~g;s~^~https://iplists.firehol.org/files/~'
+						grep -HE "^$4$" /tmp/skynet/telemetry.list | cut -d '/' -f4- | sed 's~:~ - ~g;s~^~https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/~'
 						echo;echo
 						$red "Possible CIDR Matches;"
-						grep -E "^$(echo "$4" | cut -d '.' -f1-3)..*/" /tmp/skynet/* | cut -d '/' -f4- | sed 's~:~ - ~g;s~^~https://iplists.firehol.org/files/~'
+						grep -E "^$(echo "$4" | cut -d '.' -f1-3)..*/" /tmp/skynet/[!telemetry.list]* | cut -d '/' -f4- | sed 's~:~ - ~g;s~^~https://iplists.firehol.org/files/~'
+						grep -HE "^$(echo "$4" | cut -d '.' -f1-3)..*/" /tmp/skynet/telemetry.list | cut -d '/' -f4- | sed 's~:~ - ~g;s~^~https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/~'
 						echo
 						rm -rf /tmp/skynet
 						rm -rf /tmp/skynet.lock
@@ -2294,36 +2302,40 @@ case "$1" in
 					done
 					unset IFS
 					if [ $i = "1" ]; then
-						echo "No Compadible Partitions Found. Exiting..."
+						echo "No Compadible Partitions Found - Exiting!"
 						rm -rf /tmp/skynet.lock
 						exit 1
 					fi
+					Select_Device(){
 					echo
-					echo "Please Enter Partition Number Or 0 To Exit"
+					echo "Please Enter Partition Number Or e To Exit"
 					printf "[0-%s]: " "$((i - 1))"
 					read -r "partitionNumber"
-					if [ "$partitionNumber" = "0" ]; then
-						echo "Exiting..."
+					echo
+					if [ "$partitionNumber" = "e" ] || [ "$partitionNumber" = "exit" ]; then
+						echo "Exiting!"
 						rm -rf /tmp/skynet.lock
 						exit 0
+					elif [ -z "$partitionNumber" ] || [ "$partitionNumber" -gt $((i - 1)) ] 2>/dev/null; then
+						echo "Invalid Partition Number!"
+						Select_Device
+					elif [ "$partitionNumber" -eq "$partitionNumber" ] 2>/dev/null;then
+						true
+					else
+						echo "$partitionNumber Isn't An Option!"
+						Select_Device
 					fi
-					if [ -z "$partitionNumber" ] || [ "$partitionNumber" -gt $((i - 1)) ]; then
-						echo "Invalid Partition Number! Exiting..."
-						rm -rf /tmp/skynet.lock
-						exit 2
-					fi
+					}
+					Select_Device
 					device=""
 					eval device=\$mounts"$partitionNumber"
-					echo "$device Selected."
-					mkdir -p "${device}/skynet"
-					mkdir -p "${device}/skynet/scripts"
-					touch "${device}/skynet/rwtest"
-					if [ ! -w "${device}/skynet/rwtest" ]; then
-						echo "Writing To $device Failed - Exiting Installation"
+					touch "${device}/rwtest"
+					if [ ! -w "${device}/rwtest" ]; then
+						echo "Writing To $device Failed - Exiting!"
 						rm -rf /tmp/skynet.lock
 						exit 1
 					else
-						rm -rf "${device}/skynet/rwtest"
+						rm -rf "${device}/rwtest"
 					fi
 					if [ -f "${location}/scripts/ipset.txt" ]; then mv "${location}/scripts/ipset.txt" "${device}/skynet/scripts/"; fi
 					if [ -f "${location}/skynet.log" ]; then mv "${location}/skynet.log" "${device}/skynet/"; fi
