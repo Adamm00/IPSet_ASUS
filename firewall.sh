@@ -354,7 +354,7 @@ Manage_Device() {
 		done
 		unset IFS
 		if [ $i = "1" ]; then
-			echo "No Compadible Partitions Found - Exiting!"
+			echo "No Compatible Partitions Found - Exiting!"
 			rm -rf /tmp/skynet.lock
 			exit 1
 		fi
