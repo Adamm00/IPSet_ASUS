@@ -342,6 +342,55 @@ Whitelist_Shared () {
 		fi
 }
 
+Manage_Device() {
+		echo "Looking For Available Partitions..."
+		i=1
+		IFS="
+		"
+		for mounted in $(/bin/mount | grep -E "ext2|ext3|ext4|tfat|exfat" | awk '{print $3" - ("$1")"}') ; do
+			echo "[$i]  --> $mounted"
+			eval mounts$i="$(echo "$mounted" | awk '{print $1}')"
+			i=$((i + 1))
+		done
+		unset IFS
+		if [ $i = "1" ]; then
+			echo "No Compadible Partitions Found - Exiting!"
+			rm -rf /tmp/skynet.lock
+			exit 1
+		fi
+		Select_Device(){
+				echo
+				echo "Please Enter Partition Number Or e To Exit"
+				printf "[0-%s]: " "$((i - 1))"
+				read -r "partitionNumber"
+				echo
+				if [ "$partitionNumber" = "e" ] || [ "$partitionNumber" = "exit" ]; then
+					echo "Exiting!"
+					rm -rf /tmp/skynet.lock
+					exit 0
+				elif [ -z "$partitionNumber" ] || [ "$partitionNumber" -gt $((i - 1)) ] 2>/dev/null; then
+					echo "Invalid Partition Number!"
+					Select_Device
+				elif [ "$partitionNumber" -eq "$partitionNumber" ] 2>/dev/null;then
+					true
+				else
+					echo "$partitionNumber Isn't An Option!"
+					Select_Device
+				fi
+		}
+		Select_Device
+		device=""
+		eval device=\$mounts"$partitionNumber"
+		touch "${device}/rwtest"
+		if [ ! -w "${device}/rwtest" ]; then
+			echo "Writing To $device Failed - Exiting!"
+			rm -rf /tmp/skynet.lock
+			exit 1
+		else
+			rm -rf "${device}/rwtest"
+		fi
+}
+
 Purge_Logs () {
 		sed '\~BLOCKED -~!d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null >> "${location}/skynet.log"
 		sed -i '\~BLOCKED -~d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null
@@ -1750,6 +1799,7 @@ case "$1" in
 						fi
 						Check_Lock "$@"
 						if ! grep -qF "swapon" /jffs/scripts/post-mount; then
+							Manage_Device
 							while true; do
 								echo "Select SWAP File Size:"
 								echo "[1]  --> 256MB"
@@ -1789,52 +1839,6 @@ case "$1" in
 									;;
 								esac
 							done
-							echo "Looking For Available Partitions..."
-							i=1
-							IFS="
-							"
-							for mounted in $(/bin/mount | grep -E "ext2|ext3|ext4|tfat|exfat" | awk '{print $3" - ("$1")"}') ; do
-								echo "[$i]  --> $mounted"
-								eval mounts$i="$(echo "$mounted" | awk '{print $1}')"
-								i=$((i + 1))
-							done
-							unset IFS
-							if [ $i = "1" ]; then
-								echo "No Compadible Partitions Found - Exiting!"
-								rm -rf /tmp/skynet.lock
-								exit 1
-							fi
-							Select_Device(){
-							echo
-							echo "Please Enter Partition Number Or e To Exit"
-							printf "[0-%s]: " "$((i - 1))"
-							read -r "partitionNumber"
-							echo
-							if [ "$partitionNumber" = "e" ] || [ "$partitionNumber" = "exit" ]; then
-								echo "Exiting!"
-								rm -rf /tmp/skynet.lock
-								exit 0
-							elif [ -z "$partitionNumber" ] || [ "$partitionNumber" -gt $((i - 1)) ] 2>/dev/null; then
-								echo "Invalid Partition Number!"
-								Select_Device
-							elif [ "$partitionNumber" -eq "$partitionNumber" ] 2>/dev/null;then
-								true
-							else
-								echo "$partitionNumber Isn't An Option!"
-								Select_Device
-							fi
-							}
-							Select_Device
-							device=""
-							eval device=\$mounts"$partitionNumber"
-							touch "${device}/rwtest"
-							if [ ! -w "${device}/rwtest" ]; then
-								echo "Writing To $device Failed - Exiting!"
-								rm -rf /tmp/skynet.lock
-								exit 1
-							else
-								rm -rf "${device}/rwtest"
-							fi
 							if [ "$(df $device | xargs | awk '{print $11}')" -le "$swapsize" ]; then echo "Not Enough Free Space Available On $device - Exiting!"; rm -rf /tmp/skynet.lock; exit 1; fi
 							echo "Creating SWAP File..."
 							dd if=/dev/zero of="${device}/myswap.swp" bs=1k count="$swapsize"
@@ -2291,52 +2295,9 @@ case "$1" in
 				2)
 					echo "USB Installation Selected"
 					echo
-					echo "Looking For Available Partitions..."
-					i=1
-					IFS="
-					"
-					for mounted in $(/bin/mount | grep -E "ext2|ext3|ext4|tfat|exfat" | awk '{print $3" - ("$1")"}') ; do
-						echo "[$i]  --> $mounted"
-						eval mounts$i="$(echo "$mounted" | awk '{print $1}')"
-						i=$((i + 1))
-					done
-					unset IFS
-					if [ $i = "1" ]; then
-						echo "No Compadible Partitions Found - Exiting!"
-						rm -rf /tmp/skynet.lock
-						exit 1
-					fi
-					Select_Device(){
-					echo
-					echo "Please Enter Partition Number Or e To Exit"
-					printf "[0-%s]: " "$((i - 1))"
-					read -r "partitionNumber"
-					echo
-					if [ "$partitionNumber" = "e" ] || [ "$partitionNumber" = "exit" ]; then
-						echo "Exiting!"
-						rm -rf /tmp/skynet.lock
-						exit 0
-					elif [ -z "$partitionNumber" ] || [ "$partitionNumber" -gt $((i - 1)) ] 2>/dev/null; then
-						echo "Invalid Partition Number!"
-						Select_Device
-					elif [ "$partitionNumber" -eq "$partitionNumber" ] 2>/dev/null;then
-						true
-					else
-						echo "$partitionNumber Isn't An Option!"
-						Select_Device
-					fi
-					}
-					Select_Device
-					device=""
-					eval device=\$mounts"$partitionNumber"
-					touch "${device}/rwtest"
-					if [ ! -w "${device}/rwtest" ]; then
-						echo "Writing To $device Failed - Exiting!"
-						rm -rf /tmp/skynet.lock
-						exit 1
-					else
-						rm -rf "${device}/rwtest"
-					fi
+					Manage_Device
+					mkdir -p "${device}/skynet"
+					mkdir -p "${device}/skynet/scripts"
 					if [ -f "${location}/scripts/ipset.txt" ]; then mv "${location}/scripts/ipset.txt" "${device}/skynet/scripts/"; fi
 					if [ -f "${location}/skynet.log" ]; then mv "${location}/skynet.log" "${device}/skynet/"; fi
 					sed -i '\~ Skynet ~d' /jffs/scripts/firewall-start
