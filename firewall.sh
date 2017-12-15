@@ -2004,11 +2004,11 @@ case "$1" in
 						dos2unix /tmp/skynet/*
 						cd /tmp/home/root || exit 1
 						$red "Exact Matches;"
-						grep -E "^$4$" /tmp/skynet/[!telemetry.list]* | cut -d '/' -f4- | sed 's~:~ - ~g;s~^~https://iplists.firehol.org/files/~'
+						grep -E "^$4$" /tmp/skynet/[!"telemetry.list"]* | cut -d '/' -f4- | sed 's~:~ - ~g;s~^~https://iplists.firehol.org/files/~'
 						grep -HE "^$4$" /tmp/skynet/telemetry.list | cut -d '/' -f4- | sed 's~:~ - ~g;s~^~https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/~'
 						echo;echo
 						$red "Possible CIDR Matches;"
-						grep -E "^$(echo "$4" | cut -d '.' -f1-3)..*/" /tmp/skynet/[!telemetry.list]* | cut -d '/' -f4- | sed 's~:~ - ~g;s~^~https://iplists.firehol.org/files/~'
+						grep -E "^$(echo "$4" | cut -d '.' -f1-3)..*/" /tmp/skynet/[!"telemetry.list"]* | cut -d '/' -f4- | sed 's~:~ - ~g;s~^~https://iplists.firehol.org/files/~'
 						grep -HE "^$(echo "$4" | cut -d '.' -f1-3)..*/" /tmp/skynet/telemetry.list | cut -d '/' -f4- | sed 's~:~ - ~g;s~^~https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/~'
 						echo
 						rm -rf /tmp/skynet
