@@ -516,6 +516,7 @@ Load_Menu () {
 		echo "[13] --> Install Skynet / Change Boot Options"
 		echo "[14] --> Uninstall"
 		echo
+		echo "[r]  --> Reload Menu"
 		echo "[e]  --> Exit Menu"
 		echo
 		printf "[1-13]: "
@@ -1286,7 +1287,11 @@ Load_Menu () {
 				option1="uninstall"
 				break
 			;;
-			e)
+			r|reload)
+				Load_Menu
+				break
+			;;
+			e|exit)
 				echo "Exiting!"
 				exit 0
 			;;
@@ -2202,7 +2207,7 @@ case "$1" in
 					set1="start noautoban debug"
 					break
 				;;
-				e)
+				e|exit)
 					echo "Exiting!"
 					exit 0
 				;;
@@ -2239,7 +2244,7 @@ case "$1" in
 					echo "Malware List Updating Disabled"
 					break
 				;;
-				e)
+				e|exit)
 					echo "Exiting!"
 					exit 0
 				;;
@@ -2270,7 +2275,7 @@ case "$1" in
 					echo "Auto Updating Disabled"
 					break
 				;;
-				e)
+				e|exit)
 					echo "Exiting!"
 					exit 0
 				;;
@@ -2316,18 +2321,15 @@ case "$1" in
 							read -r "installswap"
 							echo
 							case "$installswap" in
-								1)
+								1|2)
 									break
 								;;
-								2)
-									break
-								;;
-								e)
+								e|exit)
 									echo "Exiting!"
 									exit 0
 								;;
 								*)
-									echo "$mode4 Isn't An Option!"
+									echo "$installswap Isn't An Option!"
 									echo
 								;;
 							esac
@@ -2345,7 +2347,7 @@ case "$1" in
 					echo "sh /jffs/scripts/firewall $set1 $set2 $set3 usb=${device} # Skynet Firewall Addition" | tr -s " " >> /jffs/scripts/firewall-start
 					break
 				;;
-				e)
+				e|exit)
 					echo "Exiting!"
 					exit 0
 				;;
@@ -2384,39 +2386,76 @@ case "$1" in
 	uninstall)
 		echo "If You Were Experiencing Issues, Try Update Or Visit SNBForums/Github For Support"
 		echo "https://github.com/Adamm00/IPSet_ASUS"
-		echo "Type 'yes' To Continue Uninstall"
 		echo
-		printf "[yes/no]: "
-		read -r "continue"
-		if [ "$continue" = "yes" ]; then
-			echo "Uninstalling Skynet And Restarting Firewall"
-			Purge_Logs
-			Unload_Cron
-			Kill_Lock
-			Unload_IPTables
-			Unload_DebugIPTables
-			Unload_IPSets
-			nvram set fw_log_x=none
-			sed -i '\~ Skynet ~d' /jffs/scripts/firewall-start /jffs/scripts/openvpn-event /jffs/scripts/services-stop
-			if grep -qE "swapon .* # Skynet" /jffs/scripts/post-mount 2>/dev/null; then
-				echo "Would You Like To Remove Skynet Generated Swap File?"
-				echo
-				printf "[yes/no]: "
-				read -r "removeswap"
-				echo
-				if [ "$removeswap" = "yes" ]; then
-					echo "Removing Skynet Generated SWAP File..."
-					swaplocation="$(grep -F "swapon" /jffs/scripts/post-mount | awk '{print $2}')"
-					sed -i '\~ Skynet ~d' /jffs/scripts/post-mount
-					swapoff "$swaplocation"
-					rm -rf "$swaplocation"
-				fi
-			fi
-			rm -rf "${location}/scripts/ipset.txt" "${location}/skynet.log" "/jffs/shared-Skynet-whitelist" "/jffs/shared-Skynet2-whitelist" "/opt/bin/firewall" "/jffs/scripts/firewall"
-			iptables -t raw -F
-			service restart_firewall
-			exit 0
-		fi
+		while true; do
+			echo "Are You Sure You Want To Uninstall?"
+			echo
+			echo "[1]  --> Yes"
+			echo "[2]  --> No"
+			echo
+			echo "Please Select Option"
+			printf "[1-2]: "
+			read -r "continue"
+			echo
+			case "$continue" in
+				1)
+					if grep -qE "swapon .* # Skynet" /jffs/scripts/post-mount 2>/dev/null; then
+						while true; do
+							echo "Would You Like To Remove Skynet Generated Swap File?"
+							echo "[1]  --> Yes"
+							echo "[2]  --> No"
+							echo
+							echo "Please Select Option"
+							printf "[1-2]: "
+							read -r "removeswap"
+							echo
+							case "$removeswap" in
+								1)
+									echo "Removing Skynet Generated SWAP File..."
+									swaplocation="$(grep -F "swapon" /jffs/scripts/post-mount | awk '{print $2}')"
+									sed -i '\~ Skynet ~d' /jffs/scripts/post-mount
+									swapoff "$swaplocation"
+									rm -rf "$swaplocation"
+									break
+								;;
+								2)
+									break
+								;;
+								e|exit)
+									echo "Exiting!"
+									exit 0
+								;;
+								*)
+									echo "$removeswap Isn't An Option!"
+									echo
+								;;
+							esac
+						done
+					fi
+					echo "Uninstalling Skynet And Restarting Firewall"
+					Purge_Logs
+					Unload_Cron
+					Kill_Lock
+					Unload_IPTables
+					Unload_DebugIPTables
+					Unload_IPSets
+					nvram set fw_log_x=none
+					sed -i '\~ Skynet ~d' /jffs/scripts/firewall-start /jffs/scripts/services-stop
+					rm -rf "${location}/scripts/ipset.txt" "${location}/skynet.log" "/jffs/shared-Skynet-whitelist" "/jffs/shared-Skynet2-whitelist" "/opt/bin/firewall" "/jffs/scripts/firewall"
+					iptables -t raw -F
+					service restart_firewall
+					exit 0
+				;;
+				2|e|exit)
+					echo "Exiting!"
+					exit 0
+				;;
+				*)
+					echo "$continue Isn't An Option!"
+					echo
+				;;
+			esac
+		done
 	;;
 
 	*)
