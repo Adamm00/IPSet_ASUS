@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 15/12/2017 -		   Asus Firewall Addition By Adamm v5.6.1				    #
+## - 15/12/2017 -		   Asus Firewall Addition By Adamm v5.6.2				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -99,7 +99,7 @@ Check_Settings () {
 		fi
 
 		if [ "$(nvram get productid)" = "RT-AC86U" ] && ! grep -qF "swapon" /jffs/scripts/post-mount; then
-			logger -st Skynet "[ERROR] Unfortunately This Model Requires A SWAP File - Install One By Running ( $0 debug swap install )"
+			logger -st Skynet "[ERROR] This Model Requires A SWAP File - Install One By Running ( $0 debug swap install )"
 			exit 1
 		fi
 
@@ -324,7 +324,7 @@ Whitelist_Shared () {
 			echo "Whitelisting Shared Domains"
 			sed '\~add Whitelist ~!d;\~Shared-Whitelist~!d;s~ comment.*~~;s~add~del~g' "${location}/scripts/ipset.txt" | ipset restore -!
 			case "$(nvram get productid)" in
-				RT-AC86U) # AC86U Fork () Patch
+				RT-AC86U|R7000) # AC86U Fork () Patch
 					grep -hvF "#" /jffs/shared-*-whitelist | sed 's~http[s]*://~~;s~/.*~~' | awk '!x[$0]++' | while IFS= read -r "domain"; do
 						for ip in $(Domain_Lookup "$domain" 2> /dev/null); do
 							ipset -q -A Whitelist "$ip" comment "Shared-Whitelist: $domain"
@@ -385,10 +385,61 @@ Manage_Device() {
 		if [ ! -w "${device}/rwtest" ]; then
 			echo "Writing To $device Failed - Exiting!"
 			rm -rf /tmp/skynet.lock
-			exit 1
+			Manage_Device
 		else
 			rm -rf "${device}/rwtest"
 		fi
+}
+
+Create_Swap() {
+	while true; do
+		echo "Select SWAP File Size:"
+		echo "[1]  --> 256MB"
+		echo "[2]  --> 512MB"
+		echo "[3]  --> 1GB"
+		echo "[4]  --> 2GB"
+		echo
+		echo "[e]  --> Exit Menu"
+		echo
+		printf "[1-4]: "
+		read -r "menu"
+		echo
+		case "$menu" in
+			1)
+				swapsize=262144
+				break
+			;;
+			2)
+				swapsize=524288
+				break
+			;;
+			3)
+				swapsize=1048576
+				break
+			;;
+			4)
+				swapsize=2097152
+				break
+			;;
+			e|exit)
+				echo "Exiting!"
+				exit 0
+			;;
+			*)
+				echo "$menu Isn't An Option!"
+				echo
+			;;
+		esac
+	done
+	if [ "$(df $device | xargs | awk '{print $11}')" -le "$swapsize" ]; then echo "Not Enough Free Space Available On $device"; Create_Swap; fi
+	echo "Creating SWAP File..."
+	dd if=/dev/zero of="${device}/myswap.swp" bs=1k count="$swapsize"
+	mkswap "${device}/myswap.swp"
+	swapon "${device}/myswap.swp"
+	nvram set usb_idle_timeout=0
+	echo "swapon ${device}/myswap.swp # Skynet Firewall Addition" >> /jffs/scripts/post-mount
+	echo "SWAP File Located At ${device}/myswap.swp"
+	echo
 }
 
 Purge_Logs () {
@@ -1429,7 +1480,7 @@ case "$1" in
 		mkdir -p /tmp/skynet
 		cd /tmp/skynet || exit 1
 		case "$(nvram get productid)" in
-			RT-AC86U) # AC86U Fork () Patch
+			RT-AC86U|R7000) # AC86U Fork () Patch
 				while IFS= read -r "domain"; do
 					/usr/sbin/curl -fs --retry 3 "$domain" -O
 				done < /jffs/shared-Skynet-whitelist
@@ -1800,54 +1851,7 @@ case "$1" in
 						Check_Lock "$@"
 						if ! grep -qF "swapon" /jffs/scripts/post-mount; then
 							Manage_Device
-							while true; do
-								echo "Select SWAP File Size:"
-								echo "[1]  --> 256MB"
-								echo "[2]  --> 512MB"
-								echo "[3]  --> 1GB"
-								echo "[4]  --> 2GB"
-								echo
-								echo "[e]  --> Exit Menu"
-								echo
-								printf "[1-4]: "
-								read -r "menu"
-								echo
-								case "$menu" in
-									1)
-										swapsize=262144
-										break
-									;;
-									2)
-										swapsize=524288
-										break
-									;;
-									3)
-										swapsize=1048576
-										break
-									;;
-									4)
-										swapsize=2097152
-										break
-									;;
-									e|exit)
-										echo "Exiting!"
-										exit 0
-									;;
-									*)
-										echo "$menu Isn't An Option!"
-										echo
-									;;
-								esac
-							done
-							if [ "$(df $device | xargs | awk '{print $11}')" -le "$swapsize" ]; then echo "Not Enough Free Space Available On $device - Exiting!"; rm -rf /tmp/skynet.lock; exit 1; fi
-							echo "Creating SWAP File..."
-							dd if=/dev/zero of="${device}/myswap.swp" bs=1k count="$swapsize"
-							mkswap "${device}/myswap.swp"
-							swapon "${device}/myswap.swp"
-							nvram set usb_idle_timeout=0
-							echo "swapon ${device}/myswap.swp # Skynet Firewall Addition" >> /jffs/scripts/post-mount
-							echo "SWAP File Located At ${device}/myswap.swp"
-							echo
+							Create_Swap
 							echo "Restarting Firewall Service"
 							Save_IPSets >/dev/null 2>&1
 							Unload_Cron
@@ -1984,7 +1988,7 @@ case "$1" in
 						mkdir -p /tmp/skynet
 						cd /tmp/skynet || exit 1
 						case "$(nvram get productid)" in
-							RT-AC86U) # AC86U Fork () Patch
+							RT-AC86U|R7000) # AC86U Fork () Patch
 								while IFS= read -r "domain"; do
 									/usr/sbin/curl -fs --retry 3 "$domain" -O
 								done < /jffs/shared-Skynet-whitelist
@@ -2158,6 +2162,11 @@ case "$1" in
 		elif [ -f "/jffs/scripts/services-stop" ] && ! head -1 /jffs/scripts/services-stop | grep -qE "^#!/bin/sh"; then
 			sed -i '1s~^~#!/bin/sh\n~' /jffs/scripts/services-stop
 		fi
+		if [ ! -f "/jffs/scripts/post-mount" ]; then
+			echo "#!/bin/sh" > /jffs/scripts/post-mount
+		elif [ -f "/jffs/scripts/post-mount" ] && ! head -1 /jffs/scripts/post-mount | grep -qE "^#!/bin/sh"; then
+			sed -i '1s~^~#!/bin/sh\n~' /jffs/scripts/post-mount
+		fi
 		while true; do
 			echo "Installing Skynet $(Filter_Version "$0")"
 			echo "This Will Remove Any Old Install Arguements And Can Be Run Multiple Times"
@@ -2296,6 +2305,38 @@ case "$1" in
 					echo "USB Installation Selected"
 					echo
 					Manage_Device
+					if ! grep -qF "swapon" /jffs/scripts/post-mount && [ "$(nvram get productid)" != "RT-AC86U" ]; then
+						while true; do
+							echo "Would You Like To Install A SWAP File?"
+							echo "[1]  --> Yes - (Recommended)"
+							echo "[2]  --> No"
+							echo
+							echo "Please Select Option"
+							printf "[1-2]: "
+							read -r "installswap"
+							echo
+							case "$installswap" in
+								1)
+									break
+								;;
+								2)
+									break
+								;;
+								e)
+									echo "Exiting!"
+									exit 0
+								;;
+								*)
+									echo "$mode4 Isn't An Option!"
+									echo
+								;;
+							esac
+						done
+					fi
+					if [ "$(nvram get productid)" = "RT-AC68U" ] && ! grep -qF "swapon" /jffs/scripts/post-mount; then installswap="1"; fi
+					if [ "$installswap" = "1" ]; then
+						Create_Swap
+					fi
 					mkdir -p "${device}/skynet"
 					mkdir -p "${device}/skynet/scripts"
 					if [ -f "${location}/scripts/ipset.txt" ]; then mv "${location}/scripts/ipset.txt" "${device}/skynet/scripts/"; fi
