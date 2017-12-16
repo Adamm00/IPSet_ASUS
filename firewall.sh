@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 15/12/2017 -		   Asus Firewall Addition By Adamm v5.6.2				    #
+## - 16/12/2017 -		   Asus Firewall Addition By Adamm v5.6.3				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -2225,6 +2225,8 @@ case "$1" in
 			echo "[2]  --> Yes (Weekly)"
 			echo "[3]  --> No"
 			echo
+			echo "[e]  --> Exit Menu"
+			echo
 			echo "Please Select Option"
 			printf "[1-3]: "
 			read -r "mode2"
@@ -2261,6 +2263,8 @@ case "$1" in
 			echo "[1]  --> Yes  - (Recommended)"
 			echo "[2]  --> No"
 			echo
+			echo "[e]  --> Exit Menu"
+			echo
 			echo "Please Select Option"
 			printf "[1-2]: "
 			read -r "mode3"
@@ -2292,6 +2296,8 @@ case "$1" in
 			echo "[1]  --> JFFS"
 			echo "[2]  --> USB - (Recommended)"
 			echo
+			echo "[e]  --> Exit Menu"
+			echo
 			echo "Please Select Option"
 			printf "[1-2]: "
 			read -r "mode4"
@@ -2310,11 +2316,14 @@ case "$1" in
 					echo "USB Installation Selected"
 					echo
 					Manage_Device
-					if ! grep -qF "swapon" /jffs/scripts/post-mount && [ "$(nvram get productid)" != "RT-AC86U" ]; then
+					if ! grep -qF "swapon" /jffs/scripts/post-mount && [ "$(free | xargs -r | awk '{print $10}')" -le "100000" ]; then installswap="1"; fi
+					if ! grep -qF "swapon" /jffs/scripts/post-mount && [ "$(nvram get productid)" != "RT-AC86U" ] && [ "$installswap" != "1" ]; then
 						while true; do
 							echo "Would You Like To Install A SWAP File?"
 							echo "[1]  --> Yes - (Recommended)"
 							echo "[2]  --> No"
+							echo
+							echo "[e]  --> Exit Menu"
 							echo
 							echo "Please Select Option"
 							printf "[1-2]: "
@@ -2335,7 +2344,7 @@ case "$1" in
 							esac
 						done
 					fi
-					if [ "$(nvram get productid)" = "RT-AC68U" ] && ! grep -qF "swapon" /jffs/scripts/post-mount; then installswap="1"; fi
+					if [ "$(nvram get productid)" = "RT-AC86U" ] && ! grep -qF "swapon" /jffs/scripts/post-mount; then installswap="1"; fi
 					if [ "$installswap" = "1" ]; then
 						Create_Swap
 					fi
