@@ -26,6 +26,8 @@ while [ "$(nvram get ntp_ready)" = "0" ] && [ "$retry" -lt "300" ]; do
 done
 if [ "$retry" -ge "300" ]; then logger -st Skynet "[ERROR] NTP Failed To Start After 5 Minutes - Please Fix Immediately!"; exit 1; fi
 
+[ -z "$(nvram get odmpid)" ] && model="$(nvram get productid)" || model="$(nvram get odmpid)"
+
 red="printf \\e[1;31m%s\\e[0m\\n"
 grn="printf \\e[1;32m%s\\e[0m\\n"
 blue="printf \\e[1;36m%s\\e[0m\\n"
@@ -72,7 +74,7 @@ else
 	iface="$(nvram get wan0_ifname)"
 fi
 
-if [ "$(nvram get productid)" = "RT-AC86U" ]; then
+if [ "$model" = "RT-AC86U" ]; then
 	sync && echo 3 > /proc/sys/vm/drop_caches
 fi
 
@@ -98,7 +100,7 @@ Check_Settings () {
 			logger -st Skynet "[ERROR] $(/usr/bin/find /jffs /tmp/mnt | grep -E "$conflicting_scripts" | xargs) Detected - This Script Will Cause Conflicts! Please Uninstall It ASAP"
 		fi
 
-		if [ "$(nvram get productid)" = "RT-AC86U" ] && ! grep -qF "swapon" /jffs/scripts/post-mount; then
+		if [ "$model" = "RT-AC86U" ] && ! grep -qF "swapon" /jffs/scripts/post-mount; then
 			logger -st Skynet "[ERROR] This Model Requires A SWAP File - Install One By Running ( $0 debug swap install )"
 			exit 1
 		fi
@@ -324,7 +326,7 @@ Whitelist_Shared () {
 		if [ -n "$(/usr/bin/find /jffs -name 'shared-*-whitelist')" ]; then
 			echo "Whitelisting Shared Domains"
 			sed '\~add Whitelist ~!d;\~Shared-Whitelist~!d;s~ comment.*~~;s~add~del~g' "${location}/scripts/ipset.txt" | ipset restore -!
-			case "$(nvram get productid)" in
+			case "$model" in
 				RT-AC86U|R7000) # AC86U Fork () Patch
 					grep -hvF "#" /jffs/shared-*-whitelist | sed 's~http[s]*://~~;s~/.*~~' | awk '!x[$0]++' | while IFS= read -r "domain"; do
 						for ip in $(Domain_Lookup "$domain" 2> /dev/null); do
@@ -479,7 +481,7 @@ Logging () {
 ####################################################################################################################################################
 
 Load_Menu () {
-	echo "Router Model; $(nvram get productid)"
+	echo "Router Model; $model"
 	echo "Skynet Version; $(Filter_Version "$0") ($(Filter_Date "$0"))"
 	echo "$(iptables --version) - ($iface @ $(nvram get lan_ipaddr))"
 	ipset -v
@@ -1485,7 +1487,7 @@ case "$1" in
 		btime="$(date +%s)" && printf "Consolidating Blacklist 	"
 		mkdir -p /tmp/skynet
 		cd /tmp/skynet || exit 1
-		case "$(nvram get productid)" in
+		case "$model" in
 			RT-AC86U|R7000) # AC86U Fork () Patch
 				while IFS= read -r "domain"; do
 					/usr/sbin/curl -fs --retry 3 "$domain" -O
@@ -1783,7 +1785,7 @@ case "$1" in
 				tail -F /tmp/syslog.log | while read -r logoutput; do if echo "$logoutput" | grep -q "NEW BAN"; then $blue "$logoutput"; elif echo "$logoutput" | grep -q "INBOUND"; then $ylow "$logoutput"; elif echo "$logoutput" | grep -q "OUTBOUND"; then $red "$logoutput"; fi; done
 			;;
 			info)
-				echo "Router Model; $(nvram get productid)"
+				echo "Router Model; $model"
 				echo "Skynet Version; $(Filter_Version "$0") ($(Filter_Date "$0"))"
 				echo "$(iptables --version) - ($iface @ $(nvram get lan_ipaddr))"
 				ipset -v
@@ -1993,7 +1995,7 @@ case "$1" in
 						/usr/sbin/curl -fs --retry 3 https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/filter.list -o /jffs/shared-Skynet-whitelist
 						mkdir -p /tmp/skynet
 						cd /tmp/skynet || exit 1
-						case "$(nvram get productid)" in
+						case "$model" in
 							RT-AC86U|R7000) # AC86U Fork () Patch
 								while IFS= read -r "domain"; do
 									/usr/sbin/curl -fs --retry 3 "$domain" -O
@@ -2318,7 +2320,7 @@ case "$1" in
 					echo
 					Manage_Device
 					if ! grep -qF "swapon" /jffs/scripts/post-mount && [ "$(free | xargs -r | awk '{print $10}')" -le "100000" ]; then installswap="1"; fi
-					if ! grep -qF "swapon" /jffs/scripts/post-mount && [ "$(nvram get productid)" != "RT-AC86U" ] && [ "$installswap" != "1" ]; then
+					if ! grep -qF "swapon" /jffs/scripts/post-mount && [ "$model" != "RT-AC86U" ] && [ "$installswap" != "1" ]; then
 						while true; do
 							echo "Would You Like To Install A SWAP File?"
 							echo "[1]  --> Yes - (Recommended)"
@@ -2345,7 +2347,7 @@ case "$1" in
 							esac
 						done
 					fi
-					if [ "$(nvram get productid)" = "RT-AC86U" ] && ! grep -qF "swapon" /jffs/scripts/post-mount; then installswap="1"; fi
+					if [ "$model" = "RT-AC86U" ] && ! grep -qF "swapon" /jffs/scripts/post-mount; then installswap="1"; fi
 					if [ "$installswap" = "1" ]; then
 						Create_Swap
 					fi
@@ -2372,7 +2374,7 @@ case "$1" in
 		chmod 0755 /jffs/scripts/*
 		echo
 		nvram commit
-		if [ "$(nvram get productid)" = "RT-AC86U" ] && ! grep -qF "swapon" /jffs/scripts/post-mount; then
+		if [ "$model" = "RT-AC86U" ] && ! grep -qF "swapon" /jffs/scripts/post-mount; then
 			echo "Unfortunately This Model Requires A SWAP File - Install One By Running ( $0 debug swap install )"
 		fi
 		if [ "$forcereboot" = "1" ]; then
@@ -2475,7 +2477,7 @@ case "$1" in
 
 esac
 
-if [ "$(nvram get productid)" = "RT-AC86U" ]; then
+if [ "$model" = "RT-AC86U" ]; then
 	sync && echo 3 > /proc/sys/vm/drop_caches
 fi
 
