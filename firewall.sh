@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 20/12/2017 -		   Asus Firewall Addition By Adamm v5.6.5				    #
+## - 03/01/2018 -		   Asus Firewall Addition By Adamm v5.6.6				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -89,7 +89,7 @@ Kill_Lock () {
 }
 
 Check_Settings () {
-		if ! grep -qF "Skynet" /jffs/scripts/firewall-start; then
+		if ! grep -qE "start.* # Skynet" /jffs/scripts/firewall-start; then
 			logger -st Skynet "[ERROR] Installation Not Detected - Please Use ( sh $0 install ) To Continue"
 			rm -rf /tmp/skynet.lock
 			exit 1
@@ -489,12 +489,12 @@ Load_Menu () {
 	echo "FW Version; $(nvram get buildno)_$(nvram get extendno) ($(uname -v | awk '{print $5" "$6" "$9}')) ($(uname -r))"
 	echo "Install Dir; $location ($(df -h $location | xargs | awk '{print $11 " / " $9}') Space Available)"
 	if grep -qF "swapon" /jffs/scripts/post-mount 2>/dev/null; then swaplocation="$(grep -F "swapon" /jffs/scripts/post-mount | awk '{print $2}')"; echo "SWAP File; $swaplocation ($(du -h "$swaplocation" | awk '{print $1}'))"; fi
-	echo "Boot Args; $(grep -F "Skynet" /jffs/scripts/firewall-start 2>/dev/null | cut -c 4- | cut -d '#' -f1)"
+	echo "Boot Args; $(grep -E "start.* # Skynet" /jffs/scripts/firewall-start 2>/dev/null | cut -c 4- | cut -d '#' -f1)"
 	if grep -qF "Country:" "$location/scripts/ipset.txt" 2>/dev/null; then echo "Banned Countries; $(grep -m1 -F "Country:" "$location/scripts/ipset.txt" | sed 's~.*Country: ~~;s~"~~')"; fi
 	if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(sed -n '2p' /tmp/skynet.lock)" ]; then $red "Lock File Detected ($(sed -n '1p' /tmp/skynet.lock)) (pid=$(sed -n '2p' /tmp/skynet.lock))"; lockedwarning=1; fi
 	if [ -n "$lockedwarning" ]; then $ylow "Locked Processes Generally Take 20-60s To Complete And May Result In Temporarily \"Failed\" Tests"; fi
 	echo
-	if ! grep -qF "Skynet" /jffs/scripts/firewall-start 2>/dev/null; then printf "Checking Firewall-Start Entry...			"; $red "[Failed]"; fi
+	if ! grep -qE "start.* # Skynet" /jffs/scripts/firewall-start 2>/dev/null; then printf "Checking Firewall-Start Entry...			"; $red "[Failed]"; fi
 	if ! iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Whitelist src -m set --match-set Skynet src -j DROP 2>/dev/null; then printf "Checking Skynet IPTable...				"; $red "[Failed]"; nolog="1"; fi
 	if ! ipset -L -n Whitelist >/dev/null 2>&1; then printf "Checking Whitelist IPSet...				"; $red "[Failed]"; nolog="1"; fi
 	if ! ipset -L -n BlockedRanges >/dev/null 2>&1; then printf "Checking BlockedRanges IPSet...				"; $red "[Failed]"; nolog="1"; fi
@@ -1793,7 +1793,7 @@ case "$1" in
 				echo "FW Version; $(nvram get buildno)_$(nvram get extendno) ($(uname -v | awk '{print $5" "$6" "$9}')) ($(uname -r))"
 				echo "Install Dir; $location ($(df -h $location | xargs | awk '{print $11 " / " $9}') Space Available)"
 				if grep -qF "swapon" /jffs/scripts/post-mount 2>/dev/null; then swaplocation="$(grep -F "swapon" /jffs/scripts/post-mount | awk '{print $2}')"; echo "SWAP File; $swaplocation ($(du -h "$swaplocation" | awk '{print $1}'))"; fi
-				echo "Boot Args; $(grep -F "Skynet" /jffs/scripts/firewall-start | cut -c 4- | cut -d '#' -f1)"
+				echo "Boot Args; $(grep -E "start.* # Skynet" /jffs/scripts/firewall-start | cut -c 4- | cut -d '#' -f1)"
 				if grep -qF "Country:" "$location/scripts/ipset.txt"; then echo "Banned Countries; $(grep -m1 -F "Country:" "$location/scripts/ipset.txt" | sed 's~.*Country: ~~;s~"~~')"; fi
 				if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(sed -n '2p' /tmp/skynet.lock)" ]; then $red "Lock File Detected ($(sed -n '1p' /tmp/skynet.lock)) (pid=$(sed -n '2p' /tmp/skynet.lock))"; lockedwarning=1; else $grn "No Lock File Found"; fi
 				if [ -n "$lockedwarning" ]; then $ylow "Locked Processes Generally Take 20-60s To Complete And May Result In Temporarily \"Failed\" Tests"; fi
@@ -1801,9 +1801,9 @@ case "$1" in
 				printf "Checking Install Directory Write Permissions...		"
 				if [ -w "$location" ]; then $grn "[Passed]"; else $red "[Failed]"; fi
 				printf "Checking Firewall-Start Entry...			"
-				if grep -qF "Skynet" /jffs/scripts/firewall-start; then $grn "[Passed]"; else $red "[Failed]"; fi
+				if grep -qE "start.* # Skynet" /jffs/scripts/firewall-start; then $grn "[Passed]"; else $red "[Failed]"; fi
 				printf "Checking Services-Stop Entry...				"
-				if grep -qF "Skynet" /jffs/scripts/services-stop; then $grn "[Passed]"; else $red "[Failed]"; fi
+				if grep -qF "# Skynet" /jffs/scripts/services-stop; then $grn "[Passed]"; else $red "[Failed]"; fi
 				printf "Checking CronJobs...					"
 				if cru l | grep -qF "Skynet"; then $grn "[Passed]"; else $red "[Failed]"; fi
 				printf "Checking IPSet Comment Support...			"
@@ -1919,7 +1919,7 @@ case "$1" in
 
 	stats)
 		Purge_Logs
-		if ! grep -F "Skynet" /jffs/scripts/firewall-start | grep -qF "debug"; then
+		if ! grep -qE "start.*debug.* # Skynet" /jffs/scripts/firewall-start; then
 			echo
 			$red "!!! Debug Mode Is Disabled !!!"
 			$red "To Enable Use ( sh $0 install )"
