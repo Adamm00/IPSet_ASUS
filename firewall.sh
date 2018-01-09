@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 09/01/2018 -		   Asus Firewall Addition By Adamm v5.6.7				    #
+## - 10/01/2018 -		   Asus Firewall Addition By Adamm v5.6.8				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -1810,21 +1810,25 @@ case "$1" in
 				printf "Checking Services-Stop Entry...				"
 				if grep -qF "# Skynet" /jffs/scripts/services-stop; then $grn "[Passed]"; else $red "[Failed]"; fi
 				printf "Checking CronJobs...					"
-				if cru l | grep -qF "Skynet"; then $grn "[Passed]"; else $red "[Failed]"; fi
+				if [ "$(cru l | grep -c "Skynet")" -ge "2" ]; then $grn "[Passed]"; else $red "[Failed]"; fi
 				printf "Checking IPSet Comment Support...			"
 				if [ -f /lib/modules/"$(uname -r)"/kernel/net/netfilter/ipset/ip_set_hash_ipmac.ko ] || [ -d /lib/modules/4.1.27 ]; then $grn "[Passed]"; else $red "[Failed]"; fi
 				printf "Checking Log Level %s Settings...			" "$(nvram get message_loglevel)"
 				if [ "$(nvram get message_loglevel)" -le "$(nvram get log_level)" ]; then $grn "[Passed]"; else $red "[Failed]"; fi
 				printf "Checking Autobanning Status...				"
-				if iptables -C logdrop -i "$iface" -m state --state INVALID -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null; then $grn "[Passed]"; elif grep -qE " noautoban .* # Skynet" /jffs/scripts/firewall-start 2>/dev/null; then $ylow "[Disabled]"; else $red "[Failed]"; fi
+				if iptables -C logdrop -i "$iface" -m recent --set --name TRACKINVALID --rsource 2>/dev/null && \
+				iptables -C logdrop -i "$iface" -m state --state INVALID -m recent --update --seconds 300 --hitcount 2 --name TRACKINVALID --rsource -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null && \
+				iptables -C logdrop -i "$iface" -m state --state INVALID -m recent --update --seconds 300 --hitcount 2 --name TRACKINVALID --rsource -j SET --add-set Skynet src 2>/dev/null; then $grn "[Passed]"; elif grep -qE " noautoban .* # Skynet" /jffs/scripts/firewall-start 2>/dev/null; then $ylow "[Disabled]"; else $red "[Failed]"; fi
 				printf "Checking Debug Mode Status...				"
-				if iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Whitelist src -m set --match-set Skynet src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null; then $grn "[Passed]"; elif ! grep -qE " debug .* # Skynet" /jffs/scripts/firewall-start 2>/dev/null; then $ylow "[Disabled]"; else $red "[Failed]"; fi
+				if iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Whitelist src -m set --match-set Skynet src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null && \
+				iptables -t raw -C PREROUTING -i br0 -m set ! --match-set Whitelist dst -m set --match-set Skynet dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null; then $grn "[Passed]"; elif ! grep -qE " debug .* # Skynet" /jffs/scripts/firewall-start 2>/dev/null; then $ylow "[Disabled]"; else $red "[Failed]"; fi
 				printf "Checking For Duplicate Rules In RAW...			"
 				if [ "$(iptables-save -t raw | sort | uniq -d | grep -c " ")" = "0" ]; then $grn "[Passed]"; else $red "[Failed]"; fi
 				printf "Checking For Duplicate Rules In Filter...		"
 				if [ "$(iptables-save -t filter | sort | uniq -d | grep -c " ")" = "0" ]; then $grn "[Passed]"; else $red "[Failed]"; fi
 				printf "Checking Skynet IPTable...				"
-				if iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Whitelist src -m set --match-set Skynet src -j DROP 2>/dev/null; then $grn "[Passed]"; else $red "[Failed]"; fi
+				if iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Whitelist src -m set --match-set Skynet src -j DROP 2>/dev/null && \
+				iptables -t raw -C PREROUTING -i br0 -m set ! --match-set Whitelist dst -m set --match-set Skynet dst -j DROP 2>/dev/null; then $grn "[Passed]"; else $red "[Failed]"; fi
 				printf "Checking Whitelist IPSet...				"
 				if ipset -L -n Whitelist >/dev/null 2>&1; then $grn "[Passed]"; else $red "[Failed]"; fi
 				printf "Checking BlockedRanges IPSet...				"
