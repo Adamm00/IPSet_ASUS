@@ -1437,7 +1437,7 @@ case "$1" in
 			;;
 			country)
 				if [ -z "$3" ]; then echo "Country Field Can't Be Empty - Please Try Again"; echo; rm -rf /tmp/skynet.lock; exit 2; fi
-				if [ "${#3}" -gt "255" ]; then clist="Multiple Countries"; else clist="$3"; fi
+				if [ "${#3}" -gt "246" ]; then clist="Multiple Countries"; else clist="$3"; fi
 				echo "Removing Previous Country Bans"
 				sed '\~add Whitelist ~d;\~Country: ~!d;s~ comment.*~~;s~add~del~g' "${location}/scripts/ipset.txt" | ipset restore -!
 				echo "Banning Known IP Ranges For $3"
