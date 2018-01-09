@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 03/01/2018 -		   Asus Firewall Addition By Adamm v5.6.6				    #
+## - 09/01/2018 -		   Asus Firewall Addition By Adamm v5.6.7				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -154,8 +154,9 @@ Unload_IPTables () {
 		ip6tables -D logdrop -m state --state NEW -j LOG --log-prefix "DROP " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 		iptables -t raw -D PREROUTING -i "$iface" -m set ! --match-set Whitelist src -m set --match-set Skynet src -j DROP 2>/dev/null
 		iptables -t raw -D PREROUTING -i br0 -m set ! --match-set Whitelist dst -m set --match-set Skynet dst -j DROP 2>/dev/null
-		iptables -D logdrop -i "$iface" -m state --state INVALID -j SET --add-set Skynet src 2>/dev/null
-		iptables -D logdrop -i "$iface" -m state --state INVALID -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
+		iptables -D logdrop -i "$iface" -m state --state INVALID -m recent --update --seconds 300 --hitcount 2 --name TRACKINVALID --rsource -j SET --add-set Skynet src 2>/dev/null
+		iptables -D logdrop -i "$iface" -m state --state INVALID -m recent --update --seconds 300 --hitcount 2 --name TRACKINVALID --rsource -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
+		iptables -D logdrop -i "$iface" -m recent --set --name TRACKINVALID --rsource 2>/dev/null
 		iptables -D logdrop -i "$iface" -p tcp -m multiport --sports 80,443,143,993,110,995,25,465 -m state --state INVALID -j DROP 2>/dev/null
 		iptables -D logdrop -i "$iface" -m set --match-set Whitelist src -j ACCEPT 2>/dev/null
 		iptables -D logdrop -p tcp --tcp-flags ALL RST,ACK -j ACCEPT 2>/dev/null
@@ -183,8 +184,9 @@ Load_IPTables () {
 			iptables -I logdrop -i "$iface" -p tcp -m multiport --sports 80,443,143,993,110,995,25,465 -m state --state INVALID -j DROP 2>/dev/null
 			iptables -I logdrop -i "$iface" -m set --match-set Whitelist src -j ACCEPT 2>/dev/null
 			pos1="$(($(iptables --line -nL logdrop | wc -l)-2))"
-			iptables -I logdrop "$pos1" -i "$iface" -m state --state INVALID -j SET --add-set Skynet src 2>/dev/null
-			iptables -I logdrop "$pos1" -i "$iface" -m state --state INVALID -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
+			iptables -I logdrop "$pos1" -i "$iface" -m state --state INVALID -m recent --update --seconds 300 --hitcount 2 --name TRACKINVALID --rsource -j SET --add-set Skynet src 2>/dev/null
+			iptables -I logdrop "$pos1" -i "$iface" -m state --state INVALID -m recent --update --seconds 300 --hitcount 2 --name TRACKINVALID --rsource -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
+			iptables -I logdrop "$pos1" -i "$iface" -m recent --set --name TRACKINVALID --rsource 2>/dev/null
 		fi
 		if [ "$(nvram get sshd_enable)" = "1" ] && [ "$(nvram get sshd_bfp)" = "1" ]; then
 			pos2="$(iptables --line -nL SSHBFP | grep -F "seconds: 60 hit_count: 4" | grep -F "logdrop" | awk '{print $1}')"
@@ -523,7 +525,7 @@ Load_Menu () {
 		echo "[r]  --> Reload Menu"
 		echo "[e]  --> Exit Menu"
 		echo
-		printf "[1-13]: "
+		printf "[1-14]: "
 		read -r "menu"
 		echo
 		case "$menu" in
@@ -1433,6 +1435,7 @@ case "$1" in
 			;;
 			country)
 				if [ -z "$3" ]; then echo "Country Field Can't Be Empty - Please Try Again"; echo; rm -rf /tmp/skynet.lock; exit 2; fi
+				if [ "${#3}" -gt "255" ]; then clist="Multiple Countries"; else clist="$3"; fi
 				echo "Removing Previous Country Bans"
 				sed '\~add Whitelist ~d;\~Country: ~!d;s~ comment.*~~;s~add~del~g' "${location}/scripts/ipset.txt" | ipset restore -!
 				echo "Banning Known IP Ranges For $3"
@@ -1441,7 +1444,7 @@ case "$1" in
 					/usr/sbin/curl -fs --retry 3 http://ipdeny.com/ipblocks/data/aggregated/"$country"-aggregated.zone >> /tmp/countrylist.txt
 				done
 				echo "Filtering IPv4 Ranges & Applying Blacklists"
-				grep -F "/" /tmp/countrylist.txt | sed -n "s/\\r//;/^$/d;/^[0-9,\\.,\\/]*$/s/^/add BlockedRanges /p" | sed "s/$/& comment \"Country: $3\"/" | ipset restore -!
+				grep -F "/" /tmp/countrylist.txt | sed -n "s/\\r//;/^$/d;/^[0-9,\\.,\\/]*$/s/^/add BlockedRanges /p" | sed "s/$/& comment \"Country: $clist\"/" | ipset restore -!
 				rm -rf "/tmp/countrylist.txt"
 			;;
 			*)
