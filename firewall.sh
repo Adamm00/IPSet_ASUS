@@ -104,6 +104,8 @@ Check_Settings () {
 			logger -st Skynet "[ERROR] This Model Requires A SWAP File - Install One By Running ( $0 debug swap install )"
 			exit 1
 		fi
+		
+		sed -i 's~create BlockedRanges hash:net family inet hashsize 8192 maxelem 65536~create BlockedRanges hash:net family inet hashsize 8192 maxelem 200000~g;' "${location}/scripts/ipset.txt" # Upgrade maxelem
 
 		if echo "$@" | grep -qF "banmalware "; then
 			cru a Skynet_banmalware "25 2 * * * sh /jffs/scripts/firewall banmalware"
@@ -1692,7 +1694,7 @@ case "$1" in
 		if [ -f "${location}/scripts/ipset.txt" ]; then ipset restore -! -f "${location}/scripts/ipset.txt"; else logger -st Skynet "[INFO] Setting Up Skynet..."; touch "${location}/scripts/ipset.txt"; fi
 		if ! ipset -L -n Whitelist >/dev/null 2>&1; then ipset -q create Whitelist hash:net comment; forcesave=1; fi
 		if ! ipset -L -n Blacklist >/dev/null 2>&1; then ipset -q create Blacklist hash:ip --maxelem 500000 comment; forcesave=1; fi
-		if ! ipset -L -n BlockedRanges >/dev/null 2>&1; then ipset -q create BlockedRanges hash:net comment; forcesave=1; fi
+		if ! ipset -L -n BlockedRanges >/dev/null 2>&1; then ipset -q create BlockedRanges hash:net --maxelem 200000 comment; forcesave=1; fi
 		if ! ipset -L -n Skynet >/dev/null 2>&1; then ipset -q create Skynet list:set; ipset -q -A Skynet Blacklist; ipset -q -A Skynet BlockedRanges; forcesave=1; fi
 		Unban_PrivateIP
 		Purge_Logs
