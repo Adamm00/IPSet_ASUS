@@ -23,8 +23,8 @@ To use the CLI, execute the following;
     "ban"          # <-- Adds Entry To Blacklist (IP/Range/Domain/Port/Country)
     "banmalware"   # <-- Bans Various Malware Domains/IPs
     "whitelist"    # <-- Add Entry To Whitelist (IP/Range/Domain/Port/VPN/Remove/Refresh/List)
-    "import"       # <-- Bans All IPs From URL
-    "deport"       # <-- Unbans All IPs From URL
+    "import"       # <-- Bans All IPs From URL/Local File
+    "deport"       # <-- Unbans All IPs From URL/Local File
     "save"         # <-- Save Blacklists To ipset.txt
     "restart"      # <-- Restart Skynet
     "disable"      # <-- Temporarily Disable Skynet
@@ -84,10 +84,10 @@ Here Are Some Example Whitelist Commands;
 (sh /jffs/scripts/firewall whitelist list domains ) List Manually Added Domain Entries
 
 Here Are Some Example Import Commands;
-(sh /jffs/scripts/firewall import URL) This Bans All IPs From URL
+(sh /jffs/scripts/firewall import file) This Bans All IPs From URL/Local File
 
 Here Are Some Example Deport Commands;
-(sh /jffs/scripts/firewall deport URL) This Unbans All IPs From URL
+(sh /jffs/scripts/firewall deport file) This Unbans All IPs From URL/Local File
 
 Here Are Some Example Update Commands;
 (sh /jffs/scripts/firewall update) Standard Update Check - If Nothing Detected Exit

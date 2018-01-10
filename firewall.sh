@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 10/01/2018 -		   Asus Firewall Addition By Adamm v5.6.8				    #
+## - 10/01/2018 -		   Asus Firewall Addition By Adamm v5.6.9				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -915,22 +915,22 @@ Load_Menu () {
 			;;
 			5)
 				option1="import"
-				echo "Input URL To Import"
+				echo "Input URL/Local File To Import"
 				echo
-				printf "[URL]: "
+				printf "[File]: "
 				read -r "option2"
 				echo
-				if [ -z "$option2" ]; then echo "URL Field Can't Be Empty - Please Try Again"; echo; continue; fi
+				if [ -z "$option2" ]; then echo "File Field Can't Be Empty - Please Try Again"; echo; continue; fi
 				break
 			;;
 			6)
 				option1="deport"
-				echo "Input URL To Deport"
+				echo "Input URL/Local File To Deport"
 				echo
-				printf "[URL]: "
+				printf "[File]: "
 				read -r "option2"
 				echo
-				if [ -z "$option2" ]; then echo "URL Field Can't Be Empty - Please Try Again"; echo; continue; fi
+				if [ -z "$option2" ]; then echo "File Field Can't Be Empty - Please Try Again"; echo; continue; fi
 				break
 			;;
 			7)
@@ -1627,15 +1627,20 @@ case "$1" in
 	import)
 		Purge_Logs
 		echo "This Function Extracts All IPs And Adds Them ALL To Blacklist"
-		if [ -n "$2" ]; then
+		if [ -f "$2" ]; then
 			Check_Lock "$@"
-			echo "Custom List Detected: $2"
-			/usr/sbin/curl -fs --retry 3 "$2" | dos2unix > /tmp/iplist-unfiltered.txt || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Import"; rm -rf /tmp/skynet.lock; exit 1; }
+			echo "Local Custom List Detected: $2"
+			cp "$2" /tmp/iplist-unfiltered.txt
+		elif [ -n "$2" ]; then
+			Check_Lock "$@"
+			echo "Remote Custom List Detected: $2"
+			/usr/sbin/curl -fs --retry 3 "$2" -o /tmp/iplist-unfiltered.txt || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Import"; rm -rf /tmp/skynet.lock; exit 1; }
 		else
 			echo "URL Field Can't Be Empty - Please Try Again"
 			rm -rf /tmp/skynet.lock
 			exit 2
 		fi
+		dos2unix /tmp/iplist-unfiltered.txt
 		imptime="$(date +"%b %d %T")"
 		echo "Filtering IPv4 Addresses"
 		grep -oE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk -v imptime="$imptime" '{print "add Blacklist " $1 " comment \"Imported: " imptime "\""}' > /tmp/iplist-filtered.txt
@@ -1652,15 +1657,20 @@ case "$1" in
 	deport)
 		Purge_Logs
 		echo "This Function Extracts All IPs And Removes Them ALL From Blacklist"
-		if [ -n "$2" ]; then
+		if [ -f "$2" ]; then
 			Check_Lock "$@"
-			echo "Custom List Detected: $2"
-			/usr/sbin/curl -fs --retry 3 "$2" | dos2unix > /tmp/iplist-unfiltered.txt || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Deport"; rm -rf /tmp/skynet.lock; exit 1; }
+			echo "Local Custom List Detected: $2"
+			cp "$2" /tmp/iplist-unfiltered.txt
+		elif [ -n "$2" ]; then
+			Check_Lock "$@"
+			echo "Remote Custom List Detected: $2"
+			/usr/sbin/curl -fs --retry 3 "$2" -o /tmp/iplist-unfiltered.txt || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Deport"; rm -rf /tmp/skynet.lock; exit 1; }
 		else
 			echo "URL Field Can't Be Empty - Please Try Again"
 			rm -rf /tmp/skynet.lock;
 			exit 2
 		fi
+		dos2unix /tmp/iplist-unfiltered.txt
 		echo "Filtering IPv4 Addresses"
 		grep -oE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk '{print "del Blacklist " $1}' > /tmp/iplist-filtered.txt
 		echo "Filtering IPv4 Ranges"
