@@ -499,7 +499,8 @@ Load_Menu () {
 	if [ -n "$lockedwarning" ]; then $ylow "Locked Processes Generally Take 20-60s To Complete And May Result In Temporarily \"Failed\" Tests"; fi
 	echo
 	if ! grep -qE "start.* # Skynet" /jffs/scripts/firewall-start 2>/dev/null; then printf "Checking Firewall-Start Entry...			"; $red "[Failed]"; fi
-	if ! iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Whitelist src -m set --match-set Skynet src -j DROP 2>/dev/null; then printf "Checking Skynet IPTable...				"; $red "[Failed]"; nolog="1"; fi
+	if ! iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Whitelist src -m set --match-set Skynet src -j DROP 2>/dev/null || \
+	! iptables -t raw -C PREROUTING -i br0 -m set ! --match-set Whitelist dst -m set --match-set Skynet dst -j DROP 2>/dev/null; then printf "Checking Skynet IPTable...				"; $red "[Failed]"; nolog="1"; fi
 	if ! ipset -L -n Whitelist >/dev/null 2>&1; then printf "Checking Whitelist IPSet...				"; $red "[Failed]"; nolog="1"; fi
 	if ! ipset -L -n BlockedRanges >/dev/null 2>&1; then printf "Checking BlockedRanges IPSet...				"; $red "[Failed]"; nolog="1"; fi
 	if ! ipset -L -n Blacklist >/dev/null 2>&1; then printf "Checking Blacklist IPSet...				"; $red "[Failed]"; nolog="1"; fi
@@ -1392,7 +1393,7 @@ case "$1" in
 				true > "${location}/skynet.log"
 			;;
 			*)
-				echo "Command Not Recognised, Please Try Again"
+				echo "Command Not Recognized, Please Try Again"
 				echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
 				rm -rf /tmp/skynet.lock
 				echo; rm -rf /tmp/skynet.lock; exit 2
@@ -1450,7 +1451,7 @@ case "$1" in
 				rm -rf "/tmp/countrylist.txt"
 			;;
 			*)
-				echo "Command Not Recognised, Please Try Again"
+				echo "Command Not Recognized, Please Try Again"
 				echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
 				rm -rf /tmp/skynet.lock
 				echo; exit 2
@@ -1613,7 +1614,7 @@ case "$1" in
 				esac
 			;;
 			*)
-				echo "Command Not Recognised, Please Try Again"
+				echo "Command Not Recognized, Please Try Again"
 				echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
 				rm -rf /tmp/skynet.lock
 				echo; exit 2
@@ -1835,7 +1836,7 @@ case "$1" in
 				printf "Checking For Duplicate Rules In RAW...			"
 				if [ "$(iptables-save -t raw | sort | uniq -d | grep -c " ")" = "0" ]; then $grn "[Passed]"; else $red "[Failed]"; fi
 				printf "Checking For Duplicate Rules In Filter...		"
-				if [ "$(iptables-save -t filter | sort | uniq -d | grep -c " ")" = "0" ]; then $grn "[Passed]"; else $red "[Failed]"; fi
+				if [ "$(iptables-save -t filter | grep -F "A logdrop" | sort | uniq -d | grep -c " ")" = "0" ]; then $grn "[Passed]"; else $red "[Failed]"; fi
 				printf "Checking Skynet IPTable...				"
 				if iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Whitelist src -m set --match-set Skynet src -j DROP 2>/dev/null && \
 				iptables -t raw -C PREROUTING -i br0 -m set ! --match-set Whitelist dst -m set --match-set Skynet dst -j DROP 2>/dev/null; then $grn "[Passed]"; else $red "[Failed]"; fi
@@ -1921,14 +1922,14 @@ case "$1" in
 						fi
 					;;
 					*)
-						echo "Command Not Recognised, Please Try Again"
+						echo "Command Not Recognized, Please Try Again"
 						echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
 						echo; exit 2
 					;;
 				esac
 			;;
 			*)
-				echo "Command Not Recognised, Please Try Again"
+				echo "Command Not Recognized, Please Try Again"
 				echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
 				echo; exit 2
 			;;
@@ -2089,7 +2090,7 @@ case "$1" in
 						grep -E "OUTBOUND.* SRC=$4 " "${location}/skynet.log" | tail -"$counter"
 					;;
 					*)
-						echo "Command Not Recognised, Please Try Again"
+						echo "Command Not Recognized, Please Try Again"
 						echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
 						echo; exit 2
 					;;
@@ -2491,7 +2492,7 @@ case "$1" in
 	;;
 
 	*)
-		echo "Command Not Recognised, Please Try Again"
+		echo "Command Not Recognized, Please Try Again"
 		echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
 	;;
 
