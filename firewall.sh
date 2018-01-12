@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 12/01/2018 -		   Asus Firewall Addition By Adamm v5.6.9				    #
+## - 12/01/2018 -		   Asus Firewall Addition By Adamm v5.7.0				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -55,8 +55,8 @@ if grep -qE "usb=.* # Skynet" /jffs/scripts/firewall-start 2>/dev/null; then
 			retry=$((retry+1))
 			sleep 10
 		done
-		if [ ! -d "$location" ]; then
-			logger -st Skynet "[ERROR] USB Not Found After 10 Attempts - Please Fix Immediately!"
+		if [ ! -d "$location" ] || [ ! -w "$location" ]; then
+			logger -st Skynet "[ERROR] Problem With USB Install Location - Please Fix Immediately!"
 			logger -st Skynet "[ERROR] When Fixed Run ( sh $0 restart )"
 			rm -rf /tmp/skynet.lock
 			exit 1
@@ -588,7 +588,7 @@ Load_Menu () {
 							printf "[Port]: "
 							read -r "option3"
 							echo
-							if ! echo "$option3" | Is_Port; then echo "$option3 Is Not A Valid Port"; echo; continue; fi
+							if ! echo "$option3" | Is_Port || [ "$option3" -gt "65535" ]; then echo "$option3 Is Not A Valid Port"; echo; continue; fi
 							break
 						;;
 						5)
@@ -803,7 +803,7 @@ Load_Menu () {
 							printf "[Port]: "
 							read -r "option3"
 							echo
-							if ! echo "$option3" | Is_Port; then echo "$option3 Is Not A Valid Port"; echo; continue; fi
+							if ! echo "$option3" | Is_Port || [ "$option3" -gt "65535" ]; then echo "$option3 Is Not A Valid Port"; echo; continue; fi
 							break
 						;;
 						4)
@@ -1221,7 +1221,7 @@ Load_Menu () {
 										printf "[Port]: "
 										read -r "option4"
 										echo
-										if ! echo "$option4" | Is_Port; then echo "$option4 Is Not A Valid Port"; echo; continue; fi
+										if ! echo "$option4" | Is_Port || [ "$option4" -gt "65535" ]; then echo "$option4 Is Not A Valid Port"; echo; continue; fi
 										break
 									;;
 									2)
@@ -1347,7 +1347,7 @@ case "$1" in
 				done
 			;;
 			port)
-				if ! echo "$3" | Is_Port; then echo "$3 Is Not A Valid Port"; echo; rm -rf /tmp/skynet.lock; exit 2; fi
+				if ! echo "$3" | Is_Port || [ "$3" -gt "65535" ]; then echo "$3 Is Not A Valid Port"; echo; rm -rf /tmp/skynet.lock; exit 2; fi
 				logger -st Skynet "[INFO] Unbanning Autobans Issued On Traffic From Source/Destination Port $3..."
 				grep -F "NEW" "${location}/skynet.log" | grep -F "PT=$3 " | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | awk '{print "del Blacklist "$1}' | ipset restore -!
 				sed -i "/PT=${3} /d" "${location}/skynet.log"
@@ -1395,6 +1395,7 @@ case "$1" in
 			*)
 				echo "Command Not Recognized, Please Try Again"
 				echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
+				echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
 				rm -rf /tmp/skynet.lock
 				echo; rm -rf /tmp/skynet.lock; exit 2
 			;;
@@ -1453,6 +1454,7 @@ case "$1" in
 			*)
 				echo "Command Not Recognized, Please Try Again"
 				echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
+				echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
 				rm -rf /tmp/skynet.lock
 				echo; exit 2
 			;;
@@ -1558,7 +1560,7 @@ case "$1" in
 				done
 			;;
 			port)
-				if ! echo "$3" | Is_Port; then echo "$3 Is Not A Valid Port"; echo; rm -rf /tmp/skynet.lock; exit 2; fi
+				if ! echo "$3" | Is_Port || [ "$3" -gt "65535" ]; then echo "$3 Is Not A Valid Port"; echo; rm -rf /tmp/skynet.lock; exit 2; fi
 				logger -st Skynet "[INFO] Whitelisting Autobans Issued On Traffic From Port $3..."
 				grep -F "NEW" "${location}/skynet.log" | grep -F "DPT=$3 " | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | while IFS= read -r "ip"; do
 					echo "Whitelisting $ip"
@@ -1616,6 +1618,7 @@ case "$1" in
 			*)
 				echo "Command Not Recognized, Please Try Again"
 				echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
+				echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
 				rm -rf /tmp/skynet.lock
 				echo; exit 2
 			;;
@@ -1924,6 +1927,7 @@ case "$1" in
 					*)
 						echo "Command Not Recognized, Please Try Again"
 						echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
+						echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
 						echo; exit 2
 					;;
 				esac
@@ -1931,6 +1935,7 @@ case "$1" in
 			*)
 				echo "Command Not Recognized, Please Try Again"
 				echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
+				echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
 				echo; exit 2
 			;;
 		esac
@@ -1968,7 +1973,7 @@ case "$1" in
 			search)
 				case "$3" in
 					port)
-						if ! echo "$4" | Is_Port; then echo "$4 Is Not A Valid Port"; echo; exit 2; fi
+						if ! echo "$4" | Is_Port || [ "$4" -gt "65535" ]; then echo "$4 Is Not A Valid Port"; echo; exit 2; fi
 						if [ "$5" -eq "$5" ] 2>/dev/null; then counter="$5"; fi
 						echo "Port $4 First Tracked On $(grep -m1 -F "PT=$4 " ${location}/skynet.log | awk '{print $1" "$2" "$3}')"
 						echo "Port $4 Last Tracked On $(grep -F "PT=$4 " ${location}/skynet.log | tail -1 | awk '{print $1" "$2" "$3}')"
@@ -2092,6 +2097,7 @@ case "$1" in
 					*)
 						echo "Command Not Recognized, Please Try Again"
 						echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
+						echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
 						echo; exit 2
 					;;
 				esac
@@ -2496,6 +2502,7 @@ case "$1" in
 	*)
 		echo "Command Not Recognized, Please Try Again"
 		echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
+		echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
 	;;
 
 esac
