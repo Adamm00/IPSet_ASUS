@@ -2503,6 +2503,7 @@ case "$1" in
 		echo "Command Not Recognized, Please Try Again"
 		echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
 		echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
+		echo
 	;;
 
 esac
