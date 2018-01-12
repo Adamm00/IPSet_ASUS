@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 10/01/2018 -		   Asus Firewall Addition By Adamm v5.6.9				    #
+## - 12/01/2018 -		   Asus Firewall Addition By Adamm v5.6.9				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -143,7 +143,7 @@ Check_Settings () {
 		if [ -f "$(/usr/bin/find /mnt/*/adblocking/.config/ab-solution.cfg 2>/dev/null)" ]; then
 			abcfg="$(find /mnt/*/adblocking/.config/ab-solution.cfg)"
 			ablocation="$(dirname "$abcfg")"
-			if ! grep -qE "hostsFileType=.*\+" "$abcfg"; then
+			if ! grep -qE "hostsFileType=.*\\+" "$abcfg"; then
 				if [ ! -f "${ablocation}/AddPlusHosts" ] && [ ! -f "${ablocation}/AddPlusHostsDismissed" ]; then
 					touch "${ablocation}/AddPlusHosts"
 				fi
@@ -1852,7 +1852,7 @@ case "$1" in
 					printf "Checking For AB-Solution Plus Content...		"
 					abcfg="$(find /mnt/*/adblocking/.config/ab-solution.cfg)"
 					ablocation="$(dirname "$abcfg")"
-					if grep -qE "hostsFileType=.*\+" "$abcfg"; then
+					if grep -qE "hostsFileType=.*\\+" "$abcfg"; then
 						$grn "[Passed]"
 					elif [ -f "${ablocation}/AddPlusHostsDismissed" ]; then
 						$ylow "[Dismissed]"
@@ -2332,6 +2332,7 @@ case "$1" in
 					mkdir -p "/jffs/scripts"
 					if [ -f "${location}/scripts/ipset.txt" ]; then mv "${location}/scripts/ipset.txt" "/jffs/scripts/"; fi
 					if [ -f "${location}/skynet.log" ]; then mv "${location}/skynet.log" "/jffs/"; fi
+					if echo "$location" | grep -qF "/tmp/mnt/"; then rm -rf "$location"; fi
 					sed -i '\~ Skynet ~d' /jffs/scripts/firewall-start
 					echo "sh /jffs/scripts/firewall $set1 $set2 $set3 # Skynet Firewall Addition" | tr -s " " >> /jffs/scripts/firewall-start
 					break
@@ -2475,6 +2476,7 @@ case "$1" in
 					nvram set fw_log_x=none
 					sed -i '\~ Skynet ~d' /jffs/scripts/firewall-start /jffs/scripts/services-stop
 					rm -rf "${location}/scripts/ipset.txt" "${location}/skynet.log" "/jffs/shared-Skynet-whitelist" "/jffs/shared-Skynet2-whitelist" "/opt/bin/firewall" "/jffs/scripts/firewall"
+					if echo "$location" | grep -qF "/tmp/mnt/"; then rm -rf "$location"; fi
 					iptables -t raw -F
 					service restart_firewall
 					exit 0
