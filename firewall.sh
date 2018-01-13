@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 12/01/2018 -		   Asus Firewall Addition By Adamm v5.7.0				    #
+## - 13/01/2018 -		   Asus Firewall Addition By Adamm v5.7.0				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -716,10 +716,10 @@ Load_Menu () {
 			3)
 				option1="banmalware"
 				while true; do
-					echo "Select Filter List:"
-					echo "[1]  --> Default"
-					echo "[2]  --> Custom"
-					echo "[3]  --> Reset Filter URL"
+					echo "Select Option:"
+					echo "[1]  --> Update"
+					echo "[2]  --> Change Filter List"
+					echo "[3]  --> Reset Filter List"
 					echo
 					printf "[1-3]: "
 					read -r "menu2"
