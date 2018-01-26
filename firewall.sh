@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 13/01/2018 -		   Asus Firewall Addition By Adamm v5.7.0				    #
+## - 27/01/2018 -		   Asus Firewall Addition By Adamm v5.7.1				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -72,10 +72,6 @@ if [ "$(nvram get wan0_proto)" = "pppoe" ] || [ "$(nvram get wan0_proto)" = "ppt
 	iface="ppp0"
 else
 	iface="$(nvram get wan0_ifname)"
-fi
-
-if [ "$model" = "RT-AC86U" ]; then
-	sync && echo 3 > /proc/sys/vm/drop_caches
 fi
 
 
@@ -300,6 +296,14 @@ Whitelist_Extra () {
 		nvram get firmware_server; } | awk '!x[$0]++' > /jffs/shared-Skynet2-whitelist
 }
 
+Whitelist_CDN () {
+		sed '\~add Whitelist ~!d;\~CDN-Whitelist~!d;s~ comment.*~~;s~add~del~g' "${location}/scripts/ipset.txt" | ipset restore -!
+		/usr/sbin/curl -fs --retry 3 "https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/cdn.list" | dos2unix | sed -n "s/\\r//;/^$/d;/^[0-9,\\.,\\/]*$/p" | awk '!x[$0]++' > /tmp/cdn.list
+		awk '{print "add Whitelist " $1 " comment \"CDN-Whitelist\""}' /tmp/cdn.list | ipset restore -!
+		rm -rf /tmp/cdn.list
+}
+		
+
 Whitelist_VPN () {
 		ipset -q -A Whitelist "$(nvram get vpn_server1_sn)"/24 comment "nvram: vpn_server1_sn"
 		ipset -q -A Whitelist "$(nvram get vpn_server2_sn)"/24 comment "nvram: vpn_server2_sn"
@@ -331,22 +335,12 @@ Whitelist_Shared () {
 		if [ -n "$(/usr/bin/find /jffs -name 'shared-*-whitelist')" ]; then
 			echo "Whitelisting Shared Domains"
 			sed '\~add Whitelist ~!d;\~Shared-Whitelist~!d;s~ comment.*~~;s~add~del~g' "${location}/scripts/ipset.txt" | ipset restore -!
-			case "$model" in
-				RT-AC86U|R7000) # AC86U Fork () Patch
-					grep -hvF "#" /jffs/shared-*-whitelist | sed 's~http[s]*://~~;s~/.*~~' | awk '!x[$0]++' | while IFS= read -r "domain"; do
-						for ip in $(Domain_Lookup "$domain" 2> /dev/null); do
-							ipset -q -A Whitelist "$ip" comment "Shared-Whitelist: $domain"
-						done
-					done
-				;;
-				*)
-					grep -hvF "#" /jffs/shared-*-whitelist | sed 's~http[s]*://~~;s~/.*~~' | awk '!x[$0]++' | while IFS= read -r "domain"; do
-						for ip in $(Domain_Lookup "$domain" 2> /dev/null); do
-							ipset -q -A Whitelist "$ip" comment "Shared-Whitelist: $domain"
-						done &
-					done
-				;;
-			esac
+			grep -hvF "#" /jffs/shared-*-whitelist | sed 's~http[s]*://~~;s~/.*~~' | awk '!x[$0]++' | while IFS= read -r "domain"; do
+				for ip in $(Domain_Lookup "$domain" 2> /dev/null); do
+					ipset -q -A Whitelist "$ip" comment "Shared-Whitelist: $domain"
+				done &
+			done
+			wait
 		fi
 }
 
@@ -1297,6 +1291,7 @@ Load_Menu () {
 				break
 			;;
 			r|reload)
+				unset lockedwarning
 				Load_Menu
 				break
 			;;
@@ -1491,40 +1486,30 @@ case "$1" in
 		if [ "$(wc -l < /jffs/shared-Skynet-whitelist)" = "0" ]; then echo >> /jffs/shared-Skynet-whitelist; fi
 		btime="$(date +%s)" && printf "Whitelisting Shared Domains 	"
 		Whitelist_Extra
+		Whitelist_CDN
 		Whitelist_VPN
 		Whitelist_Shared >/dev/null 2>&1 && $grn "[$(($(date +%s) - btime))s]"
 		btime="$(date +%s)" && printf "Consolidating Blacklist 	"
 		mkdir -p /tmp/skynet
 		cd /tmp/skynet || exit 1
-		case "$model" in
-			RT-AC86U|R7000) # AC86U Fork () Patch
-				while IFS= read -r "domain"; do
-					/usr/sbin/curl -fs --retry 3 "$domain" -O
-				done < /jffs/shared-Skynet-whitelist
-				wait
-			;;
-			*)
-				while IFS= read -r "domain"; do
-					/usr/sbin/curl -fs --retry 3 "$domain" -O &
-				done < /jffs/shared-Skynet-whitelist
-				wait
-			;;
-		esac
+		while IFS= read -r "domain"; do
+			/usr/sbin/curl -fs --retry 3 "$domain" -O &
+		done < /jffs/shared-Skynet-whitelist
+		wait
 		cd /tmp/home/root || exit 1
 		dos2unix /tmp/skynet/*
 		cat /tmp/skynet/* | sed -n "s/\\r//;/^$/d;/^[0-9,\\.,\\/]*$/p" | awk '!x[$0]++' | Filter_PrivateIP > /tmp/skynet/malwarelist.txt && $grn "[$(($(date +%s) - btime))s]"
-		btime="$(date +%s)" && printf "Saving Changes 			"
-		Save_IPSets >/dev/null 2>&1 && $grn "[$(($(date +%s) - btime))s]"
 		btime="$(date +%s)" && printf "Removing Previous Malware Bans  "
-		sed -i '\~comment \"BanMalware\"~d' "${location}/scripts/ipset.txt"
-		ipset flush Blacklist; ipset flush BlockedRanges
-		ipset restore -! -f "${location}/scripts/ipset.txt" && $grn "[$(($(date +%s) - btime))s]"
+		sed '\~add Whitelist ~d;\~BanMalware~!d;s~ comment.*~~;s~add~del~g' "${location}/scripts/ipset.txt" | ipset restore -! && $grn "[$(($(date +%s) - btime))s]"
 		btime="$(date +%s)" && printf "Filtering IPv4 Addresses 	"
 		grep -vF "/" /tmp/skynet/malwarelist.txt | awk '{print "add Blacklist " $1 " comment \"BanMalware\""}' >> "${location}/scripts/ipset.txt" && $grn "[$(($(date +%s) - btime))s]"
 		btime="$(date +%s)" && printf "Filtering IPv4 Ranges 		"
 		grep -F "/" /tmp/skynet/malwarelist.txt | awk '{print "add BlockedRanges " $1 " comment \"BanMalware\""}' >> "${location}/scripts/ipset.txt" && $grn "[$(($(date +%s) - btime))s]"
 		btime="$(date +%s)" && printf "Applying Blacklists 		"
+		if ! tail -1 "$location/scripts/ipset.txt" | grep -qE 'add|create'; then sed -i '$ d' "$location/scripts/ipset.txt"; fi
 		ipset restore -! -f "${location}/scripts/ipset.txt" && $grn "[$(($(date +%s) - btime))s]"
+		btime="$(date +%s)" && printf "Saving Changes 			"
+		Save_IPSets >/dev/null 2>&1 && $grn "[$(($(date +%s) - btime))s]"
 		echo
 		echo "For False Positive Website Bans Use; ( sh $0 whitelist domain URL )"
 		rm -rf /tmp/skynet.lock
@@ -1591,6 +1576,7 @@ case "$1" in
 						echo "Adding Default Entries"
 						true > "${location}/scripts/ipset.txt"
 						Whitelist_Extra
+						Whitelist_CDN
 						Whitelist_VPN
 						Whitelist_Shared
 					;;
@@ -1599,6 +1585,7 @@ case "$1" in
 			refresh)
 				echo "Refreshing Shared Whitelist Files"
 				Whitelist_Extra
+				Whitelist_CDN
 				Whitelist_VPN
 				Whitelist_Shared
 			;;
@@ -1714,6 +1701,7 @@ case "$1" in
 		Purge_Logs
 		sed '\~add Whitelist ~!d;\~nvram: ~!d;s~ comment.*~~;s~add~del~g' "${location}/scripts/ipset.txt" | ipset restore -!
 		Whitelist_Extra
+		Whitelist_CDN
 		Whitelist_VPN
 		Whitelist_Shared
 		if [ -n "$forcesave" ]; then Save_IPSets; fi
@@ -2021,20 +2009,10 @@ case "$1" in
 						/usr/sbin/curl -fs --retry 3 https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/filter.list -o /jffs/shared-Skynet-whitelist
 						mkdir -p /tmp/skynet
 						cd /tmp/skynet || exit 1
-						case "$model" in
-							RT-AC86U|R7000) # AC86U Fork () Patch
-								while IFS= read -r "domain"; do
-									/usr/sbin/curl -fs --retry 3 "$domain" -O
-								done < /jffs/shared-Skynet-whitelist
-								wait
-							;;
-							*)
-								while IFS= read -r "domain"; do
-									/usr/sbin/curl -fs --retry 3 "$domain" -O &
-								done < /jffs/shared-Skynet-whitelist
-								wait
-							;;
-						esac
+						while IFS= read -r "domain"; do
+							/usr/sbin/curl -fs --retry 3 "$domain" -O &
+						done < /jffs/shared-Skynet-whitelist
+						wait
 						dos2unix /tmp/skynet/*
 						cd /tmp/home/root || exit 1
 						$red "Exact Matches;"
@@ -2507,10 +2485,6 @@ case "$1" in
 	;;
 
 esac
-
-if [ "$model" = "RT-AC86U" ]; then
-	sync && echo 3 > /proc/sys/vm/drop_caches
-fi
 
 if [ -n "$reloadmenu" ]; then echo; echo; exec "$0" noclear; fi
 Logging; echo
