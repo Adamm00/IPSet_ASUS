@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 27/01/2018 -		   Asus Firewall Addition By Adamm v5.7.1				    #
+## - 31/01/2018 -		   Asus Firewall Addition By Adamm v5.7.2				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -987,7 +987,7 @@ Load_Menu () {
 					echo "[4]  --> Cleanup Syslog Entries"
 					echo "[5]  --> SWAP File Management"
 					echo
-					printf "[1-4]: "
+					printf "[1-5]: "
 					read -r "menu2"
 					echo
 					case "$menu2" in
@@ -1499,17 +1499,18 @@ case "$1" in
 		cd /tmp/home/root || exit 1
 		dos2unix /tmp/skynet/*
 		cat /tmp/skynet/* | sed -n "s/\\r//;/^$/d;/^[0-9,\\.,\\/]*$/p" | awk '!x[$0]++' | Filter_PrivateIP > /tmp/skynet/malwarelist.txt && $grn "[$(($(date +%s) - btime))s]"
+		btime="$(date +%s)" && printf "Saving Changes 			"
+		Save_IPSets >/dev/null 2>&1 && $grn "[$(($(date +%s) - btime))s]"
 		btime="$(date +%s)" && printf "Removing Previous Malware Bans  "
-		sed '\~add Whitelist ~d;\~BanMalware~!d;s~ comment.*~~;s~add~del~g' "${location}/scripts/ipset.txt" | ipset restore -! && $grn "[$(($(date +%s) - btime))s]"
+		sed -i '\~comment \"BanMalware\"~d' "${location}/scripts/ipset.txt"
+		ipset flush Blacklist; ipset flush BlockedRanges
+		ipset restore -! -f "${location}/scripts/ipset.txt" && $grn "[$(($(date +%s) - btime))s]"
 		btime="$(date +%s)" && printf "Filtering IPv4 Addresses 	"
 		grep -vF "/" /tmp/skynet/malwarelist.txt | awk '{print "add Blacklist " $1 " comment \"BanMalware\""}' >> "${location}/scripts/ipset.txt" && $grn "[$(($(date +%s) - btime))s]"
 		btime="$(date +%s)" && printf "Filtering IPv4 Ranges 		"
 		grep -F "/" /tmp/skynet/malwarelist.txt | awk '{print "add BlockedRanges " $1 " comment \"BanMalware\""}' >> "${location}/scripts/ipset.txt" && $grn "[$(($(date +%s) - btime))s]"
 		btime="$(date +%s)" && printf "Applying Blacklists 		"
-		if ! tail -1 "$location/scripts/ipset.txt" | grep -qE 'add|create'; then sed -i '$ d' "$location/scripts/ipset.txt"; fi
 		ipset restore -! -f "${location}/scripts/ipset.txt" && $grn "[$(($(date +%s) - btime))s]"
-		btime="$(date +%s)" && printf "Saving Changes 			"
-		Save_IPSets >/dev/null 2>&1 && $grn "[$(($(date +%s) - btime))s]"
 		echo
 		echo "For False Positive Website Bans Use; ( sh $0 whitelist domain URL )"
 		rm -rf /tmp/skynet.lock
