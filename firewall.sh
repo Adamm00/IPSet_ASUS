@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 31/01/2018 -		   Asus Firewall Addition By Adamm v5.7.2				    #
+## - 01/02/2018 -		   Asus Firewall Addition By Adamm v5.7.3				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -100,7 +100,7 @@ Check_Settings () {
 			logger -st Skynet "[ERROR] This Model Requires A SWAP File - Install One By Running ( $0 debug swap install )"
 			exit 1
 		fi
-		
+
 		sed -i 's~create BlockedRanges hash:net family inet hashsize 8192 maxelem 65536~create BlockedRanges hash:net family inet hashsize 8192 maxelem 200000~g;' "${location}/scripts/ipset.txt" # Upgrade maxelem
 
 		if echo "$@" | grep -qF "banmalware "; then
@@ -132,10 +132,6 @@ Check_Settings () {
 			nvram set fw_log_x=drop
 		fi
 
-		if grep "# Skynet" "/jffs/scripts/openvpn-event"; then
-			sed -i '\~ Skynet ~d' /jffs/scripts/openvpn-event
-		fi
-		
 		if [ -f "$(/usr/bin/find /mnt/*/adblocking/.config/ab-solution.cfg 2>/dev/null)" ]; then
 			abcfg="$(find /mnt/*/adblocking/.config/ab-solution.cfg)"
 			ablocation="$(dirname "$abcfg")"
@@ -144,6 +140,27 @@ Check_Settings () {
 					touch "${ablocation}/AddPlusHosts"
 				fi
 			fi
+		fi
+}
+
+Check_Files () {
+		if [ ! -f "/jffs/scripts/firewall-start" ]; then
+			echo "#!/bin/sh" > /jffs/scripts/firewall-start
+		elif [ -f "/jffs/scripts/firewall-start" ] && ! head -1 /jffs/scripts/firewall-start | grep -qE "^#!/bin/sh"; then
+			sed -i '1s~^~#!/bin/sh\n~' /jffs/scripts/firewall-start
+		fi
+		if [ ! -f "/jffs/scripts/services-stop" ]; then
+			echo "#!/bin/sh" > /jffs/scripts/services-stop
+		elif [ -f "/jffs/scripts/services-stop" ] && ! head -1 /jffs/scripts/services-stop | grep -qE "^#!/bin/sh"; then
+			sed -i '1s~^~#!/bin/sh\n~' /jffs/scripts/services-stop
+		fi
+		if [ ! -f "/jffs/scripts/post-mount" ]; then
+			echo "#!/bin/sh" > /jffs/scripts/post-mount
+		elif [ -f "/jffs/scripts/post-mount" ] && ! head -1 /jffs/scripts/post-mount | grep -qE "^#!/bin/sh"; then
+			sed -i '1s~^~#!/bin/sh\n~' /jffs/scripts/post-mount
+		fi
+		if [ "$1" = "verify" ] && ! grep -qF "# Skynet" /jffs/scripts/services-stop; then
+			echo "sh /jffs/scripts/firewall save # Skynet Firewall Addition" >> /jffs/scripts/services-stop
 		fi
 }
 
@@ -281,6 +298,38 @@ Unban_PrivateIP () {
 		done
 }
 
+Refresh_MWhitelist () {
+		rm -rf /tmp/mwhitelist.list /tmp/mwhitelist2.list
+		sed "\\~add Whitelist ~!d;\\~ManualWlistD~!d;s~ comment.*~~;s~add~del~g" "${location}/scripts/ipset.txt" | ipset restore -!
+		grep -E "Manual Whitelist.* TYPE=Domain" "$location/skynet.log" | while IFS= read -r "entry"; do
+			url="$(echo "$entry" | awk '{print $9}')"
+			echo "${url#*=}" >> /tmp/mwhitelist.list
+		done
+		awk '!x[$0]++' /tmp/mwhitelist.list | while IFS= read -r "website"; do
+			for ip in $(Domain_Lookup "$website"); do
+				echo "add Whitelist $ip comment \"ManualWlistD: $website\"" >> /tmp/mwhitelist2.list
+			done
+		done
+		ipset restore -! -f "/tmp/mwhitelist2.list"
+		rm -rf /tmp/mwhitelist.list /tmp/mwhitelist2.list
+}
+
+Refresh_MBans () {
+		rm -rf /tmp/mbans.list /tmp/mbans2.list
+		sed "\\~add Blacklist ~!d;\\~ManualBanD~!d;s~ comment.*~~;s~add~del~g" "${location}/scripts/ipset.txt" | ipset restore -!
+		grep -E "Manual Ban.* TYPE=Domain" "$location/skynet.log" | while IFS= read -r "entry"; do
+			url="$(echo "$entry" | awk '{print $9}')"
+			echo "${url#*=}" >> /tmp/mbans.list
+		done
+		awk '!x[$0]++' /tmp/mbans.list | while IFS= read -r "website"; do
+			for ip in $(Domain_Lookup "$website"); do
+				echo "add Blacklist $ip comment \"ManualBanD: $website\"" >> /tmp/mbans2.list
+			done
+		done
+		ipset restore -! -f "/tmp/mbans2.list"
+		rm -rf /tmp/mbans.list /tmp/mbans2.list
+}
+
 Whitelist_Extra () {
 		{ sed '\~ManualWlistD: ~!d;s~.*ManualWlistD: ~~g;s~"~~g' "$location/scripts/ipset.txt"
 		echo "ipdeny.com"
@@ -302,7 +351,6 @@ Whitelist_CDN () {
 		awk '{print "add Whitelist " $1 " comment \"CDN-Whitelist\""}' /tmp/cdn.list | ipset restore -!
 		rm -rf /tmp/cdn.list
 }
-		
 
 Whitelist_VPN () {
 		ipset -q -A Whitelist "$(nvram get vpn_server1_sn)"/24 comment "nvram: vpn_server1_sn"
@@ -1429,7 +1477,7 @@ case "$1" in
 				logger -st Skynet "[INFO] Adding $3 To Blacklist..."
 				for ip in $(Domain_Lookup "$3"); do
 					echo "Banning $ip"
-					ipset -A Blacklist "$ip" comment "ManualBan: $3" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$3 " >> "${location}/skynet.log"
+					ipset -A Blacklist "$ip" comment "ManualBanD: $3" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$3 " >> "${location}/skynet.log"
 				done
 			;;
 			country)
@@ -1530,19 +1578,17 @@ case "$1" in
 				if [ -z "$4" ]; then
 					desc="$(date +"%b %d %T")"
 				fi
-				ipset -A Whitelist "$3" comment "ManualWlist: $desc"
+				ipset -A Whitelist "$3" comment "ManualWlist: $desc" && sed -i "\\~$3 ~d" "${location}/skynet.log" && echo "$(date +"%b %d %T") Skynet: [Manual Whitelist] TYPE=Single SRC=$3 COMMENT=$desc " >> "${location}/skynet.log"
 				ipset -q -D Blacklist "$3"
 				ipset -q -D BlockedRanges "$3"
-				sed -i "\\~$3 ~d" "${location}/skynet.log"
 			;;
 			domain)
 				if [ -z "$3" ]; then echo "Domain Field Can't Be Empty - Please Try Again"; echo; rm -rf /tmp/skynet.lock; exit 2; fi
 				logger -st Skynet "[INFO] Adding $3 To Whitelist..."
 				for ip in $(Domain_Lookup "$3"); do
 					echo "Whitelisting $ip"
-					ipset -A Whitelist "$ip" comment "ManualWlistD: $3"
+					ipset -A Whitelist "$ip" comment "ManualWlistD: $3" && sed -i "\\~$ip ~d" "${location}/skynet.log" && echo "$(date +"%b %d %T") Skynet: [Manual Whitelist] TYPE=Domain SRC=$ip Host=$3 " >> "${location}/skynet.log"
 					ipset -q -D Blacklist "$ip"
-					sed -i "\\~$ip ~d" "${location}/skynet.log"
 				done
 			;;
 			port)
@@ -1550,9 +1596,8 @@ case "$1" in
 				logger -st Skynet "[INFO] Whitelisting Autobans Issued On Traffic From Port $3..."
 				grep -F "NEW" "${location}/skynet.log" | grep -F "DPT=$3 " | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | while IFS= read -r "ip"; do
 					echo "Whitelisting $ip"
-					ipset -A Whitelist "$ip" comment "ManualWlist: Port $3 Traffic"
+					ipset -A Whitelist "$ip" comment "ManualWlist: Port $3 Traffic" && sed -i "\\~$ip ~d" "${location}/skynet.log" && echo "$(date +"%b %d %T") Skynet: [Manual Whitelist] TYPE=Port SRC=$ip Host=$3 " >> "${location}/skynet.log"
 					ipset -q -D Blacklist "$ip"
-					sed -i "\\~$ip ~d" "${location}/skynet.log"
 				done
 			;;
 			vpn)
@@ -1570,12 +1615,18 @@ case "$1" in
 						if [ -z "$4" ]; then echo "Comment Field Can't Be Empty - Please Try Again"; echo; rm -rf /tmp/skynet.lock; exit 2; fi
 						echo "Removing All Entries With Comment Matching \"$4\" From Whitelist"
 						sed "\\~add Whitelist ~!d;\\~$4~!d;s~ comment.*~~;s~add~del~g" "${location}/scripts/ipset.txt" | ipset restore -!
+						sed "\\~add Whitelist ~!d;\\~these nuts~!d" "${location}/scripts/ipset.txt" | awk '{print $3}' > /tmp/ip.list
+						while read -r ip; do
+							sed -i "\\~$ip ~d" "${location}/skynet.log"
+						done < /tmp/ip.list
+						rm -rf /tmp/ip.list
 					;;
 					*)
 						echo "Flushing Whitelist"
 						ipset flush Whitelist
 						echo "Adding Default Entries"
 						true > "${location}/scripts/ipset.txt"
+						sed -i "\\~Manual Whitelist~d" "${location}/skynet.log"
 						Whitelist_Extra
 						Whitelist_CDN
 						Whitelist_VPN
@@ -1589,6 +1640,7 @@ case "$1" in
 				Whitelist_CDN
 				Whitelist_VPN
 				Whitelist_Shared
+				Refresh_MWhitelist
 			;;
 			list)
 				case "$3" in
@@ -1691,6 +1743,7 @@ case "$1" in
 		logger -st Skynet "[INFO] Startup Initiated... ( $(echo "$@" | sed 's~start ~~g') )"
 		Unload_Cron
 		Check_Settings "$@"
+		Check_Files "verify"
 		cru a Skynet_save "0 * * * * sh /jffs/scripts/firewall save"
 		modprobe xt_set
 		if [ -f "${location}/scripts/ipset.txt" ]; then ipset restore -! -f "${location}/scripts/ipset.txt"; else logger -st Skynet "[INFO] Setting Up Skynet..."; touch "${location}/scripts/ipset.txt"; fi
@@ -1705,6 +1758,8 @@ case "$1" in
 		Whitelist_CDN
 		Whitelist_VPN
 		Whitelist_Shared
+		Refresh_MWhitelist
+		Refresh_MBans
 		if [ -n "$forcesave" ]; then Save_IPSets; fi
 		while [ "$(($(date +%s) - stime))" -lt "20" ]; do
 			sleep 1
@@ -1864,11 +1919,7 @@ case "$1" in
 			swap)
 				case "$3" in
 					install)
-						if [ ! -f "/jffs/scripts/post-mount" ]; then
-							echo "#!/bin/sh" > /jffs/scripts/post-mount
-						elif [ -f "/jffs/scripts/post-mount" ] && ! head -1 /jffs/scripts/post-mount | grep -qE "^#!/bin/sh"; then
-							sed -i '1s~^~#!/bin/sh\n~' /jffs/scripts/post-mount
-						fi
+						Check_Files
 						Check_Lock "$@"
 						if ! grep -qF "swapon" /jffs/scripts/post-mount; then
 							Manage_Device
@@ -2166,21 +2217,7 @@ case "$1" in
 		if [ "$(nvram get fw_log_x)" != "drop" ] && [ "$(nvram get fw_log_x)" != "both" ]; then
 			nvram set fw_log_x=drop
 		fi
-		if [ ! -f "/jffs/scripts/firewall-start" ]; then
-			echo "#!/bin/sh" > /jffs/scripts/firewall-start
-		elif [ -f "/jffs/scripts/firewall-start" ] && ! head -1 /jffs/scripts/firewall-start | grep -qE "^#!/bin/sh"; then
-			sed -i '1s~^~#!/bin/sh\n~' /jffs/scripts/firewall-start
-		fi
-		if [ ! -f "/jffs/scripts/services-stop" ]; then
-			echo "#!/bin/sh" > /jffs/scripts/services-stop
-		elif [ -f "/jffs/scripts/services-stop" ] && ! head -1 /jffs/scripts/services-stop | grep -qE "^#!/bin/sh"; then
-			sed -i '1s~^~#!/bin/sh\n~' /jffs/scripts/services-stop
-		fi
-		if [ ! -f "/jffs/scripts/post-mount" ]; then
-			echo "#!/bin/sh" > /jffs/scripts/post-mount
-		elif [ -f "/jffs/scripts/post-mount" ] && ! head -1 /jffs/scripts/post-mount | grep -qE "^#!/bin/sh"; then
-			sed -i '1s~^~#!/bin/sh\n~' /jffs/scripts/post-mount
-		fi
+		Check_Files
 		while true; do
 			echo "Installing Skynet $(Filter_Version "$0")"
 			echo "This Will Remove Any Old Install Arguements And Can Be Run Multiple Times"
