@@ -1615,7 +1615,7 @@ case "$1" in
 						if [ -z "$4" ]; then echo "Comment Field Can't Be Empty - Please Try Again"; echo; rm -rf /tmp/skynet.lock; exit 2; fi
 						echo "Removing All Entries With Comment Matching \"$4\" From Whitelist"
 						sed "\\~add Whitelist ~!d;\\~$4~!d;s~ comment.*~~;s~add~del~g" "${location}/scripts/ipset.txt" | ipset restore -!
-						sed "\\~add Whitelist ~!d;\\~these nuts~!d" "${location}/scripts/ipset.txt" | awk '{print $3}' > /tmp/ip.list
+						sed "\\~add Whitelist ~!d;\\~$4~!d" "${location}/scripts/ipset.txt" | awk '{print $3}' > /tmp/ip.list
 						while read -r ip; do
 							sed -i "\\~$ip ~d" "${location}/skynet.log"
 						done < /tmp/ip.list
