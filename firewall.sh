@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 01/02/2018 -		   Asus Firewall Addition By Adamm v5.7.3				    #
+## - 01/02/2018 -		   Asus Firewall Addition By Adamm v5.7.4				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -305,9 +305,10 @@ Refresh_MWhitelist () {
 			url="$(echo "$entry" | awk '{print $9}')"
 			echo "${url#*=}" >> /tmp/mwhitelist.list
 		done
+		sed -i "\\~\[Manual Whitelist\] TYPE=Domain~d;" "$location/skynet.log"
 		awk '!x[$0]++' /tmp/mwhitelist.list | while IFS= read -r "website"; do
 			for ip in $(Domain_Lookup "$website"); do
-				echo "add Whitelist $ip comment \"ManualWlistD: $website\"" >> /tmp/mwhitelist2.list
+				echo "add Whitelist $ip comment \"ManualWlistD: $website\"" >> /tmp/mwhitelist2.list && echo "$(date +"%b %d %T") Skynet: [Manual Whitelist] TYPE=Domain SRC=$ip Host=$website " >> "${location}/skynet.log" &
 			done
 		done
 		ipset restore -! -f "/tmp/mwhitelist2.list"
@@ -321,9 +322,10 @@ Refresh_MBans () {
 			url="$(echo "$entry" | awk '{print $9}')"
 			echo "${url#*=}" >> /tmp/mbans.list
 		done
+		sed -i "\\~\[Manual Ban\] TYPE=Domain~d;" "$location/skynet.log"
 		awk '!x[$0]++' /tmp/mbans.list | while IFS= read -r "website"; do
 			for ip in $(Domain_Lookup "$website"); do
-				echo "add Blacklist $ip comment \"ManualBanD: $website\"" >> /tmp/mbans2.list
+				echo "add Blacklist $ip comment \"ManualBanD: $website\"" >> /tmp/mbans2.list && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$website " >> "${location}/skynet.log" &
 			done
 		done
 		ipset restore -! -f "/tmp/mbans2.list"
@@ -1532,7 +1534,7 @@ case "$1" in
 		btime="$(date +%s)" && printf "Downloading filter.list 	"
 		/usr/sbin/curl -fs --retry 3 "$listurl" | dos2unix > /jffs/shared-Skynet-whitelist && $grn "[$(($(date +%s) - btime))s]"
 		if [ "$(wc -l < /jffs/shared-Skynet-whitelist)" = "0" ]; then echo >> /jffs/shared-Skynet-whitelist; fi
-		btime="$(date +%s)" && printf "Whitelisting Shared Domains 	"
+		btime="$(date +%s)" && printf "Refreshing Whitelists		"
 		Whitelist_Extra
 		Whitelist_CDN
 		Whitelist_VPN

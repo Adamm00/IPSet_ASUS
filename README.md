@@ -1,8 +1,8 @@
 # Skynet - Asus Firewall Addition
-Lightweight firewall addition for ARM based ASUS Routers using IPSet as seen on [SmallNetBuilder](https://www.snbforums.com/threads/skynet-asus-firewall-addition-dynamic-malware-country-manual-ip-blocking.16798/)
+Lightweight firewall addition for ARM/HND based ASUS Routers using IPSet as seen on [SmallNetBuilder](https://www.snbforums.com/threads/skynet-asus-firewall-addition-dynamic-malware-country-manual-ip-blocking.16798/)
 
 
-This script is an extra line of defense from malicious attackers (mostly bots) who repeatedly probe for vunelerabilities and easy to use IPSet functionality to block anything you desire.
+The goal of this tool is to enhance the firmware's built in functionality such as the SPI Firewall and Brute Force Detection while adding easy to use tools for users to implement custom firewall rules they desire. Skynet has a range of feature from banning single IPs, domains, entire countries or pulling predefined malware lists from reputable providers. It is the one stop shop for router security and the first line of defence in your home network.
 
 
 ## Usage
@@ -20,7 +20,7 @@ To use the CLI, execute the following;
 ```sh /jffs/scripts/firewall *commandhere*```
 
     "unban"        # <-- Remove Entry From Blacklist (IP/Range/Domain/Port/Country/Malware/Autobans/Nomanual/All)
-    "ban"          # <-- Adds Entry To Blacklist (IP/Range/Domain/Port/Country)
+    "ban"          # <-- Adds Entry To Blacklist (IP/Range/Domain/Country)
     "banmalware"   # <-- Bans Various Malware Domains/IPs
     "whitelist"    # <-- Add Entry To Whitelist (IP/Range/Domain/Port/VPN/Remove/Refresh/List)
     "import"       # <-- Bans All IPs From URL/Local File
