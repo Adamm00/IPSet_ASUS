@@ -426,6 +426,7 @@ Manage_Device() {
 				echo
 				if [ "$partitionNumber" = "e" ] || [ "$partitionNumber" = "exit" ]; then
 					echo "Exiting!"
+					echo
 					rm -rf /tmp/skynet.lock
 					exit 0
 				elif [ -z "$partitionNumber" ] || [ "$partitionNumber" -gt $((i - 1)) ] 2>/dev/null; then
@@ -483,6 +484,7 @@ Create_Swap() {
 			;;
 			e|exit)
 				echo "Exiting!"
+				echo
 				exit 0
 			;;
 			*)
@@ -557,7 +559,7 @@ Load_Menu () {
 	if ! ipset -L -n BlockedRanges >/dev/null 2>&1; then printf "Checking BlockedRanges IPSet...				"; $red "[Failed]"; nolog="1"; fi
 	if ! ipset -L -n Blacklist >/dev/null 2>&1; then printf "Checking Blacklist IPSet...				"; $red "[Failed]"; nolog="1"; fi
 	if ! ipset -L -n Skynet >/dev/null 2>&1; then printf "Checking Skynet IPSet...				"; $red "[Failed]"; nolog="1"; fi
-	if [ -z "$nolog" ]; then Logging minimal; fi
+	if [ "$nolog" != "1" ]; then Logging minimal; fi
 	reloadmenu=1
 	echo
 	while true; do
@@ -1362,6 +1364,7 @@ Load_Menu () {
 			;;
 			e|exit)
 				echo "Exiting!"
+				echo
 				exit 0
 			;;
 			*)
@@ -1810,7 +1813,7 @@ case "$1" in
 		iptables -t raw -F
 		service restart_firewall
 		rm -rf /tmp/skynet.lock
-		exit 0
+		nolog="2"
 	;;
 
 	disable)
@@ -1826,7 +1829,7 @@ case "$1" in
 		Purge_Logs
 		echo
 		rm -rf /tmp/skynet.lock
-		exit 0
+		nolog="2"
 	;;
 
 	update)
@@ -1940,7 +1943,7 @@ case "$1" in
 				sed -i '\~Skynet: ~d' /tmp/syslog.log /tmp/syslog.log-1 2>/dev/null
 				echo "Complete!"
 				echo
-				exit 0
+				nolog="2"
 			;;
 			swap)
 				case "$3" in
@@ -1958,7 +1961,7 @@ case "$1" in
 							Unload_IPSets
 							rm -rf /tmp/skynet.lock
 							service restart_firewall
-							exit 0
+							nolog="2"
 						else
 							echo "Pre-existing SWAP File Detected - Exiting!"
 							rm -rf /tmp/skynet.lock
@@ -1982,7 +1985,7 @@ case "$1" in
 							Unload_IPSets
 							rm -rf /tmp/skynet.lock
 							service restart_firewall
-							exit 0
+							nolog="2"
 						else
 							echo "Unable To Remove Existing SWAP File - Please Remove Manually"
 							echo
@@ -2281,6 +2284,7 @@ case "$1" in
 				;;
 				e|exit)
 					echo "Exiting!"
+					echo
 					exit 0
 				;;
 				*)
@@ -2320,6 +2324,7 @@ case "$1" in
 				;;
 				e|exit)
 					echo "Exiting!"
+					echo
 					exit 0
 				;;
 				*)
@@ -2353,6 +2358,7 @@ case "$1" in
 				;;
 				e|exit)
 					echo "Exiting!"
+					echo
 					exit 0
 				;;
 				*)
@@ -2408,6 +2414,7 @@ case "$1" in
 								;;
 								e|exit)
 									echo "Exiting!"
+									echo
 									exit 0
 								;;
 								*)
@@ -2431,6 +2438,7 @@ case "$1" in
 				;;
 				e|exit)
 					echo "Exiting!"
+					echo
 					exit 0
 				;;
 				*)
@@ -2462,7 +2470,7 @@ case "$1" in
 		iptables -t raw -F
 		rm -rf /tmp/skynet.lock
 		service restart_firewall
-		exit 0
+		nolog="2"
 	;;
 
 	uninstall)
@@ -2505,6 +2513,7 @@ case "$1" in
 								;;
 								e|exit)
 									echo "Exiting!"
+									echo
 									exit 0
 								;;
 								*)
@@ -2527,10 +2536,11 @@ case "$1" in
 					if echo "$location" | grep -qF "/tmp/mnt/"; then rm -rf "$location"; fi
 					iptables -t raw -F
 					service restart_firewall
-					exit 0
+					nolog="2"
 				;;
 				2|e|exit)
 					echo "Exiting!"
+					echo
 					exit 0
 				;;
 				*)
@@ -2551,4 +2561,4 @@ case "$1" in
 esac
 
 if [ -n "$reloadmenu" ]; then echo; echo; exec "$0" noclear; fi
-Logging; echo
+if [ "$nolog" != "2" ]; then Logging; echo; fi
