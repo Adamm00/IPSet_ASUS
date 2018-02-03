@@ -303,7 +303,7 @@ Unban_PrivateIP () {
 }
 
 Refresh_MWhitelist () {
-		if grep -E "Manual Whitelist.* TYPE=Domain" "$location/skynet.log"; then
+		if grep -qE "Manual Whitelist.* TYPE=Domain" "$location/skynet.log"; then
 			rm -rf /tmp/mwhitelist.list /tmp/mwhitelist2.list
 			sed "\\~add Whitelist ~!d;\\~ManualWlistD~!d;s~ comment.*~~;s~add~del~g" "${location}/scripts/ipset.txt" | ipset restore -!
 			grep -E "Manual Whitelist.* TYPE=Domain" "$location/skynet.log" | while IFS= read -r "entry"; do
@@ -322,7 +322,7 @@ Refresh_MWhitelist () {
 }
 
 Refresh_MBans () {
-		if grep -E "Manual Ban.* TYPE=Domain" "$location/skynet.log"; then
+		if grep -qE "Manual Ban.* TYPE=Domain" "$location/skynet.log"; then
 			rm -rf /tmp/mbans.list /tmp/mbans2.list
 			sed "\\~add Blacklist ~!d;\\~ManualBanD~!d;s~ comment.*~~;s~add~del~g" "${location}/scripts/ipset.txt" | ipset restore -!
 			grep -E "Manual Ban.* TYPE=Domain" "$location/skynet.log" | while IFS= read -r "entry"; do
