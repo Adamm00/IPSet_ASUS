@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 05/02/2018 -		   Asus Firewall Addition By Adamm v5.7.5				    #
+## - 06/02/2018 -		   Asus Firewall Addition By Adamm v5.7.5				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -45,8 +45,8 @@ Check_Lock () {
 		fi
 }
 
-if grep -qE "usb=.* # Skynet" /jffs/scripts/firewall-start 2>/dev/null; then
-	location="$(grep -ow "usb=.* # Skynet" /jffs/scripts/firewall-start | awk '{print $1}' | cut -c 5-)/skynet"
+if grep -E "usb=.* # Skynet" /jffs/scripts/firewall-start 2>/dev/null | grep -qvE "^#"; then
+	location="$(grep -ow "usb=.* # Skynet" /jffs/scripts/firewall-start | grep -vE "^#" | awk '{print $1}' | cut -c 5-)/skynet"
 	if [ ! -d "$location" ] && ! echo "$@" | grep -wqE "(install|uninstall|disable|update|restart|info)"; then
 		Check_Lock "$@"
 		retry=1
@@ -85,7 +85,7 @@ Kill_Lock () {
 }
 
 Check_Settings () {
-		if ! grep -qE "start.* # Skynet" /jffs/scripts/firewall-start; then
+		if ! grep -E "start.* # Skynet" /jffs/scripts/firewall-start | grep -qvE "^#"; then
 			logger -st Skynet "[ERROR] Installation Not Detected - Please Use ( sh $0 install ) To Continue"
 			rm -rf /tmp/skynet.lock
 			exit 1
@@ -96,7 +96,7 @@ Check_Settings () {
 			logger -st Skynet "[ERROR] $(/usr/bin/find /jffs /tmp/mnt | grep -E "$conflicting_scripts" | xargs) Detected - This Script Will Cause Conflicts! Please Uninstall It ASAP"
 		fi
 
-		if [ "$model" = "RT-AC86U" ] && ! grep -qF "swapon" /jffs/scripts/post-mount; then
+		if [ "$model" = "RT-AC86U" ] && ! grep -F "swapon" /jffs/scripts/post-mount | grep -qvE "^#"; then
 			logger -st Skynet "[ERROR] This Model Requires A SWAP File - Install One By Running ( $0 debug swap install )"
 			exit 1
 		fi
@@ -549,13 +549,13 @@ Load_Menu () {
 	ipset -v
 	echo "FW Version; $(nvram get buildno)_$(nvram get extendno) ($(uname -v | awk '{print $5" "$6" "$9}')) ($(uname -r))"
 	echo "Install Dir; $location ($(df -h $location | xargs | awk '{print $11 " / " $9}') Space Available)"
-	if grep -qF "swapon" /jffs/scripts/post-mount 2>/dev/null; then swaplocation="$(grep -o "swapon .*" /jffs/scripts/post-mount | awk '{print $2}')"; echo "SWAP File; $swaplocation ($(du -h "$swaplocation" | awk '{print $1}'))"; fi
-	echo "Boot Args; $(grep -E "start.* # Skynet" /jffs/scripts/firewall-start 2>/dev/null | cut -c 4- | cut -d '#' -f1)"
+	if grep -F "swapon" /jffs/scripts/post-mount 2>/dev/null | grep -qvE "^#"; then swaplocation="$(grep -o "swapon .*" /jffs/scripts/post-mount | grep -vE "^#" | awk '{print $2}')"; echo "SWAP File; $swaplocation ($(du -h "$swaplocation" | awk '{print $1}'))"; fi
+	echo "Boot Args; $(grep -E "start.* # Skynet" /jffs/scripts/firewall-start 2>/dev/null | grep -vE "^#" | cut -c 4- | cut -d '#' -f1)"
 	if grep -qF "Country:" "$location/scripts/ipset.txt" 2>/dev/null; then echo "Banned Countries; $(grep -m1 -F "Country:" "$location/scripts/ipset.txt" | sed 's~.*Country: ~~;s~"~~')"; fi
 	if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(sed -n '2p' /tmp/skynet.lock)" ]; then $red "Lock File Detected ($(sed -n '1p' /tmp/skynet.lock)) (pid=$(sed -n '2p' /tmp/skynet.lock))"; lockedwarning=1; fi
 	if [ -n "$lockedwarning" ]; then $ylow "Locked Processes Generally Take 20-60s To Complete And May Result In Temporarily \"Failed\" Tests"; fi
 	echo
-	if ! grep -qE "start.* # Skynet" /jffs/scripts/firewall-start 2>/dev/null; then printf "Checking Firewall-Start Entry...			"; $red "[Failed]"; fi
+	if ! grep -E "start.* # Skynet" /jffs/scripts/firewall-start 2>/dev/null | grep -qvE "^#"; then printf "Checking Firewall-Start Entry...			"; $red "[Failed]"; fi
 	if ! iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Whitelist src -m set --match-set Skynet src -j DROP 2>/dev/null || \
 	! iptables -t raw -C PREROUTING -i br0 -m set ! --match-set Whitelist dst -m set --match-set Skynet dst -j DROP 2>/dev/null; then printf "Checking Skynet IPTable...				"; $red "[Failed]"; nolog="1"; fi
 	if ! ipset -L -n Whitelist >/dev/null 2>&1; then printf "Checking Whitelist IPSet...				"; $red "[Failed]"; nolog="1"; fi
@@ -1889,8 +1889,8 @@ case "$1" in
 				ipset -v
 				echo "FW Version; $(nvram get buildno)_$(nvram get extendno) ($(uname -v | awk '{print $5" "$6" "$9}')) ($(uname -r))"
 				echo "Install Dir; $location ($(df -h $location | xargs | awk '{print $11 " / " $9}') Space Available)"
-				if grep -qF "swapon" /jffs/scripts/post-mount 2>/dev/null; then swaplocation="$(grep -o "swapon .*" /jffs/scripts/post-mount | awk '{print $2}')"; echo "SWAP File; $swaplocation ($(du -h "$swaplocation" | awk '{print $1}'))"; fi
-				echo "Boot Args; $(grep -E "start.* # Skynet" /jffs/scripts/firewall-start | cut -c 4- | cut -d '#' -f1)"
+				if grep -F "swapon" /jffs/scripts/post-mount 2>/dev/null | grep -qvE "^#"; then swaplocation="$(grep -o "swapon .*" /jffs/scripts/post-mount | grep -vE "^#" | awk '{print $2}')"; echo "SWAP File; $swaplocation ($(du -h "$swaplocation" | awk '{print $1}'))"; fi
+				echo "Boot Args; $(grep -E "start.* # Skynet" /jffs/scripts/firewall-start | grep -vE "^#" | cut -c 4- | cut -d '#' -f1)"
 				if grep -qF "Country:" "$location/scripts/ipset.txt"; then echo "Banned Countries; $(grep -m1 -F "Country:" "$location/scripts/ipset.txt" | sed 's~.*Country: ~~;s~"~~')"; fi
 				if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(sed -n '2p' /tmp/skynet.lock)" ]; then $red "Lock File Detected ($(sed -n '1p' /tmp/skynet.lock)) (pid=$(sed -n '2p' /tmp/skynet.lock))"; lockedwarning=1; else $grn "No Lock File Found"; fi
 				if [ -n "$lockedwarning" ]; then $ylow "Locked Processes Generally Take 20-60s To Complete And May Result In Temporarily \"Failed\" Tests"; fi
@@ -1898,9 +1898,9 @@ case "$1" in
 				printf "Checking Install Directory Write Permissions...		"
 				if [ -w "$location" ]; then $grn "[Passed]"; else $red "[Failed]"; fi
 				printf "Checking Firewall-Start Entry...			"
-				if grep -qE "start.* # Skynet" /jffs/scripts/firewall-start; then $grn "[Passed]"; else $red "[Failed]"; fi
+				if grep -E "start.* # Skynet" /jffs/scripts/firewall-start | grep -qvE "^#"; then $grn "[Passed]"; else $red "[Failed]"; fi
 				printf "Checking Services-Stop Entry...				"
-				if grep -qF "# Skynet" /jffs/scripts/services-stop; then $grn "[Passed]"; else $red "[Failed]"; fi
+				if grep -F "# Skynet" /jffs/scripts/services-stop | grep -qvE "^#"; then $grn "[Passed]"; else $red "[Failed]"; fi
 				printf "Checking CronJobs...					"
 				if [ "$(cru l | grep -c "Skynet")" -ge "2" ]; then $grn "[Passed]"; else $red "[Failed]"; fi
 				printf "Checking IPSet Comment Support...			"
@@ -2018,7 +2018,7 @@ case "$1" in
 
 	stats)
 		Purge_Logs
-		if ! grep -qE "start.*debug.* # Skynet" /jffs/scripts/firewall-start; then
+		if ! grep -E "start.*debug.* # Skynet" /jffs/scripts/firewall-start | grep -qvE "^#"; then
 			echo
 			$red "!!! Debug Mode Is Disabled !!!"
 			$red "To Enable Use ( sh $0 install )"
@@ -2400,8 +2400,8 @@ case "$1" in
 					echo "USB Installation Selected"
 					echo
 					Manage_Device
-					if ! grep -qF "swapon" /jffs/scripts/post-mount && [ "$(free | xargs -r | awk '{print $10}')" -le "100000" ]; then installswap="1"; fi
-					if ! grep -qF "swapon" /jffs/scripts/post-mount && [ "$model" != "RT-AC86U" ] && [ "$installswap" != "1" ]; then
+					if ! grep -F "swapon" /jffs/scripts/post-mount | grep -qvE "^#" && [ "$(free | xargs -r | awk '{print $10}')" -le "100000" ]; then installswap="1"; fi
+					if ! grep -F "swapon" /jffs/scripts/post-mount | grep -qvE "^#" && [ "$model" != "RT-AC86U" ] && [ "$installswap" != "1" ]; then
 						while true; do
 							echo "Would You Like To Install A SWAP File?"
 							echo "[1]  --> Yes - (Recommended)"
@@ -2429,7 +2429,7 @@ case "$1" in
 							esac
 						done
 					fi
-					if [ "$model" = "RT-AC86U" ] && ! grep -qF "swapon" /jffs/scripts/post-mount; then installswap="1"; fi
+					if [ "$model" = "RT-AC86U" ] && ! grep -F "swapon" /jffs/scripts/post-mount | grep -qvE "^#"; then installswap="1"; fi
 					if [ "$installswap" = "1" ]; then
 						Create_Swap
 					fi
@@ -2494,7 +2494,7 @@ case "$1" in
 			echo
 			case "$continue" in
 				1)
-					if grep -qE "swapon .* # Skynet" /jffs/scripts/post-mount 2>/dev/null; then
+					if grep -E "swapon .* # Skynet" /jffs/scripts/post-mount 2>/dev/null | grep -qvE "^#"; then
 						while true; do
 							echo "Would You Like To Remove Skynet Generated Swap File?"
 							echo "[1]  --> Yes"
@@ -2507,7 +2507,7 @@ case "$1" in
 							case "$removeswap" in
 								1)
 									echo "Removing Skynet Generated SWAP File..."
-									swaplocation="$(grep -o "swapon .*" /jffs/scripts/post-mount | awk '{print $2}')"
+									swaplocation="$(grep -o "swapon .*" /jffs/scripts/post-mount | grep -vE "^#" | awk '{print $2}')"
 									sed -i '\~ Skynet ~d' /jffs/scripts/post-mount
 									swapoff "$swaplocation"
 									rm -rf "$swaplocation"
