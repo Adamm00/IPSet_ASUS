@@ -310,7 +310,7 @@ Refresh_MWhitelist () {
 				url="$(echo "$entry" | awk '{print $9}')"
 				echo "${url#*=}" >> /tmp/mwhitelist.list
 			done
-			sed -i "\\~\[Manual Whitelist\] TYPE=Domain~d;" "$location/skynet.log"
+			sed -i "\\~\\[Manual Whitelist\\] TYPE=Domain~d;" "$location/skynet.log"
 			awk '!x[$0]++' /tmp/mwhitelist.list | while IFS= read -r "website"; do
 				for ip in $(Domain_Lookup "$website"); do
 					echo "add Whitelist $ip comment \"ManualWlistD: $website\"" >> /tmp/mwhitelist2.list && echo "$(date +"%b %d %T") Skynet: [Manual Whitelist] TYPE=Domain SRC=$ip Host=$website " >> "${location}/skynet.log" &
@@ -329,7 +329,7 @@ Refresh_MBans () {
 				url="$(echo "$entry" | awk '{print $9}')"
 				echo "${url#*=}" >> /tmp/mbans.list
 			done
-			sed -i "\\~\[Manual Ban\] TYPE=Domain~d;" "$location/skynet.log"
+			sed -i "\\~\\[Manual Ban\\] TYPE=Domain~d;" "$location/skynet.log"
 			awk '!x[$0]++' /tmp/mbans.list | while IFS= read -r "website"; do
 				for ip in $(Domain_Lookup "$website"); do
 					echo "add Blacklist $ip comment \"ManualBanD: $website\"" >> /tmp/mbans2.list && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$website " >> "${location}/skynet.log" &
@@ -514,7 +514,7 @@ Purge_Logs () {
 				true > "${location}/skynet.log"
 			fi
 		fi
-		if [ "$(grep -c "Skynet\: \[Complete\]" "/tmp/syslog.log")" -gt "24" ]; then
+		if [ "$(grep -c "Skynet: " "/tmp/syslog.log")" -gt "24" ]; then
 			sed -i '\~Skynet: ~d' "/tmp/syslog.log" 2>/dev/null
 		fi
 }
@@ -1713,6 +1713,7 @@ case "$1" in
 			exit 2
 		fi
 		dos2unix /tmp/iplist-unfiltered.txt
+		if [ "$(grep -cE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' /tmp/iplist-unfiltered.txt)" = "0" ] && [ "$(grep -cE '^([0-9]{1,3}\.){3}[0-9]{1,3}\/[0-9]{1,2}$' /tmp/iplist-unfiltered.txt)" = "0" ]; then { logger -st Skynet "[ERROR] No Content Detected - Stopping Import"; rm -rf /tmp/iplist-unfiltered.txt /tmp/skynet.lock; exit 1; }; fi
 		imptime="$(date +"%b %d %T")"
 		echo "Filtering IPv4 Addresses"
 		grep -oE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk -v imptime="$imptime" '{print "add Blacklist " $1 " comment \"Imported: " imptime "\""}' > /tmp/iplist-filtered.txt
@@ -1744,6 +1745,7 @@ case "$1" in
 			exit 2
 		fi
 		dos2unix /tmp/iplist-unfiltered.txt
+		if [ "$(grep -cE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' /tmp/iplist-unfiltered.txt)" = "0" ] && [ "$(grep -cE '^([0-9]{1,3}\.){3}[0-9]{1,3}\/[0-9]{1,2}$' /tmp/iplist-unfiltered.txt)" = "0" ]; then { logger -st Skynet "[ERROR] No Content Detected - Stopping Deport"; rm -rf /tmp/iplist-unfiltered.txt /tmp/skynet.lock; exit 1; }; fi
 		echo "Filtering IPv4 Addresses"
 		grep -oE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk '{print "del Blacklist " $1}' > /tmp/iplist-filtered.txt
 		echo "Filtering IPv4 Ranges"
