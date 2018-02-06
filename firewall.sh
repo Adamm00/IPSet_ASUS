@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 06/02/2018 -		   Asus Firewall Addition By Adamm v5.7.5				    #
+## - 07/02/2018 -		   Asus Firewall Addition By Adamm v5.7.6				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -1770,7 +1770,6 @@ case "$1" in
 	;;
 
 	start)
-		if Check_Status; then echo "Skynet Already Running - Aborting"; echo; exit 0; fi
 		trap '' 2
 		Check_Lock "$@"
 		logger -st Skynet "[INFO] Startup Initiated... ( $(echo "$@" | sed 's~start ~~g') )"
