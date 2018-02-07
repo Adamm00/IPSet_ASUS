@@ -554,6 +554,7 @@ Load_Menu () {
 	if grep -qF "Country:" "$location/scripts/ipset.txt" 2>/dev/null; then echo "Banned Countries; $(grep -m1 -F "Country:" "$location/scripts/ipset.txt" | sed 's~.*Country: ~~;s~"~~')"; fi
 	if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(sed -n '2p' /tmp/skynet.lock)" ]; then $red "Lock File Detected ($(sed -n '1p' /tmp/skynet.lock)) (pid=$(sed -n '2p' /tmp/skynet.lock))"; lockedwarning=1; fi
 	if [ -n "$lockedwarning" ]; then $ylow "Locked Processes Generally Take 20-60s To Complete And May Result In Temporarily \"Failed\" Tests"; fi
+	unset lockedwarning
 	echo
 	if ! grep -E "start.* # Skynet" /jffs/scripts/firewall-start 2>/dev/null | grep -qvE "^#"; then printf "Checking Firewall-Start Entry...			"; $red "[Failed]"; fi
 	if ! iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Whitelist src -m set --match-set Skynet src -j DROP 2>/dev/null || \
@@ -1362,7 +1363,6 @@ Load_Menu () {
 				break
 			;;
 			r|reload)
-				unset lockedwarning
 				clear
 				Load_Menu
 				break
@@ -1896,6 +1896,7 @@ case "$1" in
 				if grep -qF "Country:" "$location/scripts/ipset.txt"; then echo "Banned Countries; $(grep -m1 -F "Country:" "$location/scripts/ipset.txt" | sed 's~.*Country: ~~;s~"~~')"; fi
 				if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(sed -n '2p' /tmp/skynet.lock)" ]; then $red "Lock File Detected ($(sed -n '1p' /tmp/skynet.lock)) (pid=$(sed -n '2p' /tmp/skynet.lock))"; lockedwarning=1; else $grn "No Lock File Found"; fi
 				if [ -n "$lockedwarning" ]; then $ylow "Locked Processes Generally Take 20-60s To Complete And May Result In Temporarily \"Failed\" Tests"; fi
+				unset lockedwarning
 				echo
 				printf "Checking Install Directory Write Permissions...		"
 				if [ -w "$location" ]; then $grn "[Passed]"; else $red "[Failed]"; fi
