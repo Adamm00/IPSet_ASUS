@@ -313,7 +313,7 @@ Refresh_MWhitelist () {
 			sed -i "\\~\\[Manual Whitelist\\] TYPE=Domain~d;" "$location/skynet.log"
 			awk '!x[$0]++' /tmp/mwhitelist.list | while IFS= read -r "website"; do
 				for ip in $(Domain_Lookup "$website"); do
-					echo "add Whitelist $ip comment \"ManualWlistD: $website\"" >> /tmp/mwhitelist2.list && echo "$(date +"%b %d %T") Skynet: [Manual Whitelist] TYPE=Domain SRC=$ip Host=$website " >> "${location}/skynet.log" &
+					echo "add Whitelist $ip comment \"ManualWlistD: $website\"" >> /tmp/mwhitelist2.list && echo "$(date +"%b %-d %T") Skynet: [Manual Whitelist] TYPE=Domain SRC=$ip Host=$website " >> "${location}/skynet.log" &
 				done
 			done
 			ipset restore -! -f "/tmp/mwhitelist2.list"
@@ -332,7 +332,7 @@ Refresh_MBans () {
 			sed -i "\\~\\[Manual Ban\\] TYPE=Domain~d;" "$location/skynet.log"
 			awk '!x[$0]++' /tmp/mbans.list | while IFS= read -r "website"; do
 				for ip in $(Domain_Lookup "$website"); do
-					echo "add Blacklist $ip comment \"ManualBanD: $website\"" >> /tmp/mbans2.list && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$website " >> "${location}/skynet.log" &
+					echo "add Blacklist $ip comment \"ManualBanD: $website\"" >> /tmp/mbans2.list && echo "$(date +"%b %-d %T") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$website " >> "${location}/skynet.log" &
 				done
 			done
 			ipset restore -! -f "/tmp/mbans2.list"
@@ -563,6 +563,7 @@ Load_Menu () {
 	if ! ipset -L -n Blacklist >/dev/null 2>&1; then printf "Checking Blacklist IPSet...				"; $red "[Failed]"; nolog="1"; fi
 	if ! ipset -L -n Skynet >/dev/null 2>&1; then printf "Checking Skynet IPSet...				"; $red "[Failed]"; nolog="1"; fi
 	if [ "$nolog" != "1" ]; then Logging minimal; fi
+	unset nolog
 	reloadmenu="1"
 	echo
 	while true; do
@@ -1362,6 +1363,7 @@ Load_Menu () {
 			;;
 			r|reload)
 				unset lockedwarning
+				clear
 				Load_Menu
 				break
 			;;
@@ -1483,9 +1485,9 @@ case "$1" in
 				echo "Banning $3"
 				desc="$4"
 				if [ -z "$4" ]; then
-					desc="$(date +"%b %d %T")"
+					desc="$(date +"%b %-d %T")"
 				fi
-				ipset -A Blacklist "$3" comment "ManualBan: $desc" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Single SRC=$3 COMMENT=$desc " >> "${location}/skynet.log"
+				ipset -A Blacklist "$3" comment "ManualBan: $desc" && echo "$(date +"%b %-d %T") Skynet: [Manual Ban] TYPE=Single SRC=$3 COMMENT=$desc " >> "${location}/skynet.log"
 			;;
 			range)
 				if ! echo "$3" | Is_Range; then echo "$3 Is Not A Valid Range"; echo; rm -rf /tmp/skynet.lock; exit 2; fi
@@ -1493,16 +1495,16 @@ case "$1" in
 				echo "Banning $3"
 				desc="$4"
 				if [ -z "$4" ]; then
-					desc="$(date +"%b %d %T")"
+					desc="$(date +"%b %-d %T")"
 				fi
-				ipset -A BlockedRanges "$3" comment "ManualRBan: $desc" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Range SRC=$3 COMMENT=$desc " >> "${location}/skynet.log"
+				ipset -A BlockedRanges "$3" comment "ManualRBan: $desc" && echo "$(date +"%b %-d %T") Skynet: [Manual Ban] TYPE=Range SRC=$3 COMMENT=$desc " >> "${location}/skynet.log"
 			;;
 			domain)
 				if [ -z "$3" ]; then echo "Domain Field Can't Be Empty - Please Try Again"; echo; rm -rf /tmp/skynet.lock; exit 2; fi
 				logger -st Skynet "[INFO] Adding $3 To Blacklist..."
 				for ip in $(Domain_Lookup "$3"); do
 					echo "Banning $ip"
-					ipset -A Blacklist "$ip" comment "ManualBanD: $3" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$3 " >> "${location}/skynet.log"
+					ipset -A Blacklist "$ip" comment "ManualBanD: $3" && echo "$(date +"%b %-d %T") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$3 " >> "${location}/skynet.log"
 				done
 			;;
 			country)
@@ -1544,7 +1546,7 @@ case "$1" in
 			listurl="$2"
 			echo "Custom List Detected: $listurl"
 			sed -i '\~New Banmalware Filter~d' "${location}/skynet.log"
-			echo "$(date +"%b %d %T") Skynet: [New Banmalware Filter] URL=$listurl " >> "${location}/skynet.log"
+			echo "$(date +"%b %-d %T") Skynet: [New Banmalware Filter] URL=$listurl " >> "${location}/skynet.log"
 		else
 			if grep -qF "New Banmalware Filter" "${location}/skynet.log"; then
 				listurl="$(grep -F "New Banmalware Filter" "${location}/skynet.log" | sed 's~.*New Banmalware Filter.*URL=~~g')"
@@ -1603,9 +1605,9 @@ case "$1" in
 				echo "Whitelisting $3"
 				desc="$4"
 				if [ -z "$4" ]; then
-					desc="$(date +"%b %d %T")"
+					desc="$(date +"%b %-d %T")"
 				fi
-				ipset -A Whitelist "$3" comment "ManualWlist: $desc" && sed -i "\\~$3 ~d" "${location}/skynet.log" && echo "$(date +"%b %d %T") Skynet: [Manual Whitelist] TYPE=Single SRC=$3 COMMENT=$desc " >> "${location}/skynet.log"
+				ipset -A Whitelist "$3" comment "ManualWlist: $desc" && sed -i "\\~$3 ~d" "${location}/skynet.log" && echo "$(date +"%b %-d %T") Skynet: [Manual Whitelist] TYPE=Single SRC=$3 COMMENT=$desc " >> "${location}/skynet.log"
 				ipset -q -D Blacklist "$3"
 				ipset -q -D BlockedRanges "$3"
 			;;
@@ -1614,7 +1616,7 @@ case "$1" in
 				logger -st Skynet "[INFO] Adding $3 To Whitelist..."
 				for ip in $(Domain_Lookup "$3"); do
 					echo "Whitelisting $ip"
-					ipset -A Whitelist "$ip" comment "ManualWlistD: $3" && sed -i "\\~$ip ~d" "${location}/skynet.log" && echo "$(date +"%b %d %T") Skynet: [Manual Whitelist] TYPE=Domain SRC=$ip Host=$3 " >> "${location}/skynet.log"
+					ipset -A Whitelist "$ip" comment "ManualWlistD: $3" && sed -i "\\~$ip ~d" "${location}/skynet.log" && echo "$(date +"%b %-d %T") Skynet: [Manual Whitelist] TYPE=Domain SRC=$ip Host=$3 " >> "${location}/skynet.log"
 					ipset -q -D Blacklist "$ip"
 				done
 			;;
@@ -1623,7 +1625,7 @@ case "$1" in
 				logger -st Skynet "[INFO] Whitelisting Autobans Issued On Traffic From Port $3..."
 				grep -F "NEW" "${location}/skynet.log" | grep -F "DPT=$3 " | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | while IFS= read -r "ip"; do
 					echo "Whitelisting $ip"
-					ipset -A Whitelist "$ip" comment "ManualWlist: Port $3 Traffic" && sed -i "\\~$ip ~d" "${location}/skynet.log" && echo "$(date +"%b %d %T") Skynet: [Manual Whitelist] TYPE=Port SRC=$ip Host=$3 " >> "${location}/skynet.log"
+					ipset -A Whitelist "$ip" comment "ManualWlist: Port $3 Traffic" && sed -i "\\~$ip ~d" "${location}/skynet.log" && echo "$(date +"%b %-d %T") Skynet: [Manual Whitelist] TYPE=Port SRC=$ip Host=$3 " >> "${location}/skynet.log"
 					ipset -q -D Blacklist "$ip"
 				done
 			;;
@@ -1714,7 +1716,7 @@ case "$1" in
 		fi
 		dos2unix /tmp/iplist-unfiltered.txt
 		if [ "$(grep -cE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' /tmp/iplist-unfiltered.txt)" = "0" ] && [ "$(grep -cE '^([0-9]{1,3}\.){3}[0-9]{1,3}\/[0-9]{1,2}$' /tmp/iplist-unfiltered.txt)" = "0" ]; then { logger -st Skynet "[ERROR] No Content Detected - Stopping Import"; rm -rf /tmp/iplist-unfiltered.txt /tmp/skynet.lock; exit 1; }; fi
-		imptime="$(date +"%b %d %T")"
+		imptime="$(date +"%b %-d %T")"
 		echo "Filtering IPv4 Addresses"
 		grep -oE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk -v imptime="$imptime" '{print "add Blacklist " $1 " comment \"Imported: " imptime "\""}' > /tmp/iplist-filtered.txt
 		echo "Filtering IPv4 Ranges"
