@@ -563,7 +563,7 @@ Load_Menu () {
 	if ! ipset -L -n Blacklist >/dev/null 2>&1; then printf "Checking Blacklist IPSet...				"; $red "[Failed]"; nolog="1"; fi
 	if ! ipset -L -n Skynet >/dev/null 2>&1; then printf "Checking Skynet IPSet...				"; $red "[Failed]"; nolog="1"; fi
 	if [ "$nolog" != "1" ]; then Logging minimal; fi
-	reloadmenu=1
+	reloadmenu="1"
 	echo
 	while true; do
 		echo "Select Menu Option:"
@@ -1817,6 +1817,7 @@ case "$1" in
 		iptables -t raw -F
 		service restart_firewall
 		rm -rf /tmp/skynet.lock
+		if [ -n "$reloadmenu" ]; then sleep 2; fi
 		nolog="2"
 	;;
 
