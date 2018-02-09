@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 07/02/2018 -		   Asus Firewall Addition By Adamm v5.7.6				    #
+## - 09/02/2018 -		   Asus Firewall Addition By Adamm v5.7.7				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -566,6 +566,7 @@ Load_Menu () {
 	if [ "$nolog" != "1" ]; then Logging minimal; fi
 	unset nolog
 	reloadmenu="1"
+	Purge_Logs
 	echo
 	while true; do
 		echo "Select Menu Option:"
@@ -2403,7 +2404,7 @@ case "$1" in
 					echo "USB Installation Selected"
 					echo
 					Manage_Device
-					if ! grep -F "swapon" /jffs/scripts/post-mount | grep -qvE "^#" && [ "$(free | xargs -r | awk '{print $10}')" -le "100000" ]; then installswap="1"; fi
+					if ! grep -F "swapon" /jffs/scripts/post-mount | grep -qvE "^#" && [ "$(free | xargs -r | awk '{print $10}')" -le "124000" ]; then installswap="1"; fi
 					if ! grep -F "swapon" /jffs/scripts/post-mount | grep -qvE "^#" && [ "$model" != "RT-AC86U" ] && [ "$installswap" != "1" ]; then
 						while true; do
 							echo "Would You Like To Install A SWAP File?"
