@@ -493,6 +493,7 @@ Create_Swap() {
 			;;
 		esac
 	done
+	if [ -f "${device}/myswap.swp" ]; then swapoff "${device}/myswap.swp" 2>/dev/null; rm -rf "${device}/myswap.swp"; fi
 	if [ "$(df $device | xargs | awk '{print $11}')" -le "$swapsize" ]; then echo "Not Enough Free Space Available On $device"; Create_Swap; fi
 	echo "Creating SWAP File..."
 	dd if=/dev/zero of="${device}/myswap.swp" bs=1k count="$swapsize"
