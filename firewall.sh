@@ -517,8 +517,8 @@ Purge_Logs () {
 			fi
 		fi
 		if [ "$(grep -c "Skynet: \\[Complete\\]" "/tmp/syslog.log")" -gt "24" ]; then
-			sed '\~Skynet: \[Complete\]~!d' "/tmp/syslog.log" 2>/dev/null >> "${location}/skynet.log"
-			sed -i '\~Skynet: \[Complete\]~d' "/tmp/syslog.log" 2>/dev/null
+			sed '\~Skynet: \[Complete\]~!d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null >> "${location}/skynet.log"
+			sed -i '\~Skynet: \[Complete\]~d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null
 		fi
 }
 
@@ -2190,7 +2190,9 @@ case "$1" in
 					;;
 					reports)
 						if [ "$4" -eq "$4" ] 2>/dev/null; then counter="$4"; fi
-						echo "First Report Issued On $(grep -m1 -F "Skynet: [Complete]" ${location}/skynet.log | awk '{print $1" "$2" "$3}')" # Needs Adjustment
+						sed '\~Skynet: \[Complete\]~!d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null >> "${location}/skynet.log"
+						sed -i '\~Skynet: \[Complete\]~d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null
+						echo "First Report Issued On $(grep -m1 -F "Skynet: [Complete]" ${location}/skynet.log | awk '{print $1" "$2" "$3}')"
 						echo "Last Report Issued On $(grep -F "Skynet: [Complete]" ${location}/skynet.log | tail -1 | awk '{print $1" "$2" "$3}')"
 						echo
 						$red "First Report Issued;"
