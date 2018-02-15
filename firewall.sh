@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 15/02/2018 -		   Asus Firewall Addition By Adamm v5.7.8				    #
+## - 16/02/2018 -		   Asus Firewall Addition By Adamm v5.7.9				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -1073,6 +1073,47 @@ Load_Menu () {
 						;;
 						2)
 							option2="watch"
+							while true; do
+								echo "Select Watch Option:"
+								echo "[1]  --> All"
+								echo "[2]  --> IP"
+								echo "[3]  --> Port"
+								echo
+								printf "[1-3]: "
+								read -r "menu3"
+								echo
+								case "$menu3" in
+									1)
+										break
+									;;
+									2)
+										option3="ip"
+										printf "[IP]: "
+										read -r "option4"
+										echo
+										if ! echo "$option4" | Is_IP; then echo "$option4 Is Not A Valid IP"; echo; continue; fi
+										break
+									;;
+									3)
+										option3="port"
+										printf "[Port]: "
+										read -r "option4"
+										echo
+										if ! echo "$option4" | Is_Port || [ "$option4" -gt "65535" ]; then echo "$option4 Is Not A Valid Port"; echo; continue; fi
+										break
+									;;
+									e|exit|back|menu)
+										unset "$option1" "$option2" "$option3" "$option4" "$option5"
+										clear
+										Load_Menu
+										break
+									;;
+									*)
+										echo "$menu2 Isn't An Option!"
+										echo
+									;;
+								esac
+							done
 							break
 						;;
 						3)
@@ -1904,11 +1945,27 @@ case "$1" in
 				Purge_Logs
 			;;
 			watch)
-				Purge_Logs
 				trap 'echo; echo "Stopping Log Monitoring"; Purge_Logs' 2
 				echo "Watching Logs For Debug Entries (ctrl +c) To Stop"
 				echo
-				tail -F /tmp/syslog.log | while read -r logoutput; do if echo "$logoutput" | grep -q "NEW BAN"; then $blue "$logoutput"; elif echo "$logoutput" | grep -q "INBOUND"; then $ylow "$logoutput"; elif echo "$logoutput" | grep -q "OUTBOUND"; then $red "$logoutput"; fi; done
+				Purge_Logs
+				case "$3" in
+					ip)
+						if ! echo "$4" | Is_IP; then echo "$4 Is Not A Valid IP"; echo; exit 2; fi
+						echo "Filtering Entries Involving IP $4"
+						echo
+						tail -F /tmp/syslog.log | while read -r logoutput; do if echo "$logoutput" | grep -qE "NEW BAN.*=$4 "; then $blue "$logoutput"; elif echo "$logoutput" | grep -qE "INBOUND.*=$4 "; then $ylow "$logoutput"; elif echo "$logoutput" | grep -qE "OUTBOUND.*=$4 "; then $red "$logoutput"; fi; done
+					;;
+					port)
+						if ! echo "$4" | Is_Port || [ "$4" -gt "65535" ]; then echo "$4 Is Not A Valid Port"; echo; exit 2; fi
+						echo "Filtering Entries Involving Port $4"
+						echo
+						tail -F /tmp/syslog.log | while read -r logoutput; do if echo "$logoutput" | grep -qE "NEW BAN.*PT=$4 "; then $blue "$logoutput"; elif echo "$logoutput" | grep -qE "INBOUND.*PT=$4 "; then $ylow "$logoutput"; elif echo "$logoutput" | grep -qE "OUTBOUND.*PT=$4 "; then $red "$logoutput"; fi; done
+					;;
+					*)
+						tail -F /tmp/syslog.log | while read -r logoutput; do if echo "$logoutput" | grep -q "NEW BAN"; then $blue "$logoutput"; elif echo "$logoutput" | grep -q "INBOUND"; then $ylow "$logoutput"; elif echo "$logoutput" | grep -q "OUTBOUND"; then $red "$logoutput"; fi; done
+					;;
+				esac
 			;;
 			info)
 				echo "Router Model; $model"
