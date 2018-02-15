@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 09/02/2018 -		   Asus Firewall Addition By Adamm v5.7.7				    #
+## - 15/02/2018 -		   Asus Firewall Addition By Adamm v5.7.8				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -510,13 +510,15 @@ Purge_Logs () {
 		sed -i '\~BLOCKED -~d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null
 		if [ "$(du ${location}/skynet.log | awk '{print $1}')" -ge "7000" ]; then
 			sed -i '\~BLOCKED - .*BOUND~d' "${location}/skynet.log"
+			sed -i '\~Skynet: \[Complete\]~d' "${location}/skynet.log"
 			echo "$(awk '!x[$0]++' "${location}/skynet.log")" > "${location}/skynet.log"
 			if [ "$(du ${location}/skynet.log | awk '{print $1}')" -ge "3000" ]; then
 				true > "${location}/skynet.log"
 			fi
 		fi
-		if [ "$(grep -c "Skynet: " "/tmp/syslog.log")" -gt "24" ]; then
-			sed -i '\~Skynet: ~d' "/tmp/syslog.log" 2>/dev/null
+		if [ "$(grep -c "Skynet: \[Complete\]" "/tmp/syslog.log")" -gt "24" ]; then
+			sed '\~Skynet: \[Complete\]~!d' "/tmp/syslog.log" 2>/dev/null >> "${location}/skynet.log"
+			sed -i '\~Skynet: \[Complete\]~d' "/tmp/syslog.log" 2>/dev/null
 		fi
 }
 
@@ -1228,50 +1230,6 @@ Load_Menu () {
 						2)
 							option2="search"
 							while true; do
-								echo "Show Top x Results:"
-								echo "[1]  --> 10"
-								echo "[2]  --> 20"
-								echo "[3]  --> 50"
-								echo "[4]  --> Custom"
-								echo
-								printf "[1-4]: "
-								read -r "menu3"
-								echo
-								case "$menu3" in
-									1)
-										option5="10"
-										break
-									;;
-									2)
-										option5="20"
-										break
-									;;
-									3)
-										option5="50"
-										break
-									;;
-									4)
-										echo "Enter Custom Amount:"
-										echo
-										printf "[Number]: "
-										read -r "option5"
-										echo
-										if ! [ "$option5" -eq "$option5" ] 2>/dev/null; then echo "$option5 Isn't A Valid Number!"; echo; continue; fi
-										break
-									;;
-									e|exit|back|menu)
-										unset "$option1" "$option2" "$option3" "$option4" "$option5"
-										clear
-										Load_Menu
-										break
-									;;
-									*)
-										echo "$menu3 Isn't An Option!"
-										echo
-									;;
-								esac
-							done
-							while true; do
 								echo "Search Options: "
 								echo "[1]  --> Based On Port x"
 								echo "[2]  --> Entries From Specific IP"
@@ -1279,8 +1237,9 @@ Load_Menu () {
 								echo "[4]  --> Search Autobans"
 								echo "[5]  --> Search Manualbans"
 								echo "[6]  --> Search For Outbound Entries From Local Device"
+								echo "[7]  --> Hourly Reports"
 								echo
-								printf "[1-6]: "
+								printf "[1-7]: "
 								read -r "menu4"
 								echo
 								case "$menu4" in
@@ -1324,6 +1283,10 @@ Load_Menu () {
 										if ! echo "$option4" | Is_IP; then echo "$option4 Is Not A Valid IP"; echo; continue; fi
 										break
 									;;
+									7)
+										option3="reports"
+										break
+									;;
 									e|exit|back|menu)
 										unset "$option1" "$option2" "$option3" "$option4" "$option5"
 										clear
@@ -1332,6 +1295,67 @@ Load_Menu () {
 									;;
 									*)
 										echo "$menu4 Isn't An Option!"
+										echo
+									;;
+								esac
+							done
+							while true; do
+								echo "Show Top x Results:"
+								echo "[1]  --> 10"
+								echo "[2]  --> 20"
+								echo "[3]  --> 50"
+								echo "[4]  --> Custom"
+								echo
+								printf "[1-4]: "
+								read -r "menu3"
+								echo
+								case "$menu3" in
+									1)
+										if [ -n "$option4" ]; then
+											option5="10"
+										else
+											option4="10"
+										fi
+										break
+									;;
+									2)
+										if [ -n "$option4" ]; then
+											option5="20"
+										else
+											option4="20"
+										fi
+										break
+									;;
+									3)
+										if [ -n "$option4" ]; then
+											option5="50"
+										else
+											option4="50"
+										fi
+										break
+									;;
+									4)
+										echo "Enter Custom Amount:"
+										echo
+										printf "[Number]: "
+										read -r "optionx"
+										echo
+										if ! [ "$optionx" -eq "$optionx" ] 2>/dev/null; then echo "$optionx Isn't A Valid Number!"; echo; continue; fi
+										if [ -n "$option4" ]; then
+											option5="$optionx"
+										else
+											option4="$optionx"
+										fi
+										break
+									;;
+									e|exit|back|menu)
+										unset "$option1" "$option2" "$option3" "$option4" "$option5"
+										clear
+										Load_Menu
+										break
+									;;
+									*)
+										echo "$menu3 Isn't An Option!"
 										echo
 									;;
 								esac
@@ -2045,6 +2069,7 @@ case "$1" in
 		case "$2" in
 			reset)
 				sed -i '\~BLOCKED - .*BOUND~d' "${location}/skynet.log"
+				sed -i '\~Skynet: \[Complete\]~d' "${location}/skynet.log"
 				echo "$(awk '!x[$0]++' "${location}/skynet.log")" > "${location}/skynet.log"
 				iptables -Z PREROUTING -t raw
 				echo "Stat Data Reset"
@@ -2162,6 +2187,17 @@ case "$1" in
 						echo
 						$red "$counter Most Recent Events From $4;"
 						grep -E "OUTBOUND.* SRC=$4 " "${location}/skynet.log" | tail -"$counter"
+					;;
+					reports)
+						if [ "$4" -eq "$4" ] 2>/dev/null; then counter="$4"; fi
+						echo "First Report Issued On $(grep -m1 -F "Skynet: [Complete]" ${location}/skynet.log | awk '{print $1" "$2" "$3}')" # Needs Adjustment
+						echo "Last Report Issued On $(grep -F "Skynet: [Complete]" ${location}/skynet.log | tail -1 | awk '{print $1" "$2" "$3}')"
+						echo
+						$red "First Report Issued;"
+						grep -m1 -F "Skynet: [Complete]" "${location}/skynet.log"
+						echo
+						$red "$counter Most Recent Reports;"
+						grep -F "Skynet: [Complete]" "${location}/skynet.log" | tail -"$counter"
 					;;
 					*)
 						echo "Command Not Recognized, Please Try Again"
