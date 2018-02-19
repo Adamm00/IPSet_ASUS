@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 19/02/2018 -		   Asus Firewall Addition By Adamm v5.8.0				    #
+## - 20/02/2018 -		   Asus Firewall Addition By Adamm v5.8.1				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -557,7 +557,7 @@ Load_Menu () {
 	if grep -qF "Country:" "$location/scripts/ipset.txt" 2>/dev/null; then echo "Banned Countries; $(grep -m1 -F "Country:" "$location/scripts/ipset.txt" | sed 's~.*Country: ~~;s~"~~')"; fi
 	if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(sed -n '2p' /tmp/skynet.lock)" ]; then $red "Lock File Detected ($(sed -n '1p' /tmp/skynet.lock)) (pid=$(sed -n '2p' /tmp/skynet.lock))"; lockedwarning=1; fi
 	if [ -n "$lockedwarning" ]; then $ylow "Locked Processes Generally Take 20-60s To Complete And May Result In Temporarily \"Failed\" Tests"; fi
-	unset lockedwarning
+	unset "lockedwarning"
 	echo
 	if ! grep -E "start.* # Skynet" /jffs/scripts/firewall-start 2>/dev/null | grep -qvE "^#"; then printf "Checking Firewall-Start Entry...			"; $red "[Failed]"; fi
 	if ! iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Whitelist src -m set --match-set Skynet src -j DROP 2>/dev/null || \
@@ -567,7 +567,8 @@ Load_Menu () {
 	if ! ipset -L -n Blacklist >/dev/null 2>&1; then printf "Checking Blacklist IPSet...				"; $red "[Failed]"; nolog="1"; fi
 	if ! ipset -L -n Skynet >/dev/null 2>&1; then printf "Checking Skynet IPSet...				"; $red "[Failed]"; nolog="1"; fi
 	if [ "$nolog" != "1" ]; then Logging minimal; fi
-	unset nolog
+	unset "nolog"
+	unset "option1" "option2" "option3" "option4" "option5"
 	reloadmenu="1"
 	Purge_Logs
 	echo
@@ -622,7 +623,7 @@ Load_Menu () {
 							printf "[IP]: "
 							read -r "option3"
 							echo
-							if ! echo "$option3" | Is_IP; then echo "$option3 Is Not A Valid IP"; echo; continue; fi
+							if ! echo "$option3" | Is_IP; then echo "$option3 Is Not A Valid IP"; echo; unset "option2" "option3"; continue; fi
 							break
 						;;
 						2)
@@ -632,7 +633,7 @@ Load_Menu () {
 							printf "[Range]: "
 							read -r "option3"
 							echo
-							if ! echo "$option3" | Is_Range; then echo "$option3 Is Not A Valid Range"; echo; continue; fi
+							if ! echo "$option3" | Is_Range; then echo "$option3 Is Not A Valid Range"; echo; unset "option2" "option3"; continue; fi
 							break
 						;;
 						3)
@@ -642,7 +643,7 @@ Load_Menu () {
 							printf "[URL]: "
 							read -r "option3"
 							echo
-							if [ -z "$option3" ]; then echo "URL Field Can't Be Empty - Please Try Again"; echo; continue; fi
+							if [ -z "$option3" ]; then echo "URL Field Can't Be Empty - Please Try Again"; echo; unset "option2" "option3"; continue; fi
 							break
 						;;
 						4)
@@ -652,7 +653,7 @@ Load_Menu () {
 							printf "[Port]: "
 							read -r "option3"
 							echo
-							if ! echo "$option3" | Is_Port || [ "$option3" -gt "65535" ]; then echo "$option3 Is Not A Valid Port"; echo; continue; fi
+							if ! echo "$option3" | Is_Port || [ "$option3" -gt "65535" ]; then echo "$option3 Is Not A Valid Port"; echo; unset "option2" "option3"; continue; fi
 							break
 						;;
 						5)
@@ -662,7 +663,7 @@ Load_Menu () {
 							printf "[Comment]: "
 							read -r "option3"
 							echo
-							if [ "${#option3}" -gt "255" ]; then echo "$option3 Is Not A Valid Comment. 255 Chars Max"; echo; continue; fi
+							if [ "${#option3}" -gt "255" ]; then echo "$option3 Is Not A Valid Comment. 255 Chars Max"; echo; unset "option2" "option3"; continue; fi
 							break
 						;;
 						6)
@@ -686,7 +687,7 @@ Load_Menu () {
 							break
 						;;
 						e|exit|back|menu)
-							unset "$option1" "$option2" "$option3" "$option4" "$option5"
+							unset "option1" "option2" "option3" "option4" "option5"
 							clear
 							Load_Menu
 							break
@@ -720,13 +721,13 @@ Load_Menu () {
 							printf "[IP]: "
 							read -r "option3"
 							echo
-							if ! echo "$option3" | Is_IP; then echo "$option3 Is Not A Valid IP"; echo; continue; fi
+							if ! echo "$option3" | Is_IP; then echo "$option3 Is Not A Valid IP"; echo; unset "option2" "option3"; continue; fi
 							echo "Input Comment For Ban:"
 							echo
 							printf "[Comment]: "
 							read -r "option4"
 							echo
-							if [ "${#option4}" -gt "255" ]; then echo "$option4 Is Not A Valid Comment. 255 Chars Max"; echo; continue; fi
+							if [ "${#option4}" -gt "255" ]; then echo "$option4 Is Not A Valid Comment. 255 Chars Max"; echo; unset "option2" "option3" "option4"; continue; fi
 							break
 						;;
 						2)
@@ -736,13 +737,13 @@ Load_Menu () {
 							printf "[Range]: "
 							read -r "option3"
 							echo
-							if ! echo "$option3" | Is_Range; then echo "$option3 Is Not A Valid Range"; echo; continue; fi
+							if ! echo "$option3" | Is_Range; then echo "$option3 Is Not A Valid Range"; echo; unset "option2" "option3"; continue; fi
 							echo "Input Comment For Ban:"
 							echo
 							printf "[Comment]: "
 							read -r "option4"
 							echo
-							if [ "${#option3}" -gt "255" ]; then echo "$option3 Is Not A Valid Comment. 255 Chars Max"; echo; continue; fi
+							if [ "${#option4}" -gt "255" ]; then echo "$option3 Is Not A Valid Comment. 255 Chars Max"; echo; unset "option2" "option3" "option4"; continue; fi
 							break
 						;;
 						3)
@@ -752,7 +753,7 @@ Load_Menu () {
 							printf "[URL]: "
 							read -r "option3"
 							echo
-							if [ -z "$option3" ]; then echo "URL Field Can't Be Empty - Please Try Again"; echo; continue; fi
+							if [ -z "$option3" ]; then echo "URL Field Can't Be Empty - Please Try Again"; echo; unset "option2" "option3"; continue; fi
 							break
 						;;
 						4)
@@ -762,10 +763,11 @@ Load_Menu () {
 							printf "[Countries]: "
 							read -r "option3"
 							echo
+							if [ -z "$option3" ]; then echo "Country Field Can't Be Empty - Please Try Again"; echo; unset "option2" "option3"; continue; fi
 							break
 						;;
 						e|exit|back|menu)
-							unset "$option1" "$option2" "$option3" "$option4" "$option5"
+							unset "option1" "option2" "option3" "option4" "option5"
 							clear
 							Load_Menu
 							break
@@ -799,7 +801,7 @@ Load_Menu () {
 							printf "[URL]: "
 							read -r "option2"
 							echo
-							if [ -z "$option2" ]; then echo "URL Field Can't Be Empty - Please Try Again"; echo; continue; fi
+							if [ -z "$option2" ]; then echo "URL Field Can't Be Empty - Please Try Again"; echo; unset "option2"; continue; fi
 							break
 						;;
 						3)
@@ -807,7 +809,7 @@ Load_Menu () {
 							break
 						;;
 						e|exit|back|menu)
-							unset "$option1" "$option2" "$option3" "$option4" "$option5"
+							unset "option1" "option2" "option3" "option4" "option5"
 							clear
 							Load_Menu
 							break
@@ -844,13 +846,13 @@ Load_Menu () {
 							printf "[IP/Range]: "
 							read -r "option3"
 							echo
-							if ! echo "$option3" | Is_IP && ! echo "$option3" | Is_Range ; then echo "$option3 Is Not A Valid IP/Range"; echo; continue; fi
+							if ! echo "$option3" | Is_IP && ! echo "$option3" | Is_Range ; then echo "$option3 Is Not A Valid IP/Range"; echo; unset "option2" "option3"; continue; fi
 							echo "Input Comment For Whitelist:"
 							echo
 							printf "[Comment]: "
 							read -r "option4"
 							echo
-							if [ "${#option4}" -gt "255" ]; then echo "$option4 Is Not A Valid Comment. 255 Chars Max"; echo; continue; fi
+							if [ "${#option4}" -gt "255" ]; then echo "$option4 Is Not A Valid Comment. 255 Chars Max"; echo; unset "option2" "option3" "option4"; continue; fi
 							break
 						;;
 						2)
@@ -860,7 +862,7 @@ Load_Menu () {
 							printf "[URL]: "
 							read -r "option3"
 							echo
-							if [ -z "$option3" ]; then echo "URL Field Can't Be Empty - Please Try Again"; echo; continue; fi
+							if [ -z "$option3" ]; then echo "URL Field Can't Be Empty - Please Try Again"; echo; unset "option2" "option3"; continue; fi
 							break
 						;;
 						3)
@@ -870,7 +872,7 @@ Load_Menu () {
 							printf "[Port]: "
 							read -r "option3"
 							echo
-							if ! echo "$option3" | Is_Port || [ "$option3" -gt "65535" ]; then echo "$option3 Is Not A Valid Port"; echo; continue; fi
+							if ! echo "$option3" | Is_Port || [ "$option3" -gt "65535" ]; then echo "$option3 Is Not A Valid Port"; echo; unset "option2" "option3"; continue; fi
 							break
 						;;
 						4)
@@ -899,7 +901,7 @@ Load_Menu () {
 										printf "[IP/Range]: "
 										read -r "option4"
 										echo
-										if ! echo "$option4" | Is_IP && ! echo "$option4" | Is_Range ; then echo "$option4 Is Not A Valid IP/Range"; echo; continue; fi
+										if ! echo "$option4" | Is_IP && ! echo "$option4" | Is_Range ; then echo "$option4 Is Not A Valid IP/Range"; echo; unset "option3" "option4"; continue; fi
 										break
 									;;
 									3)
@@ -909,11 +911,11 @@ Load_Menu () {
 										printf "[Comment]: "
 										read -r "option4"
 										echo
-										if [ "${#option4}" -gt "255" ]; then echo "$option4 Is Not A Valid Comment. 255 Chars Max"; echo; continue; fi
+										if [ "${#option4}" -gt "255" ]; then echo "$option4 Is Not A Valid Comment. 255 Chars Max"; echo; unset "option3" "option4"; continue; fi
 										break
 									;;
 									e|exit|back|menu)
-										unset "$option1" "$option2" "$option3" "$option4" "$option5"
+										unset "option1" "option2" "option3" "option4" "option5"
 										clear
 										Load_Menu
 										break
@@ -954,7 +956,7 @@ Load_Menu () {
 										break
 									;;
 									e|exit|back|menu)
-										unset "$option1" "$option2" "$option3" "$option4" "$option5"
+										unset "option1" "option2" "option3" "option4" "option5"
 										clear
 										Load_Menu
 										break
@@ -968,7 +970,7 @@ Load_Menu () {
 							break
 						;;
 						e|exit|back|menu)
-							unset "$option1" "$option2" "$option3" "$option4" "$option5"
+							unset "option1" "option2" "option3" "option4" "option5"
 							clear
 							Load_Menu
 							break
@@ -989,7 +991,7 @@ Load_Menu () {
 				printf "[File]: "
 				read -r "option2"
 				echo
-				if [ -z "$option2" ]; then echo "File Field Can't Be Empty - Please Try Again"; echo; continue; fi
+				if [ -z "$option2" ]; then echo "File Field Can't Be Empty - Please Try Again"; echo; unset "option1" "option2"; continue; fi
 				break
 			;;
 			6)
@@ -1000,7 +1002,7 @@ Load_Menu () {
 				printf "[File]: "
 				read -r "option2"
 				echo
-				if [ -z "$option2" ]; then echo "File Field Can't Be Empty - Please Try Again"; echo; continue; fi
+				if [ -z "$option2" ]; then echo "File Field Can't Be Empty - Please Try Again"; echo; unset "option1" "option2"; continue; fi
 				break
 			;;
 			7)
@@ -1040,7 +1042,7 @@ Load_Menu () {
 							break
 						;;
 						e|exit|back|menu)
-							unset "$option1" "$option2" "$option3" "$option4" "$option5"
+							unset "option1" "option2" "option3" "option4" "option5"
 							clear
 							Load_Menu
 							break
@@ -1093,7 +1095,7 @@ Load_Menu () {
 										printf "[IP]: "
 										read -r "option4"
 										echo
-										if ! echo "$option4" | Is_IP; then echo "$option4 Is Not A Valid IP"; echo; continue; fi
+										if ! echo "$option4" | Is_IP; then echo "$option4 Is Not A Valid IP"; echo; unset "option3" "option4"; continue; fi
 										break
 									;;
 									3)
@@ -1101,11 +1103,11 @@ Load_Menu () {
 										printf "[Port]: "
 										read -r "option4"
 										echo
-										if ! echo "$option4" | Is_Port || [ "$option4" -gt "65535" ]; then echo "$option4 Is Not A Valid Port"; echo; continue; fi
+										if ! echo "$option4" | Is_Port || [ "$option4" -gt "65535" ]; then echo "$option4 Is Not A Valid Port"; echo; unset "option3" "option4"; continue; fi
 										break
 									;;
 									e|exit|back|menu)
-										unset "$option1" "$option2" "$option3" "$option4" "$option5"
+										unset "option1" "option2" "option3" "option4" "option5"
 										clear
 										Load_Menu
 										break
@@ -1146,7 +1148,7 @@ Load_Menu () {
 										break
 									;;
 									e|exit|back|menu)
-										unset "$option1" "$option2" "$option3" "$option4" "$option5"
+										unset "option1" "option2" "option3" "option4" "option5"
 										clear
 										Load_Menu
 										break
@@ -1168,7 +1170,7 @@ Load_Menu () {
 							break
 						;;
 						e|exit|back|menu)
-							unset "$option1" "$option2" "$option3" "$option4" "$option5"
+							unset "option1" "option2" "option3" "option4" "option5"
 							clear
 							Load_Menu
 							break
@@ -1223,11 +1225,11 @@ Load_Menu () {
 										printf "[Number]: "
 										read -r "option3"
 										echo
-										if ! [ "$option3" -eq "$option3" ] 2>/dev/null; then echo "$option3 Isn't A Valid Number!"; echo; continue; fi
+										if ! [ "$option3" -eq "$option3" ] 2>/dev/null; then echo "$option3 Isn't A Valid Number!"; echo; unset "option3" continue; fi
 										break
 									;;
 									e|exit|back|menu)
-										unset "$option1" "$option2" "$option3" "$option4" "$option5"
+										unset "option1" "option2" "option3" "option4" "option5"
 										clear
 										Load_Menu
 										break
@@ -1265,7 +1267,7 @@ Load_Menu () {
 										break
 									;;
 									e|exit|back|menu)
-										unset "$option1" "$option2" "$option3" "$option4" "$option5"
+										unset "option1" "option2" "option3" "option4" "option5"
 										clear
 										Load_Menu
 										break
@@ -1299,7 +1301,7 @@ Load_Menu () {
 										printf "[Port]: "
 										read -r "option4"
 										echo
-										if ! echo "$option4" | Is_Port || [ "$option4" -gt "65535" ]; then echo "$option4 Is Not A Valid Port"; echo; continue; fi
+										if ! echo "$option4" | Is_Port || [ "$option4" -gt "65535" ]; then echo "$option4 Is Not A Valid Port"; echo; unset "option3" "option4"; continue; fi
 										break
 									;;
 									2)
@@ -1307,7 +1309,7 @@ Load_Menu () {
 										printf "[IP]: "
 										read -r "option4"
 										echo
-										if ! echo "$option4" | Is_IP && ! echo "$option4" | Is_Range ; then echo "$option4 Is Not A Valid IP/Range"; echo; continue; fi
+										if ! echo "$option4" | Is_IP && ! echo "$option4" | Is_Range ; then echo "$option4 Is Not A Valid IP/Range"; echo; unset "option3" "option4"; continue; fi
 										break
 									;;
 									3)
@@ -1315,7 +1317,7 @@ Load_Menu () {
 										printf "[IP]: "
 										read -r "option4"
 										echo
-										if ! echo "$option4" | Is_IP && ! echo "$option4" | Is_Range ; then echo "$option4 Is Not A Valid IP/Range"; echo; continue; fi
+										if ! echo "$option4" | Is_IP && ! echo "$option4" | Is_Range ; then echo "$option4 Is Not A Valid IP/Range"; echo; unset "option3" "option4"; continue; fi
 										break
 									;;
 									4)
@@ -1331,7 +1333,7 @@ Load_Menu () {
 										printf "[Local IP]: "
 										read -r "option4"
 										echo
-										if ! echo "$option4" | Is_IP; then echo "$option4 Is Not A Valid IP"; echo; continue; fi
+										if ! echo "$option4" | Is_IP; then echo "$option4 Is Not A Valid IP"; echo; unset "option3" "option4"; continue; fi
 										break
 									;;
 									7)
@@ -1339,7 +1341,7 @@ Load_Menu () {
 										break
 									;;
 									e|exit|back|menu)
-										unset "$option1" "$option2" "$option3" "$option4" "$option5"
+										unset "option1" "option2" "option3" "option4" "option5"
 										clear
 										Load_Menu
 										break
@@ -1391,7 +1393,7 @@ Load_Menu () {
 										printf "[Number]: "
 										read -r "optionx"
 										echo
-										if ! [ "$optionx" -eq "$optionx" ] 2>/dev/null; then echo "$optionx Isn't A Valid Number!"; echo; continue; fi
+										if ! [ "$optionx" -eq "$optionx" ] 2>/dev/null; then echo "$optionx Isn't A Valid Number!"; echo; unset "optionx"; continue; fi
 										if [ -n "$option4" ]; then
 											option5="$optionx"
 										else
@@ -1400,7 +1402,7 @@ Load_Menu () {
 										break
 									;;
 									e|exit|back|menu)
-										unset "$option1" "$option2" "$option3" "$option4" "$option5"
+										unset "option1" "option2" "option3" "option4" "option5"
 										clear
 										Load_Menu
 										break
@@ -1418,7 +1420,7 @@ Load_Menu () {
 							break
 						;;
 						e|exit)
-							unset "$option1" "$option2" "$option3" "$option4" "$option5"
+							unset "option1" "option2" "option3" "option4" "option5"
 							clear
 							Load_Menu
 							break
@@ -1989,7 +1991,7 @@ case "$1" in
 				if grep -qF "Country:" "$location/scripts/ipset.txt"; then echo "Banned Countries; $(grep -m1 -F "Country:" "$location/scripts/ipset.txt" | sed 's~.*Country: ~~;s~"~~')"; fi
 				if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(sed -n '2p' /tmp/skynet.lock)" ]; then $red "Lock File Detected ($(sed -n '1p' /tmp/skynet.lock)) (pid=$(sed -n '2p' /tmp/skynet.lock))"; lockedwarning=1; else $grn "No Lock File Found"; fi
 				if [ -n "$lockedwarning" ]; then $ylow "Locked Processes Generally Take 20-60s To Complete And May Result In Temporarily \"Failed\" Tests"; fi
-				unset lockedwarning
+				unset "lockedwarning"
 				echo
 				printf "Checking Install Directory Write Permissions...		"
 				if [ -w "$location" ]; then $grn "[Passed]"; else $red "[Failed]"; fi
