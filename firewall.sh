@@ -2112,14 +2112,14 @@ case "$1" in
 				Save_IPSets >/dev/null 2>&1
 				mkdir -p /tmp/skynetbackup
 				cp "$location/skynet.log" "$location/scripts/ipset.txt"  /tmp/skynetbackup
-				tar -cvf /jffs/Skynet-Backup.tar -C /tmp/skynetbackup ipset.txt skynet.log
+				tar -czvf /jffs/Skynet-Backup.tar.gz -C /tmp/skynetbackup ipset.txt skynet.log
 				rm -rf /tmp/skynetbackup
 				echo
-				echo "Backup Saved To /jffs/Skynet-Backup.tar"
+				echo "Backup Saved To /jffs/Skynet-Backup.tar.gz"
 			;;
 			restore)
 				if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
-				backuplocation="/jffs/Skynet-Backup.tar"
+				backuplocation="/jffs/Skynet-Backup.tar.gz"
 				if [ ! -f "$backuplocation" ]; then
 					echo "Skynet Backup Doesn't Exist In Expected Path, Please Provide Location"
 					echo
@@ -2136,7 +2136,7 @@ case "$1" in
 				echo
 				Purge_Logs
 				mkdir -p /tmp/skynetbackup
-				tar -xvf "$backuplocation" -C "/tmp/skynetbackup"
+				tar -xzvf "$backuplocation" -C "/tmp/skynetbackup"
 				cp -f "/tmp/skynetbackup/ipset.txt" "$location/scripts/ipset.txt"
 				cp -f "/tmp/skynetbackup/skynet.log" "$location/skynet.log"
 				rm -rf /tmp/skynetbackup
