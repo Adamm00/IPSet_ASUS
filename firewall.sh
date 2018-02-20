@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 20/02/2018 -		   Asus Firewall Addition By Adamm v5.8.1				    #
+## - 21/02/2018 -		   Asus Firewall Addition By Adamm v5.8.2				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -597,7 +597,7 @@ Load_Menu () {
 		echo
 		case "$menu" in
 			1)
-				if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; Load_Menu; fi
+				if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; Load_Menu; break; fi
 				option1="unban"
 				while true; do
 					echo "What Type Of Input Would You Like To Unban:"
@@ -701,7 +701,7 @@ Load_Menu () {
 				break
 			;;
 			2)
-				if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; Load_Menu; fi
+				if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; Load_Menu; break; fi
 				option1="ban"
 				while true; do
 					echo "What Type Of Input Would You Like To Ban:"
@@ -781,7 +781,7 @@ Load_Menu () {
 				break
 			;;
 			3)
-				if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; Load_Menu; fi
+				if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; Load_Menu; break; fi
 				option1="banmalware"
 				while true; do
 					echo "Select Option:"
@@ -823,7 +823,7 @@ Load_Menu () {
 				break
 			;;
 			4)
-				if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; Load_Menu; fi
+				if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; Load_Menu; break; fi
 				option1="whitelist"
 				while true; do
 					echo "Select Whitelist Option:"
@@ -984,7 +984,7 @@ Load_Menu () {
 				break
 			;;
 			5)
-				if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; Load_Menu; fi
+				if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; Load_Menu; break; fi
 				option1="import"
 				echo "Input URL/Local File To Import"
 				echo
@@ -995,7 +995,7 @@ Load_Menu () {
 				break
 			;;
 			6)
-				if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; Load_Menu; fi
+				if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; Load_Menu; break; fi
 				option1="deport"
 				echo "Input URL/Local File To Deport"
 				echo
@@ -1006,7 +1006,7 @@ Load_Menu () {
 				break
 			;;
 			7)
-				if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; Load_Menu; fi
+				if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; Load_Menu; break; fi
 				option1="save"
 				break
 			;;
