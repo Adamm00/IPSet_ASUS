@@ -2134,6 +2134,7 @@ case "$1" in
 				fi
 				echo "Restoring Skynet Backup..."
 				echo
+				Purge_Logs
 				mkdir -p /tmp/skynetbackup
 				tar -xvf "$backuplocation" -C "/tmp/skynetbackup"
 				cp -f "/tmp/skynetbackup/ipset.txt" "$location/scripts/ipset.txt"
