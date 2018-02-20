@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 21/02/2018 -		   Asus Firewall Addition By Adamm v5.8.2				    #
+## - 21/02/2018 -		   Asus Firewall Addition By Adamm v5.8.3				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -2105,17 +2105,20 @@ case "$1" in
 				esac
 			;;
 			backup)
+				if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
 				echo "Backing Up Skynet Related Files..."
-				if Check_Status; then
-					echo
-					Purge_Logs
-					Save_IPSets >/dev/null 2>&1
-				fi
-				tar -cvf /jffs/Skynet-Backup.tar "${location}/scripts/ipset.txt" "${location}/skynet.log"
+				echo
+				Purge_Logs
+				Save_IPSets >/dev/null 2>&1
+				mkdir -p /tmp/skynetbackup
+				cp "$location/skynet.log" "$location/scripts/ipset.txt"  /tmp/skynetbackup
+				tar -cvf /jffs/Skynet-Backup.tar -C /tmp/skynetbackup ipset.txt skynet.log
+				rm -rf /tmp/skynetbackup
 				echo
 				echo "Backup Saved To /jffs/Skynet-Backup.tar"
 			;;
 			restore)
+				if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
 				backuplocation="/jffs/Skynet-Backup.tar"
 				if [ ! -f "$backuplocation" ]; then
 					echo "Skynet Backup Doesn't Exist In Expected Path, Please Provide Location"
@@ -2131,14 +2134,16 @@ case "$1" in
 				fi
 				echo "Restoring Skynet Backup..."
 				echo
-				tar -xvf "$backuplocation" -C /
-				if Check_Status; then
-					ipset flush Blacklist 
-					ipset flush BlockedRanges
-					ipset flush Whitelist 
-					ipset flush Skynet
-					ipset restore -! -f "${location}/scripts/ipset.txt"
-				fi
+				mkdir -p /tmp/skynetbackup
+				tar -xvf "$backuplocation" -C "/tmp/skynetbackup"
+				cp -f "/tmp/skynetbackup/ipset.txt" "$location/scripts/ipset.txt"
+				cp -f "/tmp/skynetbackup/skynet.log" "$location/skynet.log"
+				rm -rf /tmp/skynetbackup
+				ipset flush Blacklist 
+				ipset flush BlockedRanges
+				ipset flush Whitelist 
+				ipset flush Skynet
+				ipset restore -! -f "${location}/scripts/ipset.txt"
 				echo
 				echo "Backup Restored"
 				echo "Restarting Firewall Service"
