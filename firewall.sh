@@ -2043,7 +2043,8 @@ case "$1" in
 			clean)
 				echo "Cleaning Syslog Entries..."
 				Purge_Logs
-				sed -i '\~Skynet: ~d' /tmp/syslog.log /tmp/syslog.log-1 2>/dev/null
+				sed '\~Skynet: \[Complete\]~!d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null >> "${location}/skynet.log"
+				sed -i '\~Skynet: \[Complete\]~d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null
 				echo "Complete!"
 				echo
 				nolog="2"
