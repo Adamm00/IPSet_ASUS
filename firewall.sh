@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 21/02/2018 -		   Asus Firewall Addition By Adamm v5.8.3				    #
+## - 25/02/2018 -		   Asus Firewall Addition By Adamm v5.8.3				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -1646,12 +1646,13 @@ case "$1" in
 		Whitelist_Shared >/dev/null 2>&1 && $grn "[$(($(date +%s) - btime))s]"
 		btime="$(date +%s)" && printf "Consolidating Blacklist 	"
 		mkdir -p /tmp/skynet
+		cwd="$(pwd)"
 		cd /tmp/skynet || exit 1
 		while IFS= read -r "domain"; do
 			/usr/sbin/curl -fs --retry 3 "$domain" -O &
 		done < /jffs/shared-Skynet-whitelist
 		wait
-		cd /tmp/home/root || exit 1
+		cd "$cwd" || exit 1
 		dos2unix /tmp/skynet/*
 		cat /tmp/skynet/* | sed -n "s/\\r//;/^$/d;/^[0-9,\\.,\\/]*$/p" | awk '!x[$0]++' | Filter_PrivateIP > /tmp/skynet/malwarelist.txt && $grn "[$(($(date +%s) - btime))s]"
 		btime="$(date +%s)" && printf "Saving Changes 			"
@@ -2241,13 +2242,14 @@ case "$1" in
 						if ! echo "$4" | Is_IP && ! echo "$4" | Is_Range ; then echo "$4 Is Not A Valid IP/Range"; echo; exit 2; fi
 						/usr/sbin/curl -fs --retry 3 https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/filter.list -o /jffs/shared-Skynet-whitelist
 						mkdir -p /tmp/skynet
+						cwd="$(pwd)"
 						cd /tmp/skynet || exit 1
 						while IFS= read -r "domain"; do
 							/usr/sbin/curl -fs --retry 3 "$domain" -O &
 						done < /jffs/shared-Skynet-whitelist
 						wait
 						dos2unix /tmp/skynet/*
-						cd /tmp/home/root || exit 1
+						cd "$cwd" || exit 1
 						$red "Exact Matches;"
 						grep -E "^$4$" /tmp/skynet/[!"telemetry.list"]* | cut -d '/' -f4- | sed 's~:~ - ~g;s~^~https://iplists.firehol.org/files/~'
 						grep -HE "^$4$" /tmp/skynet/telemetry.list | cut -d '/' -f4- | sed 's~:~ - ~g;s~^~https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/~'
