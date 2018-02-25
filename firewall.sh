@@ -15,7 +15,6 @@
 
 
 export PATH=/sbin:/bin:/usr/sbin:/usr/bin$PATH
-# if [ -n "$reloadmenu" ]; then clear; fi
 head -16 "$0"
 export LC_ALL=C
 
