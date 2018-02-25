@@ -15,6 +15,7 @@
 
 
 export PATH=/sbin:/bin:/usr/sbin:/usr/bin$PATH
+clear
 head -16 "$0"
 export LC_ALL=C
 
@@ -2727,4 +2728,4 @@ case "$1" in
 esac
 
 if [ "$nolog" != "2" ]; then Logging; echo; fi
-if [ -n "$reloadmenu" ]; then echo; echo; printf "Press Enter To Continue..."; read -r "continue"; clear; exec "$0"; fi
+if [ -n "$reloadmenu" ]; then echo; echo; printf "Press Enter To Continue..."; read -r "continue"; exec "$0"; fi
