@@ -1459,7 +1459,7 @@ Load_Menu () {
 	done
 }
 
-if [ -z "$1" ] || [ "$1" = "noclear" ]; then
+if [ -z "$1" ]; then
 	Load_Menu
 fi
 
