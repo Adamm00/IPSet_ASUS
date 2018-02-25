@@ -9,13 +9,13 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 25/02/2018 -		   Asus Firewall Addition By Adamm v5.8.3				    #
+## - 25/02/2018 -		   Asus Firewall Addition By Adamm v5.8.4				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
 
 export PATH=/sbin:/bin:/usr/sbin:/usr/bin$PATH
-if [ "$1" != "noclear" ]; then clear; fi
+# if [ -n "$reloadmenu" ]; then clear; fi
 head -16 "$0"
 export LC_ALL=C
 
@@ -2727,5 +2727,5 @@ case "$1" in
 
 esac
 
-if [ -n "$reloadmenu" ]; then echo; echo; exec "$0" noclear; fi
 if [ "$nolog" != "2" ]; then Logging; echo; fi
+if [ -n "$reloadmenu" ]; then echo; echo; printf "Press Enter To Continue..."; read -r "continue"; clear; exec "$0"; fi
