@@ -29,7 +29,7 @@ To use the CLI, execute the following;
     "restart"      # <-- Restart Skynet
     "disable"      # <-- Temporarily Disable Skynet
     "update"       # <-- Update Script To Latest Version (check github for changes)
-    "debug"	       # <-- Debug Features (Disable/Watch/Info/Clean/Swap)
+    "debug"	       # <-- Debug Features (Disable/Watch/Info/Clean/Swap/Backup/Restore)
     "stats"        # <-- Show/Search Stats Of Banned IPs (Requires debugging enabled)
     "install"      # <-- Install Script (Or Change Boot Args)
     "uninstall     # <-- Uninstall All Traces Of Script
@@ -101,6 +101,8 @@ Here Are Some Example Debug Commands;
 (sh /jffs/scripts/firewall debug clean) Cleanup Syslog Entries
 (sh /jffs/scripts/firewall debug swap install) Install SWAP File
 (sh /jffs/scripts/firewall debug swap uninstall) Uninstall SWAP File
+(sh /jffs/scripts/firewall debug backup) Backup Skynet Files To "/jffs/Skynet-Backup.tar.gz"
+(sh /jffs/scripts/firewall debug restore) Restore Backup Files From "/jffs/Skynet-Backup.tar.gz"
 
 Here Are Some Example Stats Commands;
 (sh /jffs/scripts/firewall stats) Compile Stats With Default Top10 Output
@@ -115,6 +117,7 @@ Here Are Some Example Stats Commands;
 (sh /jffs/scripts/firewall stats search autobans) Search For All Autobans
 (sh /jffs/scripts/firewall stats search manualbans) Search For All Manual Bans
 (sh /jffs/scripts/firewall stats search device 192.168.1.134) Search For All Outbound Entries From Local Device 192.168.1.134
+(sh /jffs/scripts/firewall stats search device reports) Search Previous Hourly Report History
 (sh /jffs/scripts/firewall stats reset) Reset All Collected Debug Data
 ```
 
