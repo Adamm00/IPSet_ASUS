@@ -892,6 +892,7 @@ Load_Menu () {
 								echo
 								case "$menu3" in
 									1)
+										option3="all"
 										break
 									;;
 									2)
@@ -1730,7 +1731,7 @@ case "$1" in
 						done < /tmp/ip.list
 						rm -rf /tmp/ip.list
 					;;
-					*)
+					all)
 						echo "Flushing Whitelist"
 						ipset flush Whitelist
 						echo "Adding Default Entries"
@@ -1740,6 +1741,13 @@ case "$1" in
 						Whitelist_CDN
 						Whitelist_VPN
 						Whitelist_Shared
+					;;
+					*)
+						echo "Command Not Recognized, Please Try Again"
+						echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
+						echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
+						rm -rf /tmp/skynet.lock
+						echo; exit 2
 					;;
 				esac
 			;;
