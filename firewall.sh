@@ -9,7 +9,7 @@
 #			                    __/ |                             				    #
 #			                   |___/                              				    #
 #													    #
-## - 1/03/2018 -		   Asus Firewall Addition By Adamm v5.8.4				    #
+## - 3/03/2018 -		   Asus Firewall Addition By Adamm v5.8.5				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS				    #
 #############################################################################################################
 
@@ -2562,8 +2562,12 @@ case "$1" in
 					if [ -f "${location}/scripts/ipset.txt" ]; then mv "${location}/scripts/ipset.txt" "/jffs/scripts/"; fi
 					if [ -f "${location}/skynet.log" ]; then mv "${location}/skynet.log" "/jffs/"; fi
 					if echo "$location" | grep -qF "/tmp/mnt/"; then rm -rf "$location"; fi
-					sed -i '\~ Skynet ~d' /jffs/scripts/firewall-start
-					echo "sh /jffs/scripts/firewall $set1 $set2 $set3 # Skynet Firewall Addition" | tr -s " " >> /jffs/scripts/firewall-start
+					cmdline="$(echo "sh /jffs/scripts/firewall $set1 $set2 $set3 # Skynet Firewall Addition" | tr -s " ")"
+					if grep -E "sh /jffs/scripts/firewall .* # Skynet" /jffs/scripts/firewall-start 2>/dev/null | grep -qvE "^#"; then
+						sed -i "s~sh /jffs/scripts/firewall .* # Skynet .*~$cmdline~" /jffs/scripts/firewall-start
+					else
+						echo "$cmdline" >> /jffs/scripts/firewall-start
+					fi
 					break
 				;;
 				2)
@@ -2607,8 +2611,12 @@ case "$1" in
 					mkdir -p "${device}/skynet/scripts"
 					if [ -f "${location}/scripts/ipset.txt" ]; then mv "${location}/scripts/ipset.txt" "${device}/skynet/scripts/"; fi
 					if [ -f "${location}/skynet.log" ]; then mv "${location}/skynet.log" "${device}/skynet/"; fi
-					sed -i '\~ Skynet ~d' /jffs/scripts/firewall-start
-					echo "sh /jffs/scripts/firewall $set1 $set2 $set3 usb=${device} # Skynet Firewall Addition" | tr -s " " >> /jffs/scripts/firewall-start
+					cmdline="$(echo "sh /jffs/scripts/firewall $set1 $set2 $set3 usb=${device} # Skynet Firewall Addition" | tr -s " ")"
+					if grep -E "sh /jffs/scripts/firewall .* # Skynet" /jffs/scripts/firewall-start 2>/dev/null | grep -qvE "^#"; then
+						sed -i "s~sh /jffs/scripts/firewall .* # Skynet .*~$cmdline~" /jffs/scripts/firewall-start
+					else
+						echo "$cmdline" >> /jffs/scripts/firewall-start
+					fi
 					break
 				;;
 				e|exit)
@@ -2622,8 +2630,13 @@ case "$1" in
 				;;
 			esac
 		done
-		sed -i '\~ Skynet ~d' /jffs/scripts/services-stop
-		echo "sh /jffs/scripts/firewall save # Skynet Firewall Addition" >> /jffs/scripts/services-stop
+		
+		cmdline="$(echo "sh /jffs/scripts/firewall save # Skynet Firewall Addition")"
+		if grep -E "sh /jffs/scripts/firewall .* # Skynet" /jffs/scripts/services-stop 2>/dev/null | grep -qvE "^#"; then
+			sed -i "s~sh /jffs/scripts/firewall .* # Skynet .*~$cmdline~" /jffs/scripts/services-stop
+		else
+			echo "$cmdline" >> /jffs/scripts/services-stop
+		fi
 		chmod 0755 /jffs/scripts/*
 		echo
 		nvram commit
