@@ -516,7 +516,7 @@ Purge_Logs () {
 				true > "${location}/skynet.log"
 			fi
 		fi
-		if [ "$(grep -c "Skynet: \\[Complete\\]" "/tmp/syslog.log")" -gt "24" ]; then
+		if [ "$(grep -c "Skynet: \\[Complete\\]" "/tmp/syslog.log" 2>/dev/null)" -gt "24" ] 2>/dev/null; then
 			sed '\~Skynet: \[Complete\]~!d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null >> "${location}/skynet.log"
 			sed -i '\~Skynet: \[Complete\]~d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null
 		fi
