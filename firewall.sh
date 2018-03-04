@@ -1478,13 +1478,13 @@ case "$1" in
 				if ! echo "$3" | Is_IP; then echo "$3 Is Not A Valid IP"; echo; rm -rf /tmp/skynet.lock; exit 2; fi
 				echo "Unbanning $3"
 				ipset -D Blacklist "$3"
-				sed -i "\\~$3 ~d" "${location}/skynet.log"
+				sed -i "\\~\\(BLOCKED.*=$3 \\|Manual Ban.*=$3 \\)~d" "${location}/skynet.log"
 			;;
 			range)
 				if ! echo "$3" | Is_Range; then echo "$3  Is Not A Valid Range"; echo; rm -rf /tmp/skynet.lock; exit 2; fi
 				echo "Unbanning $3"
 				ipset -D BlockedRanges "$3"
-				sed -i "\\~$3 ~d" "${location}/skynet.log"
+				sed -i "\\~\\(BLOCKED.*=$3 \\|Manual Ban.*=$3 \\)~d" "${location}/skynet.log"
 			;;
 			domain)
 				if [ -z "$3" ]; then echo "Domain Field Can't Be Empty - Please Try Again"; echo; rm -rf /tmp/skynet.lock; exit 2; fi
@@ -1492,7 +1492,7 @@ case "$1" in
 				for ip in $(Domain_Lookup "$3"); do
 					echo "Unbanning $ip"
 					ipset -D Blacklist "$ip"
-					sed -i "\\~$ip ~d" "${location}/skynet.log"
+					sed -i "\\~\\(BLOCKED.*=$ip \\|Manual Ban.*=$ip \\)~d" "${location}/skynet.log"
 				done
 			;;
 			port)
@@ -1508,7 +1508,7 @@ case "$1" in
 				echo "Removing Old Logs - This May Take Awhile (To Skip Type ctrl+c)"
 				trap 'break; echo' 2
 				sed "\\~add Whitelist ~d;\\~$3~!d;s~ comment.*~~" "${location}/scripts/ipset.txt" | cut -d' ' -f3 | while IFS= read -r "ip"; do
-					sed -i "\\~$ip ~d" "${location}/skynet.log"
+					sed -i "\\~\\(BLOCKED.*=$ip \\|Manual Ban.*=$ip \\)~d" "${location}/skynet.log"
 				done
 			;;
 			country)
@@ -1524,7 +1524,7 @@ case "$1" in
 				echo "Removing Old Logs - This May Take Awhile (To Skip Type ctrl+c)"
 				trap 'break; echo' 2
 				grep -F "NEW" "${location}/skynet.log" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | tr -d " " | while IFS= read -r "ip"; do
-					sed -i "\\~$ip ~d" "${location}/skynet.log"
+					sed -i "\\~\\(BLOCKED.*=$ip \\|Manual Ban.*=$ip \\)~d" "${location}/skynet.log"
 				done
 			;;
 			nomanual)
@@ -1688,7 +1688,7 @@ case "$1" in
 				if [ -z "$4" ]; then
 					desc="$(date +"%b %d %T")"
 				fi
-				ipset -A Whitelist "$3" comment "ManualWlist: $desc" && sed -i "\\~$3 ~d" "${location}/skynet.log" && echo "$(date +"%b %d %T") Skynet: [Manual Whitelist] TYPE=Single SRC=$3 COMMENT=$desc " >> "${location}/skynet.log"
+				ipset -A Whitelist "$3" comment "ManualWlist: $desc" && sed -i "\\~=$3 ~d" "${location}/skynet.log" && echo "$(date +"%b %d %T") Skynet: [Manual Whitelist] TYPE=Single SRC=$3 COMMENT=$desc " >> "${location}/skynet.log"
 				ipset -q -D Blacklist "$3"
 				ipset -q -D BlockedRanges "$3"
 			;;
@@ -1697,7 +1697,7 @@ case "$1" in
 				logger -st Skynet "[INFO] Adding $3 To Whitelist..."
 				for ip in $(Domain_Lookup "$3"); do
 					echo "Whitelisting $ip"
-					ipset -A Whitelist "$ip" comment "ManualWlistD: $3" && sed -i "\\~$ip ~d" "${location}/skynet.log" && echo "$(date +"%b %d %T") Skynet: [Manual Whitelist] TYPE=Domain SRC=$ip Host=$3 " >> "${location}/skynet.log"
+					ipset -A Whitelist "$ip" comment "ManualWlistD: $3" && sed -i "\\~=$ip ~d" "${location}/skynet.log" && echo "$(date +"%b %d %T") Skynet: [Manual Whitelist] TYPE=Domain SRC=$ip Host=$3 " >> "${location}/skynet.log"
 					ipset -q -D Blacklist "$ip"
 				done
 			;;
@@ -1706,7 +1706,7 @@ case "$1" in
 				logger -st Skynet "[INFO] Whitelisting Autobans Issued On Traffic From Port $3..."
 				grep -F "NEW" "${location}/skynet.log" | grep -F "DPT=$3 " | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | while IFS= read -r "ip"; do
 					echo "Whitelisting $ip"
-					ipset -A Whitelist "$ip" comment "ManualWlist: Port $3 Traffic" && sed -i "\\~$ip ~d" "${location}/skynet.log" && echo "$(date +"%b %d %T") Skynet: [Manual Whitelist] TYPE=Port SRC=$ip Host=$3 " >> "${location}/skynet.log"
+					ipset -A Whitelist "$ip" comment "ManualWlist: Port $3 Traffic" && sed -i "\\~=$ip ~d" "${location}/skynet.log" && echo "$(date +"%b %d %T") Skynet: [Manual Whitelist] TYPE=Port SRC=$ip Host=$3 " >> "${location}/skynet.log"
 					ipset -q -D Blacklist "$ip"
 				done
 			;;
@@ -1719,7 +1719,7 @@ case "$1" in
 					entry)
 						if ! echo "$4" | Is_IP && ! echo "$4" | Is_Range ; then echo "$4 Is Not A Valid IP/Range"; echo; rm -rf /tmp/skynet.lock; exit 2; fi
 						echo "Removing $4 From Whitelist"
-						ipset -D Whitelist "$4"
+						ipset -D Whitelist "$4" && sed -i "\\~=$4 ~d" "${location}/skynet.log"
 					;;
 					comment)
 						if [ -z "$4" ]; then echo "Comment Field Can't Be Empty - Please Try Again"; echo; rm -rf /tmp/skynet.lock; exit 2; fi
@@ -1727,7 +1727,7 @@ case "$1" in
 						sed "\\~add Whitelist ~!d;\\~$4~!d;s~ comment.*~~;s~add~del~g" "${location}/scripts/ipset.txt" | ipset restore -!
 						sed "\\~add Whitelist ~!d;\\~$4~!d" "${location}/scripts/ipset.txt" | awk '{print $3}' > /tmp/ip.list
 						while read -r ip; do
-							sed -i "\\~$ip ~d" "${location}/skynet.log"
+							sed -i "\\~=$ip ~d" "${location}/skynet.log"
 						done < /tmp/ip.list
 						rm -rf /tmp/ip.list
 					;;
@@ -2631,7 +2631,7 @@ case "$1" in
 			esac
 		done
 		
-		cmdline="$(echo "sh /jffs/scripts/firewall save # Skynet Firewall Addition")"
+		cmdline="sh /jffs/scripts/firewall save # Skynet Firewall Addition"
 		if grep -E "sh /jffs/scripts/firewall .* # Skynet" /jffs/scripts/services-stop 2>/dev/null | grep -qvE "^#"; then
 			sed -i "s~sh /jffs/scripts/firewall .* # Skynet .*~$cmdline~" /jffs/scripts/services-stop
 		else
