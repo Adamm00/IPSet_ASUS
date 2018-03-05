@@ -2724,7 +2724,7 @@ case "$1" in
 					if echo "$location" | grep -qF "/tmp/mnt/"; then rm -rf "$location"; fi
 					iptables -t raw -F
 					service restart_firewall
-					nolog="2"
+					exit 2
 				;;
 				2|e|exit)
 					echo "Exiting!"
