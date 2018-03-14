@@ -42,9 +42,7 @@ skynetlog="${skynetloc}/skynet.log"
 skynetevents="${skynetloc}/events.log"
 skynetipset="${skynetloc}/skynet.ipset"
 
-if [ -f "$skynetcfg" ]; then 
-	. "$skynetcfg"
-elif [ -z "$skynetloc" ]
+if [ -z "$skynetloc" ]; then
 	tty -s >/dev/null 2>&1
 	if [ "$?" = "0" ]; then
 		set "install"
@@ -107,7 +105,6 @@ if [ ! -d "$skynetloc" ] && ! echo "$@" | grep -wqE "(install|uninstall|disable|
 	rm -rf /tmp/skynet.lock
 fi
 
-# Load Skynetcfg again just incase USB was slow upon first check
 . "$skynetcfg"
 
 if [ "$(nvram get wan0_proto)" = "pppoe" ] || [ "$(nvram get wan0_proto)" = "pptp" ] || [ "$(nvram get wan0_proto)" = "l2tp" ]; then
@@ -231,9 +228,7 @@ Unload_IPTables () {
 Load_IPTables () {
 		iptables -t raw -I PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j DROP 2>/dev/null
 		iptables -t raw -I PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null
-		if [ "$autoban" = "disabled" ]; then
-			logger -st Skynet "[INFO] Enabling No-Autoban Mode..."
-		else
+		if [ "$autoban" = "enabled" ]; then
 			iptables -I logdrop -p tcp --tcp-flags ALL RST,ACK -j ACCEPT 2>/dev/null
 			iptables -I logdrop -p tcp --tcp-flags ALL RST -j ACCEPT 2>/dev/null
 			iptables -I logdrop -p tcp --tcp-flags ALL FIN,ACK -j ACCEPT 2>/dev/null
@@ -549,15 +544,10 @@ Purge_Logs () {
 		sed '\~BLOCKED -~!d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null >> "$skynetlog"
 		sed -i '\~BLOCKED -~d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null
 		if [ "$(du "$skynetlog" | awk '{print $1}')" -ge "7000" ]; then
-			sed -i '\~BLOCKED - .*BOUND~d' "$skynetlog"
-			sed -i '\~Skynet: \[Complete\]~d' "$skynetlog"
-			echo "$(awk '!x[$0]++' "$skynetlog")" > "$skynetlog"
-			if [ "$(du "$skynetlog" | awk '{print $1}')" -ge "3000" ]; then
-				true > "$skynetlog"
-			fi
+			true > "$skynetlog"
 		fi
 		if [ "$(grep -c "Skynet: \\[Complete\\]" "/tmp/syslog.log" 2>/dev/null)" -gt "24" ] 2>/dev/null; then
-			sed '\~Skynet: \[Complete\]~!d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null >> "$skynetlog"
+			sed '\~Skynet: \[Complete\]~!d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null >> "$skynetevents"
 			sed -i '\~Skynet: \[Complete\]~d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null
 		fi
 }
@@ -633,7 +623,7 @@ Load_Menu () {
 	echo "$(iptables --version) - ($iface @ $(nvram get lan_ipaddr))"
 	ipset -v
 	echo "FW Version; $(nvram get buildno)_$(nvram get extendno) ($(uname -v | awk '{print $5" "$6" "$9}')) ($(uname -r))"
-	echo "Install Dir; $location ($(df -h $location | xargs | awk '{print $11 " / " $9}') Space Available)"
+	echo "Install Dir; $skynetloc ($(df -h $skynetloc | xargs | awk '{print $11 " / " $9}') Space Available)"
 	if grep -F "swapon" /jffs/scripts/post-mount 2>/dev/null | grep -qvE "^#"; then swaplocation="$(grep -o "swapon .*" /jffs/scripts/post-mount | grep -vE "^#" | awk '{print $2}')"; echo "SWAP File; $swaplocation ($(du -h "$swaplocation" | awk '{print $1}'))"; fi
 	echo "Boot Args; $(grep -E "start.* # Skynet" /jffs/scripts/firewall-start 2>/dev/null | grep -vE "^#" | cut -c 4- | cut -d '#' -f1)"
 	if grep -qF "Country:" "$skynetipset" 2>/dev/null; then echo "Banned Countries; $(grep -m1 -F "Country:" "$skynetipset" | sed 's~.*Country: ~~;s~"~~')"; fi
@@ -1622,6 +1612,8 @@ case "$1" in
 				ipset flush Skynet-BlockedRanges
 				iptables -Z PREROUTING -t raw
 				true > "$skynetlog"
+				sed -i "\\~Manual Ban.*=$ip ~d" "$skynetevents"
+				
 			;;
 			*)
 				echo "Command Not Recognized, Please Try Again"
@@ -2268,16 +2260,16 @@ case "$1" in
 			exit 0
 		fi
 		echo "Monitoring From $(grep -m1 -E 'INBOUND|OUTBOUND' "$skynetlog" | awk '{print $1" "$2" "$3}') To $(grep -E 'INBOUND|OUTBOUND' "$skynetlog" | tail -1 | awk '{print $1" "$2" "$3}')"
-		echo "$(grep -Ec ".*BOUND" "$skynetlog") Block Events Detected"
+		echo "$(wc -l < "$skynetlog") Block Events Detected"
 		echo "$({ grep -F "INBOUND" "$skynetlog" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- ; grep -F "OUTBOUND" "$skynetlog" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- ; } | awk '!x[$0]++' | wc -l) Unique IPs"
 		echo "$(grep -Fc "NEW BAN" "$skynetlog") Autobans Issued"
-		echo "$(grep -Fc "Manual Ban" "$skynetlog") Manual Bans Issued"
+		echo "$(grep -Fc "Manual Ban" "$skynetevents") Manual Bans Issued"
 		echo
 		counter=10
 		case "$2" in
 			reset)
 				sed -i '\~BLOCKED - .*BOUND~d' "$skynetlog"
-				sed -i '\~Skynet: \[Complete\]~d' "$skynetlog"
+				sed -i '\~Skynet: \[Complete\]~d' "$skynetevents"
 				echo "$(awk '!x[$0]++' "$skynetlog")" > "$skynetlog"
 				iptables -Z PREROUTING -t raw
 				echo "Stat Data Reset"
@@ -2364,14 +2356,14 @@ case "$1" in
 					;;
 					manualbans)
 						if [ "$4" -eq "$4" ] 2>/dev/null; then counter="$4"; fi
-						echo "First Manual Ban Issued On $(grep -m1 -F "Manual Ban" "$skynetlog" | awk '{print $1" "$2" "$3}')"
-						echo "Last Manual Ban Issued On $(grep -F "Manual Ban" "$skynetlog" | tail -1 | awk '{print $1" "$2" "$3}')"
+						echo "First Manual Ban Issued On $(grep -m1 -F "Manual Ban" "$skynetevents" | awk '{print $1" "$2" "$3}')"
+						echo "Last Manual Ban Issued On $(grep -F "Manual Ban" "$skynetevents" | tail -1 | awk '{print $1" "$2" "$3}')"
 						echo
 						$red "First Manual Ban Issued;"
-						grep -m1 -F "Manual Ban" "$skynetlog"
+						grep -m1 -F "Manual Ban" "$skynetevents"
 						echo
 						$red "$counter Most Recent Manual Bans;"
-						grep -F "Manual Ban" "$skynetlog" | tail -"$counter"
+						grep -F "Manual Ban" "$skynetevents" | tail -"$counter"
 					;;
 					device)
 						if ! echo "$4" | Is_IP; then echo "$4 Is Not A Valid IP"; echo; exit 2; fi
@@ -2399,16 +2391,16 @@ case "$1" in
 					;;
 					reports)
 						if [ "$4" -eq "$4" ] 2>/dev/null; then counter="$4"; fi
-						sed '\~Skynet: \[Complete\]~!d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null >> "$skynetlog"
+						sed '\~Skynet: \[Complete\]~!d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null >> "$skynetevents"
 						sed -i '\~Skynet: \[Complete\]~d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null
-						echo "First Report Issued On $(grep -m1 -F "Skynet: [Complete]" "$skynetlog" | awk '{print $1" "$2" "$3}')"
-						echo "Last Report Issued On $(grep -F "Skynet: [Complete]" "$skynetlog" | tail -1 | awk '{print $1" "$2" "$3}')"
+						echo "First Report Issued On $(grep -m1 -F "Skynet: [Complete]" "$skynetevents" | awk '{print $1" "$2" "$3}')"
+						echo "Last Report Issued On $(grep -F "Skynet: [Complete]" "$skynetevents" | tail -1 | awk '{print $1" "$2" "$3}')"
 						echo
 						$red "First Report Issued;"
-						grep -m1 -F "Skynet: [Complete]" "$skynetlog"
+						grep -m1 -F "Skynet: [Complete]" "$skynetevents"
 						echo
 						$red "$counter Most Recent Reports;"
-						grep -F "Skynet: [Complete]" "$skynetlog" | tail -"$counter"
+						grep -F "Skynet: [Complete]" "$skynetevents" | tail -"$counter"
 					;;
 					*)
 						echo "Command Not Recognized, Please Try Again"
@@ -2451,7 +2443,7 @@ case "$1" in
 				grep -E "NEW BAN.*$proto" "$skynetlog" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
 				echo
 				$red "Last $counter Manual Bans;"
-				grep -F "Manual Ban" "$skynetlog" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
+				grep -F "Manual Ban" "$skynetevents" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
 				echo
 				$red "Last $counter Unique HTTP(s) Blocks (Outbound);"
 				grep -E 'DPT=80 |DPT=443 ' "$skynetlog" | grep -E "OUTBOUND.*$proto" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | awk '!x[$0]++' | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
