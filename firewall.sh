@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 14/03/2018 -		   Asus Firewall Addition By Adamm v6.0.0				    #
+## - 15/03/2018 -		   Asus Firewall Addition By Adamm v6.0.0				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -105,7 +105,9 @@ if [ ! -d "$skynetloc" ] && ! echo "$@" | grep -wqE "(install|uninstall|disable|
 	rm -rf /tmp/skynet.lock
 fi
 
-. "$skynetcfg"
+if [ -f "$skynetcfg" ]; then
+	. "$skynetcfg"
+fi
 
 if [ "$(nvram get wan0_proto)" = "pppoe" ] || [ "$(nvram get wan0_proto)" = "pptp" ] || [ "$(nvram get wan0_proto)" = "l2tp" ]; then
 	iface="ppp0"
@@ -464,7 +466,7 @@ Manage_Device() {
 					echo
 					rm -rf /tmp/skynet.lock
 					exit 0
-				elif [ -z "$partitionNumber" ] || [ "$partitionNumber" -gt $((i - 1)) ] 2>/dev/null; then
+				elif [ -z "$partitionNumber" ] || [ "$partitionNumber" -gt $((i - 1)) ] 2>/dev/null || [ "$partitionNumber" = "0" ]; then
 					echo "Invalid Partition Number!"
 					Select_Device
 				elif [ "$partitionNumber" -eq "$partitionNumber" ] 2>/dev/null;then
@@ -549,6 +551,9 @@ Purge_Logs () {
 		if [ "$(grep -c "Skynet: \\[Complete\\]" "/tmp/syslog.log" 2>/dev/null)" -gt "24" ] 2>/dev/null; then
 			sed '\~Skynet: \[Complete\]~!d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null >> "$skynetevents"
 			sed -i '\~Skynet: \[Complete\]~d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null
+		fi
+		if [ "$(grep -c "Skynet: \\[Complete\\]" "$skynetevents" 2>/dev/null)" -gt "500" ] 2>/dev/null; then
+			sed -i '\~Skynet: \[Complete\]~d' "$skynetevents"
 		fi
 }
 
@@ -2126,7 +2131,7 @@ case "$1" in
 			clean)
 				echo "Cleaning Syslog Entries..."
 				Purge_Logs
-				sed '\~Skynet: \[Complete\]~!d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null >> "$skynetlog"
+				sed '\~Skynet: \[Complete\]~!d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null >> "$skynetevents"
 				sed -i '\~Skynet: \[Complete\]~d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null
 				echo "Complete!"
 				echo
@@ -2257,6 +2262,7 @@ case "$1" in
 			echo "Debug Data Detected in $skynetlog - $(du -h "$skynetlog" | awk '{print $1}')"
 		else
 			echo "No Debug Data Detected - Give This Time To Generate"
+			echo
 			exit 0
 		fi
 		echo "Monitoring From $(grep -m1 -E 'INBOUND|OUTBOUND' "$skynetlog" | awk '{print $1" "$2" "$3}') To $(grep -E 'INBOUND|OUTBOUND' "$skynetlog" | tail -1 | awk '{print $1" "$2" "$3}')"
@@ -2652,6 +2658,8 @@ case "$1" in
 		if [ -d "$skynetloc" ]; then mv "$skynetloc" "${device}"; fi
 		skynetloc="${device}/skynet"
 		skynetcfg="${device}/skynet/skynet.cfg"
+		touch "${device}/skynet/events.log"
+		touch "${device}/skynet/skynet.log"
 		Write_Config
 		cmdline="sh /jffs/scripts/firewall start skynetloc=${device}/skynet # Skynet Firewall Addition"
 		if grep -E "sh /jffs/scripts/firewall .* # Skynet" /jffs/scripts/firewall-start 2>/dev/null | grep -qvE "^#"; then
