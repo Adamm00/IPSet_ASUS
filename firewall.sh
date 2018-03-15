@@ -42,11 +42,8 @@ skynetlog="${skynetloc}/skynet.log"
 skynetevents="${skynetloc}/events.log"
 skynetipset="${skynetloc}/skynet.ipset"
 
-if [ -z "$skynetloc" ]; then
-	tty -s >/dev/null 2>&1
-	if [ "$?" = "0" ]; then
-		set "install"
-	fi
+if [ -z "$skynetloc" ] && [ "$(tty)" = "/dev/pts/0" ]; then
+	set "install"
 fi
 
 
@@ -1615,7 +1612,7 @@ case "$1" in
 				ipset flush Skynet-BlockedRanges
 				iptables -Z PREROUTING -t raw
 				true > "$skynetlog"
-				sed -i "\\~Manual Ban.*=$ip ~d" "$skynetevents"
+				sed -i '\~Manual Ban~d' "$skynetevents"
 				
 			;;
 			*)
