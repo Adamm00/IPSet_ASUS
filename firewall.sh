@@ -2008,7 +2008,7 @@ case "$1" in
 
 	update)
 		trap '' 2
-		remoteurl="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh"
+		remoteurl="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/v6/firewall.sh"
 		/usr/sbin/curl -fsL --retry 3 "$remoteurl" | grep -qF "Adamm" || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Update"; exit 1; }
 		localver="$(Filter_Version "$0")"
 		remotever="$(/usr/sbin/curl -fsL --retry 3 "$remoteurl" | Filter_Version)"
