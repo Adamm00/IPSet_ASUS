@@ -2199,7 +2199,7 @@ case "$1" in
 				Save_IPSets >/dev/null 2>&1
 				mkdir -p /tmp/skynetbackup
 				cp "$skynetipset" "$skynetlog" "$skynetevents" /tmp/skynetbackup
-				tar -czvf /jffs/Skynet-Backup.tar.gz -C /tmp/skynetbackup ipset.txt skynet.log
+				tar -czvf /jffs/Skynet-Backup.tar.gz -C /tmp/skynetbackup skynet.ipset skynet.log events.log
 				rm -rf /tmp/skynetbackup
 				echo
 				echo "Backup Saved To /jffs/Skynet-Backup.tar.gz"
@@ -2224,7 +2224,7 @@ case "$1" in
 				Purge_Logs
 				mkdir -p /tmp/skynetbackup
 				tar -xzvf "$backuplocation" -C "/tmp/skynetbackup"
-				cp -f "/tmp/skynetbackup/ipset.txt" "$skynetipset"
+				cp -f "/tmp/skynetbackup/skynet.ipset" "$skynetipset"
 				cp -f "/tmp/skynetbackup/skynet.log" "$skynetlog"
 				cp -f "/tmp/skynetbackup/events.log" "$skynetevents"
 				rm -rf /tmp/skynetbackup
