@@ -42,7 +42,7 @@ skynetlog="${skynetloc}/skynet.log"
 skynetevents="${skynetloc}/events.log"
 skynetipset="${skynetloc}/skynet.ipset"
 
-if [ -z "$skynetloc" ] && [ "$(tty)" = "/dev/pts/0" ]; then
+if [ -z "$skynetloc" ] && tty >/dev/null 2>&1; then
 	set "install"
 fi
 
@@ -2268,12 +2268,12 @@ case "$1" in
 			$red "To Enable Use ( sh $0 install )"
 			echo
 		fi
-		if [ -s "$skynetlog" ]; then
-			echo "Debug Data Detected in $skynetlog - $(du -h "$skynetlog" | awk '{print $1}')"
-		else
+		if [ ! -s "$skynetlog" ] && [ ! -s "$skynetevents" ]; then
 			echo "No Debug Data Detected - Give This Time To Generate"
 			echo
 			exit 0
+		else
+			echo "Debug Data Detected in $skynetlog - $(du -h "$skynetlog" | awk '{print $1}')"
 		fi
 		echo "Monitoring From $(grep -m1 -E 'INBOUND|OUTBOUND' "$skynetlog" | awk '{print $1" "$2" "$3}') To $(grep -E 'INBOUND|OUTBOUND' "$skynetlog" | tail -1 | awk '{print $1" "$2" "$3}')"
 		echo "$(wc -l < "$skynetlog") Block Events Detected"
@@ -2284,9 +2284,8 @@ case "$1" in
 		counter=10
 		case "$2" in
 			reset)
-				sed -i '\~BLOCKED - .*BOUND~d' "$skynetlog"
+				true > "$skynetlog"
 				sed -i '\~Skynet: \[Complete\]~d' "$skynetevents"
-				echo "$(awk '!x[$0]++' "$skynetlog")" > "$skynetlog"
 				iptables -Z PREROUTING -t raw
 				echo "Stat Data Reset"
 			;;
