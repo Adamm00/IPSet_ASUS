@@ -1318,7 +1318,7 @@ Load_Menu () {
 										unset "option1" "option2" "option3" "option4" "option5"
 										clear
 										Load_Menu
-										break
+										break 2
 									;;
 									*)
 										echo "$menu3 Isn't An Option!"
@@ -1430,7 +1430,7 @@ Load_Menu () {
 										unset "option1" "option2" "option3" "option4" "option5"
 										clear
 										Load_Menu
-										break
+										break 2
 									;;
 									*)
 										echo "$menu4 Isn't An Option!"
