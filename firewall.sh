@@ -543,14 +543,15 @@ Purge_Logs () {
 		sed '\~BLOCKED -~!d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null >> "$skynetlog"
 		sed -i '\~BLOCKED -~d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null
 		if [ "$(du "$skynetlog" | awk '{print $1}')" -ge "7000" ]; then
-			true > "$skynetlog"
+			sed -i '\~BLOCKED - .*BOUND~d' "$skynetlog"
+			sed -i '\~Skynet: \[Complete\]~d' "$skynetevents"
+			if [ "$(du "$skynetlog" | awk '{print $1}')" -ge "3000" ]; then
+				true > "$skynetlog"
+			fi
 		fi
 		if [ "$(grep -c "Skynet: \\[Complete\\]" "/tmp/syslog.log" 2>/dev/null)" -gt "24" ] 2>/dev/null; then
 			sed '\~Skynet: \[Complete\]~!d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null >> "$skynetevents"
 			sed -i '\~Skynet: \[Complete\]~d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null
-		fi
-		if [ "$(grep -c "Skynet: \\[Complete\\]" "$skynetevents" 2>/dev/null)" -gt "500" ] 2>/dev/null; then
-			sed -i '\~Skynet: \[Complete\]~d' "$skynetevents"
 		fi
 }
 
@@ -2284,7 +2285,7 @@ case "$1" in
 		counter=10
 		case "$2" in
 			reset)
-				true > "$skynetlog"
+				sed -i '\~BLOCKED - .*BOUND~d' "$skynetlog"
 				sed -i '\~Skynet: \[Complete\]~d' "$skynetevents"
 				iptables -Z PREROUTING -t raw
 				echo "Stat Data Reset"
