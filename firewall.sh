@@ -1552,6 +1552,7 @@ fi
 
 if [ -n "$option1" ]; then
 	set "$option1" "$option2" "$option3" "$option4" "$option5"
+	stime="$(date +%s)"
 fi
 
 case "$1" in
@@ -2176,12 +2177,12 @@ case "$1" in
 						swaplocation="$(grep -o "swapon .*" /jffs/scripts/post-mount | awk '{print $2}')"
 						echo "Removing SWAP File... ($swaplocation)"
 						if [ -f "$swaplocation" ]; then
+							Save_IPSets >/dev/null 2>&1
 							swapoff "$swaplocation"
 							rm -rf "$swaplocation"
 							sed -i '\~swapon ~d' /jffs/scripts/post-mount
 							echo "SWAP File Removed"
 							echo "Restarting Firewall Service"
-							Save_IPSets >/dev/null 2>&1
 							Unload_Cron
 							Unload_IPTables
 							Unload_DebugIPTables
