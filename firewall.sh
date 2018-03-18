@@ -225,10 +225,10 @@ Unload_IPTables () {
 }
 
 Load_IPTables () {
-		if [ "$filtertraffic" = "both" ] || [ "$filtertraffic" = "inbound" ]; then
+		if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "inbound" ]; then
 			iptables -t raw -I PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j DROP 2>/dev/null
 		fi
-		if [ "$filtertraffic" = "both" ] || [ "$filtertraffic" = "outbound" ]; then
+		if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "outbound" ]; then
 			iptables -t raw -I PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null
 		fi
 		if [ "$autoban" = "enabled" ]; then
@@ -259,11 +259,11 @@ Unload_DebugIPTables () {
 
 Load_DebugIPTables () {
 		if [ "$debugmode" = "enabled" ]; then
-			if [ "$filtertraffic" = "both" ] || [ "$filtertraffic" = "inbound" ]; then
+			if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "inbound" ]; then
 				pos3="$(iptables --line -nL PREROUTING -t raw | grep -F "Skynet-Master src" | grep -F "DROP" | awk '{print $1}')"
 				iptables -t raw -I PREROUTING "$pos3" -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 			fi
-			if [ "$filtertraffic" = "both" ] || [ "$filtertraffic" = "outbound" ]; then
+			if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "outbound" ]; then
 				pos4="$(iptables --line -nL PREROUTING -t raw | grep -F "Skynet-Master dst" | grep -F "DROP" | awk '{print $1}')"
 				iptables -t raw -I PREROUTING "$pos4" -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 			fi
@@ -2547,7 +2547,7 @@ case "$1" in
 			case "$mode1" in
 				1)
 					echo "All Traffic Selected"
-					filtertraffic="both"
+					filtertraffic="all"
 					break
 				;;
 				2)
