@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 17/03/2018 -		   Asus Firewall Addition By Adamm v6.0.0				    #
+## - 19/03/2018 -		   Asus Firewall Addition By Adamm v6.0.0				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -225,8 +225,12 @@ Unload_IPTables () {
 }
 
 Load_IPTables () {
-		iptables -t raw -I PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j DROP 2>/dev/null
-		iptables -t raw -I PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null
+		if [ "$filtertraffic" = "both" ] || [ "$filtertraffic" = "inbound" ]; then
+			iptables -t raw -I PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j DROP 2>/dev/null
+		fi
+		if [ "$filtertraffic" = "both" ] || [ "$filtertraffic" = "outbound" ]; then
+			iptables -t raw -I PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null
+		fi
 		if [ "$autoban" = "enabled" ]; then
 			iptables -I logdrop -p tcp --tcp-flags ALL RST,ACK -j ACCEPT 2>/dev/null
 			iptables -I logdrop -p tcp --tcp-flags ALL RST -j ACCEPT 2>/dev/null
@@ -255,10 +259,14 @@ Unload_DebugIPTables () {
 
 Load_DebugIPTables () {
 		if [ "$debugmode" = "enabled" ]; then
-			pos3="$(iptables --line -nL PREROUTING -t raw | grep -F "Skynet-Master src" | grep -F "DROP" | awk '{print $1}')"
-			iptables -t raw -I PREROUTING "$pos3" -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
-			pos4="$(iptables --line -nL PREROUTING -t raw | grep -F "Skynet-Master dst" | grep -F "DROP" | awk '{print $1}')"
-			iptables -t raw -I PREROUTING "$pos4" -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
+			if [ "$filtertraffic" = "both" ] || [ "$filtertraffic" = "inbound" ]; then
+				pos3="$(iptables --line -nL PREROUTING -t raw | grep -F "Skynet-Master src" | grep -F "DROP" | awk '{print $1}')"
+				iptables -t raw -I PREROUTING "$pos3" -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
+			fi
+			if [ "$filtertraffic" = "both" ] || [ "$filtertraffic" = "outbound" ]; then
+				pos4="$(iptables --line -nL PREROUTING -t raw | grep -F "Skynet-Master dst" | grep -F "DROP" | awk '{print $1}')"
+				iptables -t raw -I PREROUTING "$pos4" -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
+			fi
 		fi
 }
 
@@ -533,7 +541,6 @@ Create_Swap() {
 	dd if=/dev/zero of="${device}/myswap.swp" bs=1k count="$swapsize"
 	mkswap "${device}/myswap.swp"
 	swapon "${device}/myswap.swp"
-	nvram set usb_idle_timeout=0
 	echo "swapon ${device}/myswap.swp # Skynet Firewall Addition" >> /jffs/scripts/post-mount
 	echo "SWAP File Located At ${device}/myswap.swp"
 	echo
@@ -619,6 +626,7 @@ Write_Config () {
 	echo "banmalwareupdate=\"$banmalwareupdate\""
 	echo "forcebanmalwareupdate=\"$forcebanmalwareupdate\""
 	echo "debugmode=\"$debugmode\""
+	echo "filtertraffic=\"$filtertraffic\""
 	echo
 	echo "## Other ##"
 	echo "blacklist1count=\"$blacklist1count\""
@@ -2109,16 +2117,18 @@ case "$1" in
 				if iptables -C logdrop -i "$iface" -m recent --set --name TRACKINVALID --rsource 2>/dev/null && \
 				iptables -C logdrop -i "$iface" -m state --state INVALID -m recent --update --seconds 300 --hitcount 2 --name TRACKINVALID --rsource -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null && \
 				iptables -C logdrop -i "$iface" -m state --state INVALID -m recent --update --seconds 300 --hitcount 2 --name TRACKINVALID --rsource -j SET --add-set Skynet-Master src 2>/dev/null; then $grn "[Passed]"; elif [ "$autoban" = "disabled" ]; then $ylow "[Disabled]"; else $red "[Failed]"; fi
-				printf "Checking Debug Mode Status...				"
-				if iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null && \
-				iptables -t raw -C PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null; then $grn "[Passed]"; elif [ "$debugmode" = "disabled" ]; then $ylow "[Disabled]"; else $red "[Failed]"; fi
+				printf "Checking Inbound Debug Rules				"
+				if iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null; then $grn "[Passed]"; elif [ "$debugmode" = "disabled" ] || [ "$filtertraffic" = "outbound" ]; then $ylow "[Disabled]"; else $red "[Failed]"; fi
+				printf "Checking Outbound Debug Rules				"
+				if iptables -t raw -C PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null; then $grn "[Passed]"; elif [ "$debugmode" = "disabled" ] || [ "$filtertraffic" = "inbound" ]; then $ylow "[Disabled]"; else $red "[Failed]"; fi
 				printf "Checking For Duplicate Rules In RAW...			"
 				if [ "$(iptables-save -t raw | sort | uniq -d | grep -c " ")" = "0" ]; then $grn "[Passed]"; else $red "[Failed]"; fi
 				printf "Checking For Duplicate Rules In Filter...		"
 				if [ "$(iptables-save -t filter | grep -F "A logdrop" | sort | uniq -d | grep -c " ")" = "0" ]; then $grn "[Passed]"; else $red "[Failed]"; fi
-				printf "Checking Skynet IPTable...				"
-				if iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j DROP 2>/dev/null && \
-				iptables -t raw -C PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null; then $grn "[Passed]"; else $red "[Failed]"; fi
+				printf "Checking Inbound Filter Rules...			"
+				if iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j DROP 2>/dev/null; then $grn "[Passed]";	elif [ "$filtertraffic" = "outbound" ]; then $ylow "[Disabled]"; else $red "[Failed]"; fi
+				printf "Checking Outbound Filter Rules...			"
+				if iptables -t raw -C PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null; then $grn "[Passed]"; elif [ "$filtertraffic" = "inbound" ]; then $ylow "[Disabled]"; else $red "[Failed]"; fi
 				printf "Checking Whitelist IPSet...				"
 				if ipset -L -n Skynet-Whitelist >/dev/null 2>&1; then $grn "[Passed]"; else $red "[Failed]"; fi
 				printf "Checking BlockedRanges IPSet...				"
@@ -2523,7 +2533,49 @@ case "$1" in
 		echo
 		if [ -n "$forceupgrade" ]; then Upgrade_v6; fi
 		while true; do
+			echo "What Type Of Traffic Do You Want To Filter?"
+			echo "[1]  --> All  - (Recommended)"
+			echo "[2]  --> Inbound"
+			echo "[3]  --> Outbound"
+			echo
+			echo "[e]  --> Exit Menu"
+			echo
+			echo "Please Select Option"
+			printf "[1-3]: "
+			read -r "mode1"
+			echo
+			case "$mode1" in
+				1)
+					echo "All Traffic Selected"
+					filtertraffic="both"
+					break
+				;;
+				2)
+					echo "Inbound Traffic Selected"
+					filtertraffic="inbound"
+					break
+				;;
+				3)
+					echo "Outbound Traffic Selected"
+					filtertraffic="outbound"
+					break
+				;;
+				e|exit)
+					echo "Exiting!"
+					echo
+					exit 0
+				;;
+				*)
+					echo "$mode1 Isn't An Option!"
+					echo
+				;;
+			esac
+		done
+		echo
+		echo		
+		while true; do
 			echo "Would You Like To Enable Autobanning?"
+			echo "Autobanning Uses The Routers SPI Firewall To Identify & Ban Malicious IP's"
 			echo "[1]  --> Yes"
 			echo "[2]  --> No"
 			echo
@@ -2531,9 +2583,9 @@ case "$1" in
 			echo
 			echo "Please Select Option"
 			printf "[1-2]: "
-			read -r "mode1"
+			read -r "mode2"
 			echo
-			case "$mode1" in
+			case "$mode2" in
 				1)
 					echo "Autobanning Enabled"
 					autoban="enabled"
@@ -2550,7 +2602,7 @@ case "$1" in
 					exit 0
 				;;
 				*)
-					echo "$mode1 Isn't An Option!"
+					echo "$mode2 Isn't An Option!"
 					echo
 				;;
 			esac
@@ -2567,16 +2619,16 @@ case "$1" in
 			echo
 			echo "Please Select Option"
 			printf "[1-2]: "
-			read -r "mode2"
+			read -r "mode3"
 			echo
-			case "$mode2" in
+			case "$mode3" in
 				1)
-					echo "Autobanning Enabled"
+					echo "Debug Mode Enabled"
 					debugmode="enabled"
 					break
 				;;
 				2)
-					echo "Autobanning Disabled"
+					echo "Debug Mode Disabled"
 					debugmode="disabled"
 					break
 				;;
@@ -2586,7 +2638,7 @@ case "$1" in
 					exit 0
 				;;
 				*)
-					echo "$mode2 Isn't An Option!"
+					echo "$mode3 Isn't An Option!"
 					echo
 				;;
 			esac
@@ -2603,9 +2655,9 @@ case "$1" in
 			echo
 			echo "Please Select Option"
 			printf "[1-3]: "
-			read -r "mode3"
+			read -r "mode4"
 			echo
-			case "$mode3" in
+			case "$mode4" in
 				1)
 					echo "Malware List Updating Enabled & Scheduled For 2.25am Every Day"
 					banmalwareupdate="daily"
@@ -2629,7 +2681,7 @@ case "$1" in
 					exit 0
 				;;
 				*)
-					echo "$mode3 Isn't An Option!"
+					echo "$mode4 Isn't An Option!"
 					echo
 				;;
 			esac
@@ -2645,9 +2697,9 @@ case "$1" in
 			echo
 			echo "Please Select Option"
 			printf "[1-2]: "
-			read -r "mode4"
+			read -r "mode5"
 			echo
-			case "$mode4" in
+			case "$mode5" in
 				1)
 					echo "Skynet Updating Enabled & Scheduled For 1.25am Every Monday"
 					autoupdate="enabled"
@@ -2664,7 +2716,7 @@ case "$1" in
 					exit 0
 				;;
 				*)
-					echo "$mode4 Isn't An Option!"
+					echo "$mode5 Isn't An Option!"
 					echo
 				;;
 			esac
@@ -2672,7 +2724,10 @@ case "$1" in
 		echo
 		echo
 		if ! grep -F "swapon" /jffs/scripts/post-mount | grep -qvE "^#"; then Create_Swap; fi
-		if [ -d "$skynetloc" ]; then mv "$skynetloc" "${device}"; fi
+		if [ -f "$skynetlog" ]; then mv "$skynetlog" "${device}/skynet/skynet.log"; fi
+		if [ -f "$skynetevents" ]; then mv "$skynetevents" "${device}/skynet/events.log"; fi
+		if [ -f "$skynetipset" ]; then mv "$skynetipset" "${device}/skynet/skynet.ipset"; fi
+		if [ "$skynetloc" != "${device}/skynet" ]; then rm -rf "$skynetloc"; fi
 		skynetloc="${device}/skynet"
 		skynetcfg="${device}/skynet/skynet.cfg"
 		touch "${device}/skynet/events.log"
