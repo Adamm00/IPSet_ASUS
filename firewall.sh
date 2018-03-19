@@ -133,9 +133,11 @@ Check_Settings () {
 		fi
 
 		if ! grep -F "swapon" /jffs/scripts/post-mount | grep -qvE "^#"; then
-			logger -st Skynet "[ERROR] This Model Requires A SWAP File - Install One By Running ( $0 debug swap install )"
+			logger -st Skynet "[ERROR] Skynet Requires A SWAP File - Install One By Running ( $0 debug swap install )"
 			exit 1
 		fi
+
+		localver="$(Filter_Version "$0")"
 
 		if [ "$banmalwareupdate" = "daily" ]; then
 			cru a Skynet_banmalware "25 2 * * * sh /jffs/scripts/firewall banmalware"
@@ -199,7 +201,8 @@ Check_Files () {
 }
 
 Check_Status () {
-		[ -f "$skynetipset" ] && ipset -L -n Skynet-Whitelist >/dev/null 2>&1 && iptables -t raw -C PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP >/dev/null 2>&1
+		{ [ -f "$skynetipset" ] && ipset -L -n Skynet-Whitelist >/dev/null 2>&1 && iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j DROP >/dev/null 2>&1; } || 
+		{ [ -f "$skynetipset" ] && ipset -L -n Skynet-Whitelist >/dev/null 2>&1 && iptables -t raw -C PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP >/dev/null 2>&1; }
 }
 
 Unload_IPTables () {
@@ -606,7 +609,7 @@ Upgrade_v6 () {
 	# Convert skynet.log
 	sed '\~BLOCKED -~d' "$skynetlog" > "$skynetevents"
 	sed -i '\~BLOCKED -~!d' "$skynetlog"
-	
+
 	# Convert countrylist and customlisturl
 	countrylist="$(grep -m1 -F "Country:" "$skynetipset" | sed 's~.*Country: ~~;s~"~~')"
 	customlisturl="$(grep -F "New Banmalware Filter" "$skynetevents" | sed 's~.*New Banmalware Filter.*URL=~~g')"
@@ -620,7 +623,7 @@ Write_Config () {
 	echo
 	echo "## Installer ##"
 	echo "model=\"$model\""
-	echo "localver=\"$(Filter_Version "$0")\""
+	echo "localver=\"$localver\""
 	echo "autoupdate=\"$autoupdate\""
 	echo "autoban=\"$autoban\""
 	echo "banmalwareupdate=\"$banmalwareupdate\""
@@ -1637,7 +1640,7 @@ case "$1" in
 				iptables -Z PREROUTING -t raw
 				true > "$skynetlog"
 				sed -i '\~Manual Ban~d' "$skynetevents"
-				
+
 			;;
 			*)
 				echo "Command Not Recognized, Please Try Again"
@@ -2123,7 +2126,7 @@ case "$1" in
 				printf "Checking Inbound Filter Rules...			"
 				if iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j DROP 2>/dev/null; then $grn "[Passed]";	elif [ "$filtertraffic" = "outbound" ]; then $ylow "[Disabled]"; else $red "[Failed]"; fi
 				printf "Checking Inbound Debug Rules				"
-				if iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null; then $grn "[Passed]"; elif [ "$debugmode" = "disabled" ] || [ "$filtertraffic" = "outbound" ]; then $ylow "[Disabled]"; else $red "[Failed]"; fi				
+				if iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null; then $grn "[Passed]"; elif [ "$debugmode" = "disabled" ] || [ "$filtertraffic" = "outbound" ]; then $ylow "[Disabled]"; else $red "[Failed]"; fi
 				printf "Checking Outbound Filter Rules...			"
 				if iptables -t raw -C PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null; then $grn "[Passed]"; elif [ "$filtertraffic" = "inbound" ]; then $ylow "[Disabled]"; else $red "[Failed]"; fi
 				printf "Checking Outbound Debug Rules				"
@@ -2216,7 +2219,7 @@ case "$1" in
 			;;
 			backup)
 				if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
-				Purge_Logs				
+				Purge_Logs
 				Check_Lock "$@"
 				echo "Backing Up Skynet Related Files..."
 				echo
@@ -2227,7 +2230,7 @@ case "$1" in
 				rm -rf /tmp/skynet.lock
 			;;
 			restore)
-				if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi				
+				if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
 				Check_Lock "$@"
 				backuplocation="${skynetloc}/Skynet-Backup.tar.gz"
 				if [ ! -f "$backuplocation" ]; then
@@ -2566,7 +2569,7 @@ case "$1" in
 			esac
 		done
 		echo
-		echo		
+		echo
 		while true; do
 			echo "Would You Like To Enable Autobanning?"
 			echo "Autobanning Uses The Routers SPI Firewall To Identify & Ban Malicious IP's"
