@@ -2221,15 +2221,15 @@ case "$1" in
 				echo "Backing Up Skynet Related Files..."
 				echo
 				Save_IPSets >/dev/null 2>&1
-				tar -czvf "$skynetloc/Skynet-Backup.tar.gz" -C "$skynetloc" skynet.ipset skynet.log events.log skynet.cfg
+				tar -czvf "${skynetloc}/Skynet-Backup.tar.gz" -C "$skynetloc" skynet.ipset skynet.log events.log skynet.cfg
 				echo
-				echo "Backup Saved To $skynetloc/Skynet-Backup.tar.gz"
+				echo "Backup Saved To ${skynetloc}/Skynet-Backup.tar.gz"
 				rm -rf /tmp/skynet.lock
 			;;
 			restore)
 				if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi				
 				Check_Lock "$@"
-				backuplocation="$skynetloc/Skynet-Backup.tar.gz"
+				backuplocation="${skynetloc}/Skynet-Backup.tar.gz"
 				if [ ! -f "$backuplocation" ]; then
 					echo "Skynet Backup Doesn't Exist In Expected Path, Please Provide Location"
 					echo
@@ -2526,7 +2526,6 @@ case "$1" in
 		Manage_Device
 		mkdir -p "${device}/skynet"
 		echo
-		if [ -n "$forceupgrade" ]; then Upgrade_v6; fi
 		while true; do
 			echo "What Type Of Traffic Do You Want To Filter?"
 			echo "[1]  --> All  - (Recommended)"
@@ -2719,9 +2718,11 @@ case "$1" in
 		echo
 		echo
 		if ! grep -F "swapon" /jffs/scripts/post-mount | grep -qvE "^#"; then Create_Swap; fi
+		if [ -n "$forceupgrade" ]; then Upgrade_v6; fi
 		if [ -f "$skynetlog" ]; then mv "$skynetlog" "${device}/skynet/skynet.log"; fi
 		if [ -f "$skynetevents" ]; then mv "$skynetevents" "${device}/skynet/events.log"; fi
 		if [ -f "$skynetipset" ]; then mv "$skynetipset" "${device}/skynet/skynet.ipset"; fi
+		if [ -f "${skynetloc}/Skynet-Backup.tar.gz" ]; then mv "${skynetloc}/Skynet-Backup.tar.gz" "${device}/skynet/Skynet-Backup.tar.gz"; fi
 		if [ "$skynetloc" != "${device}/skynet" ]; then rm -rf "$skynetloc"; fi
 		skynetloc="${device}/skynet"
 		skynetcfg="${device}/skynet/skynet.cfg"
