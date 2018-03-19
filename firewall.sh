@@ -1969,7 +1969,7 @@ case "$1" in
 		Load_IPTables
 		Load_DebugIPTables
 		sed -i '\~DROP IN=~d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null
-		if [ "$forcebanmalwareupdate" = "true" ]; then exec "$0" banmalware; fi
+		if [ "$forcebanmalwareupdate" = "true" ]; then Write_Config; rm -rf "/tmp/skynet.lock"; exec "$0" banmalware; fi
 	;;
 
 	restart)
