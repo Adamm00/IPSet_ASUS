@@ -27,8 +27,6 @@ done
 if [ "$retry" -ge "300" ]; then logger -st Skynet "[ERROR] NTP Failed To Start After 5 Minutes - Please Fix Immediately!"; exit 1; fi
 
 
-[ -z "$(nvram get odmpid)" ] && model="$(nvram get productid)" || model="$(nvram get odmpid)"
-
 red="printf \\e[1;31m%s\\e[0m\\n"
 grn="printf \\e[1;32m%s\\e[0m\\n"
 blue="printf \\e[1;36m%s\\e[0m\\n"
@@ -302,9 +300,9 @@ Domain_Lookup () {
 
 Filter_Version () {
 		if [ -n "$1" ]; then
-			grep -oE 'v[0-9]{1,2}([.][0-9]{1,2})([.][0-9]{1,2})' "$1"
+			grep -m1 -oE 'v[0-9]{1,2}([.][0-9]{1,2})([.][0-9]{1,2})' "$1"
 		else
-			grep -oE 'v[0-9]{1,2}([.][0-9]{1,2})([.][0-9]{1,2})'
+			grep -m1 -oE 'v[0-9]{1,2}([.][0-9]{1,2})([.][0-9]{1,2})'
 		fi
 }
 
@@ -621,6 +619,8 @@ Write_Config () {
 	echo "## $(date +"%b %d %T") ##"
 	echo
 	echo "## Installer ##"
+	echo "model=\"$model\""
+	echo "localver=\"$(Filter_Version "$0")\""
 	echo "autoupdate=\"$autoupdate\""
 	echo "autoban=\"$autoban\""
 	echo "banmalwareupdate=\"$banmalwareupdate\""
@@ -641,7 +641,7 @@ Write_Config () {
 
 Load_Menu () {
 	echo "Router Model; $model"
-	echo "Skynet Version; $(Filter_Version "$0") ($(Filter_Date "$0"))"
+	echo "Skynet Version; $localver ($(Filter_Date "$0"))"
 	echo "$(iptables --version) - ($iface @ $(nvram get lan_ipaddr))"
 	ipset -v
 	echo "FW Version; $(nvram get buildno)_$(nvram get extendno) ($(uname -v | awk '{print $5" "$6" "$9}')) ($(uname -r))"
@@ -2030,7 +2030,6 @@ case "$1" in
 		trap '' 2
 		remoteurl="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/v6/firewall.sh"
 		/usr/sbin/curl -fsL --retry 3 "$remoteurl" | grep -qF "Adamm" || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Update"; exit 1; }
-		localver="$(Filter_Version "$0")"
 		remotever="$(/usr/sbin/curl -fsL --retry 3 "$remoteurl" | Filter_Version)"
 		if [ "$localver" = "$remotever" ] && [ "$2" != "-f" ]; then
 			logger -st Skynet "[INFO] Skynet Up To Date - $localver"
@@ -2089,7 +2088,7 @@ case "$1" in
 			;;
 			info)
 				echo "Router Model; $model"
-				echo "Skynet Version; $(Filter_Version "$0") ($(Filter_Date "$0"))"
+				echo "Skynet Version; $localver ($(Filter_Date "$0"))"
 				echo "$(iptables --version) - ($iface @ $(nvram get lan_ipaddr))"
 				ipset -v
 				echo "FW Version; $(nvram get buildno)_$(nvram get extendno) ($(uname -v | awk '{print $5" "$6" "$9}')) ($(uname -r))"
@@ -2117,18 +2116,18 @@ case "$1" in
 				if iptables -C logdrop -i "$iface" -m recent --set --name TRACKINVALID --rsource 2>/dev/null && \
 				iptables -C logdrop -i "$iface" -m state --state INVALID -m recent --update --seconds 300 --hitcount 2 --name TRACKINVALID --rsource -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null && \
 				iptables -C logdrop -i "$iface" -m state --state INVALID -m recent --update --seconds 300 --hitcount 2 --name TRACKINVALID --rsource -j SET --add-set Skynet-Master src 2>/dev/null; then $grn "[Passed]"; elif [ "$autoban" = "disabled" ]; then $ylow "[Disabled]"; else $red "[Failed]"; fi
-				printf "Checking Inbound Debug Rules				"
-				if iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null; then $grn "[Passed]"; elif [ "$debugmode" = "disabled" ] || [ "$filtertraffic" = "outbound" ]; then $ylow "[Disabled]"; else $red "[Failed]"; fi
-				printf "Checking Outbound Debug Rules				"
-				if iptables -t raw -C PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null; then $grn "[Passed]"; elif [ "$debugmode" = "disabled" ] || [ "$filtertraffic" = "inbound" ]; then $ylow "[Disabled]"; else $red "[Failed]"; fi
 				printf "Checking For Duplicate Rules In RAW...			"
 				if [ "$(iptables-save -t raw | sort | uniq -d | grep -c " ")" = "0" ]; then $grn "[Passed]"; else $red "[Failed]"; fi
 				printf "Checking For Duplicate Rules In Filter...		"
 				if [ "$(iptables-save -t filter | grep -F "A logdrop" | sort | uniq -d | grep -c " ")" = "0" ]; then $grn "[Passed]"; else $red "[Failed]"; fi
 				printf "Checking Inbound Filter Rules...			"
 				if iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j DROP 2>/dev/null; then $grn "[Passed]";	elif [ "$filtertraffic" = "outbound" ]; then $ylow "[Disabled]"; else $red "[Failed]"; fi
+				printf "Checking Inbound Debug Rules				"
+				if iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null; then $grn "[Passed]"; elif [ "$debugmode" = "disabled" ] || [ "$filtertraffic" = "outbound" ]; then $ylow "[Disabled]"; else $red "[Failed]"; fi				
 				printf "Checking Outbound Filter Rules...			"
 				if iptables -t raw -C PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null; then $grn "[Passed]"; elif [ "$filtertraffic" = "inbound" ]; then $ylow "[Disabled]"; else $red "[Failed]"; fi
+				printf "Checking Outbound Debug Rules				"
+				if iptables -t raw -C PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null; then $grn "[Passed]"; elif [ "$debugmode" = "disabled" ] || [ "$filtertraffic" = "inbound" ]; then $ylow "[Disabled]"; else $red "[Failed]"; fi
 				printf "Checking Whitelist IPSet...				"
 				if ipset -L -n Skynet-Whitelist >/dev/null 2>&1; then $grn "[Passed]"; else $red "[Failed]"; fi
 				printf "Checking BlockedRanges IPSet...				"
@@ -2728,6 +2727,7 @@ case "$1" in
 		skynetcfg="${device}/skynet/skynet.cfg"
 		touch "${device}/skynet/events.log"
 		touch "${device}/skynet/skynet.log"
+		[ -z "$(nvram get odmpid)" ] && model="$(nvram get productid)" || model="$(nvram get odmpid)"
 		Write_Config
 		cmdline="sh /jffs/scripts/firewall start skynetloc=${device}/skynet # Skynet Firewall Addition"
 		if grep -E "sh /jffs/scripts/firewall .* # Skynet" /jffs/scripts/firewall-start 2>/dev/null | grep -qvE "^#"; then
