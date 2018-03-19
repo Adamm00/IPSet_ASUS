@@ -2006,7 +2006,7 @@ case "$1" in
 	update)
 		Check_Lock "$@"
 		trap '' 2
-		remoteurl="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/v6/firewall.sh"
+		remoteurl="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh"
 		/usr/sbin/curl -fsL --retry 3 "$remoteurl" | grep -qF "Adamm" || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Update"; exit 1; }
 		remotever="$(/usr/sbin/curl -fsL --retry 3 "$remoteurl" | Filter_Version)"
 		if [ "$localver" = "$remotever" ] && [ "$2" != "-f" ]; then
