@@ -2228,8 +2228,7 @@ case "$1" in
 				rm -rf /tmp/skynet.lock
 			;;
 			restore)
-				if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
-				Purge_Logs				
+				if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi				
 				Check_Lock "$@"
 				backuplocation="$skynetloc/Skynet-Backup.tar.gz"
 				if [ ! -f "$backuplocation" ]; then
@@ -2248,13 +2247,10 @@ case "$1" in
 				echo "Restoring Skynet Backup..."
 				echo
 				Purge_Logs
-				mkdir -p /tmp/skynetbackup
+				Unload_IPTables
+				Unload_DebugIPTables
+				Unload_IPSets
 				tar -xzvf "$backuplocation" -C "$skynetloc"
-				ipset flush Skynet-Blacklist
-				ipset flush Skynet-BlockedRanges
-				ipset flush Skynet-Whitelist
-				ipset flush Skynet-Master
-				ipset restore -! -f "$skynetipset"
 				echo
 				echo "Backup Restored"
 				echo "Restarting Firewall Service"
