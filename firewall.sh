@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 19/03/2018 -		   Asus Firewall Addition By Adamm v6.0.0				    #
+## - 20/03/2018 -		   Asus Firewall Addition By Adamm v6.0.1				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -211,7 +211,7 @@ Unload_IPTables () {
 		iptables -D logdrop -i "$iface" -m state --state INVALID -m recent --update --seconds 300 --hitcount 2 --name TRACKINVALID --rsource -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 		iptables -D logdrop -i "$iface" -m recent --set --name TRACKINVALID --rsource 2>/dev/null
 		iptables -D logdrop -i "$iface" -p tcp -m multiport --sports 80,443,143,993,110,995,25,465 -m state --state INVALID -j DROP 2>/dev/null
-		iptables -D logdrop -i "$iface" -m set --match-set Whitelist src -j ACCEPT 2>/dev/null
+		iptables -D logdrop -i "$iface" -m set --match-set Skynet-Whitelist src -j ACCEPT 2>/dev/null
 		iptables -D logdrop -p tcp --tcp-flags ALL RST,ACK -j ACCEPT 2>/dev/null
 		iptables -D logdrop -p tcp --tcp-flags ALL RST -j ACCEPT 2>/dev/null
 		iptables -D logdrop -p tcp --tcp-flags ALL FIN,ACK -j ACCEPT 2>/dev/null
