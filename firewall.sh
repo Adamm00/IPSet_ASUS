@@ -1984,8 +1984,7 @@ case "$1" in
 		echo "Restarting Firewall Service"
 		iptables -t raw -F
 		service restart_firewall
-		if [ -n "$reloadmenu" ]; then sleep 2; fi
-		nolog="2"
+		exit 0
 	;;
 
 	disable)
@@ -2152,7 +2151,7 @@ case "$1" in
 							Unload_DebugIPTables
 							Unload_IPSets
 							service restart_firewall
-							nolog="2"
+							exit 0
 						else
 							echo "Pre-existing SWAP File Detected - Exiting!"
 						fi
@@ -2174,7 +2173,7 @@ case "$1" in
 							Unload_DebugIPTables
 							Unload_IPSets
 							service restart_firewall
-							nolog="2"
+							exit 0
 						else
 							echo "Unable To Remove Existing SWAP File - Please Remove Manually"
 							echo
@@ -2227,7 +2226,7 @@ case "$1" in
 				echo "Backup Restored"
 				echo "Restarting Firewall Service"
 				service restart_firewall
-				nolog="2"
+				exit 0
 			;;
 			*)
 				echo "Command Not Recognized, Please Try Again"
@@ -2727,8 +2726,9 @@ case "$1" in
 		Unload_DebugIPTables
 		Unload_IPSets
 		iptables -t raw -F
+		Write_Config
 		service restart_firewall
-		nolog="2"
+		exit 0
 	;;
 
 	uninstall)
