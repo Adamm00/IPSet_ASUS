@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 20/03/2018 -		   Asus Firewall Addition By Adamm v6.0.2				    #
+## - 21/03/2018 -		   Asus Firewall Addition By Adamm v6.0.3				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -2241,6 +2241,7 @@ case "$1" in
 
 	stats)
 		Purge_Logs
+		nocfg="1"
 		if [ "$debugmode" = "disabled" ]; then
 			echo
 			$red "!!! Debug Mode Is Disabled !!!"
