@@ -98,10 +98,6 @@ if [ ! -d "$skynetloc" ] && ! echo "$@" | grep -wqE "(install|uninstall|disable|
 	fi
 fi
 
-if [ -f "$skynetcfg" ]; then
-	. "$skynetcfg"
-fi
-
 if [ "$(nvram get wan0_proto)" = "pppoe" ] || [ "$(nvram get wan0_proto)" = "pptp" ] || [ "$(nvram get wan0_proto)" = "l2tp" ]; then
 	iface="ppp0"
 else
@@ -120,7 +116,7 @@ Kill_Lock () {
 
 Check_Settings () {
 		if [ ! -f "$skynetcfg" ]; then
-			logger -st Skynet "[ERROR] Installation Not Detected - Please Use ( sh $0 install ) To Continue"
+			logger -st Skynet "[ERROR] Configuration Not Detected - Please Use ( sh $0 install ) To Continue"
 			exit 1
 		fi
 
@@ -323,7 +319,7 @@ Filter_PrivateDST () {
 }
 
 Save_IPSets () {
-		if ipset -q -n -L Skynet-Whitelist >/dev/null 2>&1; then
+		if Check_Status; then
 			echo "Saving Changes"
 			{ ipset save Skynet-Whitelist; ipset save Skynet-Blacklist; ipset save Skynet-BlockedRanges; ipset save Skynet-Master; } > "$skynetipset" 2>/dev/null
 		fi
@@ -635,6 +631,7 @@ Write_Config () {
 ####################################################################################################################################################
 
 Load_Menu () {
+	. "$skynetcfg"
 	echo "Router Model; $model"
 	echo "Skynet Version; $localver ($(Filter_Date "$0"))"
 	echo "$(iptables --version) - ($iface @ $(nvram get lan_ipaddr))"
@@ -649,8 +646,8 @@ Load_Menu () {
 	unset "lockedwarning"
 	echo
 	if ! grep -E "start.* # Skynet" /jffs/scripts/firewall-start 2>/dev/null | grep -qvE "^#"; then printf "Checking Firewall-Start Entry...			"; $red "[Failed]"; fi
-	if ! iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j DROP 2>/dev/null || \
-	! iptables -t raw -C PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null; then printf "Checking Skynet IPTable...				"; $red "[Failed]"; nolog="1"; fi
+	if ! iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j DROP 2>/dev/null && [ "$filtertraffic" != "outbound" ]; then printf "Checking Inbound Filter Rules...			"; $red "[Failed]"; nolog="1"; fi
+	if ! iptables -t raw -C PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null && [ "$filtertraffic" != "inbound" ]; then printf "Checking Outbound Filter Rules...			"; $red "[Failed]"; nolog="1"; fi
 	if ! ipset -L -n Skynet-Whitelist >/dev/null 2>&1; then printf "Checking Whitelist IPSet...				"; $red "[Failed]"; nolog="1"; fi
 	if ! ipset -L -n Skynet-BlockedRanges >/dev/null 2>&1; then printf "Checking BlockedRanges IPSet...				"; $red "[Failed]"; nolog="1"; fi
 	if ! ipset -L -n Skynet-Blacklist >/dev/null 2>&1; then printf "Checking Blacklist IPSet...				"; $red "[Failed]"; nolog="1"; fi
@@ -1556,6 +1553,10 @@ fi
 if [ -n "$option1" ]; then
 	set "$option1" "$option2" "$option3" "$option4" "$option5"
 	stime="$(date +%s)"
+fi
+
+if [ -f "$skynetcfg" ]; then
+	. "$skynetcfg"
 fi
 
 case "$1" in
