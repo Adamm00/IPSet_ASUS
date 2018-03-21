@@ -125,7 +125,7 @@ Check_Settings () {
 			logger -st Skynet "[ERROR] $(/usr/bin/find /jffs /tmp/mnt | grep -E "$conflicting_scripts" | xargs) Detected - This Script Will Cause Conflicts! Please Uninstall It ASAP"
 		fi
 
-		if ! grep -F "swapon" /jffs/scripts/post-mount | grep -qvE "^#"; then
+		if ! grep -F "swapon" /jffs/scripts/post-mount | grep -qvE "^#" && ! grep -F "swap" /jffs/configs/fstab 2>/dev/null | grep -qvE "^#"; then
 			logger -st Skynet "[ERROR] Skynet Requires A SWAP File - Install One By Running ( $0 debug swap install )"
 			exit 1
 		fi
@@ -566,7 +566,7 @@ Logging () {
 		if [ "$1" = "minimal" ]; then
 			$grn "$blacklist1count IPs / $blacklist2count Ranges Banned. $((blacklist1count - oldips)) New IPs / $((blacklist2count - oldranges)) New Ranges Banned. $hits1 Inbound / $hits2 Outbound Connections Blocked!"
 		else
-			logger -st Skynet "[Complete] $blacklist1count IPs / $blacklist2count Ranges Banned. $((blacklist1count - oldips)) New IPs / $((blacklist2count - oldranges)) New Ranges Banned. $hits1 Inbound / $hits2 Outbound Connections Blocked! [${ftime}s]"
+			logger -st Skynet "[Complete] $blacklist1count IPs / $blacklist2count Ranges Banned. $((blacklist1count - oldips)) New IPs / $((blacklist2count - oldranges)) New Ranges Banned. $hits1 Inbound / $hits2 Outbound Connections Blocked! [$1] [${ftime}s]"
 		fi
 }
 
@@ -2687,7 +2687,7 @@ case "$1" in
 		done
 		echo
 		echo
-		if ! grep -F "swapon" /jffs/scripts/post-mount | grep -qvE "^#"; then Create_Swap; fi
+		if ! grep -F "swapon" /jffs/scripts/post-mount | grep -qvE "^#" && ! grep -F "swap" /jffs/configs/fstab 2>/dev/null | grep -qvE "^#"; then Create_Swap; fi
 		if [ -n "$forceupgrade" ]; then Upgrade_v6; fi
 		if [ -f "$skynetlog" ]; then mv "$skynetlog" "${device}/skynet/skynet.log"; fi
 		if [ -f "$skynetevents" ]; then mv "$skynetevents" "${device}/skynet/events.log"; fi
@@ -2819,7 +2819,7 @@ case "$1" in
 
 esac
 
-if [ "$nolog" != "2" ]; then Logging; echo; fi
+if [ "$nolog" != "2" ]; then Logging "$@"; echo; fi
 if [ "$nocfg" != "1" ]; then Write_Config; fi
 if [ -f "/tmp/skynet.lock" ] && [ "$$" = "$(sed -n '2p' /tmp/skynet.lock)" ]; then rm -rf "/tmp/skynet.lock"; fi
 if [ -n "$reloadmenu" ]; then echo; echo; printf "Press Enter To Continue..."; read -r "continue"; exec "$0"; fi
