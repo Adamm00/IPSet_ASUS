@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 21/03/2018 -		   Asus Firewall Addition By Adamm v6.0.3				    #
+## - 22/03/2018 -		   Asus Firewall Addition By Adamm v6.0.3				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -2265,7 +2265,7 @@ case "$1" in
 		case "$2" in
 			reset)
 				sed -i '\~BLOCKED - .*BOUND~d' "$skynetlog"
-				sed -i '\~Skynet: \[Complete\]~d' "$skynetevents"
+				sed -i '\~Skynet: \[Complete\]~d' "$skynetevents" "/tmp/syslog.log-1" "/tmp/syslog.log" 2>/dev/null
 				iptables -Z PREROUTING -t raw
 				echo "Stat Data Reset"
 			;;
@@ -2320,7 +2320,8 @@ case "$1" in
 					malware)
 						Check_Lock "$@"
 						if ! echo "$4" | Is_IP && ! echo "$4" | Is_Range ; then echo "$4 Is Not A Valid IP/Range"; echo; exit 2; fi
-						/usr/sbin/curl -fsL --retry 3 https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/filter.list -o /jffs/shared-Skynet-whitelist
+						if [ -n "$customlisturl" ]; then listurl="$customlisturl"; else listurl="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/filter.list"; fi
+						/usr/sbin/curl -fsL --retry 3 "$listurl" -o /jffs/shared-Skynet-whitelist
 						mkdir -p /tmp/skynet
 						cwd="$(pwd)"
 						cd /tmp/skynet || exit 1
