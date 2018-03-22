@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 22/03/2018 -		   Asus Firewall Addition By Adamm v6.0.3				    #
+## - 23/03/2018 -		   Asus Firewall Addition By Adamm v6.0.4				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -1728,7 +1728,7 @@ case "$1" in
 		/usr/sbin/curl -fsL --retry 3 "$listurl" >/dev/null 2>&1 || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Banmalware" ; exit 1; }
 		btime="$(date +%s)" && printf "Downloading filter.list 	"
 		/usr/sbin/curl -fsL --retry 3 "$listurl" | dos2unix > /jffs/shared-Skynet-whitelist && $grn "[$(($(date +%s) - btime))s]"
-		if [ "$(wc -l < /jffs/shared-Skynet-whitelist)" = "0" ]; then echo >> /jffs/shared-Skynet-whitelist; fi
+		echo >> /jffs/shared-Skynet-whitelist
 		btime="$(date +%s)" && printf "Refreshing Whitelists		"
 		Whitelist_Extra
 		Whitelist_CDN
@@ -2322,6 +2322,7 @@ case "$1" in
 						if ! echo "$4" | Is_IP && ! echo "$4" | Is_Range ; then echo "$4 Is Not A Valid IP/Range"; echo; exit 2; fi
 						if [ -n "$customlisturl" ]; then listurl="$customlisturl"; else listurl="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/filter.list"; fi
 						/usr/sbin/curl -fsL --retry 3 "$listurl" -o /jffs/shared-Skynet-whitelist
+						echo >> /jffs/shared-Skynet-whitelist
 						mkdir -p /tmp/skynet
 						cwd="$(pwd)"
 						cd /tmp/skynet || exit 1
@@ -2332,12 +2333,14 @@ case "$1" in
 						dos2unix /tmp/skynet/*
 						cd "$cwd" || exit 1
 						$red "Exact Matches;"
-						grep -E "^$4$" /tmp/skynet/[!"telemetry.list"]* | cut -d '/' -f4- | sed 's~:~ - ~g;s~^~https://iplists.firehol.org/files/~'
-						grep -HE "^$4$" /tmp/skynet/telemetry.list | cut -d '/' -f4- | sed 's~:~ - ~g;s~^~https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/~'
+						grep -HE "^$4$" /tmp/skynet/* | cut -d '/' -f4- | while IFS= read -r "list"; do
+							echo "$(grep -F "$(echo "$list" | cut -d ':' -f1)" /jffs/shared-Skynet-whitelist) - $(echo "$list" | cut -d ':' -f2-)"
+						done
 						echo;echo
 						$red "Possible CIDR Matches;"
-						grep -E "^$(echo "$4" | cut -d '.' -f1-3)..*/" /tmp/skynet/[!"telemetry.list"]* | cut -d '/' -f4- | sed 's~:~ - ~g;s~^~https://iplists.firehol.org/files/~'
-						grep -HE "^$(echo "$4" | cut -d '.' -f1-3)..*/" /tmp/skynet/telemetry.list | cut -d '/' -f4- | sed 's~:~ - ~g;s~^~https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/~'
+						grep -HE "^$(echo "$4" | cut -d '.' -f1-3)..*/" /tmp/skynet/* | cut -d '/' -f4- | while IFS= read -r "list"; do
+							echo "$(grep -F "$(echo "$list" | cut -d ':' -f1)" /jffs/shared-Skynet-whitelist) - $(echo "$list" | cut -d ':' -f2-)"
+						done
 						echo
 						rm -rf /tmp/skynet
 					;;
