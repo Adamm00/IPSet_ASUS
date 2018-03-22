@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 23/03/2018 -		   Asus Firewall Addition By Adamm v6.0.4				    #
+## - 22/03/2018 -		   Asus Firewall Addition By Adamm v6.0.3				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -1738,7 +1738,7 @@ case "$1" in
 		mkdir -p /tmp/skynet
 		cwd="$(pwd)"
 		cd /tmp/skynet || exit 1
-		while IFS= read -r "domain"; do
+		while IFS= read -r "domain" && [ -n "$domain" ]; do
 			/usr/sbin/curl -fsL --retry 3 "$domain" -O &
 		done < /jffs/shared-Skynet-whitelist
 		wait
@@ -2326,7 +2326,7 @@ case "$1" in
 						mkdir -p /tmp/skynet
 						cwd="$(pwd)"
 						cd /tmp/skynet || exit 1
-						while IFS= read -r "domain"; do
+						while IFS= read -r "domain" && [ -n "$domain" ]; do
 							/usr/sbin/curl -fsL --retry 3 "$domain" -O &
 						done < /jffs/shared-Skynet-whitelist
 						wait
