@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 23/03/2018 -		   Asus Firewall Addition By Adamm v6.0.4				    #
+## - 24/03/2018 -		   Asus Firewall Addition By Adamm v6.0.4				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -1816,7 +1816,7 @@ case "$1" in
 						sed "\\~add Skynet-Whitelist ~!d;\\~$4~!d;s~ comment.*~~;s~add~del~g" "$skynetipset" | ipset restore -!
 						sed "\\~add Skynet-Whitelist ~!d;\\~$4~!d" "$skynetipset" | awk '{print $3}' > /tmp/ip.list
 						while read -r ip; do
-							sed -i "\\~=$ip ~d" "$skynetlog"
+							sed -i "\\~=$ip ~d" "$skynetlog" "$skynetevents"
 						done < /tmp/ip.list
 						rm -rf /tmp/ip.list
 					;;
