@@ -13,7 +13,7 @@ To open the menu its as simple as;
 
 ```sh /jffs/scripts/firewall```
 
-[![Skynet GUI](https://i.imgur.com/ePWc8rj.png "Skynet GUI")](https://i.imgur.com/ePWc8rj.png "Skynet GUI")
+[![Skynet GUI](https://i.imgur.com/wyTf0r9.png "Skynet GUI")](https://i.imgur.com/wyTf0r9.png "Skynet GUI")
 
 To use the CLI, execute the following;
 
@@ -25,7 +25,7 @@ To use the CLI, execute the following;
     "whitelist"    # <-- Add Entry To Whitelist (IP/Range/Domain/Port/VPN/Remove/Refresh/List)
     "import"       # <-- Bans All IPs From URL/Local File
     "deport"       # <-- Unbans All IPs From URL/Local File
-    "save"         # <-- Save Blacklists To ipset.txt
+    "save"         # <-- Save Blacklists To skynet.ipset
     "restart"      # <-- Restart Skynet
     "disable"      # <-- Temporarily Disable Skynet
     "update"       # <-- Update Script To Latest Version (check github for changes)
@@ -84,10 +84,10 @@ Here Are Some Example Whitelist Commands;
 (sh /jffs/scripts/firewall whitelist list domains ) List Manually Added Domain Entries
 
 Here Are Some Example Import Commands;
-(sh /jffs/scripts/firewall import file) This Bans All IPs From URL/Local File
+(sh /jffs/scripts/firewall import file.txt) This Bans All IPs From URL/Local File
 
 Here Are Some Example Deport Commands;
-(sh /jffs/scripts/firewall deport file) This Unbans All IPs From URL/Local File
+(sh /jffs/scripts/firewall deport file.txt) This Unbans All IPs From URL/Local File
 
 Here Are Some Example Update Commands;
 (sh /jffs/scripts/firewall update) Standard Update Check - If Nothing Detected Exit
@@ -101,8 +101,8 @@ Here Are Some Example Debug Commands;
 (sh /jffs/scripts/firewall debug clean) Cleanup Syslog Entries
 (sh /jffs/scripts/firewall debug swap install) Install SWAP File
 (sh /jffs/scripts/firewall debug swap uninstall) Uninstall SWAP File
-(sh /jffs/scripts/firewall debug backup) Backup Skynet Files To "/jffs/Skynet-Backup.tar.gz"
-(sh /jffs/scripts/firewall debug restore) Restore Backup Files From "/jffs/Skynet-Backup.tar.gz"
+(sh /jffs/scripts/firewall debug backup) Backup Skynet Files To Skynets Install Directory With The Name "Skynet-Backup.tar.gz"
+(sh /jffs/scripts/firewall debug restore) Restore Backup Files From Skynets Install Directory With The Name "Skynet-Backup.tar.gz"
 
 Here Are Some Example Stats Commands;
 (sh /jffs/scripts/firewall stats) Compile Stats With Default Top10 Output
