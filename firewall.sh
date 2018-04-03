@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 24/03/2018 -		   Asus Firewall Addition By Adamm v6.0.4				    #
+## - 04/04/2018 -		   Asus Firewall Addition By Adamm v6.1.0				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -130,6 +130,14 @@ Check_Settings () {
 			exit 1
 		fi
 
+		if echo "$localver" | grep -qF "v6.0."; then
+			nvram set fw_log_x=none
+			nvram commit
+			iptables -D logdrop -m state --state NEW -j LOG --log-prefix "DROP " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
+			ip6tables -D logdrop -m state --state NEW -j LOG --log-prefix "DROP " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
+			sed -i '\~DROP IN=~d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null
+		fi
+
 		localver="$(Filter_Version "$0")"
 
 		if [ "$banmalwareupdate" = "daily" ]; then
@@ -155,10 +163,6 @@ Check_Settings () {
 
 		if [ "$(nvram get fw_enable_x)" != "1" ]; then
 			nvram set fw_enable_x=1
-		fi
-
-		if [ "$(nvram get fw_log_x)" != "drop" ] && [ "$(nvram get fw_log_x)" != "both" ]; then
-			nvram set fw_log_x=drop
 		fi
 
 		if [ -f "$(/usr/bin/find /mnt/*/adblocking/.config/ab-solution.cfg 2>/dev/null)" ]; then
@@ -199,21 +203,8 @@ Check_Status () {
 }
 
 Unload_IPTables () {
-		iptables -D logdrop -m state --state NEW -j LOG --log-prefix "DROP " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
-		ip6tables -D logdrop -m state --state NEW -j LOG --log-prefix "DROP " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 		iptables -t raw -D PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j DROP 2>/dev/null
 		iptables -t raw -D PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null
-		iptables -D logdrop -i "$iface" -m state --state INVALID -m recent --update --seconds 300 --hitcount 2 --name TRACKINVALID --rsource -j SET --add-set Skynet-Master src 2>/dev/null
-		iptables -D logdrop -i "$iface" -m state --state INVALID -m recent --update --seconds 300 --hitcount 2 --name TRACKINVALID --rsource -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
-		iptables -D logdrop -i "$iface" -m recent --set --name TRACKINVALID --rsource 2>/dev/null
-		iptables -D logdrop -i "$iface" -p tcp -m multiport --sports 80,443,143,993,110,995,25,465 -m state --state INVALID -j DROP 2>/dev/null
-		iptables -D logdrop -i "$iface" -m set --match-set Skynet-Whitelist src -j ACCEPT 2>/dev/null
-		iptables -D logdrop -p tcp --tcp-flags ALL RST,ACK -j ACCEPT 2>/dev/null
-		iptables -D logdrop -p tcp --tcp-flags ALL RST -j ACCEPT 2>/dev/null
-		iptables -D logdrop -p tcp --tcp-flags ALL FIN,ACK -j ACCEPT 2>/dev/null
-		iptables -D logdrop -p tcp --tcp-flags ALL ACK,PSH,FIN -j ACCEPT 2>/dev/null
-		iptables -D logdrop -p icmp --icmp-type 3 -j ACCEPT 2>/dev/null
-		iptables -D logdrop -p icmp --icmp-type 11 -j ACCEPT 2>/dev/null
 		iptables -D SSHBFP -m recent --update --seconds 60 --hitcount 4 --name SSH --rsource -j SET --add-set Skynet-Blacklist src 2>/dev/null
 		iptables -D SSHBFP -m recent --update --seconds 60 --hitcount 4 --name SSH --rsource -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 }
@@ -225,24 +216,10 @@ Load_IPTables () {
 		if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "outbound" ]; then
 			iptables -t raw -I PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null
 		fi
-		if [ "$autoban" = "enabled" ]; then
-			iptables -I logdrop -p tcp --tcp-flags ALL RST,ACK -j ACCEPT 2>/dev/null
-			iptables -I logdrop -p tcp --tcp-flags ALL RST -j ACCEPT 2>/dev/null
-			iptables -I logdrop -p tcp --tcp-flags ALL FIN,ACK -j ACCEPT 2>/dev/null
-			iptables -I logdrop -p tcp --tcp-flags ALL ACK,PSH,FIN -j ACCEPT 2>/dev/null
-			iptables -I logdrop -p icmp --icmp-type 3 -j ACCEPT 2>/dev/null
-			iptables -I logdrop -p icmp --icmp-type 11 -j ACCEPT 2>/dev/null
-			iptables -I logdrop -i "$iface" -p tcp -m multiport --sports 80,443,143,993,110,995,25,465 -m state --state INVALID -j DROP 2>/dev/null
-			iptables -I logdrop -i "$iface" -m set --match-set Skynet-Whitelist src -j ACCEPT 2>/dev/null
-			pos1="$(($(iptables --line -nL logdrop | wc -l)-2))"
-			iptables -I logdrop "$pos1" -i "$iface" -m state --state INVALID -m recent --update --seconds 300 --hitcount 2 --name TRACKINVALID --rsource -j SET --add-set Skynet-Master src 2>/dev/null
-			iptables -I logdrop "$pos1" -i "$iface" -m state --state INVALID -m recent --update --seconds 300 --hitcount 2 --name TRACKINVALID --rsource -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
-			iptables -I logdrop "$pos1" -i "$iface" -m recent --set --name TRACKINVALID --rsource 2>/dev/null
-		fi
 		if [ "$(nvram get sshd_enable)" = "1" ] && [ "$(nvram get sshd_bfp)" = "1" ]; then
-			pos2="$(iptables --line -nL SSHBFP | grep -F "seconds: 60 hit_count: 4" | grep -F "logdrop" | awk '{print $1}')"
-			iptables -I SSHBFP "$pos2" -m recent --update --seconds 60 --hitcount 4 --name SSH --rsource -j SET --add-set Skynet-Master src 2>/dev/null
-			iptables -I SSHBFP "$pos2" -m recent --update --seconds 60 --hitcount 4 --name SSH --rsource -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
+			pos1="$(iptables --line -nL SSHBFP | grep -F "seconds: 60 hit_count: 4" | grep -E 'DROP|logdrop' | awk '{print $1}')"
+			iptables -I SSHBFP "$pos1" -m recent --update --seconds 60 --hitcount 4 --name SSH --rsource -j SET --add-set Skynet-Master src 2>/dev/null
+			iptables -I SSHBFP "$pos1" -m recent --update --seconds 60 --hitcount 4 --name SSH --rsource -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 		fi
 }
 
@@ -254,8 +231,8 @@ Unload_DebugIPTables () {
 Load_DebugIPTables () {
 		if [ "$debugmode" = "enabled" ]; then
 			if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "inbound" ]; then
-				pos3="$(iptables --line -nL PREROUTING -t raw | grep -F "Skynet-Master src" | grep -F "DROP" | awk '{print $1}')"
-				iptables -t raw -I PREROUTING "$pos3" -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
+				pos2="$(iptables --line -nL PREROUTING -t raw | grep -F "Skynet-Master src" | grep -F "DROP" | awk '{print $1}')"
+				iptables -t raw -I PREROUTING "$pos2" -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 			fi
 			if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "outbound" ]; then
 				pos4="$(iptables --line -nL PREROUTING -t raw | grep -F "Skynet-Master dst" | grep -F "DROP" | awk '{print $1}')"
@@ -613,7 +590,6 @@ Write_Config () {
 	echo "model=\"$model\""
 	echo "localver=\"$localver\""
 	echo "autoupdate=\"$autoupdate\""
-	echo "autoban=\"$autoban\""
 	echo "banmalwareupdate=\"$banmalwareupdate\""
 	echo "forcebanmalwareupdate=\"$forcebanmalwareupdate\""
 	echo "debugmode=\"$debugmode\""
@@ -690,13 +666,11 @@ Load_Menu () {
 					echo "[1]  --> IP"
 					echo "[2]  --> Range"
 					echo "[3]  --> Domain"
-					echo "[4]  --> Port"
-					echo "[5]  --> Comment"
-					echo "[6]  --> Country"
-					echo "[7]  --> Malware"
-					echo "[8]  --> Autobans"
-					echo "[9]  --> Non Manual Bans"
-					echo "[10] --> All"
+					echo "[4]  --> Comment"
+					echo "[5]  --> Country"
+					echo "[6]  --> Malware"
+					echo "[7]  --> Non Manual Bans"
+					echo "[8] --> All"
 					echo
 					printf "[1-10]: "
 					read -r "menu2"
@@ -733,16 +707,6 @@ Load_Menu () {
 							break
 						;;
 						4)
-							option2="port"
-							echo "Remove Autobans Based On Port:"
-							echo
-							printf "[Port]: "
-							read -r "option3"
-							echo
-							if ! echo "$option3" | Is_Port || [ "$option3" -gt "65535" ]; then echo "$option3 Is Not A Valid Port"; echo; unset "option2" "option3"; continue; fi
-							break
-						;;
-						5)
 							option2="comment"
 							echo "Remove Bans Matching Comment:"
 							echo
@@ -752,23 +716,19 @@ Load_Menu () {
 							if [ "${#option3}" -gt "255" ]; then echo "$option3 Is Not A Valid Comment. 255 Chars Max"; echo; unset "option2" "option3"; continue; fi
 							break
 						;;
-						6)
+						5)
 							option2="country"
 							break
 						;;
-						7)
+						6)
 							option2="malware"
 							break
 						;;
-						8)
-							option2="autobans"
-							break
-						;;
-						9)
+						7)
 							option2="nomanual"
 							break
 						;;
-						10)
+						8)
 							option2="all"
 							break
 						;;
@@ -915,11 +875,10 @@ Load_Menu () {
 					echo "Select Whitelist Option:"
 					echo "[1]  --> IP/Range"
 					echo "[2]  --> Domain"
-					echo "[3]  --> Port"
-					echo "[4]  --> Refresh VPN Whitelist"
-					echo "[5]  --> Remove Entries"
-					echo "[6]  --> Refresh Entries"
-					echo "[7]  --> List Entries"
+					echo "[3]  --> Refresh VPN Whitelist"
+					echo "[4]  --> Remove Entries"
+					echo "[5]  --> Refresh Entries"
+					echo "[6]  --> List Entries"
 					echo
 					printf "[1-7]: "
 					read -r "menu2"
@@ -952,20 +911,10 @@ Load_Menu () {
 							break
 						;;
 						3)
-							option2="port"
-							echo "Whitelist Autobans Based On Port:"
-							echo
-							printf "[Port]: "
-							read -r "option3"
-							echo
-							if ! echo "$option3" | Is_Port || [ "$option3" -gt "65535" ]; then echo "$option3 Is Not A Valid Port"; echo; unset "option2" "option3"; continue; fi
-							break
-						;;
-						4)
 							option2="vpn"
 							break
 						;;
-						5)
+						4)
 							option2="remove"
 							while true; do
 								echo "Remove From Whitelist:"
@@ -1015,11 +964,11 @@ Load_Menu () {
 							done
 							break
 						;;
-						6)
+						5)
 							option2="refresh"
 							break
 						;;
-						7)
+						6)
 							option2="list"
 							while true; do
 								echo "Select Entries To List:"
@@ -1374,10 +1323,9 @@ Load_Menu () {
 								echo "[1]  --> Based On Port x"
 								echo "[2]  --> Entries From Specific IP"
 								echo "[3]  --> Search Malwarelists For IP"
-								echo "[4]  --> Search Autobans"
-								echo "[5]  --> Search Manualbans"
-								echo "[6]  --> Search For Outbound Entries From Local Device"
-								echo "[7]  --> Hourly Reports"
+								echo "[4]  --> Search Manualbans"
+								echo "[5]  --> Search For Outbound Entries From Local Device"
+								echo "[6]  --> Hourly Reports"
 								echo
 								printf "[1-7]: "
 								read -r "menu4"
@@ -1408,14 +1356,10 @@ Load_Menu () {
 										break
 									;;
 									4)
-										option3="autobans"
-										break
-									;;
-									5)
 										option3="manualbans"
 										break
 									;;
-									6)
+									5)
 										option3="device"
 										printf "[Local IP]: "
 										read -r "option4"
@@ -1423,7 +1367,7 @@ Load_Menu () {
 										if ! echo "$option4" | Is_IP; then echo "$option4 Is Not A Valid IP"; echo; unset "option3" "option4"; continue; fi
 										break
 									;;
-									7)
+									6)
 										option3="reports"
 										break
 									;;
@@ -1586,12 +1530,6 @@ case "$1" in
 					sed -i "\\~\\(BLOCKED.*=$ip \\|Manual Ban.*=$ip \\)~d" "$skynetlog" "$skynetevents"
 				done
 			;;
-			port)
-				if ! echo "$3" | Is_Port || [ "$3" -gt "65535" ]; then echo "$3 Is Not A Valid Port"; echo;  exit 2; fi
-				logger -st Skynet "[INFO] Unbanning Autobans Issued On Traffic From Source/Destination Port $3..."
-				grep -F "NEW" "$skynetlog" | grep -F "PT=$3 " | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | awk '{print "del Blacklist "$1}' | ipset restore -!
-				sed -i "/PT=${3} /d" "$skynetlog"
-			;;
 			comment)
 				if [ -z "$3" ]; then echo "Comment Field Can't Be Empty - Please Try Again"; echo; exit 2; fi
 				echo "Removing Bans With Comment Containing ($3)"
@@ -1610,14 +1548,6 @@ case "$1" in
 			malware)
 				echo "Removing Previous Malware Bans"
 				sed '\~add Skynet-Whitelist ~d;\~BanMalware~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
-			;;
-			autobans)
-				grep -F "NEW" "$skynetlog" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | tr -d " " | awk '{print "del Blacklist "$1}' | ipset restore -!
-				echo "Removing Old Logs - This May Take Awhile (To Skip Type ctrl+c)"
-				trap 'break; echo' 2
-				grep -F "NEW" "$skynetlog" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | tr -d " " | while IFS= read -r "ip"; do
-					sed -i "\\~\\(BLOCKED.*=$ip \\|Manual Ban.*=$ip \\)~d" "$skynetlog" "$skynetevents"
-				done
 			;;
 			nomanual)
 				sed -i '\~Manual ~!d' "$skynetlog"
@@ -1787,15 +1717,6 @@ case "$1" in
 				for ip in $(Domain_Lookup "$3"); do
 					echo "Whitelisting $ip"
 					ipset -A Skynet-Whitelist "$ip" comment "ManualWlistD: $3" && sed -i "\\~=$ip ~d" "$skynetlog" "$skynetevents" && echo "$(date +"%b %d %T") Skynet: [Manual Whitelist] TYPE=Domain SRC=$ip Host=$3 " >> "$skynetevents"
-					ipset -q -D Skynet-Blacklist "$ip"
-				done
-			;;
-			port)
-				if ! echo "$3" | Is_Port || [ "$3" -gt "65535" ]; then echo "$3 Is Not A Valid Port"; echo; exit 2; fi
-				logger -st Skynet "[INFO] Whitelisting Autobans Issued On Traffic From Port $3..."
-				grep -F "NEW" "$skynetlog" | grep -F "DPT=$3 " | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | while IFS= read -r "ip"; do
-					echo "Whitelisting $ip"
-					ipset -A Skynet-Whitelist "$ip" comment "ManualWlist: Port $3 Traffic" && sed -i "\\~=$ip ~d" "$skynetlog" "$skynetevents" && echo "$(date +"%b %d %T") Skynet: [Manual Whitelist] TYPE=Port SRC=$ip Host=$3 " >> "$skynetevents"
 					ipset -q -D Skynet-Blacklist "$ip"
 				done
 			;;
@@ -1969,7 +1890,6 @@ case "$1" in
 		Unload_DebugIPTables
 		Load_IPTables
 		Load_DebugIPTables
-		sed -i '\~DROP IN=~d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null
 		if [ "$forcebanmalwareupdate" = "true" ]; then Write_Config; rm -rf "/tmp/skynet.lock"; exec "$0" banmalware; fi
 	;;
 
@@ -2089,14 +2009,8 @@ case "$1" in
 				if [ -f /lib/modules/"$(uname -r)"/kernel/net/netfilter/ipset/ip_set_hash_ipmac.ko ]; then $grn "[Passed]"; else $red "[Failed]"; fi
 				printf "Checking Log Level %s Settings...			" "$(nvram get message_loglevel)"
 				if [ "$(nvram get message_loglevel)" -le "$(nvram get log_level)" ]; then $grn "[Passed]"; else $red "[Failed]"; fi
-				printf "Checking Autobanning Status...				"
-				if iptables -C logdrop -i "$iface" -m recent --set --name TRACKINVALID --rsource 2>/dev/null && \
-				iptables -C logdrop -i "$iface" -m state --state INVALID -m recent --update --seconds 300 --hitcount 2 --name TRACKINVALID --rsource -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null && \
-				iptables -C logdrop -i "$iface" -m state --state INVALID -m recent --update --seconds 300 --hitcount 2 --name TRACKINVALID --rsource -j SET --add-set Skynet-Master src 2>/dev/null; then $grn "[Passed]"; elif [ "$autoban" = "disabled" ]; then $ylow "[Disabled]"; else $red "[Failed]"; fi
 				printf "Checking For Duplicate Rules In RAW...			"
 				if [ "$(iptables-save -t raw | sort | uniq -d | grep -c " ")" = "0" ]; then $grn "[Passed]"; else $red "[Failed]"; fi
-				printf "Checking For Duplicate Rules In Filter...		"
-				if [ "$(iptables-save -t filter | grep -F "A logdrop" | sort | uniq -d | grep -c " ")" = "0" ]; then $grn "[Passed]"; else $red "[Failed]"; fi
 				printf "Checking Inbound Filter Rules...			"
 				if iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j DROP 2>/dev/null; then $grn "[Passed]";	elif [ "$filtertraffic" = "outbound" ]; then $ylow "[Disabled]"; else $red "[Failed]"; fi
 				printf "Checking Inbound Debug Rules				"
@@ -2278,7 +2192,6 @@ case "$1" in
 						echo "Port $4 Last Tracked On $(grep -F "PT=$4 " "$skynetlog" | tail -1 | awk '{print $1" "$2" "$3}')"
 						echo "$(grep -Foc "PT=$4 " "$skynetlog") Attempts Total"
 						echo "$(grep -F "PT=$4 " "$skynetlog" | grep -oE ' SRC=[0-9,\.]* ' | awk '!x[$0]++' | wc -l) Unique IPs"
-						echo "$(grep -F "PT=$4 " "$skynetlog" | grep -cF NEW) Autobans From This Port"
 						echo
 						$red "First Block Tracked On Port $4;"
 						grep -m1 -F "PT=$4 " "$skynetlog"
@@ -2344,17 +2257,6 @@ case "$1" in
 						done
 						echo
 						rm -rf /tmp/skynet
-					;;
-					autobans)
-						if [ "$4" -eq "$4" ] 2>/dev/null; then counter="$4"; fi
-						echo "First Autoban Issued On $(grep -m1 -F "NEW BAN" "$skynetlog" | awk '{print $1" "$2" "$3}')"
-						echo "Last Autoban Issued On $(grep -F "NEW BAN" "$skynetlog" | tail -1 | awk '{print $1" "$2" "$3}')"
-						echo
-						$red "First Autoban Issued;"
-						grep -m1 -F "NEW BAN" "$skynetlog"
-						echo
-						$red "$counter Most Recent Autobans;"
-						grep -F "NEW BAN" "$skynetlog" | tail -"$counter"
 					;;
 					manualbans)
 						if [ "$4" -eq "$4" ] 2>/dev/null; then counter="$4"; fi
@@ -2492,9 +2394,6 @@ case "$1" in
 		if [ "$(nvram get fw_enable_x)" != "1" ]; then
 			nvram set fw_enable_x=1
 		fi
-		if [ "$(nvram get fw_log_x)" != "drop" ] && [ "$(nvram get fw_log_x)" != "both" ]; then
-			nvram set fw_log_x=drop
-		fi
 		Check_Files
 		echo "Installing Skynet $(Filter_Version "$0")"
 		echo
@@ -2536,42 +2435,6 @@ case "$1" in
 				;;
 				*)
 					echo "$mode1 Isn't An Option!"
-					echo
-				;;
-			esac
-		done
-		echo
-		echo
-		while true; do
-			echo "Would You Like To Enable Autobanning?"
-			echo "Autobanning Uses The Routers SPI Firewall To Identify & Ban Malicious IP's"
-			echo "[1]  --> Yes"
-			echo "[2]  --> No"
-			echo
-			echo "[e]  --> Exit Menu"
-			echo
-			echo "Please Select Option"
-			printf "[1-2]: "
-			read -r "mode2"
-			echo
-			case "$mode2" in
-				1)
-					echo "Autobanning Enabled"
-					autoban="enabled"
-					break
-				;;
-				2)
-					echo "Autobanning Disabled"
-					autoban="disabled"
-					break
-				;;
-				e|exit)
-					echo "Exiting!"
-					echo
-					exit 0
-				;;
-				*)
-					echo "$mode2 Isn't An Option!"
 					echo
 				;;
 			esac
@@ -2795,7 +2658,6 @@ case "$1" in
 					Unload_IPTables
 					Unload_DebugIPTables
 					Unload_IPSets
-					nvram set fw_log_x=none
 					sed -i '\~ Skynet ~d' /jffs/scripts/firewall-start /jffs/scripts/services-stop
 					rm -rf "/jffs/shared-Skynet-whitelist" "/jffs/shared-Skynet2-whitelist" "/opt/bin/firewall" "$skynetloc" "/jffs/scripts/firewall" "/tmp/skynet.lock"
 					iptables -t raw -F

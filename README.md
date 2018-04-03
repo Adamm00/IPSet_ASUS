@@ -19,10 +19,10 @@ To use the CLI, execute the following;
 
 ```sh /jffs/scripts/firewall *commandhere*```
 
-    "unban"        # <-- Remove Entry From Blacklist (IP/Range/Domain/Port/Country/Malware/Autobans/Nomanual/All)
+    "unban"        # <-- Remove Entry From Blacklist (IP/Range/Domain/Country/Malware/Nomanual/All)
     "ban"          # <-- Adds Entry To Blacklist (IP/Range/Domain/Country)
     "banmalware"   # <-- Bans Various Malware Domains/IPs
-    "whitelist"    # <-- Add Entry To Whitelist (IP/Range/Domain/Port/VPN/Remove/Refresh/List)
+    "whitelist"    # <-- Add Entry To Whitelist (IP/Range/Domain/VPN/Remove/Refresh/List)
     "import"       # <-- Bans All IPs From URL/Local File
     "deport"       # <-- Unbans All IPs From URL/Local File
     "save"         # <-- Save Blacklists To skynet.ipset
@@ -50,11 +50,9 @@ Here Are Some Example Unban Commands;
 (sh /jffs/scripts/firewall unban ip 8.8.8.8) This Unbans The IP Specified
 (sh /jffs/scripts/firewall unban range 8.8.8.8/24) This Unbans the CIDR Block Specified
 (sh /jffs/scripts/firewall unban domain google.com) This Unbans the URL Specified
-(sh /jffs/scripts/firewall unban port 23) This Unbans All Autobans Based On Traffic From Port 23
 (sh /jffs/scripts/firewall unban comment "Apples") This Unbans Entries With Comment Containing The Word Apples
 (sh /jffs/scripts/firewall unban country) This Unbans Entries Added By The "Ban Country" Feature
 (sh /jffs/scripts/firewall unban malware) This Unbans Entries Added By The "Ban Malware" Feature
-(sh /jffs/scripts/firewall unban autobans) This Unbans All Autobans
 (sh /jffs/scripts/firewall unban nomanual) This Unbans Everything But Manual Bans
 (sh /jffs/scripts/firewall unban all) This Unbans All Entries From Both Blacklists
 
@@ -73,7 +71,6 @@ Here Are Some Example Whitelist Commands;
 (sh /jffs/scripts/firewall whitelist ip 8.8.8.8 Apples) This Whitelists The IP Specified With Comment Apples
 (sh /jffs/scripts/firewall whitelist range 8.8.8.8/24 Apples) This Whitelists The Range Specified With Comment Apples
 (sh /jffs/scripts/firewall whitelist domain google.com) This Whitelists the URL Specified
-(sh /jffs/scripts/firewall whitelist port 23) This Whitelists All Autobans Based On Traffic From Port 23
 (sh /jffs/scripts/firewall whitelist vpn) Refresh VPN Whitelist
 (sh /jffs/scripts/firewall whitelist remove all) This Removes All Non-Default Entries
 (sh /jffs/scripts/firewall whitelist remove entry 8.8.8.8) This Removes IP/Range Specified
@@ -114,7 +111,6 @@ Here Are Some Example Stats Commands;
 (sh /jffs/scripts/firewall stats search ip 8.8.8.8) Search All Debug Data For Entries On 8.8.8.8
 (sh /jffs/scripts/firewall stats search ip 8.8.8.8 20) Search All Debug Data For Entries On 8.8.8.8 With Customiseable Top20 Output
 (sh /jffs/scripts/firewall stats search malware 8.8.8.8) Search Malwarelists For Specified IP
-(sh /jffs/scripts/firewall stats search autobans) Search For All Autobans
 (sh /jffs/scripts/firewall stats search manualbans) Search For All Manual Bans
 (sh /jffs/scripts/firewall stats search device 192.168.1.134) Search For All Outbound Entries From Local Device 192.168.1.134
 (sh /jffs/scripts/firewall stats search device reports) Search Previous Hourly Report History
