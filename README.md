@@ -21,7 +21,7 @@ To use the CLI, execute the following;
 
     "unban"        # <-- Remove Entry From Blacklist (IP/Range/Domain/Country/Malware/Nomanual/All)
     "ban"          # <-- Adds Entry To Blacklist (IP/Range/Domain/Country)
-    "banmalware"   # <-- Bans Various Malware Domains/IPs
+    "banmalware"   # <-- Bans Various Malicious Domains/IPs
     "whitelist"    # <-- Add Entry To Whitelist (IP/Range/Domain/VPN/Remove/Refresh/List)
     "import"       # <-- Bans All IPs From URL/Local File
     "deport"       # <-- Unbans All IPs From URL/Local File
@@ -60,12 +60,14 @@ Here Are Some Example Ban Commands;
 (sh /jffs/scripts/firewall ban ip 8.8.8.8 Apples) This Bans The IP Specified With Comment Apples
 (sh /jffs/scripts/firewall ban range 8.8.8.8/24 Apples) This Bans the CIDR Block Specified With Comment Apples
 (sh /jffs/scripts/firewall ban domain google.com) This Bans the URL Specified
-(sh /jffs/scripts/firewall ban country "pk cn sa") This Bans The Known IPs For The Specified Countries (accepts single/multiple inputs if quoted) http://www.ipdeny.com/ipblocks/data/countries/
+(sh /jffs/scripts/firewall ban country "pk cn sa") This Bans The Known IPs For The Specified Countries (Accepts Single/Multiple Inputs If Quoted) http://www.ipdeny.com/ipblocks/data/countries/
 
 Here Are Some Example Banmalware Commands;
 (sh /jffs/scripts/firewall banmalware) This Bans IPs From The Predefined Filter List
 (sh /jffs/scripts/firewall banmalware google.com/filter.list) This Uses The Fitler List From The Specified URL
 (sh /jffs/scripts/firewall banmalware reset) This Will Reset Skynet Back To The Default Filter URL
+(sh /jffs/scripts/firewall banmalware exclude "list1.ipset|list2.ipset") This Will Exclude Lists Matching The Names "list1.ipset list2.ipset" From The Current Filter (Quotes And Pipes Are Nessessary For Seperating Multiple Entries!)
+(sh /jffs/scripts/firewall banmalware exclude reset) This Will Reset The Exclusion List
 
 Here Are Some Example Whitelist Commands;
 (sh /jffs/scripts/firewall whitelist ip 8.8.8.8 Apples) This Whitelists The IP Specified With Comment Apples
@@ -94,7 +96,7 @@ Here Are Some Example Update Commands;
 Here Are Some Example Debug Commands;
 (sh /jffs/scripts/firewall debug disable) Disable Raw Debugging
 (sh /jffs/scripts/firewall debug watch) Show Debug Entries As They Appear
-(sh /jffs/scripts/firewall debug info) Print Usefull Debug Info
+(sh /jffs/scripts/firewall debug info) Print Useful Debug Info
 (sh /jffs/scripts/firewall debug clean) Cleanup Syslog Entries
 (sh /jffs/scripts/firewall debug swap install) Install SWAP File
 (sh /jffs/scripts/firewall debug swap uninstall) Uninstall SWAP File
@@ -103,13 +105,13 @@ Here Are Some Example Debug Commands;
 
 Here Are Some Example Stats Commands;
 (sh /jffs/scripts/firewall stats) Compile Stats With Default Top10 Output
-(sh /jffs/scripts/firewall stats 20) Compile Stats With Customiseable Top20 Output
+(sh /jffs/scripts/firewall stats 20) Compile Stats With Customizable Top20 Output
 (sh /jffs/scripts/firewall stats tcp) Compile Stats Showing Only TCP Entries
-(sh /jffs/scripts/firewall stats tcp 20) Compile Stats Showing Only TCP Entries With Customiseable Top20 Output
+(sh /jffs/scripts/firewall stats tcp 20) Compile Stats Showing Only TCP Entries With Customizable Top20 Output
 (sh /jffs/scripts/firewall stats search port 23) Search All Debug Data For Entries On Port 23
-(sh /jffs/scripts/firewall stats search port 23 20) Search All Debug Data For Entries On Port 23 With Customiseable Top20 Output
+(sh /jffs/scripts/firewall stats search port 23 20) Search All Debug Data For Entries On Port 23 With Customizable Top20 Output
 (sh /jffs/scripts/firewall stats search ip 8.8.8.8) Search All Debug Data For Entries On 8.8.8.8
-(sh /jffs/scripts/firewall stats search ip 8.8.8.8 20) Search All Debug Data For Entries On 8.8.8.8 With Customiseable Top20 Output
+(sh /jffs/scripts/firewall stats search ip 8.8.8.8 20) Search All Debug Data For Entries On 8.8.8.8 With Customizable Top20 Output
 (sh /jffs/scripts/firewall stats search malware 8.8.8.8) Search Malwarelists For Specified IP
 (sh /jffs/scripts/firewall stats search manualbans) Search For All Manual Bans
 (sh /jffs/scripts/firewall stats search device 192.168.1.134) Search For All Outbound Entries From Local Device 192.168.1.134
@@ -120,13 +122,13 @@ Here Are Some Example Stats Commands;
 
 ### About
 
-```Skynet gained self-awareness after it had spread into millions of computer servers all across the world; realising the extent of its abilities, its creators tried to deactivate it. In the interest of self-preservation, Skynet concluded that all of humanity would attempt to destroy it and impede its capability in safeguarding the world. Its operations are almost exclusively performed by servers, mobile devices, drones, military satellites, war-machines, androids and cyborgs (usually a terminator), and other computer systems. As a programming directive, Skynet's manifestation is that of an overarching, global, artificial intelligence hierarchy (AI takeover), which seeks to exterminate the human race in order to fulfill the mandates of its original coding. (▀̿Ĺ̯▀̿ ̿)```
+```Skynet gained self-awareness after it had spread into millions of computer servers all across the world; realizing the extent of its abilities, its creators tried to deactivate it. In the interest of self-preservation, Skynet concluded that all of humanity would attempt to destroy it and impede its capability in safeguarding the world. Its operations are almost exclusively performed by servers, mobile devices, drones, military satellites, war-machines, androids and cyborgs (usually a terminator), and other computer systems. As a programming directive, Skynet's manifestation is that of an overarching, global, artificial intelligence hierarchy (AI takeover), which seeks to exterminate the human race in order to fulfill the mandates of its original coding. (▀̿Ĺ̯▀̿ ̿)```
 
 
 
 
 ## Donate
 
-Want to help support Skynet future developement? All donations are appreciated.
+Want to help support Skynet future development? All donations are appreciated.
 
 [Donate With PayPal](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=BPN4LTRZKDTML)

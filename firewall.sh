@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 07/04/2018 -		   Asus Firewall Addition By Adamm v6.1.1				    #
+## - 07/04/2018 -		   Asus Firewall Addition By Adamm v6.1.2				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -601,7 +601,8 @@ Write_Config () {
 	echo "blacklist1count=\"$blacklist1count\""
 	echo "blacklist2count=\"$blacklist2count\""
 	echo "customlisturl=\"$customlisturl\""
-	echo "countrylist=\"$countrylist\""; } > "$skynetcfg"
+	echo "countrylist=\"$countrylist\""
+	echo "excludelists=\"$excludelists\""; } > "$skynetcfg"
 }
 
 ####################################################################################################################################################
@@ -836,8 +837,10 @@ Load_Menu () {
 					echo "[1]  --> Update"
 					echo "[2]  --> Change Filter List"
 					echo "[3]  --> Reset Filter List"
+					echo "[4]  --> Exclude Individual Lists"
+					echo "[5]  --> Reset Exclusion List"
 					echo
-					printf "[1-3]: "
+					printf "[1-5]: "
 					read -r "menu2"
 					echo
 					case "$menu2" in
@@ -854,6 +857,22 @@ Load_Menu () {
 						;;
 						3)
 							option2="reset"
+							break
+						;;
+						4)
+							option2="exclude"
+							echo "Input Names Of Lists To Exclude Seperated By Pipes"
+							echo "Example - list1.ipset|list2.ipset|list3.ipset"
+							echo
+							printf "[Lists]: "
+							read -r "option3"
+							echo
+							if [ -z "$option3" ]; then echo "Exclusion List Can't Be Empty - Please Try Again"; echo; unset "option2" "option3"; continue; fi
+							break
+						;;
+						5)
+							option2="exclude"
+							option3="reset"
 							break
 						;;
 						e|exit|back|menu)
@@ -1641,6 +1660,16 @@ case "$1" in
 		trap '' 2
 		Check_Lock "$@"
 		Purge_Logs
+		if [ "$2" = "exclude" ]; then
+			if [ "$3" = "reset" ] || [ -z "$3" ]; then
+				echo "Exclusion List Reset"
+				unset "excludelists"
+			else
+				excludelists="$3"
+			fi
+			set "banmalware"
+		fi
+		if [ -n "$excludelists" ]; then echo "Excluding Lists Matching The Words; $excludelists"; fi
 		if [ "$2" = "reset" ]; then
 			echo "Filter URL Reset"
 			unset "customlisturl"
@@ -1648,18 +1677,22 @@ case "$1" in
 		if [ -n "$2" ] && [ "$2" != "reset" ]; then
 			customlisturl="$2"
 			listurl="$customlisturl"
-			echo "Custom List Detected: $customlisturl"
+			echo "Custom Filter Detected: $customlisturl"
 		else
 			if [ -n "$customlisturl" ]; then
 				listurl="$customlisturl"
-				echo "Custom List Detected: $customlisturl"
+				echo "Custom Filter Detected: $customlisturl"
 			else
 				listurl="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/filter.list"
 			fi
 		fi
 		/usr/sbin/curl -fsL --retry 3 "$listurl" >/dev/null 2>&1 || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Banmalware" ; exit 1; }
 		btime="$(date +%s)" && printf "Downloading filter.list 	"
-		/usr/sbin/curl -fsL --retry 3 "$listurl" | dos2unix > /jffs/shared-Skynet-whitelist && $grn "[$(($(date +%s) - btime))s]"
+		if [ -n "$excludelists" ]; then
+			/usr/sbin/curl -fsL --retry 3 "$listurl" | dos2unix | grep -vE "($excludelists)" > /jffs/shared-Skynet-whitelist && $grn "[$(($(date +%s) - btime))s]"
+		else
+			/usr/sbin/curl -fsL --retry 3 "$listurl" | dos2unix > /jffs/shared-Skynet-whitelist && $grn "[$(($(date +%s) - btime))s]"
+		fi
 		echo >> /jffs/shared-Skynet-whitelist
 		btime="$(date +%s)" && printf "Refreshing Whitelists		"
 		Whitelist_Extra
