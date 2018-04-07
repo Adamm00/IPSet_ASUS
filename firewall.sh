@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 04/04/2018 -		   Asus Firewall Addition By Adamm v6.1.0				    #
+## - 07/04/2018 -		   Asus Firewall Addition By Adamm v6.1.1				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -130,12 +130,8 @@ Check_Settings () {
 			exit 1
 		fi
 
-		if echo "$localver" | grep -qF "v6.0."; then
-			nvram set fw_log_x=none
-			nvram commit
-			iptables -D logdrop -m state --state NEW -j LOG --log-prefix "DROP " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
-			ip6tables -D logdrop -m state --state NEW -j LOG --log-prefix "DROP " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
-			sed -i '\~DROP IN=~d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null
+		if [ "$(nvram get fw_log_x)" != "drop" ] && [ "$(nvram get fw_log_x)" != "both" ]; then
+			nvram set fw_log_x=drop
 		fi
 
 		localver="$(Filter_Version "$0")"
@@ -207,6 +203,8 @@ Unload_IPTables () {
 		iptables -t raw -D PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null
 		iptables -D SSHBFP -m recent --update --seconds 60 --hitcount 4 --name SSH --rsource -j SET --add-set Skynet-Blacklist src 2>/dev/null
 		iptables -D SSHBFP -m recent --update --seconds 60 --hitcount 4 --name SSH --rsource -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
+		iptables -D logdrop -m state --state NEW -j LOG --log-prefix "DROP " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
+		ip6tables -D logdrop -m state --state NEW -j LOG --log-prefix "DROP " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 }
 
 Load_IPTables () {
@@ -226,6 +224,7 @@ Load_IPTables () {
 Unload_DebugIPTables () {
 		iptables -t raw -D PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 		iptables -t raw -D PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
+		iptables -D logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - INVALID] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 }
 
 Load_DebugIPTables () {
@@ -237,6 +236,9 @@ Load_DebugIPTables () {
 			if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "outbound" ]; then
 				pos4="$(iptables --line -nL PREROUTING -t raw | grep -F "Skynet-Master dst" | grep -F "DROP" | awk '{print $1}')"
 				iptables -t raw -I PREROUTING "$pos4" -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
+			fi
+			if [ "$(nvram get fw_log_x)" = "drop" ] || [ "$(nvram get fw_log_x)" = "both" ]; then
+				iptables -I logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - INVALID] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 			fi
 		fi
 }
@@ -518,7 +520,7 @@ Purge_Logs () {
 		sed '\~BLOCKED -~!d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null >> "$skynetlog"
 		sed -i '\~BLOCKED -~d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null
 		if [ "$(du "$skynetlog" | awk '{print $1}')" -ge "7000" ]; then
-			sed -i '\~BLOCKED - .*BOUND~d' "$skynetlog"
+			sed -i '\~BLOCKED -~d' "$skynetlog"
 			sed -i '\~Skynet: \[Complete\]~d' "$skynetevents"
 			if [ "$(du "$skynetlog" | awk '{print $1}')" -ge "3000" ]; then
 				true > "$skynetlog"
@@ -1890,6 +1892,7 @@ case "$1" in
 		Unload_DebugIPTables
 		Load_IPTables
 		Load_DebugIPTables
+		sed -i '\~DROP IN=~d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null
 		if [ "$forcebanmalwareupdate" = "true" ]; then Write_Config; rm -rf "/tmp/skynet.lock"; exec "$0" banmalware; fi
 	;;
 
@@ -2169,16 +2172,16 @@ case "$1" in
 		else
 			echo "Debug Data Detected in $skynetlog - $(du -h "$skynetlog" | awk '{print $1}')"
 		fi
-		echo "Monitoring From $(grep -m1 -E 'INBOUND|OUTBOUND' "$skynetlog" | awk '{print $1" "$2" "$3}') To $(grep -E 'INBOUND|OUTBOUND' "$skynetlog" | tail -1 | awk '{print $1" "$2" "$3}')"
+		echo "Monitoring From $(grep -m1 -F "BLOCKED -" "$skynetlog" | awk '{print $1" "$2" "$3}') To $(grep -F "BLOCKED -" "$skynetlog" | tail -1 | awk '{print $1" "$2" "$3}')"
 		echo "$(wc -l < "$skynetlog") Block Events Detected"
-		echo "$({ grep -F "INBOUND" "$skynetlog" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- ; grep -F "OUTBOUND" "$skynetlog" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- ; } | awk '!x[$0]++' | wc -l) Unique IPs"
+		echo "$({ grep -E 'INBOUND|INVALID' "$skynetlog" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- ; grep -F "OUTBOUND" "$skynetlog" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- ; } | awk '!x[$0]++' | wc -l) Unique IPs"
 		echo "$(grep -Fc "NEW BAN" "$skynetlog") Autobans Issued"
 		echo "$(grep -Fc "Manual Ban" "$skynetevents") Manual Bans Issued"
 		echo
 		counter=10
 		case "$2" in
 			reset)
-				sed -i '\~BLOCKED - .*BOUND~d' "$skynetlog"
+				sed -i '\~BLOCKED -~d' "$skynetlog"
 				sed -i '\~Skynet: \[Complete\]~d' "$skynetevents" "/tmp/syslog.log-1" "/tmp/syslog.log" 2>/dev/null
 				iptables -Z PREROUTING -t raw
 				echo "Stat Data Reset"
@@ -2306,6 +2309,17 @@ case "$1" in
 						$red "$counter Most Recent Reports;"
 						grep -F "Skynet: [Complete]" "$skynetevents" | tail -"$counter"
 					;;
+					invalid)
+						if [ "$4" -eq "$4" ] 2>/dev/null; then counter="$4"; fi
+						echo "First Invalid Block Issued On $(grep -m1 -F "BLOCKED - INVALID" "$skynetlog" | awk '{print $1" "$2" "$3}')"
+						echo "Last Invalid Block Issued On $(grep -F "BLOCKED - INVALID" "$skynetlog" | tail -1 | awk '{print $1" "$2" "$3}')"
+						echo
+						$red "First Report Issued;"
+						grep -m1 -F "BLOCKED - INVALID" "$skynetlog"
+						echo
+						$red "$counter Most Recent Reports;"
+						grep -F "BLOCKED - INVALID" "$skynetlog" | tail -"$counter"
+					;;
 					*)
 						echo "Command Not Recognized, Please Try Again"
 						echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
@@ -2343,6 +2357,9 @@ case "$1" in
 				$red "Last $counter Unique Connections Blocked (Outbound);"
 				grep -E "OUTBOUND.*$proto" "$skynetlog" | grep -vE 'DPT=80 |DPT=443 ' | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | awk '!x[$0]++' | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
 				echo
+				$red "Last $counter Unique Connections Blocked (Invalid);"
+				grep -E "INVALID.*$proto" "$skynetlog" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | awk '!x[$0]++' | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
+				echo
 				$red "Last $counter Autobans;"
 				grep -E "NEW BAN.*$proto" "$skynetlog" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | tail -"$counter" | sed '1!G;h;$!d' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
 				echo
@@ -2360,6 +2377,9 @@ case "$1" in
 				echo
 				$red "Top $counter Blocks (Outbound);"
 				grep -E "OUTBOUND.*$proto" "$skynetlog" | grep -vE 'DPT=80 |DPT=443 ' | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}'
+				echo
+				$red "Top $counter Blocks (Invalid);"
+				grep -E "INVALID.*$proto" "$skynetlog" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}'
 				echo
 				$red "Top $counter Blocked Devices (Outbound);"
 				grep -E "OUTBOUND.*$proto" "$skynetlog" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1 "x "$2}' > /tmp/skynetstats.txt
@@ -2394,6 +2414,9 @@ case "$1" in
 		if [ "$(nvram get fw_enable_x)" != "1" ]; then
 			nvram set fw_enable_x=1
 		fi
+		if [ "$(nvram get fw_log_x)" != "drop" ] && [ "$(nvram get fw_log_x)" != "both" ]; then
+			nvram set fw_log_x=drop
+		fi		
 		Check_Files
 		echo "Installing Skynet $(Filter_Version "$0")"
 		echo
@@ -2658,6 +2681,7 @@ case "$1" in
 					Unload_IPTables
 					Unload_DebugIPTables
 					Unload_IPSets
+					nvram set fw_log_x=none
 					sed -i '\~ Skynet ~d' /jffs/scripts/firewall-start /jffs/scripts/services-stop
 					rm -rf "/jffs/shared-Skynet-whitelist" "/jffs/shared-Skynet2-whitelist" "/opt/bin/firewall" "$skynetloc" "/jffs/scripts/firewall" "/tmp/skynet.lock"
 					iptables -t raw -F
