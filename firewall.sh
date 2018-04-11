@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 07/04/2018 -		   Asus Firewall Addition By Adamm v6.1.2				    #
+## - 11/04/2018 -		   Asus Firewall Addition By Adamm v6.1.3				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -308,56 +308,48 @@ Unban_PrivateIP () {
 		grep -F "INBOUND" /tmp/syslog.log | Filter_PrivateSRC | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | while IFS= read -r "ip"; do
 			ipset -q -A Skynet-Whitelist "$ip" comment "PrivateIP"
 			ipset -q -D Skynet-Blacklist "$ip"
-			sed -i "/SRC=${ip} /d" /tmp/syslog.log
+			sed -i "\\~SRC=${ip} ~d" /tmp/syslog.log
 		done
 		grep -F "OUTBOUND" /tmp/syslog.log | Filter_PrivateDST | grep -oE 'DST=[0-9,\.]* ' | cut -c 5- | while IFS= read -r "ip"; do
 			ipset -q -A Skynet-Whitelist "$ip" comment "PrivateIP"
 			ipset -q -D Skynet-Blacklist "$ip"
-			sed -i "/DST=${ip} /d" /tmp/syslog.log
+			sed -i "\\~DST=${ip} ~d" /tmp/syslog.log
 		done
-}
-
-Refresh_MWhitelist () {
-		if grep -qE "Manual Whitelist.* TYPE=Domain" "$skynetevents"; then
-			rm -rf /tmp/mwhitelist.list /tmp/mwhitelist2.list
-			sed "\\~add Skynet-Whitelist ~!d;\\~ManualWlistD~!d;s~ comment.*~~;s~add~del~g" "$skynetipset" | ipset restore -!
-			grep -E "Manual Whitelist.* TYPE=Domain" "$skynetevents" | while IFS= read -r "entry"; do
-				url="$(echo "$entry" | awk '{print $9}')"
-				echo "${url#*=}" >> /tmp/mwhitelist.list
-			done
-			sed -i "\\~\\[Manual Whitelist\\] TYPE=Domain~d;" "$skynetevents"
-			awk '!x[$0]++' /tmp/mwhitelist.list | while IFS= read -r "website"; do
-				for ip in $(Domain_Lookup "$website"); do
-					echo "add Skynet-Whitelist $ip comment \"ManualWlistD: $website\"" >> /tmp/mwhitelist2.list && echo "$(date +"%b %d %T") Skynet: [Manual Whitelist] TYPE=Domain SRC=$ip Host=$website " >> "$skynetevents" &
-				done
-			done
-			ipset restore -! -f "/tmp/mwhitelist2.list"
-			rm -rf /tmp/mwhitelist.list /tmp/mwhitelist2.list
-		fi
 }
 
 Refresh_MBans () {
 		if grep -qE "Manual Ban.* TYPE=Domain" "$skynetevents"; then
-			rm -rf /tmp/mbans.list /tmp/mbans2.list
+			grep -E "Manual Ban.* TYPE=Domain" "$skynetevents" | awk '{print $9}' | awk '!x[$0]++' | sed 's~Host=~~g' > /tmp/mbans.list
+			sed -i '\~\[Manual Ban\] TYPE=Domain~d;' "$skynetevents"
 			sed "\\~add Skynet-Blacklist ~!d;\\~ManualBanD~!d;s~ comment.*~~;s~add~del~g" "$skynetipset" | ipset restore -!
-			grep -E "Manual Ban.* TYPE=Domain" "$skynetevents" | while IFS= read -r "entry"; do
-				url="$(echo "$entry" | awk '{print $9}')"
-				echo "${url#*=}" >> /tmp/mbans.list
-			done
-			sed -i "\\~\\[Manual Ban\\] TYPE=Domain~d;" "$skynetevents"
-			awk '!x[$0]++' /tmp/mbans.list | while IFS= read -r "website"; do
-				for ip in $(Domain_Lookup "$website"); do
-					echo "add Skynet-Blacklist $ip comment \"ManualBanD: $website\"" >> /tmp/mbans2.list && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$website " >> "$skynetevents" &
+			while IFS= read -r "domain"; do
+				for ip in $(Domain_Lookup "$domain"); do
+					ipset -q -A Skynet-Blacklist "$ip" comment "ManualBanD: $domain" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$domain " >> "$skynetevents"
 				done
-			done
-			ipset restore -! -f "/tmp/mbans2.list"
-			rm -rf /tmp/mbans.list /tmp/mbans2.list
+			done < /tmp/mbans.list
+			wait
+			rm -rf /tmp/mbans.list
+		fi
+}
+
+Refresh_MWhitelist () {
+		if grep -qE "Manual Whitelist.* TYPE=Domain" "$skynetevents"; then
+			grep -E "Manual Whitelist.* TYPE=Domain" "$skynetevents" | awk '{print $9}' | awk '!x[$0]++' | sed 's~Host=~~g' > /tmp/mwhitelist.list
+			sed -i '\~\[Manual Whitelist\] TYPE=Domain~d;' "$skynetevents"
+			sed "\\~add Skynet-Whitelist ~!d;\\~ManualWlistD~!d;s~ comment.*~~;s~add~del~g" "$skynetipset" | ipset restore -!
+			while IFS= read -r "domain"; do
+				for ip in $(Domain_Lookup "$domain"); do
+					ipset -q -A Skynet-Whitelist "$ip" comment "ManualWlistD: $domain" && echo "$(date +"%b %d %T") Skynet: [Manual Whitelist] TYPE=Domain SRC=$ip Host=$domain " >> "$skynetevents"
+				done &
+			done < /tmp/mwhitelist.list
+			wait
+			cat /tmp/mwhitelist.list >> /jffs/shared-Skynet2-whitelist
+			rm -rf /tmp/mwhitelist.list
 		fi
 }
 
 Whitelist_Extra () {
-		{ sed '\~ManualWlistD: ~!d;s~.*ManualWlistD: ~~g;s~"~~g' "$skynetipset"
-		echo "ipdeny.com"
+		{ echo "ipdeny.com"
 		echo "speedguide.net"
 		echo "otx.alienvault.com"
 		echo "raw.githubusercontent.com"
@@ -526,7 +518,7 @@ Purge_Logs () {
 				true > "$skynetlog"
 			fi
 		fi
-		if [ "$(grep -c "Skynet: \\[Complete\\]" "/tmp/syslog.log" 2>/dev/null)" -gt "24" ] 2>/dev/null; then
+		if [ "$1" = "all" ] || [ "$(grep -c "Skynet: \\[Complete\\]" "/tmp/syslog.log" 2>/dev/null)" -gt "24" ] 2>/dev/null; then
 			sed '\~Skynet: \[Complete\]~!d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null >> "$skynetevents"
 			sed -i '\~Skynet: \[Complete\]~d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null
 		fi
@@ -631,7 +623,7 @@ Load_Menu () {
 	if ! ipset -L -n Skynet-BlockedRanges >/dev/null 2>&1; then printf "Checking BlockedRanges IPSet...				"; $red "[Failed]"; nolog="1"; fi
 	if ! ipset -L -n Skynet-Blacklist >/dev/null 2>&1; then printf "Checking Blacklist IPSet...				"; $red "[Failed]"; nolog="1"; fi
 	if ! ipset -L -n Skynet-Master >/dev/null 2>&1; then printf "Checking Skynet IPSet...				"; $red "[Failed]"; nolog="1"; fi
-	if [ "$nolog" != "1" ]; then Logging minimal; fi
+	if [ "$nolog" != "1" ]; then Logging "minimal"; fi
 	unset "nolog"
 	unset "option1" "option2" "option3" "option4" "option5"
 	reloadmenu="1"
@@ -1781,7 +1773,7 @@ case "$1" in
 						ipset flush Skynet-Whitelist
 						echo "Adding Default Entries"
 						true > "$skynetipset"
-						sed -i "\\~Manual Whitelist~d" "$skynetevents"
+						sed -i '\~Manual Whitelist~d' "$skynetevents"
 						Whitelist_Extra
 						Whitelist_CDN
 						Whitelist_VPN
@@ -1909,7 +1901,7 @@ case "$1" in
 		if ! ipset -L -n Skynet-BlockedRanges >/dev/null 2>&1; then ipset -q create Skynet-BlockedRanges hash:net --maxelem 200000 comment; forcesave=1; fi
 		if ! ipset -L -n Skynet-Master >/dev/null 2>&1; then ipset -q create Skynet-Master list:set; ipset -q -A Skynet-Master Skynet-Blacklist; ipset -q -A Skynet-Master Skynet-BlockedRanges; forcesave=1; fi
 		Unban_PrivateIP
-		Purge_Logs
+		Purge_Logs "all"
 		sed '\~add Skynet-Whitelist ~!d;\~nvram: ~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
 		Whitelist_Extra
 		Whitelist_CDN
@@ -1954,7 +1946,7 @@ case "$1" in
 		Unload_DebugIPTables
 		echo "Unloading IPSets"
 		Unload_IPSets
-		Purge_Logs
+		Purge_Logs "all"
 		echo
 		nolog="2"
 	;;
@@ -2079,9 +2071,7 @@ case "$1" in
 			;;
 			clean)
 				echo "Cleaning Syslog Entries..."
-				Purge_Logs
-				sed '\~Skynet: \[Complete\]~!d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null >> "$skynetevents"
-				sed -i '\~Skynet: \[Complete\]~d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null
+				Purge_Logs "all"
 				echo "Complete!"
 				echo
 				nolog="2"
@@ -2708,7 +2698,7 @@ case "$1" in
 						done
 					fi
 					echo "Uninstalling Skynet And Restarting Firewall"
-					Purge_Logs
+					Purge_Logs "all"
 					Unload_Cron
 					Kill_Lock
 					Unload_IPTables
