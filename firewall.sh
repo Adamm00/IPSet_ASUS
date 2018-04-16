@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 11/04/2018 -		   Asus Firewall Addition By Adamm v6.1.3				    #
+## - 17/04/2018 -		   Asus Firewall Addition By Adamm v6.1.3				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -1554,7 +1554,7 @@ case "$1" in
 				done
 			;;
 			country)
-				echo "Removing Previous Country Bans"
+				echo "Removing Previous Country Bans (${countrylist})"
 				sed '\~add Skynet-Whitelist ~d;\~Country: ~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
 				unset "countrylist"
 			;;
@@ -1624,10 +1624,12 @@ case "$1" in
 			;;
 			country)
 				if [ -z "$3" ]; then echo "Country Field Can't Be Empty - Please Try Again"; echo; exit 2; fi
+				if [ -n "$countrylist" ]; then 
+					echo "Removing Previous Country Bans (${countrylist})"
+					sed '\~add Skynet-Whitelist ~d;\~Country: ~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
+				fi
 				if [ "${#3}" -gt "246" ]; then countrylist="Multiple Countries"; else countrylist="$3"; fi
-				echo "Removing Previous Country Bans"
-				sed '\~add Skynet-Whitelist ~d;\~Country: ~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
-				echo "Banning Known IP Ranges For $3"
+				echo "Banning Known IP Ranges For (${3})"
 				echo "Downloading Lists"
 				for country in $3; do
 					/usr/sbin/curl -fsL --retry 3 http://ipdeny.com/ipblocks/data/aggregated/"$country"-aggregated.zone >> /tmp/countrylist.txt
@@ -1997,16 +1999,16 @@ case "$1" in
 						if ! echo "$4" | Is_IP; then echo "$4 Is Not A Valid IP"; echo; exit 2; fi
 						echo "Filtering Entries Involving IP $4"
 						echo
-						tail -F /tmp/syslog.log | while read -r logoutput; do if echo "$logoutput" | grep -qE "NEW BAN.*=$4 "; then $blue "$logoutput"; elif echo "$logoutput" | grep -qE "INBOUND.*=$4 "; then $ylow "$logoutput"; elif echo "$logoutput" | grep -qE "OUTBOUND.*=$4 "; then $red "$logoutput"; fi; done
+						tail -F /tmp/syslog.log | while read -r logoutput; do if echo "$logoutput" | grep -qE "INVALID.*=$4 "; then $blue "$logoutput"; elif echo "$logoutput" | grep -qE "INBOUND.*=$4 "; then $ylow "$logoutput"; elif echo "$logoutput" | grep -qE "OUTBOUND.*=$4 "; then $red "$logoutput"; fi; done
 					;;
 					port)
 						if ! echo "$4" | Is_Port || [ "$4" -gt "65535" ]; then echo "$4 Is Not A Valid Port"; echo; exit 2; fi
 						echo "Filtering Entries Involving Port $4"
 						echo
-						tail -F /tmp/syslog.log | while read -r logoutput; do if echo "$logoutput" | grep -qE "NEW BAN.*PT=$4 "; then $blue "$logoutput"; elif echo "$logoutput" | grep -qE "INBOUND.*PT=$4 "; then $ylow "$logoutput"; elif echo "$logoutput" | grep -qE "OUTBOUND.*PT=$4 "; then $red "$logoutput"; fi; done
+						tail -F /tmp/syslog.log | while read -r logoutput; do if echo "$logoutput" | grep -qE "INAVLID.*PT=$4 "; then $blue "$logoutput"; elif echo "$logoutput" | grep -qE "INBOUND.*PT=$4 "; then $ylow "$logoutput"; elif echo "$logoutput" | grep -qE "OUTBOUND.*PT=$4 "; then $red "$logoutput"; fi; done
 					;;
 					*)
-						tail -F /tmp/syslog.log | while read -r logoutput; do if echo "$logoutput" | grep -q "NEW BAN"; then $blue "$logoutput"; elif echo "$logoutput" | grep -q "INBOUND"; then $ylow "$logoutput"; elif echo "$logoutput" | grep -q "OUTBOUND"; then $red "$logoutput"; fi; done
+						tail -F /tmp/syslog.log | while read -r logoutput; do if echo "$logoutput" | grep -q "INVALID"; then $blue "$logoutput"; elif echo "$logoutput" | grep -q "INBOUND"; then $ylow "$logoutput"; elif echo "$logoutput" | grep -q "OUTBOUND"; then $red "$logoutput"; fi; done
 					;;
 				esac
 				nocfg="1"
