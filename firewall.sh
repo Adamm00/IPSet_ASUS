@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 17/04/2018 -		   Asus Firewall Addition By Adamm v6.1.3				    #
+## - 17/04/2018 -		   Asus Firewall Addition By Adamm v6.1.4				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -237,7 +237,7 @@ Load_DebugIPTables () {
 				pos4="$(iptables --line -nL PREROUTING -t raw | grep -F "Skynet-Master dst" | grep -F "DROP" | awk '{print $1}')"
 				iptables -t raw -I PREROUTING "$pos4" -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 			fi
-			if [ "$(nvram get fw_log_x)" = "drop" ] || [ "$(nvram get fw_log_x)" = "both" ]; then
+			if [ "$(nvram get fw_log_x)" = "drop" ] || [ "$(nvram get fw_log_x)" = "both" ] && [ "$loginvalid" != "disabled" ]; then
 				iptables -I logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - INVALID] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 			fi
 		fi
@@ -305,16 +305,18 @@ Save_IPSets () {
 }
 
 Unban_PrivateIP () {
-		grep -F "INBOUND" /tmp/syslog.log | Filter_PrivateSRC | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | while IFS= read -r "ip"; do
-			ipset -q -A Skynet-Whitelist "$ip" comment "PrivateIP"
-			ipset -q -D Skynet-Blacklist "$ip"
-			sed -i "\\~SRC=${ip} ~d" /tmp/syslog.log
-		done
-		grep -F "OUTBOUND" /tmp/syslog.log | Filter_PrivateDST | grep -oE 'DST=[0-9,\.]* ' | cut -c 5- | while IFS= read -r "ip"; do
-			ipset -q -A Skynet-Whitelist "$ip" comment "PrivateIP"
-			ipset -q -D Skynet-Blacklist "$ip"
-			sed -i "\\~DST=${ip} ~d" /tmp/syslog.log
-		done
+		if [ "$unbanprivateip" != "disabled" ]; then
+			grep -F "INBOUND" /tmp/syslog.log | Filter_PrivateSRC | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | while IFS= read -r "ip"; do
+				ipset -q -A Skynet-Whitelist "$ip" comment "PrivateIP"
+				ipset -q -D Skynet-Blacklist "$ip"
+				sed -i "\\~SRC=${ip} ~d" /tmp/syslog.log
+			done
+			grep -F "OUTBOUND" /tmp/syslog.log | Filter_PrivateDST | grep -oE 'DST=[0-9,\.]* ' | cut -c 5- | while IFS= read -r "ip"; do
+				ipset -q -A Skynet-Whitelist "$ip" comment "PrivateIP"
+				ipset -q -D Skynet-Blacklist "$ip"
+				sed -i "\\~DST=${ip} ~d" /tmp/syslog.log
+			done
+		fi
 }
 
 Refresh_MBans () {
@@ -511,7 +513,7 @@ Create_Swap() {
 Purge_Logs () {
 		sed '\~BLOCKED -~!d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null >> "$skynetlog"
 		sed -i '\~BLOCKED -~d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null
-		if [ "$(du "$skynetlog" | awk '{print $1}')" -ge "7000" ]; then
+		if [ "$(du "$skynetlog" | awk '{print $1}')" -ge "10240" ]; then
 			sed -i '\~BLOCKED -~d' "$skynetlog"
 			sed -i '\~Skynet: \[Complete\]~d' "$skynetevents"
 			if [ "$(du "$skynetlog" | awk '{print $1}')" -ge "3000" ]; then
@@ -594,7 +596,9 @@ Write_Config () {
 	echo "blacklist2count=\"$blacklist2count\""
 	echo "customlisturl=\"$customlisturl\""
 	echo "countrylist=\"$countrylist\""
-	echo "excludelists=\"$excludelists\""; } > "$skynetcfg"
+	echo "excludelists=\"$excludelists\""
+	echo "unbanprivateip=\"$unbanprivateip\""
+	echo "loginvalid=\"$loginvalid\""; } > "$skynetcfg"
 }
 
 ####################################################################################################################################################
@@ -1115,8 +1119,10 @@ Load_Menu () {
 					echo "[5]  --> SWAP File Management"
 					echo "[6]  --> Backup Skynet Files"
 					echo "[7]  --> Restore Skynet Files"
+					echo "[8]  --> Toggle PrivateIP Filtering"
+					echo "[9]  --> Toggle Invalid Packet Logging"
 					echo
-					printf "[1-7]: "
+					printf "[1-9]: "
 					read -r "menu2"
 					echo
 					case "$menu2" in
@@ -1162,7 +1168,7 @@ Load_Menu () {
 										break
 									;;
 									*)
-										echo "$menu2 Isn't An Option!"
+										echo "$menu3 Isn't An Option!"
 										echo
 									;;
 								esac
@@ -1203,7 +1209,7 @@ Load_Menu () {
 										break
 									;;
 									*)
-										echo "$menu2 Isn't An Option!"
+										echo "$menu3 Isn't An Option!"
 										echo
 									;;
 								esac
@@ -1216,6 +1222,72 @@ Load_Menu () {
 						;;
 						7)
 							option2="restore"
+							break
+						;;
+						8)
+							option2="unbanprivate"
+							while true; do
+								echo "Select Filter PrivateIP Option"
+								echo "[1]  --> Enable"
+								echo "[2]  --> Disable"
+								echo
+								printf "[1-2]: "
+								read -r "menu3"
+								echo 
+								case "$menu3" in
+									1)
+										option3="enable"
+										break
+									;;
+									2)
+										option3="disable"
+										break
+									;;
+									e|exit|back|menu)
+										unset "option1" "option2" "option3" "option4" "option5"
+										clear
+										Load_Menu
+										break
+									;;
+									*)
+										echo "$menu3 Isn't An Option!"
+										echo
+									;;
+								esac
+							done
+							break
+						;;
+						9)
+							option2="loginvalid"
+							while true; do
+								echo "Select Invalid Packet Logging Option"
+								echo "[1]  --> Enable"
+								echo "[2]  --> Disable"
+								echo
+								printf "[1-2]: "
+								read -r "menu3"
+								echo 
+								case "$menu3" in
+									1)
+										option3="enable"
+										break
+									;;
+									2)
+										option3="disable"
+										break
+									;;
+									e|exit|back|menu)
+										unset "option1" "option2" "option3" "option4" "option5"
+										clear
+										Load_Menu
+										break
+									;;
+									*)
+										echo "$menu3 Isn't An Option!"
+										echo
+									;;
+								esac
+							done
 							break
 						;;
 						e|exit|back|menu)
@@ -1692,7 +1764,8 @@ case "$1" in
 		Whitelist_Extra
 		Whitelist_CDN
 		Whitelist_VPN
-		Whitelist_Shared >/dev/null 2>&1 && $grn "[$(($(date +%s) - btime))s]"
+		Whitelist_Shared >/dev/null 2>&1
+		Refresh_MWhitelist && $grn "[$(($(date +%s) - btime))s]"
 		btime="$(date +%s)" && printf "Consolidating Blacklist 	"
 		mkdir -p /tmp/skynet
 		cwd="$(pwd)"
@@ -2170,6 +2243,56 @@ case "$1" in
 				echo "Restarting Firewall Service"
 				service restart_firewall
 				exit 0
+			;;
+			unbanprivate)
+				case "$3" in
+					enable)
+						Check_Lock "$@"
+						Purge_Logs
+						echo "Enabling PrivateIP Filtering"
+						unbanprivateip="enabled"
+						
+					;;
+					disable)
+						Check_Lock "$@"
+						Purge_Logs
+						echo "Disabling PrivateIP Filtering"
+						unbanprivateip="disabled"
+					;;
+					*)
+						echo "Command Not Recognized, Please Try Again"
+						echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
+						echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
+						echo; exit 2
+					;;
+				esac
+			;;
+			loginvalid)
+				case "$3" in
+					enable)
+						Check_Lock "$@"
+						Purge_Logs
+						echo "Enabling Invalid IP Logging"
+						loginvalid="enabled"
+						Unload_DebugIPTables
+						Load_DebugIPTables
+						
+					;;
+					disable)
+						Check_Lock "$@"
+						Purge_Logs
+						echo "Disabling Invalid IP Logging"
+						loginvalid="disabled"
+						Unload_DebugIPTables
+						Load_DebugIPTables
+					;;
+					*)
+						echo "Command Not Recognized, Please Try Again"
+						echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
+						echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
+						echo; exit 2
+					;;
+				esac
 			;;
 			*)
 				echo "Command Not Recognized, Please Try Again"
