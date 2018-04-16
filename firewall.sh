@@ -2063,6 +2063,7 @@ case "$1" in
 				Purge_Logs
 			;;
 			watch)
+				if [ "$debugmode" = "disabled" ]; then echo "Debug Mode Is Disabled - Exiting!"; echo; exit 2; fi
 				trap 'echo; echo "Stopping Log Monitoring"; Purge_Logs' 2
 				echo "Watching Logs For Debug Entries (ctrl +c) To Stop"
 				echo
