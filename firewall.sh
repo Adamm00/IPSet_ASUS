@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 17/04/2018 -		   Asus Firewall Addition By Adamm v6.1.4				    #
+## - 20/04/2018 -		   Asus Firewall Addition By Adamm v6.1.4				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -366,7 +366,7 @@ Whitelist_Extra () {
 
 Whitelist_CDN () {
 		sed '\~add Skynet-Whitelist ~!d;\~CDN-Whitelist~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
-		/usr/sbin/curl -fsL --retry 3 "https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/cdn.list" | dos2unix | sed -n "s/\\r//;/^$/d;/^[0-9,\\.,\\/]*$/p" | awk '!x[$0]++' > /tmp/cdn.list
+		/usr/sbin/curl -fsL --retry 3 "https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/cdn.list" | dos2unix | grep -oE '^[0-9,./]*$' | awk '!x[$0]++' > /tmp/cdn.list
 		awk '{print "add Skynet-Whitelist " $1 " comment \"CDN-Whitelist\""}' /tmp/cdn.list | ipset restore -!
 		rm -rf /tmp/cdn.list
 }
@@ -1707,7 +1707,7 @@ case "$1" in
 					/usr/sbin/curl -fsL --retry 3 http://ipdeny.com/ipblocks/data/aggregated/"$country"-aggregated.zone >> /tmp/countrylist.txt
 				done
 				echo "Filtering IPv4 Ranges & Applying Blacklists"
-				grep -F "/" /tmp/countrylist.txt | sed -n "s/\\r//;/^$/d;/^[0-9,\\.,\\/]*$/s/^/add Skynet-BlockedRanges /p" | sed "s/$/& comment \"Country: $countrylist\"/" | ipset restore -!
+				grep -F "/" /tmp/countrylist.txt | sed -n "/^[0-9,\\.,\\/]*$/s/^/add Skynet-BlockedRanges /;s/$/& comment \"Country: $countrylist\"/p" | ipset restore -!
 				rm -rf "/tmp/countrylist.txt"
 			;;
 			*)
@@ -1776,7 +1776,7 @@ case "$1" in
 		wait
 		cd "$cwd" || exit 1
 		dos2unix /tmp/skynet/*
-		cat /tmp/skynet/* | sed -n "s/\\r//;/^$/d;/^[0-9,\\.,\\/]*$/p" | awk '!x[$0]++' | Filter_PrivateIP > /tmp/skynet/malwarelist.txt && $grn "[$(($(date +%s) - btime))s]"
+		cat /tmp/skynet/* | grep -oE '^[0-9,./]*$' | awk '!x[$0]++' | Filter_PrivateIP > /tmp/skynet/malwarelist.txt && $grn "[$(($(date +%s) - btime))s]"
 		btime="$(date +%s)" && printf "Saving Changes 			"
 		Save_IPSets >/dev/null 2>&1 && $grn "[$(($(date +%s) - btime))s]"
 		btime="$(date +%s)" && printf "Removing Previous Malware Bans  "
