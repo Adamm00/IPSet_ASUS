@@ -2739,6 +2739,7 @@ case "$1" in
 		touch "${device}/skynet/events.log"
 		touch "${device}/skynet/skynet.log"
 		[ -z "$(nvram get odmpid)" ] && model="$(nvram get productid)" || model="$(nvram get odmpid)"
+		if [ -z "$loginvalid" ]; then loginvalid="disabled"; fi
 		Write_Config
 		cmdline="sh /jffs/scripts/firewall start skynetloc=${device}/skynet # Skynet Firewall Addition"
 		if grep -E "sh /jffs/scripts/firewall .* # Skynet" /jffs/scripts/firewall-start 2>/dev/null | grep -qvE "^#"; then
@@ -2768,7 +2769,6 @@ case "$1" in
 		Unload_DebugIPTables
 		Unload_IPSets
 		iptables -t raw -F
-		Write_Config
 		service restart_firewall
 		exit 0
 	;;
