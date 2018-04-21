@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 20/04/2018 -		   Asus Firewall Addition By Adamm v6.1.4				    #
+## - 21/04/2018 -		   Asus Firewall Addition By Adamm v6.1.4				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -34,7 +34,7 @@ ylow="printf \\e[1;33m%s\\e[0m\\n"
 stime="$(date +%s)"
 
 
-skynetloc="$(grep -ow "skynetloc=.* # Skynet" /jffs/scripts/firewall-start | grep -vE "^#" | awk '{print $1}' | cut -c 11-)"
+skynetloc="$(grep -ow "skynetloc=.* # Skynet" /jffs/scripts/firewall-start 2>/dev/null | grep -vE "^#" | awk '{print $1}' | cut -c 11-)"
 skynetcfg="${skynetloc}/skynet.cfg"
 skynetlog="${skynetloc}/skynet.log"
 skynetevents="${skynetloc}/events.log"
@@ -46,7 +46,7 @@ fi
 
 
 # Detect Location and Force Upgrade
-if [ ! -f "$skynetcfg" ] && grep -E "sh /jffs/scripts/firewall start .*usb=.* # Skynet" /jffs/scripts/firewall-start | grep -qvE "^#"; then
+if [ ! -f "$skynetcfg" ] && grep -E "sh /jffs/scripts/firewall start .*usb=.* # Skynet" /jffs/scripts/firewall-start 2>/dev/null | grep -qvE "^#"; then
 	location="$(grep -ow "usb=.*" /jffs/scripts/firewall-start | grep -vE "^#" | awk '{print $1}' | cut -c 5-)/skynet"
 	if [ -f "${location}/scripts/ipset.txt" ]; then
 		forceupgrade="1"
@@ -56,7 +56,7 @@ if [ ! -f "$skynetcfg" ] && grep -E "sh /jffs/scripts/firewall start .*usb=.* # 
 			exit 0
 		fi
 	fi
-elif [ ! -f "$skynetcfg" ] && grep -E "sh /jffs/scripts/firewall start.* # Skynet" /jffs/scripts/firewall-start | grep -v "usb=" | grep -v "skynetloc=" | grep -qvE "^#"; then
+elif [ ! -f "$skynetcfg" ] && grep -E "sh /jffs/scripts/firewall start.* # Skynet" /jffs/scripts/firewall-start 2>/dev/null | grep -v "usb=" | grep -v "skynetloc=" | grep -qvE "^#"; then
 	location="/jffs"
 	if [ -f "${location}/scripts/ipset.txt" ]; then
 		forceupgrade="2"
