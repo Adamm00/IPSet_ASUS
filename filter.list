@@ -8,10 +8,8 @@ https://iplists.firehol.org/files/malwaredomainlist.ipset
 https://iplists.firehol.org/files/maxmind_proxy_fraud.ipset
 https://iplists.firehol.org/files/cybercrime.ipset
 https://iplists.firehol.org/files/dyndns_ponmocup.ipset
-https://iplists.firehol.org/files/ransomware_feed.ipset
+https://iplists.firehol.org/files/ransomware_online.ipset
 https://iplists.firehol.org/files/ransomware_rw.ipset
-https://iplists.firehol.org/files/ransomware_cryptowall_ps.ipset
-https://iplists.firehol.org/files/ransomware_locky_ps.ipset
 https://iplists.firehol.org/files/et_block.netset
 https://iplists.firehol.org/files/et_compromised.ipset
 https://iplists.firehol.org/files/et_botcc.ipset
