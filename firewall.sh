@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 21/04/2018 -		   Asus Firewall Addition By Adamm v6.1.4				    #
+## - 25/04/2018 -		   Asus Firewall Addition By Adamm v6.1.4				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -423,7 +423,7 @@ Manage_Device() {
 		done
 		unset IFS
 		if [ $i = "1" ]; then
-			echo "No Compatible Partitions Found - Exiting!"
+			echo "No Compatible ext* USB Partitions Found - Exiting!"
 			exit 1
 		fi
 		Select_Device(){
