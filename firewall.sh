@@ -195,7 +195,7 @@ Check_Files () {
 
 Check_Status () {
 		{ [ -f "$skynetipset" ] && ipset -L -n Skynet-Whitelist >/dev/null 2>&1 && iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j DROP >/dev/null 2>&1; } || 
-		{ [ -f "$skynetipset" ] && ipset -L -n Skynet-Whitelist >/dev/null 2>&1 && iptables -t raw -C PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP >/dev/null 2>&1; }
+		{ [ -f "$skynetipset" ] && ipset -L -n Skynet-Whitelist >/dev/null 2>&1 && iptables -t raw -C PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP >/dev/null 2>&1 && iptables -t raw -C OUTPUT -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP >/dev/null 2>&1; }
 }
 
 Unload_IPTables () {
@@ -627,7 +627,8 @@ Load_Menu () {
 	echo
 	if ! grep -E "start.* # Skynet" /jffs/scripts/firewall-start 2>/dev/null | grep -qvE "^#"; then printf "Checking Firewall-Start Entry...			"; $red "[Failed]"; fi
 	if ! iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j DROP 2>/dev/null && [ "$filtertraffic" != "outbound" ]; then printf "Checking Inbound Filter Rules...			"; $red "[Failed]"; nolog="1"; fi
-	if ! iptables -t raw -C PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null && [ "$filtertraffic" != "inbound" ]; then printf "Checking Outbound Filter Rules...			"; $red "[Failed]"; nolog="1"; fi
+	if ! iptables -t raw -C PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null || \
+	! iptables -t raw -C OUTPUT -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null && [ "$filtertraffic" != "inbound" ]; then printf "Checking Outbound Filter Rules...			"; $red "[Failed]"; nolog="1"; fi
 	if ! ipset -L -n Skynet-Whitelist >/dev/null 2>&1; then printf "Checking Whitelist IPSet...				"; $red "[Failed]"; nolog="1"; fi
 	if ! ipset -L -n Skynet-BlockedRanges >/dev/null 2>&1; then printf "Checking BlockedRanges IPSet...				"; $red "[Failed]"; nolog="1"; fi
 	if ! ipset -L -n Skynet-Blacklist >/dev/null 2>&1; then printf "Checking Blacklist IPSet...				"; $red "[Failed]"; nolog="1"; fi
@@ -2125,9 +2126,11 @@ case "$1" in
 				printf "Checking Inbound Debug Rules				"
 				if iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null; then $grn "[Passed]"; elif [ "$debugmode" = "disabled" ] || [ "$filtertraffic" = "outbound" ]; then $ylow "[Disabled]"; else $red "[Failed]"; fi
 				printf "Checking Outbound Filter Rules...			"
-				if iptables -t raw -C PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null; then $grn "[Passed]"; elif [ "$filtertraffic" = "inbound" ]; then $ylow "[Disabled]"; else $red "[Failed]"; fi
+				if iptables -t raw -C PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null && \
+				iptables -t raw -C OUTPUT -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null; then $grn "[Passed]"; elif [ "$filtertraffic" = "inbound" ]; then $ylow "[Disabled]"; else $red "[Failed]"; fi
 				printf "Checking Outbound Debug Rules				"
-				if iptables -t raw -C PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null; then $grn "[Passed]"; elif [ "$debugmode" = "disabled" ] || [ "$filtertraffic" = "inbound" ]; then $ylow "[Disabled]"; else $red "[Failed]"; fi
+				if iptables -t raw -C PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null && \
+				iptables -t raw -C OUTPUT -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null; then $grn "[Passed]"; elif [ "$debugmode" = "disabled" ] || [ "$filtertraffic" = "inbound" ]; then $ylow "[Disabled]"; else $red "[Failed]"; fi
 				printf "Checking Whitelist IPSet...				"
 				if ipset -L -n Skynet-Whitelist >/dev/null 2>&1; then $grn "[Passed]"; else $red "[Failed]"; fi
 				printf "Checking BlockedRanges IPSet...				"
