@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 06/05/2018 -		   Asus Firewall Addition By Adamm v6.1.5				    #
+## - 07/05/2018 -		   Asus Firewall Addition By Adamm v6.1.6				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -1316,9 +1316,10 @@ Load_Menu () {
 					echo "Select Stat Option:"
 					echo "[1]  --> Display"
 					echo "[2]  --> Search"
-					echo "[3]  --> Reset"
+					echo "[3]  --> Remove"
+					echo "[4]  --> Reset"
 					echo
-					printf "[1-3]: "
+					printf "[1-4]: "
 					read -r "menu2"
 					echo
 					case "$menu2" in
@@ -1418,7 +1419,7 @@ Load_Menu () {
 								echo "[5]  --> Search For Outbound Entries From Local Device"
 								echo "[6]  --> Hourly Reports"
 								echo
-								printf "[1-7]: "
+								printf "[1-6]: "
 								read -r "menu4"
 								echo
 								case "$menu4" in
@@ -1538,6 +1539,47 @@ Load_Menu () {
 							break
 						;;
 						3)
+							option2="remove"
+							while true; do
+								echo "Search Options: "
+								echo "[1]  --> Logs Containing Specific IP"
+								echo "[2]  --> Logs Containing Specific Port"
+								echo
+								printf "[1-2]: "
+								read -r "menu3"
+								echo
+								case "$menu3" in
+									1)
+										option3="ip"
+										printf "[IP]: "
+										read -r "option4"
+										echo
+										if ! echo "$option4" | Is_IP; then echo "$option4 Is Not A Valid IP"; echo; unset "option3" "option4"; continue; fi
+										break
+									;;
+									2)
+										option3="port"
+										printf "[Port]: "
+										read -r "option4"
+										echo
+										if ! echo "$option4" | Is_Port || [ "$option4" -gt "65535" ]; then echo "$option4 Is Not A Valid Port"; echo; unset "option3" "option4"; continue; fi
+										break
+									;;
+									e|exit|back|menu)
+										unset "option1" "option2" "option3" "option4" "option5"
+										clear
+										Load_Menu
+										break 2
+									;;
+									*)
+										echo "$menu3 Isn't An Option!"
+										echo
+									;;
+								esac
+							done
+							break
+						;;
+						4)
 							option2="reset"
 							break
 						;;
@@ -1977,10 +2019,10 @@ case "$1" in
 		cru a Skynet_save "0 * * * * sh /jffs/scripts/firewall save"
 		modprobe xt_set
 		if [ -f "$skynetipset" ]; then ipset restore -! -f "$skynetipset"; else logger -st Skynet "[INFO] Setting Up Skynet..."; touch "$skynetipset"; fi
-		if ! ipset -L -n Skynet-Whitelist >/dev/null 2>&1; then ipset -q create Skynet-Whitelist hash:net comment; forcesave=1; fi
-		if ! ipset -L -n Skynet-Blacklist >/dev/null 2>&1; then ipset -q create Skynet-Blacklist hash:ip --maxelem 500000 comment; forcesave=1; fi
-		if ! ipset -L -n Skynet-BlockedRanges >/dev/null 2>&1; then ipset -q create Skynet-BlockedRanges hash:net --maxelem 200000 comment; forcesave=1; fi
-		if ! ipset -L -n Skynet-Master >/dev/null 2>&1; then ipset -q create Skynet-Master list:set; ipset -q -A Skynet-Master Skynet-Blacklist; ipset -q -A Skynet-Master Skynet-BlockedRanges; forcesave=1; fi
+		if ! ipset -L -n Skynet-Whitelist >/dev/null 2>&1; then ipset -q create Skynet-Whitelist hash:net comment; fi
+		if ! ipset -L -n Skynet-Blacklist >/dev/null 2>&1; then ipset -q create Skynet-Blacklist hash:ip --maxelem 500000 comment; fi
+		if ! ipset -L -n Skynet-BlockedRanges >/dev/null 2>&1; then ipset -q create Skynet-BlockedRanges hash:net --maxelem 200000 comment; fi
+		if ! ipset -L -n Skynet-Master >/dev/null 2>&1; then ipset -q create Skynet-Master list:set; ipset -q -A Skynet-Master Skynet-Blacklist; ipset -q -A Skynet-Master Skynet-BlockedRanges; fi
 		Unban_PrivateIP
 		Purge_Logs "all"
 		sed '\~add Skynet-Whitelist ~!d;\~nvram: ~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
@@ -1990,7 +2032,7 @@ case "$1" in
 		Whitelist_Shared
 		Refresh_MWhitelist
 		Refresh_MBans
-		if [ -n "$forcesave" ]; then Save_IPSets; fi
+		Save_IPSets
 		while [ "$(($(date +%s) - stime))" -lt "20" ]; do
 			sleep 1
 		done
@@ -2342,6 +2384,28 @@ case "$1" in
 				sed -i '\~Skynet: \[Complete\]~d' "$skynetevents" "/tmp/syslog.log-1" "/tmp/syslog.log" 2>/dev/null
 				iptables -Z PREROUTING -t raw
 				echo "Stat Data Reset"
+			;;
+			remove)
+				case "$3" in
+					ip)
+						if ! echo "$4" | Is_IP; then echo "$4 Is Not A Valid IP"; echo; exit 2; fi
+						logcount="$(grep -c "=$4 " "$skynetlog")"
+						sed -i "\\~=$4 ~d" "$skynetlog"
+						echo "$logcount Log Entries Removed Containing IP $4"
+					;;
+					port)
+						if ! echo "$4" | Is_Port || [ "$4" -gt "65535" ]; then echo "$4 Is Not A Valid Port"; echo; exit 2; fi
+						logcount="$(grep -c "PT=$4 " "$skynetlog")"
+						sed -i "\\~=$4 ~d" "$skynetlog"
+						echo "$logcount Log Entries Removed Containing Port $4"
+					;;
+					*)
+						echo "Command Not Recognized, Please Try Again"
+						echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
+						echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
+						echo; exit 2
+					;;
+				esac
 			;;
 			search)
 				case "$3" in
