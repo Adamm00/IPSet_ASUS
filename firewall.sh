@@ -376,6 +376,15 @@ Whitelist_CDN () {
 		rm -rf /tmp/cdn.list
 }
 
+Whitelist_Local () {
+		if [ -f "${skynetloc}/white.list" ]; then
+			sed '\~add Skynet-Whitelist ~!d;\~Local-Whitelist~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
+			cat "${skynetloc}/white.list" | dos2unix | grep -oE '^[0-9,./]*$' | awk '!x[$0]++' > /tmp/local.list
+			awk '{print "add Skynet-Whitelist " $1 " comment \"Local-Whitelist\""}' /tmp/local.list | ipset restore -!
+			rm -rf /tmp/local.list
+		fi
+}
+
 Whitelist_VPN () {
 		ipset -q -A Skynet-Whitelist "$(nvram get vpn_server1_sn)"/24 comment "nvram: vpn_server1_sn"
 		ipset -q -A Skynet-Whitelist "$(nvram get vpn_server2_sn)"/24 comment "nvram: vpn_server2_sn"
@@ -1819,6 +1828,7 @@ case "$1" in
 		btime="$(date +%s)" && printf "Refreshing Whitelists		"
 		Whitelist_Extra
 		Whitelist_CDN
+		Whitelist_Local
 		Whitelist_VPN
 		Whitelist_Shared >/dev/null 2>&1
 		Refresh_MWhitelist && $grn "[$(($(date +%s) - btime))s]"
@@ -1907,6 +1917,7 @@ case "$1" in
 						sed -i '\~Manual Whitelist~d' "$skynetevents"
 						Whitelist_Extra
 						Whitelist_CDN
+						Whitelist_Local
 						Whitelist_VPN
 						Whitelist_Shared
 					;;
@@ -1922,6 +1933,7 @@ case "$1" in
 				echo "Refreshing Shared Whitelist Files"
 				Whitelist_Extra
 				Whitelist_CDN
+				Whitelist_Local
 				Whitelist_VPN
 				Whitelist_Shared
 				Refresh_MWhitelist
@@ -2036,6 +2048,7 @@ case "$1" in
 		sed '\~add Skynet-Whitelist ~!d;\~nvram: ~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
 		Whitelist_Extra
 		Whitelist_CDN
+		Whitelist_Local
 		Whitelist_VPN
 		Whitelist_Shared
 		Refresh_MWhitelist
