@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 07/05/2018 -		   Asus Firewall Addition By Adamm v6.1.6				    #
+## - 14/05/2018 -		   Asus Firewall Addition By Adamm v6.1.7				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -194,7 +194,7 @@ Check_Files () {
 }
 
 Check_Status () {
-		{ [ -f "$skynetipset" ] && ipset -L -n Skynet-Whitelist >/dev/null 2>&1 && iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j DROP >/dev/null 2>&1; } || 
+		{ [ -f "$skynetipset" ] && ipset -L -n Skynet-Whitelist >/dev/null 2>&1 && iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j DROP >/dev/null 2>&1; } ||
 		{ [ -f "$skynetipset" ] && ipset -L -n Skynet-Whitelist >/dev/null 2>&1 && iptables -t raw -C PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP >/dev/null 2>&1 && iptables -t raw -C OUTPUT -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP >/dev/null 2>&1; }
 }
 
@@ -1247,7 +1247,7 @@ Load_Menu () {
 								echo
 								printf "[1-2]: "
 								read -r "menu3"
-								echo 
+								echo
 								case "$menu3" in
 									1)
 										option3="enable"
@@ -1280,7 +1280,7 @@ Load_Menu () {
 								echo
 								printf "[1-2]: "
 								read -r "menu3"
-								echo 
+								echo
 								case "$menu3" in
 									1)
 										option3="enable"
@@ -1752,7 +1752,7 @@ case "$1" in
 			;;
 			country)
 				if [ -z "$3" ]; then echo "Country Field Can't Be Empty - Please Try Again"; echo; exit 2; fi
-				if [ -n "$countrylist" ]; then 
+				if [ -n "$countrylist" ]; then
 					echo "Removing Previous Country Bans (${countrylist})"
 					sed '\~add Skynet-Whitelist ~d;\~Country: ~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
 				fi
@@ -1951,60 +1951,131 @@ case "$1" in
 	;;
 
 	import)
-		if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
-		Check_Lock "$@"
-		Purge_Logs
-		echo "This Function Extracts All IPs And Adds Them ALL To Blacklist"
-		if [ -f "$2" ]; then
-			echo "Local Custom List Detected: $2"
-			cp "$2" /tmp/iplist-unfiltered.txt
-		elif [ -n "$2" ]; then
-			echo "Remote Custom List Detected: $2"
-			/usr/sbin/curl -fsL --retry 3 "$2" -o /tmp/iplist-unfiltered.txt || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Import"; exit 1; }
-		else
-			echo "URL Field Can't Be Empty - Please Try Again"
-			exit 2
-		fi
-		dos2unix /tmp/iplist-unfiltered.txt
-		if [ "$(grep -cE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' /tmp/iplist-unfiltered.txt)" = "0" ] && [ "$(grep -cE '^([0-9]{1,3}\.){3}[0-9]{1,3}\/[0-9]{1,2}$' /tmp/iplist-unfiltered.txt)" = "0" ]; then { logger -st Skynet "[ERROR] No Content Detected - Stopping Import"; rm -rf /tmp/iplist-unfiltered.txt /tmp/skynet.lock; exit 1; }; fi
-		imptime="$(date +"%b %d %T")"
-		echo "Filtering IPv4 Addresses"
-		grep -oE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk -v imptime="$imptime" '{print "add Skynet-Blacklist " $1 " comment \"Imported: " imptime "\""}' > /tmp/iplist-filtered.txt
-		echo "Filtering IPv4 Ranges"
-		grep -oE '^([0-9]{1,3}\.){3}[0-9]{1,3}\/[0-9]{1,2}$' /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk -v imptime="$imptime" '{print "add Skynet-BlockedRanges " $1 " comment \"Imported: " imptime "\""}' >> /tmp/iplist-filtered.txt
-		echo "Adding IPs To Blacklist"
-		ipset restore -! -f "/tmp/iplist-filtered.txt"
-		rm -rf /tmp/iplist-unfiltered.txt /tmp/iplist-filtered.txt
-		Save_IPSets
-		echo
+		case "$2" in
+			blacklist)
+				if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
+				Check_Lock "$@"
+				Purge_Logs
+				echo "This Function Extracts All IPs And Adds Them ALL To Blacklist"
+				if [ -f "$3" ]; then
+					echo "Local Custom List Detected: $3"
+					grep -oE '^[0-9,./]*$' "$3" > /tmp/iplist-unfiltered.txt
+				elif [ -n "$3" ]; then
+					echo "Remote Custom List Detected: $3"
+					/usr/sbin/curl -fsL --retry 3 "$3" | grep -oE '^[0-9,./]*$' > /tmp/iplist-unfiltered.txt || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Import"; exit 1; }
+				else
+					echo "URL/File Field Can't Be Empty - Please Try Again"
+					exit 2
+				fi
+				dos2unix /tmp/iplist-unfiltered.txt
+				if [ "$(grep -coE '^[0-9,./]*$' /tmp/iplist-unfiltered.txt)" = "0" ]; then { logger -st Skynet "[ERROR] No Content Detected - Stopping Import"; rm -rf /tmp/iplist-unfiltered.txt /tmp/skynet.lock; exit 1; }; fi
+				imptime="$(date +"%b %d %T")"
+				echo "Processing IPv4 Addresses"
+				grep -vF "/" /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk -v imptime="$imptime" '{print "add Skynet-Blacklist " $1 " comment \"Imported: " imptime "\""}' > /tmp/iplist-filtered.txt
+				echo "Processing IPv4 Ranges"
+				grep -F "/" /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk -v imptime="$imptime" '{print "add Skynet-BlockedRanges " $1 " comment \"Imported: " imptime "\""}' >> /tmp/iplist-filtered.txt
+				echo "Adding IPs To Blacklist"
+				ipset restore -! -f "/tmp/iplist-filtered.txt"
+				rm -rf /tmp/iplist-unfiltered.txt /tmp/iplist-filtered.txt
+				Save_IPSets
+				echo
+			;;
+			whitelist)
+				if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
+				Check_Lock "$@"
+				Purge_Logs
+				echo "This Function Extracts All IPs And Adds Them ALL To Whitelist"
+				if [ -f "$3" ]; then
+					echo "Local Custom List Detected: $3"
+					grep -oE '^[0-9,./]*$' "$3" > /tmp/iplist-unfiltered.txt
+				elif [ -n "$3" ]; then
+					echo "Remote Custom List Detected: $3"
+					/usr/sbin/curl -fsL --retry 3 "$3" | grep -oE '^[0-9,./]*$' > /tmp/iplist-unfiltered.txt || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Import"; exit 1; }
+				else
+					echo "URL/File Field Can't Be Empty - Please Try Again"
+					exit 2
+				fi
+				dos2unix /tmp/iplist-unfiltered.txt
+				if [ "$(grep -coE '^[0-9,./]*$' /tmp/iplist-unfiltered.txt)" = "0" ]; then { logger -st Skynet "[ERROR] No Content Detected - Stopping Import"; rm -rf /tmp/iplist-unfiltered.txt /tmp/skynet.lock; exit 1; }; fi
+				imptime="$(date +"%b %d %T")"
+				echo "Processing List"
+				Filter_PrivateIP < /tmp/iplist-unfiltered.txt | awk -v imptime="$imptime" '{print "add Skynet-Whitelist " $1 " comment \"Imported: " imptime "\""}' > /tmp/iplist-filtered.txt
+				echo "Adding IPs To Whitelist"
+				ipset restore -! -f "/tmp/iplist-filtered.txt"
+				rm -rf /tmp/iplist-unfiltered.txt /tmp/iplist-filtered.txt
+				Save_IPSets
+				echo
+			;;
+			*)
+				echo "Command Not Recognized, Please Try Again"
+				echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
+				echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
+				echo; exit 2
+			;;
+		esac
 	;;
 
 	deport)
-		if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
-		Check_Lock "$@"		
-		Purge_Logs
-		echo "This Function Extracts All IPs And Removes Them ALL From Blacklist"
-		if [ -f "$2" ]; then
-			echo "Local Custom List Detected: $2"
-			cp "$2" /tmp/iplist-unfiltered.txt
-		elif [ -n "$2" ]; then
-			echo "Remote Custom List Detected: $2"
-			/usr/sbin/curl -fsL --retry 3 "$2" -o /tmp/iplist-unfiltered.txt || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Deport"; exit 1; }
-		else
-			echo "URL Field Can't Be Empty - Please Try Again"
-			exit 2
-		fi
-		dos2unix /tmp/iplist-unfiltered.txt
-		if [ "$(grep -cE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' /tmp/iplist-unfiltered.txt)" = "0" ] && [ "$(grep -cE '^([0-9]{1,3}\.){3}[0-9]{1,3}\/[0-9]{1,2}$' /tmp/iplist-unfiltered.txt)" = "0" ]; then { logger -st Skynet "[ERROR] No Content Detected - Stopping Deport"; rm -rf /tmp/iplist-unfiltered.txt /tmp/skynet.lock; exit 1; }; fi
-		echo "Filtering IPv4 Addresses"
-		grep -oE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk '{print "del Blacklist " $1}' > /tmp/iplist-filtered.txt
-		echo "Filtering IPv4 Ranges"
-		grep -oE '^([0-9]{1,3}\.){3}[0-9]{1,3}\/[0-9]{1,2}$' /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk '{print "del BlockedRanges " $1}' >> /tmp/iplist-filtered.txt
-		echo "Removing IPs From Blacklist"
-		ipset restore -! -f "/tmp/iplist-filtered.txt"
-		rm -rf /tmp/iplist-unfiltered.txt /tmp/iplist-filtered.txt
-		Save_IPSets
-		echo
+		case "$2" in
+			blacklist)
+				if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
+				Check_Lock "$@"
+				Purge_Logs
+				echo "This Function Extracts All IPs And Removes Them ALL From Blacklist"
+				if [ -f "$3" ]; then
+					echo "Local Custom List Detected: $3"
+					grep -oE '^[0-9,./]*$' "$3" > /tmp/iplist-unfiltered.txt
+				elif [ -n "$3" ]; then
+					echo "Remote Custom List Detected: $3"
+					/usr/sbin/curl -fsL --retry 3 "$3" | grep -oE '^[0-9,./]*$' > /tmp/iplist-unfiltered.txt || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Import"; exit 1; }
+				else
+					echo "URL/File Field Can't Be Empty - Please Try Again"
+					exit 2
+				fi
+				dos2unix /tmp/iplist-unfiltered.txt
+				if [ "$(grep -coE '^[0-9,./]*$' /tmp/iplist-unfiltered.txt)" = "0" ]; then { logger -st Skynet "[ERROR] No Content Detected - Stopping Deport"; rm -rf /tmp/iplist-unfiltered.txt /tmp/skynet.lock; exit 1; }; fi
+				echo "Processing IPv4 Addresses"
+				grep -vF "/" /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk -v imptime="$imptime" '{print "del Skynet-Blacklist " $1}' > /tmp/iplist-filtered.txt
+				echo "Processing IPv4 Ranges"
+				grep -F "/" /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk -v imptime="$imptime" '{print "del Skynet-BlockedRanges " $1}' >> /tmp/iplist-filtered.txt
+				echo "Removing IPs From Blacklist"
+				ipset restore -! -f "/tmp/iplist-filtered.txt"
+				rm -rf /tmp/iplist-unfiltered.txt /tmp/iplist-filtered.txt
+				Save_IPSets
+				echo
+			;;
+			whitelist)
+				if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
+				Check_Lock "$@"
+				Purge_Logs
+				echo "This Function Extracts All IPs And Removes Them ALL From Whitelist"
+				if [ -f "$3" ]; then
+					echo "Local Custom List Detected: $3"
+					grep -oE '^[0-9,./]*$' "$3" > /tmp/iplist-unfiltered.txt
+				elif [ -n "$3" ]; then
+					echo "Remote Custom List Detected: $3"
+					/usr/sbin/curl -fsL --retry 3 "$3" | grep -oE '^[0-9,./]*$' > /tmp/iplist-unfiltered.txt || { logger -st Skynet "[ERROR] 404 Error Detected - Stopping Import"; exit 1; }
+				else
+					echo "URL/File Field Can't Be Empty - Please Try Again"
+					exit 2
+				fi
+				dos2unix /tmp/iplist-unfiltered.txt
+				if [ "$(grep -coE '^[0-9,./]*$' /tmp/iplist-unfiltered.txt)" = "0" ]; then { logger -st Skynet "[ERROR] No Content Detected - Stopping Deport"; rm -rf /tmp/iplist-unfiltered.txt /tmp/skynet.lock; exit 1; }; fi
+				echo "Processing IPv4 Addresses"
+				Filter_PrivateIP < /tmp/iplist-unfiltered.txt | awk -v imptime="$imptime" '{print "del Skynet-Whitelist " $1}' > /tmp/iplist-filtered.txt
+				echo "Removing IPs From Whitelist"
+				ipset restore -! -f "/tmp/iplist-filtered.txt"
+				rm -rf /tmp/iplist-unfiltered.txt /tmp/iplist-filtered.txt
+				Save_IPSets
+				echo
+			;;
+			*)
+				echo "Command Not Recognized, Please Try Again"
+				echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
+				echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
+				echo; exit 2
+			;;
+		esac
 	;;
 
 	save)
@@ -2310,7 +2381,7 @@ case "$1" in
 						Purge_Logs
 						echo "Enabling PrivateIP Filtering"
 						unbanprivateip="enabled"
-						
+
 					;;
 					disable)
 						Check_Lock "$@"
@@ -2335,7 +2406,7 @@ case "$1" in
 						loginvalid="enabled"
 						Unload_DebugIPTables
 						Load_DebugIPTables
-						
+
 					;;
 					disable)
 						Check_Lock "$@"
@@ -2645,7 +2716,7 @@ case "$1" in
 		fi
 		if [ "$(nvram get fw_log_x)" != "drop" ] && [ "$(nvram get fw_log_x)" != "both" ]; then
 			nvram set fw_log_x=drop
-		fi		
+		fi
 		Check_Files
 		echo "Installing Skynet $(Filter_Version "$0")"
 		echo

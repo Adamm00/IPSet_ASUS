@@ -5,6 +5,13 @@ Lightweight firewall addition for ARM/HND based ASUS Routers using IPSet as seen
 The goal of this tool is to enhance the firmware's built in functionality such as the SPI Firewall and Brute Force Detection while adding easy to use tools for users to implement custom firewall rules they desire. Skynet has a range of feature from banning single IPs, domains, entire countries or pulling predefined malware lists from reputable providers. It is the one stop shop for router security and the first line of defence in your home network.
 
 
+## Donate
+
+Want to help support Skynet future development? All donations are appreciated.
+
+[Donate With PayPal](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=BPN4LTRZKDTML)
+
+
 ## Usage
 
 Skynet provides both a user interactive menu, and command line interface for those who prefer it.
@@ -83,10 +90,12 @@ Here Are Some Example Whitelist Commands;
 (sh /jffs/scripts/firewall whitelist list domains ) List Manually Added Domain Entries
 
 Here Are Some Example Import Commands;
-(sh /jffs/scripts/firewall import file.txt) This Bans All IPs From URL/Local File
+(sh /jffs/scripts/firewall import blacklist file.txt) This Bans All IPs From URL/Local File
+(sh /jffs/scripts/firewall import whitelist file.txt) This Whitelists All IPs From URL/Local File
 
 Here Are Some Example Deport Commands;
-(sh /jffs/scripts/firewall deport file.txt) This Unbans All IPs From URL/Local File
+(sh /jffs/scripts/firewall deport blacklist file.txt) This Unbans All IPs From URL/Local File
+(sh /jffs/scripts/firewall deport whitelist file.txt) This Unwhitelists All IPs From URL/Local File
 
 Here Are Some Example Update Commands;
 (sh /jffs/scripts/firewall update) Standard Update Check - If Nothing Detected Exit
@@ -125,12 +134,3 @@ Here Are Some Example Stats Commands;
 ### About
 
 ```Skynet gained self-awareness after it had spread into millions of computer servers all across the world; realizing the extent of its abilities, its creators tried to deactivate it. In the interest of self-preservation, Skynet concluded that all of humanity would attempt to destroy it and impede its capability in safeguarding the world. Its operations are almost exclusively performed by servers, mobile devices, drones, military satellites, war-machines, androids and cyborgs (usually a terminator), and other computer systems. As a programming directive, Skynet's manifestation is that of an overarching, global, artificial intelligence hierarchy (AI takeover), which seeks to exterminate the human race in order to fulfill the mandates of its original coding. (▀̿Ĺ̯▀̿ ̿)```
-
-
-
-
-## Donate
-
-Want to help support Skynet future development? All donations are appreciated.
-
-[Donate With PayPal](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=BPN4LTRZKDTML)
