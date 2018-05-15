@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 14/05/2018 -		   Asus Firewall Addition By Adamm v6.1.7				    #
+## - 16/05/2018 -		   Asus Firewall Addition By Adamm v6.1.8				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -70,13 +70,14 @@ fi
 
 
 Check_Lock () {
-		if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(sed -n '2p' /tmp/skynet.lock)" ] && [ "$(sed -n '2p' /tmp/skynet.lock)" != "$$" ] ; then
+		if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(sed -n '2p' /tmp/skynet.lock)" ] && [ "$(sed -n '2p' /tmp/skynet.lock)" != "$$" ]; then
 			logger -st Skynet "[INFO] Lock File Detected ($(sed -n '1p' /tmp/skynet.lock)) (pid=$(sed -n '2p' /tmp/skynet.lock)) - Exiting (cpid=$$)"
 			echo
 			exit 1
 		else
 			echo "$@" > /tmp/skynet.lock
 			echo "$$" >> /tmp/skynet.lock
+			lockskynet="true"
 		fi
 }
 
@@ -1969,11 +1970,15 @@ case "$1" in
 				fi
 				dos2unix /tmp/iplist-unfiltered.txt
 				if [ "$(grep -coE '^[0-9,./]*$' /tmp/iplist-unfiltered.txt)" = "0" ]; then { logger -st Skynet "[ERROR] No Content Detected - Stopping Import"; rm -rf /tmp/iplist-unfiltered.txt /tmp/skynet.lock; exit 1; }; fi
-				imptime="$(date +"%b %d %T")"
-				echo "Processing IPv4 Addresses"
-				grep -vF "/" /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk -v imptime="$imptime" '{print "add Skynet-Blacklist " $1 " comment \"Imported: " imptime "\""}' > /tmp/iplist-filtered.txt
-				echo "Processing IPv4 Ranges"
-				grep -F "/" /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk -v imptime="$imptime" '{print "add Skynet-BlockedRanges " $1 " comment \"Imported: " imptime "\""}' >> /tmp/iplist-filtered.txt
+				echo "Processing List"
+				if [ -n "$4" ] && [ "${#4}" -le "255" ]; then
+					grep -vF "/" /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk -v desc="$4" '{print "add Skynet-Blacklist " $1 " comment \"" desc "\""}' > /tmp/iplist-filtered.txt
+					grep -F "/" /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk -v desc="$4" '{print "add Skynet-BlockedRanges " $1 " comment \"" desc "\""}' >> /tmp/iplist-filtered.txt
+				else
+					imptime="$(date +"%b %d %T")"
+					grep -vF "/" /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk -v imptime="$imptime" '{print "add Skynet-Blacklist " $1 " comment \"Imported: " imptime "\""}' > /tmp/iplist-filtered.txt
+					grep -F "/" /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk -v imptime="$imptime" '{print "add Skynet-BlockedRanges " $1 " comment \"Imported: " imptime "\""}' >> /tmp/iplist-filtered.txt
+				fi
 				echo "Adding IPs To Blacklist"
 				ipset restore -! -f "/tmp/iplist-filtered.txt"
 				rm -rf /tmp/iplist-unfiltered.txt /tmp/iplist-filtered.txt
@@ -1997,9 +2002,13 @@ case "$1" in
 				fi
 				dos2unix /tmp/iplist-unfiltered.txt
 				if [ "$(grep -coE '^[0-9,./]*$' /tmp/iplist-unfiltered.txt)" = "0" ]; then { logger -st Skynet "[ERROR] No Content Detected - Stopping Import"; rm -rf /tmp/iplist-unfiltered.txt /tmp/skynet.lock; exit 1; }; fi
-				imptime="$(date +"%b %d %T")"
 				echo "Processing List"
-				Filter_PrivateIP < /tmp/iplist-unfiltered.txt | awk -v imptime="$imptime" '{print "add Skynet-Whitelist " $1 " comment \"Imported: " imptime "\""}' > /tmp/iplist-filtered.txt
+				if [ -n "$4" ] && [ "${#4}" -le "255" ]; then
+					Filter_PrivateIP < /tmp/iplist-unfiltered.txt | awk -v desc="$4" '{print "add Skynet-Whitelist " $1 " comment \"" desc "\""}' > /tmp/iplist-filtered.txt
+				else
+					imptime="$(date +"%b %d %T")"
+					Filter_PrivateIP < /tmp/iplist-unfiltered.txt | awk -v imptime="$imptime" '{print "add Skynet-Whitelist " $1 " comment \"Imported: " imptime "\""}' > /tmp/iplist-filtered.txt
+				fi
 				echo "Adding IPs To Whitelist"
 				ipset restore -! -f "/tmp/iplist-filtered.txt"
 				rm -rf /tmp/iplist-unfiltered.txt /tmp/iplist-filtered.txt
@@ -2035,9 +2044,9 @@ case "$1" in
 				dos2unix /tmp/iplist-unfiltered.txt
 				if [ "$(grep -coE '^[0-9,./]*$' /tmp/iplist-unfiltered.txt)" = "0" ]; then { logger -st Skynet "[ERROR] No Content Detected - Stopping Deport"; rm -rf /tmp/iplist-unfiltered.txt /tmp/skynet.lock; exit 1; }; fi
 				echo "Processing IPv4 Addresses"
-				grep -vF "/" /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk -v imptime="$imptime" '{print "del Skynet-Blacklist " $1}' > /tmp/iplist-filtered.txt
+				grep -vF "/" /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk '{print "del Skynet-Blacklist " $1}' > /tmp/iplist-filtered.txt
 				echo "Processing IPv4 Ranges"
-				grep -F "/" /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk -v imptime="$imptime" '{print "del Skynet-BlockedRanges " $1}' >> /tmp/iplist-filtered.txt
+				grep -F "/" /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk '{print "del Skynet-BlockedRanges " $1}' >> /tmp/iplist-filtered.txt
 				echo "Removing IPs From Blacklist"
 				ipset restore -! -f "/tmp/iplist-filtered.txt"
 				rm -rf /tmp/iplist-unfiltered.txt /tmp/iplist-filtered.txt
@@ -2062,7 +2071,7 @@ case "$1" in
 				dos2unix /tmp/iplist-unfiltered.txt
 				if [ "$(grep -coE '^[0-9,./]*$' /tmp/iplist-unfiltered.txt)" = "0" ]; then { logger -st Skynet "[ERROR] No Content Detected - Stopping Deport"; rm -rf /tmp/iplist-unfiltered.txt /tmp/skynet.lock; exit 1; }; fi
 				echo "Processing IPv4 Addresses"
-				Filter_PrivateIP < /tmp/iplist-unfiltered.txt | awk -v imptime="$imptime" '{print "del Skynet-Whitelist " $1}' > /tmp/iplist-filtered.txt
+				Filter_PrivateIP < /tmp/iplist-unfiltered.txt | awk '{print "del Skynet-Whitelist " $1}' > /tmp/iplist-filtered.txt
 				echo "Removing IPs From Whitelist"
 				ipset restore -! -f "/tmp/iplist-filtered.txt"
 				rm -rf /tmp/iplist-unfiltered.txt /tmp/iplist-filtered.txt
@@ -3012,5 +3021,5 @@ esac
 
 if [ "$nolog" != "2" ]; then Logging "$@"; echo; fi
 if [ "$nocfg" != "1" ]; then Write_Config; fi
-if [ -f "/tmp/skynet.lock" ] && [ "$$" = "$(sed -n '2p' /tmp/skynet.lock)" ]; then rm -rf "/tmp/skynet.lock"; fi
+if [ "$lockskynet" = "true" ]; then rm -rf "/tmp/skynet.lock"; fi
 if [ -n "$reloadmenu" ]; then echo; echo; printf "Press Enter To Continue..."; read -r "continue"; exec "$0"; fi
