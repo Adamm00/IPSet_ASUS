@@ -787,7 +787,7 @@ Load_Menu () {
 							printf "[Comment]: "
 							read -r "option4"
 							echo
-							if [ "${#option4}" -gt "255" ]; then echo "$option4 Is Not A Valid Comment. 255 Chars Max"; echo; unset "option2" "option3" "option4"; continue; fi
+							if [ "${#option4}" -gt "244" ]; then echo "$option4 Is Not A Valid Comment. 244 Chars Max"; echo; unset "option2" "option3" "option4"; continue; fi
 							break
 						;;
 						2)
@@ -803,7 +803,7 @@ Load_Menu () {
 							printf "[Comment]: "
 							read -r "option4"
 							echo
-							if [ "${#option4}" -gt "255" ]; then echo "$option3 Is Not A Valid Comment. 255 Chars Max"; echo; unset "option2" "option3" "option4"; continue; fi
+							if [ "${#option4}" -gt "243" ]; then echo "$option3 Is Not A Valid Comment. 243 Chars Max"; echo; unset "option2" "option3" "option4"; continue; fi
 							break
 						;;
 						3)
@@ -929,7 +929,7 @@ Load_Menu () {
 							printf "[Comment]: "
 							read -r "option4"
 							echo
-							if [ "${#option4}" -gt "255" ]; then echo "$option4 Is Not A Valid Comment. 255 Chars Max"; echo; unset "option2" "option3" "option4"; continue; fi
+							if [ "${#option4}" -gt "242" ]; then echo "$option4 Is Not A Valid Comment. 242 Chars Max"; echo; unset "option2" "option3" "option4"; continue; fi
 							break
 						;;
 						2)
@@ -1725,7 +1725,7 @@ case "$1" in
 		case "$2" in
 			ip)
 				if ! echo "$3" | Is_IP; then echo "$3 Is Not A Valid IP"; echo; exit 2; fi
-				if [ "${#4}" -gt "255" ]; then echo "$4 Is Not A Valid Comment. 255 Chars Max"; echo; exit 2; fi
+				if [ "${#4}" -gt "244" ]; then echo "$4 Is Not A Valid Comment. 244 Chars Max"; echo; exit 2; fi
 				echo "Banning $3"
 				desc="$4"
 				if [ -z "$4" ]; then
@@ -1735,7 +1735,7 @@ case "$1" in
 			;;
 			range)
 				if ! echo "$3" | Is_Range; then echo "$3 Is Not A Valid Range"; echo; exit 2; fi
-				if [ "${#4}" -gt "255" ]; then echo "$4 Is Not A Valid Comment. 255 Chars Max"; echo; exit 2; fi
+				if [ "${#4}" -gt "243" ]; then echo "$4 Is Not A Valid Comment. 243 Chars Max"; echo; exit 2; fi
 				echo "Banning $3"
 				desc="$4"
 				if [ -z "$4" ]; then
@@ -1860,7 +1860,7 @@ case "$1" in
 		case "$2" in
 			ip|range)
 				if ! echo "$3" | Is_IP && ! echo "$3" | Is_Range ; then echo "$3 Is Not A Valid IP/Range"; echo; exit 2; fi
-				if [ "${#4}" -gt "255" ]; then echo "$4 Is Not A Valid Comment. 255 Chars Max"; echo; exit 2; fi
+				if [ "${#4}" -gt "242" ]; then echo "$4 Is Not A Valid Comment. 242 Chars Max"; echo; exit 2; fi
 				echo "Whitelisting $3"
 				desc="$4"
 				if [ -z "$4" ]; then
@@ -1971,9 +1971,9 @@ case "$1" in
 				dos2unix /tmp/iplist-unfiltered.txt
 				if [ "$(grep -coE '^[0-9,./]*$' /tmp/iplist-unfiltered.txt)" = "0" ]; then { logger -st Skynet "[ERROR] No Content Detected - Stopping Import"; rm -rf /tmp/iplist-unfiltered.txt /tmp/skynet.lock; exit 1; }; fi
 				echo "Processing List"
-				if [ -n "$4" ] && [ "${#4}" -le "255" ]; then
-					grep -vF "/" /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk -v desc="$4" '{print "add Skynet-Blacklist " $1 " comment \"" desc "\""}' > /tmp/iplist-filtered.txt
-					grep -F "/" /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk -v desc="$4" '{print "add Skynet-BlockedRanges " $1 " comment \"" desc "\""}' >> /tmp/iplist-filtered.txt
+				if [ -n "$4" ] && [ "${#4}" -le "245" ]; then
+					grep -vF "/" /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk -v desc="Imported: $4" '{print "add Skynet-Blacklist " $1 " comment \"" desc "\""}' > /tmp/iplist-filtered.txt
+					grep -F "/" /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk -v desc="Imported: $4" '{print "add Skynet-BlockedRanges " $1 " comment \"" desc "\""}' >> /tmp/iplist-filtered.txt
 				else
 					imptime="$(date +"%b %d %T")"
 					grep -vF "/" /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk -v imptime="$imptime" '{print "add Skynet-Blacklist " $1 " comment \"Imported: " imptime "\""}' > /tmp/iplist-filtered.txt
@@ -2003,8 +2003,8 @@ case "$1" in
 				dos2unix /tmp/iplist-unfiltered.txt
 				if [ "$(grep -coE '^[0-9,./]*$' /tmp/iplist-unfiltered.txt)" = "0" ]; then { logger -st Skynet "[ERROR] No Content Detected - Stopping Import"; rm -rf /tmp/iplist-unfiltered.txt /tmp/skynet.lock; exit 1; }; fi
 				echo "Processing List"
-				if [ -n "$4" ] && [ "${#4}" -le "255" ]; then
-					Filter_PrivateIP < /tmp/iplist-unfiltered.txt | awk -v desc="$4" '{print "add Skynet-Whitelist " $1 " comment \"" desc "\""}' > /tmp/iplist-filtered.txt
+				if [ -n "$4" ] && [ "${#4}" -le "245" ]; then
+					Filter_PrivateIP < /tmp/iplist-unfiltered.txt | awk -v desc="Imported: $4" '{print "add Skynet-Whitelist " $1 " comment \"" desc "\""}' > /tmp/iplist-filtered.txt
 				else
 					imptime="$(date +"%b %d %T")"
 					Filter_PrivateIP < /tmp/iplist-unfiltered.txt | awk -v imptime="$imptime" '{print "add Skynet-Whitelist " $1 " comment \"Imported: " imptime "\""}' > /tmp/iplist-filtered.txt
