@@ -85,9 +85,7 @@ Here Are Some Example Whitelist Commands;
 ( sh /jffs/scripts/firewall whitelist remove entry 8.8.8.8) This Removes IP/Range Specified
 ( sh /jffs/scripts/firewall whitelist remove comment "Apples" ) This Removes Entries With The Comment Apples
 ( sh /jffs/scripts/firewall whitelist refresh ) Regenerate Shared Whitelist Files
-( sh /jffs/scripts/firewall whitelist list ) List All Whitelist Entries
-( sh /jffs/scripts/firewall whitelist list ips ) List Manually Added IP Entries
-( sh /jffs/scripts/firewall whitelist list domains ) List Manually Added Domain Entries
+( sh /jffs/scripts/firewall whitelist list ips|domains|imported ) List Whitelist Entries Based On Category (Leave Blank For All)
 
 Here Are Some Example Import Commands;
 ( sh /jffs/scripts/firewall import blacklist file.txt "Apples" ) This Bans All IPs From URL/Local File With The Comment Apples
