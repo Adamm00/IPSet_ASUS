@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 16/05/2018 -		   Asus Firewall Addition By Adamm v6.1.8				    #
+## - 17/05/2018 -		   Asus Firewall Addition By Adamm v6.1.8				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -1007,8 +1007,9 @@ Load_Menu () {
 								echo "[1]  --> All"
 								echo "[2]  --> Manually Added IPs"
 								echo "[3]  --> Manually Added Domains"
+								echo "[4]  --> Imported Entries"
 								echo
-								printf "[1-3]: "
+								printf "[1-4]: "
 								read -r "menu3"
 								echo
 								case "$menu3" in
@@ -1021,6 +1022,10 @@ Load_Menu () {
 									;;
 									3)
 										option3="domains"
+										break
+									;;
+									4)
+										option3="imported"
 										break
 									;;
 									e|exit|back|menu)
@@ -1935,10 +1940,14 @@ case "$1" in
 					domains)
 						sed '\~add Skynet-Whitelist ~!d;\~ManualWlistD:~!d;s~add Skynet-Whitelist ~~' "$skynetipset"
 					;;
+					imported)
+						sed '\~add Skynet-Whitelist ~!d;\~Imported:~!d;s~add Skynet-Whitelist ~~' "$skynetipset"
+					;;
 					*)
 						sed '\~add Skynet-Whitelist ~!d;s~add Skynet-Whitelist ~~' "$skynetipset"
 					;;
 				esac
+				echo
 			;;
 			*)
 				echo "Command Not Recognized, Please Try Again"
