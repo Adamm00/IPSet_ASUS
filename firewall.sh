@@ -312,15 +312,16 @@ Save_IPSets () {
 
 Unban_PrivateIP () {
 		if [ "$unbanprivateip" != "disabled" ]; then
-			grep -F "INBOUND" /tmp/syslog.log | Filter_PrivateSRC | grep -oE 'SRC=[0-9,\.]* ' | cut -c 5- | while IFS= read -r "ip"; do
+			grep -F "INBOUND" /tmp/syslog.log | Filter_PrivateSRC | grep -oE 'SRC=[0-9,\.]*' | cut -c 5- | awk '!x[$0]++' | while IFS= read -r "ip"; do
 				ipset -q -A Skynet-Whitelist "$ip" comment "PrivateIP"
 				ipset -q -D Skynet-Blacklist "$ip"
-				sed -i "\\~SRC=${ip} ~d" /tmp/syslog.log
+				sed -i "\\~SRC=${ip} ~d" "/tmp/syslog.log" "$skynetevents"
 			done
-			grep -F "OUTBOUND" /tmp/syslog.log | Filter_PrivateDST | grep -oE 'DST=[0-9,\.]* ' | cut -c 5- | while IFS= read -r "ip"; do
+			grep -F "OUTBOUND" /tmp/syslog.log | Filter_PrivateDST | grep -oE 'DST=[0-9,\.]*' | cut -c 5- | awk '!x[$0]++' | while IFS= read -r "ip"; do
 				ipset -q -A Skynet-Whitelist "$ip" comment "PrivateIP"
 				ipset -q -D Skynet-Blacklist "$ip"
 				sed -i "\\~DST=${ip} ~d" /tmp/syslog.log
+				sed -i "\\~SRC=${ip} ~d" "$skynetevents"
 			done
 		fi
 }
