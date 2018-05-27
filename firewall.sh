@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 17/05/2018 -		   Asus Firewall Addition By Adamm v6.1.8				    #
+## - 28/05/2018 -		   Asus Firewall Addition By Adamm v6.2.0				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -326,6 +326,13 @@ Unban_PrivateIP () {
 		fi
 }
 
+Refresh_AiProtect () {
+	if [ "$banaiprotect" = "enabled" ] && [ -f /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db ]; then
+		sed "\\~add Skynet-Blacklist ~!d;\\~BanAiProtect~!d;s~ comment.*~~;s~add~del~g" "$skynetipset" | ipset restore -!
+		grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}$' /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db | awk '!x[$0]++' | Filter_PrivateIP | awk '{print "add Skynet-Blacklist " $1 " comment \"BanAiProtect\""}'  | ipset restore -!
+	fi
+}
+
 Refresh_MBans () {
 		if grep -qE "Manual Ban.* TYPE=Domain" "$skynetevents"; then
 			grep -E "Manual Ban.* TYPE=Domain" "$skynetevents" | awk '{print $9}' | awk '!x[$0]++' | sed 's~Host=~~g' > /tmp/mbans.list
@@ -613,7 +620,8 @@ Write_Config () {
 	echo "countrylist=\"$countrylist\""
 	echo "excludelists=\"$excludelists\""
 	echo "unbanprivateip=\"$unbanprivateip\""
-	echo "loginvalid=\"$loginvalid\""; } > "$skynetcfg"
+	echo "loginvalid=\"$loginvalid\""
+	echo "banaiprotect=\"$banaiprotect\""; } > "$skynetcfg"
 }
 
 ####################################################################################################################################################
@@ -2130,6 +2138,7 @@ case "$1" in
 		Whitelist_Shared
 		Refresh_MWhitelist
 		Refresh_MBans
+		Refresh_AiProtect
 		Save_IPSets
 		while [ "$(($(date +%s) - stime))" -lt "20" ]; do
 			sleep 1
@@ -2434,6 +2443,30 @@ case "$1" in
 						loginvalid="disabled"
 						Unload_DebugIPTables
 						Load_DebugIPTables
+					;;
+					*)
+						echo "Command Not Recognized, Please Try Again"
+						echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
+						echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
+						echo; exit 2
+					;;
+				esac
+			;;
+			banaiprotect)
+				case "$3" in
+					enable)
+						Check_Lock "$@"
+						Purge_Logs
+						echo "Enabling AiProtect Banning"
+						banaiprotect="enabled"
+						Refresh_AiProtect
+					;;
+					disable)
+						Check_Lock "$@"
+						Purge_Logs
+						echo "Disabling AiProtect Banning"
+						banaiprotect="disabled"
+						sed "\\~add Skynet-Blacklist ~!d;\\~BanAiProtect~!d;s~ comment.*~~;s~add~del~g" "$skynetipset" | ipset restore -!
 					;;
 					*)
 						echo "Command Not Recognized, Please Try Again"
