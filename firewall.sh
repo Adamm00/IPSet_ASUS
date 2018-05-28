@@ -1150,8 +1150,9 @@ Load_Menu () {
 					echo "[7]  --> Restore Skynet Files"
 					echo "[8]  --> Toggle PrivateIP Filtering"
 					echo "[9]  --> Toggle Invalid Packet Logging"
+					echo "[10] --> Toggle Ban AiProtect"
 					echo
-					printf "[1-9]: "
+					printf "[1-10]: "
 					read -r "menu2"
 					echo
 					case "$menu2" in
@@ -1290,6 +1291,39 @@ Load_Menu () {
 							option2="loginvalid"
 							while true; do
 								echo "Select Invalid Packet Logging Option"
+								echo "[1]  --> Enable"
+								echo "[2]  --> Disable"
+								echo
+								printf "[1-2]: "
+								read -r "menu3"
+								echo
+								case "$menu3" in
+									1)
+										option3="enable"
+										break
+									;;
+									2)
+										option3="disable"
+										break
+									;;
+									e|exit|back|menu)
+										unset "option1" "option2" "option3" "option4" "option5"
+										clear
+										Load_Menu
+										break
+									;;
+									*)
+										echo "$menu3 Isn't An Option!"
+										echo
+									;;
+								esac
+							done
+							break
+						;;
+						10)
+							option2="banaiprotect"
+							while true; do
+								echo "Select Ban AiProtect Option"
 								echo "[1]  --> Enable"
 								echo "[2]  --> Disable"
 								echo
@@ -1859,7 +1893,8 @@ case "$1" in
 		btime="$(date +%s)" && printf "Filtering IPv4 Ranges 		"
 		grep -F "/" /tmp/skynet/malwarelist.txt | awk '{print "add Skynet-BlockedRanges " $1 " comment \"BanMalware\""}' >> "$skynetipset" && $grn "[$(($(date +%s) - btime))s]"
 		btime="$(date +%s)" && printf "Applying Blacklists 		"
-		ipset restore -! -f "$skynetipset" && $grn "[$(($(date +%s) - btime))s]"
+		ipset restore -! -f "$skynetipset"
+		Refresh_AiProtect >/dev/null 2>&1 && $grn "[$(($(date +%s) - btime))s]"
 		unset "forcebanmalwareupdate"
 		echo
 		echo "For False Positive Website Bans Use; ( sh $0 whitelist domain URL )"
@@ -2475,6 +2510,7 @@ case "$1" in
 						echo; exit 2
 					;;
 				esac
+				Save_IPSets
 			;;
 			*)
 				echo "Command Not Recognized, Please Try Again"
