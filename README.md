@@ -2,7 +2,7 @@
 Lightweight firewall addition for ARM/HND based ASUS Routers using IPSet as seen on [SmallNetBuilder](https://www.snbforums.com/threads/skynet-asus-firewall-addition-dynamic-malware-country-manual-ip-blocking.16798/)
 
 
-The goal of this tool is to enhance the firmware's built in functionality such as the SPI Firewall and Brute Force Detection while adding easy to use tools for users to implement custom firewall rules they desire. Skynet has a range of feature from banning single IPs, domains, entire countries or pulling predefined malware lists from reputable providers. It is the one stop shop for router security and the first line of defence in your home network.
+The goal of this tool is to enhance the firmware's built in functionality such as the SPI Firewall, Brute Force Detection and AiProtect while adding easy to use tools for users to implement custom firewall rules they desire. Skynet has a range of feature from banning single IPs, domains, entire countries or pulling predefined malware lists from reputable providers. It is the one stop shop for router security and the first line of defense in your home network.
 
 
 ## Donate
@@ -36,7 +36,7 @@ To use the CLI, execute the following;
     "restart"      # <-- Restart Skynet
     "disable"      # <-- Temporarily Disable Skynet
     "update"       # <-- Update Script To Latest Version (check github for changes)
-    "debug"	       # <-- Debug Features (Disable/Watch/Info/Clean/Swap/Backup/Restore)
+    "debug"	       # <-- Debug Features
     "stats"        # <-- Show/Search Stats Of Banned IPs (Requires debugging enabled)
     "install"      # <-- Install Script (Or Change Boot Args)
     "uninstall     # <-- Uninstall All Traces Of Script
@@ -105,10 +105,12 @@ Here Are Some Example Debug Commands;
 ( sh /jffs/scripts/firewall debug watch ) Show Debug Entries As They Appear
 ( sh /jffs/scripts/firewall debug info ) Print Useful Debug Info
 ( sh /jffs/scripts/firewall debug clean ) Cleanup Syslog Entries
-( sh /jffs/scripts/firewall debug swap install ) Install SWAP File
-( sh /jffs/scripts/firewall debug swap uninstall ) Uninstall SWAP File
+( sh /jffs/scripts/firewall debug swap install|uninstall ) Install/Uninstall SWAP File
 ( sh /jffs/scripts/firewall debug backup ) Backup Skynet Files To Skynets Install Directory With The Name "Skynet-Backup.tar.gz"
 ( sh /jffs/scripts/firewall debug restore ) Restore Backup Files From Skynets Install Directory With The Name "Skynet-Backup.tar.gz"
+( sh /jffs/scripts/firewall debug unbanprivate enable|disable ) Enable/Disable Unban_PrivateIP Function
+( sh /jffs/scripts/firewall debug loginvalid enable|disable ) Enable/Disable Invalid Packet Logging
+( sh /jffs/scripts/firewall debug banaiprotect enable|disable ) Enable/Disable Banning IP's Flagged By AiProtect
 
 Here Are Some Example Stats Commands;
 ( sh /jffs/scripts/firewall stats ) Compile Stats With Default Top10 Output
