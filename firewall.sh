@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 28/05/2018 -		   Asus Firewall Addition By Adamm v6.2.0				    #
+## - 30/05/2018 -		   Asus Firewall Addition By Adamm v6.2.1				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -328,8 +328,13 @@ Unban_PrivateIP () {
 
 Refresh_AiProtect () {
 	if [ "$banaiprotect" = "enabled" ] && [ -f /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db ]; then
-		sed "\\~add Skynet-Blacklist ~!d;\\~BanAiProtect~!d;s~ comment.*~~;s~add~del~g" "$skynetipset" | ipset restore -!
-		grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}$' /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db | awk '!x[$0]++' | Filter_PrivateIP | awk '{print "add Skynet-Blacklist " $1 " comment \"BanAiProtect\""}'  | ipset restore -!
+		if [ -f /opt/bin/opkg ] && [ ! -f /opt/bin/sqlite3 ]; then
+			opkg update && opkg install sqlite3-cli
+		fi
+		if [ -f /opt/bin/opkg ] && [ -f /opt/bin/sqlite3 ]; then
+			sed "\\~add Skynet-Blacklist ~!d;\\~BanAiProtect~!d;s~ comment.*~~;s~add~del~g" "$skynetipset" | ipset restore -!
+			sqlite3 /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db "SELECT src FROM monitor;" | grep -oE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' | awk '!x[$0]++' | Filter_PrivateIP | awk '{print "add Skynet-Blacklist " $1 " comment \"BanAiProtect\""}'  | ipset restore -!
+		fi
 	fi
 }
 
@@ -2492,6 +2497,7 @@ case "$1" in
 					enable)
 						Check_Lock "$@"
 						Purge_Logs
+						if [ ! -f /opt/bin/opkg ]; then echo "This Feature Requires Entware - Aborting"; echo; exit 0; fi
 						echo "Enabling AiProtect Banning"
 						banaiprotect="enabled"
 						Refresh_AiProtect
