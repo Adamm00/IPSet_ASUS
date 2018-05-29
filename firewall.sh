@@ -1899,6 +1899,7 @@ case "$1" in
 		grep -F "/" /tmp/skynet/malwarelist.txt | awk '{print "add Skynet-BlockedRanges " $1 " comment \"BanMalware\""}' >> "$skynetipset" && $grn "[$(($(date +%s) - btime))s]"
 		btime="$(date +%s)" && printf "Applying Blacklists 		"
 		ipset restore -! -f "$skynetipset"
+		if [ -z "$banaiprotect" ] && [ -f /opt/bin/opkg ]; then banaiprotect="enabled"; else banaiprotect="disabled"; fi
 		Refresh_AiProtect >/dev/null 2>&1 && $grn "[$(($(date +%s) - btime))s]"
 		unset "forcebanmalwareupdate"
 		echo
@@ -2916,12 +2917,12 @@ case "$1" in
 				2)
 					echo "Malware List Updating Enabled & Scheduled For 2.25am Every Monday"
 					banmalwareupdate="weekly"
+					forcebanmalwareupdate="true"
 					break
 				;;
 				3)
 					echo "Malware List Updating Disabled"
 					banmalwareupdate="disabled"
-					forcebanmalwareupdate="true"
 					break
 				;;
 				e|exit)
@@ -2985,6 +2986,7 @@ case "$1" in
 		touch "${device}/skynet/skynet.log"
 		[ -z "$(nvram get odmpid)" ] && model="$(nvram get productid)" || model="$(nvram get odmpid)"
 		if [ -z "$loginvalid" ]; then loginvalid="disabled"; fi
+		if [ -z "$banaiprotect" ] && [ -f /opt/bin/opkg ]; then banaiprotect="enabled"; else banaiprotect="disabled"; fi
 		Write_Config
 		cmdline="sh /jffs/scripts/firewall start skynetloc=${device}/skynet # Skynet Firewall Addition"
 		if grep -E "sh /jffs/scripts/firewall .* # Skynet" /jffs/scripts/firewall-start 2>/dev/null | grep -qvE "^#"; then
