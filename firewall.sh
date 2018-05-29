@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 30/05/2018 -		   Asus Firewall Addition By Adamm v6.2.1				    #
+## - 30/05/2018 -		   Asus Firewall Addition By Adamm v6.2.2				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -331,7 +331,7 @@ Refresh_AiProtect () {
 		if [ -f /opt/bin/opkg ] && [ ! -f /opt/bin/sqlite3 ]; then
 			opkg update && opkg install sqlite3-cli
 		fi
-		if [ -f /opt/bin/opkg ] && [ -f /opt/bin/sqlite3 ]; then
+		if [ -f /opt/bin/opkg ] && [ -f /opt/bin/sqlite3 ] && sqlite3 /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db "SELECT src FROM monitor;" | grep -qE '^([0-9]{1,3}\.){3}[0-9]{1,3}$'; then
 			sed "\\~add Skynet-Blacklist ~!d;\\~BanAiProtect~!d;s~ comment.*~~;s~add~del~g" "$skynetipset" | ipset restore -!
 			sqlite3 /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db "SELECT src FROM monitor;" | grep -oE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' | awk '!x[$0]++' | Filter_PrivateIP | awk '{print "add Skynet-Blacklist " $1 " comment \"BanAiProtect\""}'  | ipset restore -!
 		fi
