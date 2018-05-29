@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 30/05/2018 -		   Asus Firewall Addition By Adamm v6.2.2				    #
+## - 30/05/2018 -		   Asus Firewall Addition By Adamm v6.2.1				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -2446,6 +2446,7 @@ case "$1" in
 			unbanprivate)
 				case "$3" in
 					enable)
+						if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
 						Check_Lock "$@"
 						Purge_Logs
 						echo "Enabling PrivateIP Filtering"
@@ -2453,6 +2454,7 @@ case "$1" in
 
 					;;
 					disable)
+						if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
 						Check_Lock "$@"
 						Purge_Logs
 						echo "Disabling PrivateIP Filtering"
@@ -2469,6 +2471,7 @@ case "$1" in
 			loginvalid)
 				case "$3" in
 					enable)
+						if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
 						Check_Lock "$@"
 						Purge_Logs
 						echo "Enabling Invalid IP Logging"
@@ -2478,6 +2481,7 @@ case "$1" in
 
 					;;
 					disable)
+						if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
 						Check_Lock "$@"
 						Purge_Logs
 						echo "Disabling Invalid IP Logging"
@@ -2496,6 +2500,7 @@ case "$1" in
 			banaiprotect)
 				case "$3" in
 					enable)
+						if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
 						Check_Lock "$@"
 						Purge_Logs
 						if [ ! -f /opt/bin/opkg ]; then echo "This Feature Requires Entware - Aborting"; echo; exit 0; fi
@@ -2504,6 +2509,7 @@ case "$1" in
 						Refresh_AiProtect
 					;;
 					disable)
+						if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
 						Check_Lock "$@"
 						Purge_Logs
 						echo "Disabling AiProtect Banning"
