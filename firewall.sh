@@ -209,7 +209,7 @@ Check_Security () {
 		fi
 		if [ "$(nvram get misc_http_x)" = "1" ]; then
 			logger -st Skynet "[WARNING] Insecure Setting Detected - Disabling WAN GUI Access"
-			nvram set misc_http_x=0
+			nvram set misc_http_x="0"
 			restartfirewall="1"
 			nvram commit
 		fi
