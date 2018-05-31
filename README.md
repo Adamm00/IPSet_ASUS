@@ -111,6 +111,7 @@ Here Are Some Example Debug Commands;
 ( sh /jffs/scripts/firewall debug unbanprivate enable|disable ) Enable/Disable Unban_PrivateIP Function
 ( sh /jffs/scripts/firewall debug loginvalid enable|disable ) Enable/Disable Invalid Packet Logging
 ( sh /jffs/scripts/firewall debug banaiprotect enable|disable ) Enable/Disable Banning IP's Flagged By AiProtect
+( sh /jffs/scripts/firewall debug securemode enable|disable ) Enable/Disable Insecure Settings Being Applied In WebUI
 
 Here Are Some Example Stats Commands;
 ( sh /jffs/scripts/firewall stats ) Compile Stats With Default Top10 Output

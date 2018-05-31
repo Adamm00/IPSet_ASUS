@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 30/05/2018 -		   Asus Firewall Addition By Adamm v6.2.2				    #
+## - 31/05/2018 -		   Asus Firewall Addition By Adamm v6.2.3				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -197,6 +197,23 @@ Check_Files () {
 Check_Status () {
 		{ [ -f "$skynetipset" ] && ipset -L -n Skynet-Whitelist >/dev/null 2>&1 && iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j DROP >/dev/null 2>&1; } ||
 		{ [ -f "$skynetipset" ] && ipset -L -n Skynet-Whitelist >/dev/null 2>&1 && iptables -t raw -C PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP >/dev/null 2>&1 && iptables -t raw -C OUTPUT -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP >/dev/null 2>&1; }
+}
+
+Check_Security () {
+	if [ "$securemode" = "enabled" ]; then
+		if [ "$(nvram get sshd_enable)" = "1" ]; then
+			logger -st Skynet "[WARNING] Insecure Setting Detected - Disabling WAN SSH Access"
+			nvram set sshd_enable="2"
+			restartfirewall="1"
+			nvram commit
+		fi
+		if [ "$(nvram get misc_http_x)" = "1" ]; then
+			logger -st Skynet "[WARNING] Insecure Setting Detected - Disabling WAN GUI Access"
+			nvram set misc_http_x=0
+			restartfirewall="1"
+			nvram commit
+		fi
+	fi
 }
 
 Unload_IPTables () {
@@ -626,7 +643,8 @@ Write_Config () {
 	echo "excludelists=\"$excludelists\""
 	echo "unbanprivateip=\"$unbanprivateip\""
 	echo "loginvalid=\"$loginvalid\""
-	echo "banaiprotect=\"$banaiprotect\""; } > "$skynetcfg"
+	echo "banaiprotect=\"$banaiprotect\""
+	echo "securemode=\"$securemode\""; } > "$skynetcfg"
 }
 
 ####################################################################################################################################################
@@ -1156,8 +1174,9 @@ Load_Menu () {
 					echo "[8]  --> Toggle PrivateIP Filtering"
 					echo "[9]  --> Toggle Invalid Packet Logging"
 					echo "[10] --> Toggle Ban AiProtect"
+					echo "[11] --> Toggle Secure Mode"
 					echo
-					printf "[1-10]: "
+					printf "[1-11]: "
 					read -r "menu2"
 					echo
 					case "$menu2" in
@@ -1329,6 +1348,39 @@ Load_Menu () {
 							option2="banaiprotect"
 							while true; do
 								echo "Select Ban AiProtect Option"
+								echo "[1]  --> Enable"
+								echo "[2]  --> Disable"
+								echo
+								printf "[1-2]: "
+								read -r "menu3"
+								echo
+								case "$menu3" in
+									1)
+										option3="enable"
+										break
+									;;
+									2)
+										option3="disable"
+										break
+									;;
+									e|exit|back|menu)
+										unset "option1" "option2" "option3" "option4" "option5"
+										clear
+										Load_Menu
+										break
+									;;
+									*)
+										echo "$menu3 Isn't An Option!"
+										echo
+									;;
+								esac
+							done
+							break
+						;;
+						11)
+							option2="securemode"
+							while true; do
+								echo "Select Secure Mode Option"
 								echo "[1]  --> Enable"
 								echo "[2]  --> Disable"
 								echo
@@ -2180,6 +2232,7 @@ case "$1" in
 		Refresh_MWhitelist
 		Refresh_MBans
 		Refresh_AiProtect
+		Check_Security
 		Save_IPSets
 		while [ "$(($(date +%s) - stime))" -lt "20" ]; do
 			sleep 1
@@ -2524,6 +2577,31 @@ case "$1" in
 					;;
 				esac
 				Save_IPSets
+			;;
+			securemode)
+				case "$3" in
+					enable)
+						if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
+						Check_Lock "$@"
+						Purge_Logs
+						echo "Enabling Secure Mode"
+						securemode="enabled"
+						Check_Security
+					;;
+					disable)
+						if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
+						Check_Lock "$@"
+						Purge_Logs
+						echo "Disabling Secure Mode"
+						securemode="disabled"
+					;;
+					*)
+						echo "Command Not Recognized, Please Try Again"
+						echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
+						echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
+						echo; exit 2
+					;;
+				esac
 			;;
 			*)
 				echo "Command Not Recognized, Please Try Again"
@@ -3115,4 +3193,5 @@ esac
 if [ "$nolog" != "2" ]; then Logging "$@"; echo; fi
 if [ "$nocfg" != "1" ]; then Write_Config; fi
 if [ "$lockskynet" = "true" ]; then rm -rf "/tmp/skynet.lock"; fi
+if [ "$restartfirewall" = "1" ]; then service restart_firewall; fi
 if [ -n "$reloadmenu" ]; then echo; echo; printf "Press Enter To Continue..."; read -r "continue"; exec "$0"; fi
