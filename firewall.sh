@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 31/05/2018 -		   Asus Firewall Addition By Adamm v6.2.3				    #
+## - 31/05/2018 -		   Asus Firewall Addition By Adamm v6.2.4				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -204,15 +204,27 @@ Check_Security () {
 		if [ "$(nvram get sshd_enable)" = "1" ]; then
 			logger -st Skynet "[WARNING] Insecure Setting Detected - Disabling WAN SSH Access"
 			nvram set sshd_enable="2"
-			restartfirewall="1"
 			nvram commit
+			restartfirewall="1"
 		fi
 		if [ "$(nvram get misc_http_x)" = "1" ]; then
 			logger -st Skynet "[WARNING] Insecure Setting Detected - Disabling WAN GUI Access"
 			nvram set misc_http_x="0"
-			restartfirewall="1"
 			nvram commit
+			restartfirewall="1"
 		fi
+		if [ "$(nvram get pptpd_enable)" = "1" ] && nvram get pptpd_clientlist | grep -qE 'i[0-9]{7}|p[0-9]{7}'; then
+			logger -st Skynet "[WARNING] PPTP VPN Server Shows Signs Of Compromise - Investigate Immediately!"
+			nvram set pptpd_enable="0"
+			nvram set pptpd_broadcast="0"
+			nvram commit
+			echo "Stopping PPTP Service"
+			service stop_pptpd
+			echo "Restarting Samba Service"
+			service restart_samba
+			restartfirewall="1"
+		fi
+			
 	fi
 }
 
@@ -2204,6 +2216,7 @@ case "$1" in
 		Unban_PrivateIP
 		Purge_Logs
 		Save_IPSets
+		Check_Security
 		sed -i "\\~USER $(nvram get http_username) pid .*/jffs/scripts/firewall ~d" /tmp/syslog.log
 		echo
 	;;
@@ -3071,6 +3084,7 @@ case "$1" in
 		[ -z "$(nvram get odmpid)" ] && model="$(nvram get productid)" || model="$(nvram get odmpid)"
 		if [ -z "$loginvalid" ]; then loginvalid="disabled"; fi
 		if [ -z "$banaiprotect" ] && [ -f /opt/bin/opkg ]; then banaiprotect="enabled"; else banaiprotect="disabled"; fi
+		if [ -z "$securemode" ]; then securemode="enabled"; fi
 		Write_Config
 		cmdline="sh /jffs/scripts/firewall start skynetloc=${device}/skynet # Skynet Firewall Addition"
 		if grep -E "sh /jffs/scripts/firewall .* # Skynet" /jffs/scripts/firewall-start 2>/dev/null | grep -qvE "^#"; then
