@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 31/05/2018 -		   Asus Firewall Addition By Adamm v6.2.4				    #
+## - 06/06/2018 -		   Asus Firewall Addition By Adamm v6.2.5				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -224,7 +224,6 @@ Check_Security () {
 			service restart_samba
 			restartfirewall="1"
 		fi
-			
 	fi
 }
 
@@ -272,7 +271,7 @@ Load_DebugIPTables () {
 				pos4="$(iptables --line -nL OUTPUT -t raw | grep -F "Skynet-Master dst" | grep -F "DROP" | awk '{print $1}')"
 				iptables -t raw -I OUTPUT "$pos4" -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 			fi
-			if [ "$(nvram get fw_log_x)" = "drop" ] || [ "$(nvram get fw_log_x)" = "both" ] && [ "$loginvalid" != "disabled" ]; then
+			if [ "$(nvram get fw_log_x)" = "drop" ] || [ "$(nvram get fw_log_x)" = "both" ] && [ "$loginvalid" = "enabled" ]; then
 				iptables -I logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - INVALID] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 			fi
 		fi
@@ -340,7 +339,7 @@ Save_IPSets () {
 }
 
 Unban_PrivateIP () {
-		if [ "$unbanprivateip" != "disabled" ]; then
+		if [ "$unbanprivateip" = "enabled" ]; then
 			grep -F "INBOUND" /tmp/syslog.log | Filter_PrivateSRC | grep -oE 'SRC=[0-9,\.]*' | cut -c 5- | awk '!x[$0]++' | while IFS= read -r "ip"; do
 				ipset -q -A Skynet-Whitelist "$ip" comment "PrivateIP"
 				ipset -q -D Skynet-Blacklist "$ip"
@@ -2235,6 +2234,7 @@ case "$1" in
 		if ! ipset -L -n Skynet-Blacklist >/dev/null 2>&1; then ipset -q create Skynet-Blacklist hash:ip --maxelem 500000 comment; fi
 		if ! ipset -L -n Skynet-BlockedRanges >/dev/null 2>&1; then ipset -q create Skynet-BlockedRanges hash:net --maxelem 200000 comment; fi
 		if ! ipset -L -n Skynet-Master >/dev/null 2>&1; then ipset -q create Skynet-Master list:set; ipset -q -A Skynet-Master Skynet-Blacklist; ipset -q -A Skynet-Master Skynet-BlockedRanges; fi
+		if [ -z "$unbanprivateip" ]; then unbanprivateip="enabled"; fi
 		Unban_PrivateIP
 		Purge_Logs "all"
 		sed '\~add Skynet-Whitelist ~!d;\~nvram: ~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
@@ -2407,6 +2407,20 @@ case "$1" in
 						$red "[Failed]"
 					fi
 				fi
+				echo
+				echo
+				printf "Checking Autoupdate Setting...				"
+				if [ "$autoupdate" = "enabled" ]; then $grn "[Enabled]"; else $red "[Disabled]"; fi
+				printf "Checking Auto-Banmalware Update Setting...		"
+				if [ "$banmalwareupdate" = "daily" ] || [ "$banmalwareupdate" = "weekly" ]; then $grn "[Enabled]"; else $red "[Disabled]"; fi
+				printf "Checking Unban PrivateIP Setting...			"
+				if [ "$unbanprivateip" = "enabled" ]; then $grn "[Enabled]"; else $ylow "[Disabled]"; fi
+				printf "Checking Log Invalid Setting...				"
+				if [ "$loginvalid" = "enabled" ]; then $grn "[Enabled]"; else $ylow "[Disabled]"; fi
+				printf "Checking Ban AiProtect Setting...			"
+				if [ "$banaiprotect" = "enabled" ]; then $grn "[Enabled]"; else $red "[Disabled]"; fi
+				printf "Checking Secure Mode Setting...				"
+				if [ "$securemode" = "enabled" ]; then $grn "[Enabled]"; else $red "[Disabled]"; fi
 				nocfg="1"
 			;;
 			clean)
@@ -3083,6 +3097,7 @@ case "$1" in
 		touch "${device}/skynet/skynet.log"
 		[ -z "$(nvram get odmpid)" ] && model="$(nvram get productid)" || model="$(nvram get odmpid)"
 		if [ -z "$loginvalid" ]; then loginvalid="disabled"; fi
+		if [ -z "$unbanprivateip" ]; then unbanprivateip="enabled"; fi
 		if [ -z "$banaiprotect" ] && [ -f /opt/bin/opkg ]; then banaiprotect="enabled"; else banaiprotect="disabled"; fi
 		if [ -z "$securemode" ]; then securemode="enabled"; fi
 		Write_Config
