@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 06/06/2018 -		   Asus Firewall Addition By Adamm v6.2.5				    #
+## - 06/06/2018 -		   Asus Firewall Addition By Adamm v6.2.6				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -1962,7 +1962,7 @@ case "$1" in
 		grep -F "/" /tmp/skynet/malwarelist.txt | awk '{print "add Skynet-BlockedRanges " $1 " comment \"BanMalware\""}' >> "$skynetipset" && $grn "[$(($(date +%s) - btime))s]"
 		btime="$(date +%s)" && printf "Applying Blacklists 		"
 		ipset restore -! -f "$skynetipset"
-		if [ -z "$banaiprotect" ] && [ -f /opt/bin/opkg ]; then banaiprotect="enabled"; else banaiprotect="disabled"; fi
+		if [ -z "$banaiprotect" ] && [ -f /opt/bin/opkg ]; then banaiprotect="enabled"; fi
 		Refresh_AiProtect >/dev/null 2>&1 && $grn "[$(($(date +%s) - btime))s]"
 		unset "forcebanmalwareupdate"
 		echo
@@ -3098,7 +3098,7 @@ case "$1" in
 		[ -z "$(nvram get odmpid)" ] && model="$(nvram get productid)" || model="$(nvram get odmpid)"
 		if [ -z "$loginvalid" ]; then loginvalid="disabled"; fi
 		if [ -z "$unbanprivateip" ]; then unbanprivateip="enabled"; fi
-		if [ -z "$banaiprotect" ] && [ -f /opt/bin/opkg ]; then banaiprotect="enabled"; else banaiprotect="disabled"; fi
+		if [ -z "$banaiprotect" ] && [ -f /opt/bin/opkg ]; then banaiprotect="enabled"; fi
 		if [ -z "$securemode" ]; then securemode="enabled"; fi
 		Write_Config
 		cmdline="sh /jffs/scripts/firewall start skynetloc=${device}/skynet # Skynet Firewall Addition"
