@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 06/06/2018 -		   Asus Firewall Addition By Adamm v6.2.6				    #
+## - 07/06/2018 -		   Asus Firewall Addition By Adamm v6.2.6				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -1102,23 +1102,81 @@ Load_Menu () {
 			5)
 				if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; Load_Menu; break; fi
 				option1="import"
+				while true; do
+					echo "Select Where To Import List:"
+					echo "[1]  --> Blacklist"
+					echo "[2]  --> Whitelist"
+					echo
+					printf "[1-2]: "
+					read -r "menu3"
+					echo
+					case "$menu3" in
+						1)
+							option2="blacklist"
+							break
+						;;
+						2)
+							option2="whitelist"
+							break
+						;;
+						e|exit|back|menu)
+							unset "option1" "option2" "option3" "option4" "option5"
+							clear
+							Load_Menu
+							break
+						;;
+						*)
+							echo "$menu3 Isn't An Option!"
+							echo
+						;;
+					esac
+				done
 				echo "Input URL/Local File To Import"
 				echo
 				printf "[File]: "
-				read -r "option2"
+				read -r "option3"
 				echo
-				if [ -z "$option2" ]; then echo "File Field Can't Be Empty - Please Try Again"; echo; unset "option1" "option2"; continue; fi
+				if [ -z "$option3" ]; then echo "File Field Can't Be Empty - Please Try Again"; echo; unset "option1" "option2" "option3"; continue; fi
 				break
 			;;
 			6)
 				if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; Load_Menu; break; fi
 				option1="deport"
+				while true; do
+					echo "Select Where To Deport List:"
+					echo "[1]  --> Blacklist"
+					echo "[2]  --> Whitelist"
+					echo
+					printf "[1-2]: "
+					read -r "menu3"
+					echo
+					case "$menu3" in
+						1)
+							option2="blacklist"
+							break
+						;;
+						2)
+							option2="whitelist"
+							break
+						;;
+						e|exit|back|menu)
+							unset "option1" "option2" "option3" "option4" "option5"
+							clear
+							Load_Menu
+							break
+						;;
+						*)
+							echo "$menu3 Isn't An Option!"
+							echo
+						;;
+					esac
+				done
 				echo "Input URL/Local File To Deport"
 				echo
 				printf "[File]: "
-				read -r "option2"
+				read -r "option3"
 				echo
-				if [ -z "$option2" ]; then echo "File Field Can't Be Empty - Please Try Again"; echo; unset "option1" "option2"; continue; fi
+				if [ -z "$option3" ]; then echo "File Field Can't Be Empty - Please Try Again"; echo; unset "option1" "option2" "option3"; continue; fi
 				break
 			;;
 			7)
@@ -1196,6 +1254,7 @@ Load_Menu () {
 							break
 						;;
 						2)
+							if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
 							option2="watch"
 							while true; do
 								echo "Select Watch Option:"
@@ -1282,14 +1341,17 @@ Load_Menu () {
 							break
 						;;
 						6)
+							if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
 							option2="backup"
 							break
 						;;
 						7)
+							if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
 							option2="restore"
 							break
 						;;
 						8)
+							if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
 							option2="unbanprivate"
 							while true; do
 								echo "Select Filter PrivateIP Option"
@@ -1323,6 +1385,7 @@ Load_Menu () {
 							break
 						;;
 						9)
+							if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
 							option2="loginvalid"
 							while true; do
 								echo "Select Invalid Packet Logging Option"
@@ -1356,6 +1419,7 @@ Load_Menu () {
 							break
 						;;
 						10)
+							if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
 							option2="banaiprotect"
 							while true; do
 								echo "Select Ban AiProtect Option"
@@ -1389,6 +1453,7 @@ Load_Menu () {
 							break
 						;;
 						11)
+							if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
 							option2="securemode"
 							while true; do
 								echo "Select Secure Mode Option"
@@ -2325,6 +2390,7 @@ case "$1" in
 				Purge_Logs
 			;;
 			watch)
+				if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
 				if [ "$debugmode" = "disabled" ]; then echo "Debug Mode Is Disabled - Exiting!"; echo; exit 2; fi
 				trap 'echo; echo "Stopping Log Monitoring"; Purge_Logs' 2
 				echo "Watching Logs For Debug Entries (ctrl +c) To Stop"
