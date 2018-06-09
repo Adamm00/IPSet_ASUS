@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 07/06/2018 -		   Asus Firewall Addition By Adamm v6.2.6				    #
+## - 09/06/2018 -		   Asus Firewall Addition By Adamm v6.2.7				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -222,6 +222,11 @@ Check_Security () {
 			service stop_pptpd
 			echo "Restarting Samba Service"
 			service restart_samba
+			restartfirewall="1"
+		fi
+		if [ -e "/var/run/tor" ] || [ -e "/var/run/torrc" ] || [ -e "/var/run/tord" ] || [ -e "/var/run/vpnfilterm" ] || [ -e "/var/run/vpnfilterw" ]; then
+			logger -st Skynet "[WARNING] Suspected VPNFilter Malware Found - Investigate Immediately!"
+			rm -rf "/var/run/tor" "/var/run/torrc" "/var/run/tord" "/var/run/vpnfilterm" "/var/run/vpnfilterw"
 			restartfirewall="1"
 		fi
 	fi
@@ -2334,8 +2339,8 @@ case "$1" in
 		Unload_IPSets
 		echo "Restarting Firewall Service"
 		iptables -t raw -F
-		service restart_firewall
-		exit 0
+		restartfirewall="1"
+		echo
 	;;
 
 	disable)
@@ -2511,8 +2516,7 @@ case "$1" in
 							Unload_IPTables
 							Unload_DebugIPTables
 							Unload_IPSets
-							service restart_firewall
-							exit 0
+							restartfirewall="1"
 						else
 							echo "Pre-existing SWAP File Detected - Exiting!"
 						fi
@@ -2533,8 +2537,7 @@ case "$1" in
 							Unload_IPTables
 							Unload_DebugIPTables
 							Unload_IPSets
-							service restart_firewall
-							exit 0
+							restartfirewall="1"
 						else
 							echo "Unable To Remove Existing SWAP File - Please Remove Manually"
 							echo
@@ -2586,8 +2589,8 @@ case "$1" in
 				echo
 				echo "Backup Restored"
 				echo "Restarting Firewall Service"
-				service restart_firewall
-				exit 0
+				restartfirewall="1"
+				nolog="2"
 			;;
 			unbanprivate)
 				case "$3" in
@@ -3195,8 +3198,8 @@ case "$1" in
 		Unload_DebugIPTables
 		Unload_IPSets
 		iptables -t raw -F
-		service restart_firewall
-		exit 0
+		restartfirewall="1"
+		nolog="2"
 	;;
 
 	uninstall)
