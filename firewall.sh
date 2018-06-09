@@ -16,7 +16,7 @@
 
 export PATH=/sbin:/bin:/usr/sbin:/usr/bin$PATH
 clear
-head -16 "$0"
+sed -n '2,16p' "$0"
 export LC_ALL=C
 
 retry=1
