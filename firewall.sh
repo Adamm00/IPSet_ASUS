@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 09/06/2018 -		   Asus Firewall Addition By Adamm v6.2.7				    #
+## - 11/06/2018 -		   Asus Firewall Addition By Adamm v6.2.7				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -42,30 +42,6 @@ skynetipset="${skynetloc}/skynet.ipset"
 
 if [ -z "$skynetloc" ] && tty >/dev/null 2>&1; then
 	set "install"
-fi
-
-
-# Detect Location and Force Upgrade
-if [ ! -f "$skynetcfg" ] && grep -E "sh /jffs/scripts/firewall start .*usb=.* # Skynet" /jffs/scripts/firewall-start 2>/dev/null | grep -qvE "^#"; then
-	location="$(grep -ow "usb=.*" /jffs/scripts/firewall-start | grep -vE "^#" | awk '{print $1}' | cut -c 5-)/skynet"
-	if [ -f "${location}/scripts/ipset.txt" ]; then
-		forceupgrade="1"
-		if ! echo "$@" | grep -wqE "install"; then
-			logger -st Skynet "[ERROR] Legacy v5 Installation Detected - Please Run Installer Manually To Upgrade!"
-			echo
-			exit 0
-		fi
-	fi
-elif [ ! -f "$skynetcfg" ] && grep -E "sh /jffs/scripts/firewall start.* # Skynet" /jffs/scripts/firewall-start 2>/dev/null | grep -v "usb=" | grep -v "skynetloc=" | grep -qvE "^#"; then
-	location="/jffs"
-	if [ -f "${location}/scripts/ipset.txt" ]; then
-		forceupgrade="2"
-		if ! echo "$@" | grep -wqE "install"; then
-			logger -st Skynet "[ERROR] Legacy v5 Installation Detected - Please Run Installer Manually To Upgrade!"
-			echo
-			exit 0
-		fi
-	fi
 fi
 
 
@@ -117,7 +93,7 @@ Kill_Lock () {
 
 Check_Settings () {
 		if [ ! -f "$skynetcfg" ]; then
-			logger -st Skynet "[ERROR] Configuration Not Detected - Please Use ( sh $0 install ) To Continue"
+			logger -st Skynet "[ERROR] Configuration File Not Detected - Please Use ( sh $0 install ) To Continue"
 			exit 1
 		fi
 
@@ -601,41 +577,6 @@ Logging () {
 		else
 			logger -st Skynet "[Complete] $blacklist1count IPs / $blacklist2count Ranges Banned. $((blacklist1count - oldips)) New IPs / $((blacklist2count - oldranges)) New Ranges Banned. $hits1 Inbound / $hits2 Outbound Connections Blocked! [$1] [${ftime}s]"
 		fi
-}
-
-Upgrade_v6 () {
-
-	# Set Locations
-	skynetloc="${device}/skynet"
-	skynetcfg="${device}/skynet/skynet.cfg"
-	skynetlog="${device}/skynet/skynet.log"
-	skynetevents="${device}/skynet/events.log"
-	skynetipset="${device}/skynet/skynet.ipset"
-
-	# Rename/Move files
-	mv "${location}/scripts/ipset.txt" "$skynetipset"
-	mv "${location}/skynet.log" "$skynetlog"
-	if [ "$forceupgrade" = "1" ]; then rm -rf "${location}/scripts"; fi
-
-	# Convert ipset.txt
-	sed -i 's~^create Whitelist ~create Skynet-Whitelist ~g' "$skynetipset"
-	sed -i 's~^add Whitelist ~add Skynet-Whitelist ~g' "$skynetipset"
-	sed -i 's~^create Blacklist ~create Skynet-Blacklist ~g' "$skynetipset"
-	sed -i 's~^add Blacklist ~add Skynet-Blacklist ~g' "$skynetipset"
-	sed -i 's~^create BlockedRanges ~create Skynet-BlockedRanges ~g' "$skynetipset"
-	sed -i 's~^add BlockedRanges ~add Skynet-BlockedRanges ~g' "$skynetipset"
-	sed -i 's~^create Skynet ~create Skynet-Master ~g' "$skynetipset"
-	sed -i 's~^add Skynet Blacklist~add Skynet-Master Skynet-Blacklist~g' "$skynetipset"
-	sed -i 's~^add Skynet BlockedRanges~add Skynet-Master Skynet-BlockedRanges~g' "$skynetipset"
-
-	# Convert skynet.log
-	sed '\~BLOCKED -~d' "$skynetlog" > "$skynetevents"
-	sed -i '\~BLOCKED -~!d' "$skynetlog"
-
-	# Convert countrylist and customlisturl
-	countrylist="$(grep -m1 -F "Country:" "$skynetipset" | sed 's~.*Country: ~~;s~"~~')"
-	customlisturl="$(grep -F "New Banmalware Filter" "$skynetevents" | sed 's~.*New Banmalware Filter.*URL=~~g')"
-	sed -i '\~New Banmalware Filter~d' "$skynetevents"
 }
 
 Write_Config () {
@@ -2728,7 +2669,6 @@ case "$1" in
 		echo "Monitoring From $(grep -m1 -F "BLOCKED -" "$skynetlog" | awk '{print $1" "$2" "$3}') To $(grep -F "BLOCKED -" "$skynetlog" | tail -1 | awk '{print $1" "$2" "$3}')"
 		echo "$(wc -l < "$skynetlog") Block Events Detected"
 		echo "$({ grep -E 'INBOUND|INVALID' "$skynetlog" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- ; grep -F "OUTBOUND" "$skynetlog" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- ; } | awk '!x[$0]++' | wc -l) Unique IPs"
-		echo "$(grep -Fc "NEW BAN" "$skynetlog") Autobans Issued"
 		echo "$(grep -Fc "Manual Ban" "$skynetevents") Manual Bans Issued"
 		echo
 		counter=10
@@ -2932,12 +2872,11 @@ case "$1" in
 				$red "Last $counter Unique Connections Blocked (Outbound);"
 				grep -E "OUTBOUND.*$proto" "$skynetlog" | grep -vE 'DPT=80 |DPT=443 ' | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' | awk '!x[$0]++' | head -"$counter" | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
 				echo
-				$red "Last $counter Unique Connections Blocked (Invalid);"
-				grep -E "INVALID.*$proto" "$skynetlog" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' | awk '!x[$0]++' | head -"$counter" | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
-				echo
-				$red "Last $counter Autobans;"
-				grep -E "NEW BAN.*$proto" "$skynetlog" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | tail -"$counter" | awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
-				echo
+				if [ "$loginvalid" = "enabled" ]; then
+					$red "Last $counter Unique Connections Blocked (Invalid);"
+					grep -E "INVALID.*$proto" "$skynetlog" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' | awk '!x[$0]++' | head -"$counter" | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
+					echo
+				fi
 				$red "Last $counter Manual Bans;"
 				grep -F "Manual Ban" "$skynetevents" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | tail -"$counter" | awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
 				echo
@@ -2953,9 +2892,11 @@ case "$1" in
 				$red "Top $counter Blocks (Outbound);"
 				grep -E "OUTBOUND.*$proto" "$skynetlog" | grep -vE 'DPT=80 |DPT=443 ' | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}'
 				echo
-				$red "Top $counter Blocks (Invalid);"
-				grep -E "INVALID.*$proto" "$skynetlog" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}'
-				echo
+				if [ "$loginvalid" = "enabled" ]; then
+					$red "Top $counter Blocks (Invalid);"
+					grep -E "INVALID.*$proto" "$skynetlog" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}'
+					echo
+				fi
 				$red "Top $counter Blocked Devices (Outbound);"
 				grep -E "OUTBOUND.*$proto" "$skynetlog" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1 "x "$2}' > /tmp/skynetstats.txt
 				awk '{print $2}' /tmp/skynetstats.txt | while IFS= read -r "localip"; do
@@ -3154,7 +3095,6 @@ case "$1" in
 		echo
 		echo
 		if ! grep -F "swapon" /jffs/scripts/post-mount | grep -qvE "^#" && ! grep -F "swap" /jffs/configs/fstab 2>/dev/null | grep -qvE "^#"; then Create_Swap; fi
-		if [ -n "$forceupgrade" ]; then Upgrade_v6; fi
 		if [ -f "$skynetlog" ]; then mv "$skynetlog" "${device}/skynet/skynet.log"; fi
 		if [ -f "$skynetevents" ]; then mv "$skynetevents" "${device}/skynet/events.log"; fi
 		if [ -f "$skynetipset" ]; then mv "$skynetipset" "${device}/skynet/skynet.ipset"; fi
