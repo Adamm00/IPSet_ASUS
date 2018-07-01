@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 11/06/2018 -		   Asus Firewall Addition By Adamm v6.2.7				    #
+## - 01/07/2018 -		   Asus Firewall Addition By Adamm v6.2.7				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -389,7 +389,7 @@ Whitelist_Extra () {
 		echo "snbforums.com"
 		nvram get ntp_server0
 		nvram get ntp_server1
-		nvram get firmware_server; } | awk '!x[$0]++' > /jffs/shared-Skynet2-whitelist
+		nvram get firmware_server; } > /jffs/shared-Skynet2-whitelist
 }
 
 Whitelist_CDN () {
@@ -1766,6 +1766,8 @@ fi
 if [ -n "$option1" ]; then
 	set "$option1" "$option2" "$option3" "$option4" "$option5"
 	stime="$(date +%s)"
+	echo "$0 $@" | tr -s " "
+	echo
 fi
 
 if [ -f "$skynetcfg" ]; then
@@ -2307,9 +2309,11 @@ case "$1" in
 		remotever="$(/usr/sbin/curl -fsL --retry 3 "$remoteurl" | Filter_Version)"
 		if [ "$localver" = "$remotever" ] && [ "$2" != "-f" ]; then
 			logger -st Skynet "[INFO] Skynet Up To Date - $localver"
+			echo
 			exit 0
 		elif [ "$localver" != "$remotever" ] && [ "$2" = "check" ]; then
 			logger -st Skynet "[INFO] Skynet Update Detected - $remotever"
+			echo
 			exit 0
 		elif [ "$2" = "-f" ]; then
 			logger -st Skynet "[INFO] Forcing Update"
