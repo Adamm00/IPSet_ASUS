@@ -1,6 +1,7 @@
 # Skynet - Asus Firewall Addition
 Lightweight firewall addition for ARM/HND based ASUS Routers using IPSet as seen on [SmallNetBuilder](https://www.snbforums.com/threads/skynet-asus-firewall-addition-dynamic-malware-country-manual-ip-blocking.16798/)
 
+Skynet is the first comprehensive IP banning and security tool exclusively for Asus Devices.
 
 The goal of this tool is to enhance the firmware's built in functionality such as the SPI Firewall, Brute Force Detection and AiProtect while adding easy to use tools for users to implement custom firewall rules they desire. Skynet has a range of feature from banning single IPs, domains, entire countries or pulling predefined malware lists from reputable providers. It is the one stop shop for router security and the first line of defense in your home network.
 
@@ -20,7 +21,7 @@ To open the menu its as simple as;
 
 ```sh /jffs/scripts/firewall```
 
-[![Skynet GUI](https://i.imgur.com/wyTf0r9.png "Skynet GUI")](https://i.imgur.com/wyTf0r9.png "Skynet GUI")
+[![Skynet GUI](https://i.imgur.com/KRHYq3e.png "Skynet GUI")](https://i.imgur.com/KRHYq3e.png "Skynet GUI")
 
 To use the CLI, execute the following;
 
