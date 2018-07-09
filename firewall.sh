@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 07/07/2018 -		   Asus Firewall Addition By Adamm v6.3.0				    #
+## - 09/07/2018 -		   Asus Firewall Addition By Adamm v6.3.0				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -320,7 +320,7 @@ Save_IPSets () {
 }
 
 Unban_PrivateIP () {
-		if [ "$unbanprivateip" = "enabled" ]; then
+		if [ "$unbanprivateip" = "enabled" ] && [ "$debugmode" = "enabled" ]; then
 			grep -F "INBOUND" /tmp/syslog.log | Filter_PrivateSRC | grep -oE 'SRC=[0-9,\.]*' | cut -c 5- | awk '!x[$0]++' | while IFS= read -r "ip"; do
 				ipset -q -A Skynet-Whitelist "$ip" comment "PrivateIP"
 				ipset -q -D Skynet-Blacklist "$ip"
@@ -348,8 +348,8 @@ Refresh_AiProtect () {
 }
 
 Refresh_MBans () {
-		if grep -qE "Manual Ban.* TYPE=Domain" "$skynetevents"; then
-			grep -E "Manual Ban.* TYPE=Domain" "$skynetevents" | awk '{print $9}' | awk '!x[$0]++' | sed 's~Host=~~g' > /tmp/mbans.list
+		if grep -qF "[Manual Ban] TYPE=Domain" "$skynetevents"; then
+			grep -F "[Manual Ban] TYPE=Domain" "$skynetevents" | awk '{print $9}' | awk '!x[$0]++' | sed 's~Host=~~g' > /tmp/mbans.list
 			sed -i '\~\[Manual Ban\] TYPE=Domain~d;' "$skynetevents"
 			sed "\\~add Skynet-Blacklist ~!d;\\~ManualBanD~!d;s~ comment.*~~;s~add~del~g" "$skynetipset" | ipset restore -!
 			while IFS= read -r "domain"; do
@@ -1963,20 +1963,18 @@ case "$1" in
 		cd "$cwd" || exit 1
 		dos2unix /tmp/skynet/*
 		cat /tmp/skynet/* | grep -oE '^[0-9,./]*$' | awk '!x[$0]++' | Filter_PrivateIP > /tmp/skynet/malwarelist.txt && $grn "[$(($(date +%s) - btime))s]"
-		btime="$(date +%s)" && printf "Saving Changes 			"
-		Save_IPSets >/dev/null 2>&1 && $grn "[$(($(date +%s) - btime))s]"
-		btime="$(date +%s)" && printf "Removing Previous Malware Bans  "
-		sed -i '\~comment \"BanMalware\"~d' "$skynetipset"
-		ipset flush Skynet-Blacklist; ipset flush Skynet-BlockedRanges
-		ipset restore -! -f "$skynetipset" && $grn "[$(($(date +%s) - btime))s]"
 		btime="$(date +%s)" && printf "Filtering IPv4 Addresses 	"
+		sed -i '\~comment \"BanMalware\"~d' "$skynetipset"
 		grep -vF "/" /tmp/skynet/malwarelist.txt | awk '{print "add Skynet-Blacklist " $1 " comment \"BanMalware\""}' >> "$skynetipset" && $grn "[$(($(date +%s) - btime))s]"
 		btime="$(date +%s)" && printf "Filtering IPv4 Ranges 		"
 		grep -F "/" /tmp/skynet/malwarelist.txt | awk '{print "add Skynet-BlockedRanges " $1 " comment \"BanMalware\""}' >> "$skynetipset" && $grn "[$(($(date +%s) - btime))s]"
-		btime="$(date +%s)" && printf "Applying Blacklists 		"
-		ipset restore -! -f "$skynetipset"
-		if [ -z "$banaiprotect" ] && [ -f /opt/bin/opkg ]; then banaiprotect="enabled"; fi
-		Refresh_AiProtect >/dev/null 2>&1 && $grn "[$(($(date +%s) - btime))s]"
+		btime="$(date +%s)" && printf "Applying New Blacklist		"
+		ipset flush Skynet-Blacklist; ipset flush Skynet-BlockedRanges
+		ipset restore -! -f "$skynetipset" >/dev/null 2>&1 && $grn "[$(($(date +%s) - btime))s]"
+		btime="$(date +%s)" && printf "Refreshing AiProtect Bans 	"
+		Refresh_AiProtect && $grn "[$(($(date +%s) - btime))s]"
+		btime="$(date +%s)" && printf "Saving Changes 			"
+		Save_IPSets >/dev/null 2>&1 && $grn "[$(($(date +%s) - btime))s]"
 		unset "forcebanmalwareupdate"
 		echo
 		echo "For False Positive Website Bans Use; ( sh $0 whitelist domain URL )"
@@ -2248,7 +2246,6 @@ case "$1" in
 		if ! ipset -L -n Skynet-Blacklist >/dev/null 2>&1; then ipset -q create Skynet-Blacklist hash:ip --maxelem 500000 comment; fi
 		if ! ipset -L -n Skynet-BlockedRanges >/dev/null 2>&1; then ipset -q create Skynet-BlockedRanges hash:net --maxelem 200000 comment; fi
 		if ! ipset -L -n Skynet-Master >/dev/null 2>&1; then ipset -q create Skynet-Master list:set; ipset -q -A Skynet-Master Skynet-Blacklist; ipset -q -A Skynet-Master Skynet-BlockedRanges; fi
-		if [ -z "$unbanprivateip" ]; then unbanprivateip="enabled"; fi
 		Unban_PrivateIP
 		Purge_Logs "all"
 		sed '\~add Skynet-Whitelist ~!d;\~nvram: ~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
