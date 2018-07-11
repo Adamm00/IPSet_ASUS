@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 09/07/2018 -		   Asus Firewall Addition By Adamm v6.3.0				    #
+## - 11/07/2018 -		   Asus Firewall Addition By Adamm v6.3.1				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -46,6 +46,12 @@ fi
 
 
 Check_Lock () {
+		if [ -f "/tmp/skynet.lock" ] && [ "$(($(date +%s)-$(sed -n '3p' /tmp/skynet.lock)))" -gt "7200" ] && [ -d "/proc/$(sed -n '2p' /tmp/skynet.lock)" ] && [ "$(sed -n '2p' /tmp/skynet.lock)" != "$$" ]; then
+			logger -st Skynet "[INFO] Killing Stuck Process ($(sed -n '1p' /tmp/skynet.lock)) (pid=$(sed -n '2p' /tmp/skynet.lock))"
+			kill "$(sed -n '2p' /tmp/skynet.lock)"
+			rm -rf /tmp/skynet.lock
+			echo
+		fi
 		if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(sed -n '2p' /tmp/skynet.lock)" ] && [ "$(sed -n '2p' /tmp/skynet.lock)" != "$$" ]; then
 			logger -st Skynet "[INFO] Lock File Detected ($(sed -n '1p' /tmp/skynet.lock)) (pid=$(sed -n '2p' /tmp/skynet.lock)) - Exiting (cpid=$$)"
 			echo
@@ -53,6 +59,7 @@ Check_Lock () {
 		else
 			echo "$@" > /tmp/skynet.lock
 			echo "$$" >> /tmp/skynet.lock
+			date +%s >> /tmp/skynet.lock
 			lockskynet="true"
 		fi
 }
