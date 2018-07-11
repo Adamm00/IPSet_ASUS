@@ -46,16 +46,17 @@ fi
 
 
 Check_Lock () {
-		if [ -f "/tmp/skynet.lock" ] && [ "$(($(date +%s)-$(sed -n '3p' /tmp/skynet.lock)))" -gt "7200" ] && [ -d "/proc/$(sed -n '2p' /tmp/skynet.lock)" ] && [ "$(sed -n '2p' /tmp/skynet.lock)" != "$$" ]; then
-			logger -st Skynet "[INFO] Killing Stuck Process ($(sed -n '1p' /tmp/skynet.lock)) (pid=$(sed -n '2p' /tmp/skynet.lock))"
-			kill "$(sed -n '2p' /tmp/skynet.lock)"
-			rm -rf /tmp/skynet.lock
-			echo
-		fi
 		if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(sed -n '2p' /tmp/skynet.lock)" ] && [ "$(sed -n '2p' /tmp/skynet.lock)" != "$$" ]; then
-			logger -st Skynet "[INFO] Lock File Detected ($(sed -n '1p' /tmp/skynet.lock)) (pid=$(sed -n '2p' /tmp/skynet.lock)) - Exiting (cpid=$$)"
-			echo
-			exit 1
+			if [ "$(($(date +%s)-$(sed -n '3p' /tmp/skynet.lock)))" -gt "7200" ]; then
+				logger -st Skynet "[INFO] Killing Stuck Process ($(sed -n '1p' /tmp/skynet.lock)) (pid=$(sed -n '2p' /tmp/skynet.lock))"
+				kill "$(sed -n '2p' /tmp/skynet.lock)"
+				rm -rf /tmp/skynet.lock
+				echo
+			else
+				logger -st Skynet "[INFO] Lock File Detected ($(sed -n '1p' /tmp/skynet.lock)) (pid=$(sed -n '2p' /tmp/skynet.lock)) - Exiting (cpid=$$)"
+				echo
+				exit 1
+			fi
 		else
 			echo "$@" > /tmp/skynet.lock
 			echo "$$" >> /tmp/skynet.lock
