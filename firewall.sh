@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 11/07/2018 -		   Asus Firewall Addition By Adamm v6.3.1				    #
+## - 15/07/2018 -		   Asus Firewall Addition By Adamm v6.3.1				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -57,12 +57,11 @@ Check_Lock () {
 				echo
 				exit 1
 			fi
-		else
-			echo "$@" > /tmp/skynet.lock
-			echo "$$" >> /tmp/skynet.lock
-			date +%s >> /tmp/skynet.lock
-			lockskynet="true"
 		fi
+		echo "$@" > /tmp/skynet.lock
+		echo "$$" >> /tmp/skynet.lock
+		date +%s >> /tmp/skynet.lock
+		lockskynet="true"
 }
 
 
