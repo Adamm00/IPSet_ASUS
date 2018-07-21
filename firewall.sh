@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 17/07/2018 -		   Asus Firewall Addition By Adamm v6.3.1				    #
+## - 22/07/2018 -		   Asus Firewall Addition By Adamm v6.3.1				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -44,19 +44,24 @@ if [ -z "$skynetloc" ] && tty >/dev/null 2>&1; then
 	set "install"
 fi
 
+###############
+#- Functions -#
+###############
 
-##################################################
-#-					Functions					-#
-##################################################
-
+Kill_Lock () {
+		if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(sed -n '2p' /tmp/skynet.lock)" ]; then
+			logger -st Skynet "[INFO] Killing Locked Processes ($(sed -n '1p' /tmp/skynet.lock)) (pid=$(sed -n '2p' /tmp/skynet.lock))"
+			logger -st Skynet "[INFO] $(ps | awk -v pid="$(sed -n '2p' /tmp/skynet.lock)" '$1 == pid')"
+			kill "$(sed -n '2p' /tmp/skynet.lock)"
+			rm -rf /tmp/skynet.lock
+			echo
+		fi
+}
 
 Check_Lock () {
 		if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(sed -n '2p' /tmp/skynet.lock)" ] && [ "$(sed -n '2p' /tmp/skynet.lock)" != "$$" ]; then
 			if [ "$(($(date +%s)-$(sed -n '3p' /tmp/skynet.lock)))" -gt "7200" ]; then
-				logger -st Skynet "[INFO] Killing Stuck Process ($(sed -n '1p' /tmp/skynet.lock)) (pid=$(sed -n '2p' /tmp/skynet.lock))"
-				kill "$(sed -n '2p' /tmp/skynet.lock)"
-				rm -rf /tmp/skynet.lock
-				echo
+				Kill_Lock
 			else
 				logger -st Skynet "[INFO] Lock File Detected ($(sed -n '1p' /tmp/skynet.lock)) (pid=$(sed -n '2p' /tmp/skynet.lock)) - Exiting (cpid=$$)"
 				echo
@@ -93,15 +98,6 @@ else
 	iface="$(nvram get wan0_ifname)"
 fi
 
-
-Kill_Lock () {
-		if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(sed -n '2p' /tmp/skynet.lock)" ]; then
-			logger -st Skynet "[INFO] Killing Locked Processes ($(sed -n '1p' /tmp/skynet.lock)) (pid=$(sed -n '2p' /tmp/skynet.lock))"
-			logger -st Skynet "[INFO] $(ps | awk -v pid="$(sed -n '2p' /tmp/skynet.lock)" '$1 == pid')"
-			kill "$(sed -n '2p' /tmp/skynet.lock)"
-			rm -rf /tmp/skynet.lock
-		fi
-}
 
 Check_Settings () {
 		if [ ! -f "$skynetcfg" ]; then
@@ -617,9 +613,9 @@ Write_Config () {
 }
 
 
-##############################################
-#-					Menu					-#
-##############################################
+##########
+#- Menu -#
+##########
 
 
 Load_Menu () {
@@ -1789,9 +1785,9 @@ if [ -f "$skynetcfg" ]; then
 fi
 
 
-##################################################
-#-					Commands					-#
-##################################################
+##############
+#- Commands -#
+##############
 
 
 case "$1" in
