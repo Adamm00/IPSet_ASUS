@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 22/07/2018 -		   Asus Firewall Addition By Adamm v6.3.1				    #
+## - 24/07/2018 -		   Asus Firewall Addition By Adamm v6.3.2				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
