@@ -210,6 +210,8 @@ Check_Security () {
 		fi
 		if [ -e "/var/run/tor" ] || [ -e "/var/run/torrc" ] || [ -e "/var/run/tord" ] || [ -e "/var/run/vpnfilterm" ] || [ -e "/var/run/vpnfilterw" ]; then
 			logger -st Skynet "[WARNING] Suspected VPNFilter Malware Found - Investigate Immediately!"
+			logger -st Skynet "[WARNING] Caching Potential VPNFilter Malware: ${skynetloc}/vpnfilter.tar.gz"
+			tar -czf "${skynetloc}/vpnfilter.tar.gz" "/var/run/tor" "/var/run/torrc" "/var/run/tord" "/var/run/vpnfilterm" "/var/run/vpnfilterw" >/dev/null 2>&1
 			rm -rf "/var/run/tor" "/var/run/torrc" "/var/run/tord" "/var/run/vpnfilterm" "/var/run/vpnfilterw"
 			restartfirewall="1"
 		fi
