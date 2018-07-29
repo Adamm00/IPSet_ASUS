@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 24/07/2018 -		   Asus Firewall Addition By Adamm v6.3.2				    #
+## - 29/07/2018 -		   Asus Firewall Addition By Adamm v6.3.2				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -150,6 +150,13 @@ Check_Settings () {
 			abcfg="$(find /mnt/*/adblocking/.config/ab-solution.cfg)"
 			ablocation="$(dirname "$abcfg")"
 			if ! grep -qE "hostsFileType=.*\\+" "$abcfg"; then
+				if [ ! -f "${ablocation}/AddPlusHosts" ] && [ ! -f "${ablocation}/AddPlusHostsDismissed" ]; then
+					touch "${ablocation}/AddPlusHosts"
+				fi
+			fi
+		elif [ -f /opt/share/absolution/.conf/absolution.conf ]; then
+			ablocation="/opt/share/absolution"
+			if ! grep -qE "bfPlusHosts=on" "${ablocation}/.conf/absolution.conf"; then
 				if [ ! -f "${ablocation}/AddPlusHosts" ] && [ ! -f "${ablocation}/AddPlusHostsDismissed" ]; then
 					touch "${ablocation}/AddPlusHosts"
 				fi
@@ -2428,10 +2435,20 @@ case "$1" in
 				printf "Checking Skynet IPSet...				"
 				if ipset -L -n Skynet-Master >/dev/null 2>&1; then $grn "[Passed]"; else $red "[Failed]"; fi
 				if [ -f "$(/usr/bin/find /mnt/*/adblocking/.config/ab-solution.cfg 2>/dev/null)" ]; then
-					printf "Checking For AB-Solution Plus Content...		"
+					printf "Checking For AB-Solution Plus Content...        	"
 					abcfg="$(find /mnt/*/adblocking/.config/ab-solution.cfg)"
 					ablocation="$(dirname "$abcfg")"
 					if grep -qE "hostsFileType=.*\\+" "$abcfg"; then
+						$grn "[Passed]"
+					elif [ -f "${ablocation}/AddPlusHostsDismissed" ]; then
+						$ylow "[Dismissed]"
+					else
+						$red "[Failed]"
+					fi
+				elif [ -f /opt/share/absolution/.conf/absolution.conf ]; then
+					printf "Checking For AB-Solution Plus Content...        	"
+					ablocation="/opt/share/absolution"
+					if grep -qE "bfPlusHosts=on" "${ablocation}/.conf/absolution.conf"; then
 						$grn "[Passed]"
 					elif [ -f "${ablocation}/AddPlusHostsDismissed" ]; then
 						$ylow "[Dismissed]"
