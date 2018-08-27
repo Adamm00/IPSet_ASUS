@@ -2447,7 +2447,7 @@ case "$1" in
 						$red "[Failed]"
 					fi
 				elif [ -f /opt/share/diversion/.conf/diversion.conf ]; then
-					printf "Checking For Diversion Plus Content...            "
+					printf "Checking For Diversion Plus Content...   	        "
 					divlocation="/opt/share/diversion"
 					if grep -qE "bfPlusHosts=on" "${divlocation}/.conf/diversion.conf"; then
 						$grn "[Passed]"
