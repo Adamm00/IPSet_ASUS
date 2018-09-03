@@ -302,8 +302,12 @@ Is_Port () {
 		grep -qE '^[0-9]{1,5}$'
 }
 
+Strip_Domain () {
+		sed 's~http[s]*://~~;s~/.*~~;s~www.~~g'
+}
+
 Domain_Lookup () {
-		nslookup "$(echo "$1" | sed 's~http[s]*://~~;s~/.*~~')" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' | awk 'NR>2'
+		nslookup "$(echo "$1" | Strip_Domain)" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' | awk 'NR>2'
 }
 
 Filter_Version () {
@@ -448,7 +452,7 @@ Whitelist_Shared () {
 		if [ -n "$(/usr/bin/find /jffs -name 'shared-*-whitelist')" ]; then
 			echo "Whitelisting Shared Domains"
 			sed '\~add Skynet-Whitelist ~!d;\~Shared-Whitelist~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
-			grep -hvF "#" /jffs/shared-*-whitelist | sed 's~http[s]*://~~;s~/.*~~' | awk '!x[$0]++' | while IFS= read -r "domain"; do
+			grep -hvF "#" /jffs/shared-*-whitelist | Strip_Domain | awk '!x[$0]++' | while IFS= read -r "domain"; do
 				for ip in $(Domain_Lookup "$domain" 2> /dev/null); do
 					ipset -q -A Skynet-Whitelist "$ip" comment "Shared-Whitelist: $domain"
 				done &
@@ -2769,7 +2773,7 @@ case "$1" in
 						echo
 						if [ -f "/opt/var/log/dnsmasq.log" ] && grep -q "reply.* is $4" /opt/var/log/*; then
 							$red "Associated Domains;"
-							grep "reply.* is $4" /opt/var/log/* | awk '{print $6}' | sed 's~http[s]*://~~;s~/.*~~;s~www.~~g' | awk '!x[$0]++'
+							grep "reply.* is $4" /opt/var/log/* | awk '{print $6}' | Strip_Domain | awk '!x[$0]++'
 							echo; echo
 						fi
 						echo "$4 First Tracked On $(grep -m1 -F "=$4 " "$skynetlog" | awk '{print $1" "$2" "$3}')"
@@ -2926,14 +2930,14 @@ case "$1" in
 				$red "Last $counter Unique HTTP(s) Blocks (Outbound);"
 				if [ -f "/opt/var/log/dnsmasq.log" ]; then
 					grep -E 'DPT=80 |DPT=443 ' "$skynetlog" | grep -E "OUTBOUND.*$proto" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' | awk '!x[$0]++' | head -"$counter" | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}' | while IFS= read -r "ip"; do
-						echo "$ip - ($(grep "reply.* is $(echo $ip | cut -d '/' -f6-)" /opt/var/log/* | awk '{print $6}' | sed 's~http[s]*://~~;s~/.*~~;s~www.~~g' | awk '!x[$0]++' | xargs))"
+						echo "$ip - ($(grep "reply.* is $(echo $ip | cut -d '/' -f6-)" /opt/var/log/* | awk '{print $6}' | Strip_Domain | awk '!x[$0]++' | xargs))"
 					done
 				fi
 				echo
 				$red "Top $counter HTTP(s) Blocks (Outbound);"
 				if [ -f "/opt/var/log/dnsmasq.log" ]; then
 					grep -E 'DPT=80 |DPT=443 ' "$skynetlog" | grep -E "OUTBOUND.*$proto" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}' | while IFS= read -r "ip"; do
-						echo "$ip - ($(grep "reply.* is $(echo $ip | cut -d '/' -f6-)" /opt/var/log/* | awk '{print $6}' | sed 's~http[s]*://~~;s~/.*~~;s~www.~~g' | awk '!x[$0]++' | xargs))"
+						echo "$ip - ($(grep "reply.* is $(echo $ip | cut -d '/' -f6-)" /opt/var/log/* | awk '{print $6}' | Strip_Domain | awk '!x[$0]++' | xargs))"
 					done
 				else
 					grep -E 'DPT=80 |DPT=443 ' "$skynetlog" | grep -E "OUTBOUND.*$proto" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}'
