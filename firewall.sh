@@ -2773,7 +2773,7 @@ case "$1" in
 						echo
 						if [ -f "/opt/var/log/dnsmasq.log" ] && grep -q "reply.* is $4" /opt/var/log/*; then
 							$red "Associated Domains;"
-							grep "reply.* is $4" /opt/var/log/* | awk '{print $6}' | Strip_Domain | awk '!x[$0]++'
+							grep "reply.* is $4" /opt/var/log/* | awk '{print $6}' | Strip_Domain | awk '!x[$0]++' | grep -vE '^([0-9]{1,3}\.){3}[0-9]{1,3}$'
 							echo; echo
 						fi
 						echo "$4 First Tracked On $(grep -m1 -F "=$4 " "$skynetlog" | awk '{print $1" "$2" "$3}')"
@@ -2930,14 +2930,14 @@ case "$1" in
 				$red "Last $counter Unique HTTP(s) Blocks (Outbound);"
 				if [ -f "/opt/var/log/dnsmasq.log" ]; then
 					grep -E 'DPT=80 |DPT=443 ' "$skynetlog" | grep -E "OUTBOUND.*$proto" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' | awk '!x[$0]++' | head -"$counter" | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}' | while IFS= read -r "ip"; do
-						echo "$ip - ($(grep "reply.* is $(echo $ip | cut -d '/' -f6-)" /opt/var/log/* | awk '{print $6}' | Strip_Domain | awk '!x[$0]++' | xargs))"
+						echo "$ip - ($(grep "reply.* is $(echo $ip | cut -d '/' -f6-)" /opt/var/log/* | awk '{print $6}' | Strip_Domain | awk '!x[$0]++' | grep -vE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' | xargs))"
 					done
 				fi
 				echo
 				$red "Top $counter HTTP(s) Blocks (Outbound);"
 				if [ -f "/opt/var/log/dnsmasq.log" ]; then
 					grep -E 'DPT=80 |DPT=443 ' "$skynetlog" | grep -E "OUTBOUND.*$proto" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}' | while IFS= read -r "ip"; do
-						echo "$ip - ($(grep "reply.* is $(echo $ip | cut -d '/' -f6-)" /opt/var/log/* | awk '{print $6}' | Strip_Domain | awk '!x[$0]++' | xargs))"
+						echo "$ip - ($(grep "reply.* is $(echo $ip | cut -d '/' -f6-)" /opt/var/log/* | awk '{print $6}' | Strip_Domain | awk '!x[$0]++'| grep -vE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' | xargs))"
 					done
 				else
 					grep -E 'DPT=80 |DPT=443 ' "$skynetlog" | grep -E "OUTBOUND.*$proto" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}'
