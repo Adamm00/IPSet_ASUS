@@ -523,7 +523,7 @@ Whitelist_Shared () {
 		fi
 }
 
-Manage_Device() {
+Manage_Device () {
 		echo "Looking For Available Partitions..."
 		i=1
 		IFS="
@@ -538,7 +538,7 @@ Manage_Device() {
 			echo "No Compatible ext* USB Partitions Found - Exiting!"
 			exit 1
 		fi
-		Select_Device(){
+		Select_Device (){
 				echo
 				echo "Please Enter Partition Number Or e To Exit"
 				printf "[0-%s]: " "$((i - 1))"
@@ -570,7 +570,7 @@ Manage_Device() {
 		fi
 }
 
-Create_Swap() {
+Create_Swap () {
 	while true; do
 		echo "Select SWAP File Size:"
 		echo "[1]  --> 256MB"
@@ -745,7 +745,7 @@ Load_Menu () {
 		echo "[r]  --> Reload Menu"
 		echo "[e]  --> Exit Menu"
 		echo
-		printf "[1-14]: "
+		printf "[1-15]: "
 		read -r "menu"
 		echo
 		case "$menu" in
