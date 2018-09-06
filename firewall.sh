@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 06/09/2018 -		   Asus Firewall Addition By Adamm v6.4.0				    #
+## - 07/09/2018 -		   Asus Firewall Addition By Adamm v6.4.1				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -122,15 +122,15 @@ Check_Settings () {
 		localver="$(Filter_Version "$0")"
 
 		if [ "$banmalwareupdate" = "daily" ]; then
-			cru a Skynet_banmalware "25 2 * * * sh /jffs/scripts/firewall banmalware"
+			Load_Cron "banmalwaredaily"
 		elif [ "$banmalwareupdate" = "weekly" ]; then
-			cru a Skynet_banmalware "25 2 * * Mon sh /jffs/scripts/firewall banmalware"
+			Load_Cron "banmalwareweekly"
 		fi
 
 		if [ "$autoupdate" = "enabled" ]; then
-			cru a Skynet_autoupdate "25 1 * * Mon sh /jffs/scripts/firewall update"
+			Load_Cron "autoupdate"
 		else
-			cru a Skynet_checkupdate "25 1 * * Mon sh /jffs/scripts/firewall update check"
+			Load_Cron "checkupdate"
 		fi
 
 		if [ -d "/opt/bin" ] && [ ! -f "/opt/bin/firewall" ]; then
@@ -289,10 +289,62 @@ Unload_IPSets () {
 }
 
 Unload_Cron () {
-		cru d Skynet_save
-		cru d Skynet_banmalware
-		cru d Skynet_autoupdate
-		cru d Skynet_checkupdate
+		if [ -z "$1" ]; then set "all"; fi
+        for cron in "$@"; do
+                case "$cron" in
+                        save)
+                                cru d Skynet_save
+                        ;;
+                        banmalware)
+                                cru d Skynet_banmalware
+
+                        ;;
+                        autoupdate)
+                                cru d Skynet_autoupdate
+
+                        ;;
+                        checkupdate)
+                                cru d Skynet_checkupdate
+
+                        ;;
+                        all)
+                                cru d Skynet_save
+                                cru d Skynet_banmalware
+                                cru d Skynet_autoupdate
+                                cru d Skynet_checkupdate
+                        ;;
+                        *)
+								echo "Error - No Cron Specified To Unload"
+						;;
+                esac
+        done
+}
+
+Load_Cron () {
+		if [ -z "$1" ]; then set "all"; fi
+        for cron in "$@"; do
+                case "$cron" in
+                        save)
+                                cru a Skynet_save "0 * * * * sh /jffs/scripts/firewall save"
+                        ;;
+                        banmalwaredaily)
+                                cru a Skynet_banmalware "25 2 * * * sh /jffs/scripts/firewall banmalware"
+                        ;;
+                        banmalwareweekly)
+                                cru a Skynet_banmalware "25 2 * * Mon sh /jffs/scripts/firewall banmalware"
+                        ;;
+                        autoupdate)
+                                cru a Skynet_autoupdate "25 1 * * Mon sh /jffs/scripts/firewall update"
+                        ;;
+                        checkupdate)
+                                cru a Skynet_checkupdate "25 1 * * Mon sh /jffs/scripts/firewall update check"
+
+                        ;;
+                        *)
+								echo "Error - No Cron Specified To Load"
+						;;
+                esac
+        done
 }
 
 Is_IP () {
@@ -316,8 +368,8 @@ Domain_Lookup () {
 }
 
 Extended_Stats () {
-	domainlist="$(grep -E $(echo $ip | cut -d '/' -f6-) /tmp/skynetstats.txt | awk '{print $1}' | Strip_Domain | xargs)"
-	echo "$ip $([ -n "$domainlist" ] && echo "- [$domainlist]")"
+	domainlist="$(grep -E "$(echo "$ip" | cut -d '/' -f6-)" /tmp/skynetstats.txt | awk '{print $1}' | Strip_Domain | xargs)"
+	echo "${ip}$([ -n "$domainlist" ] && echo " - [$domainlist]")"
 }
 
 Filter_Version () {
@@ -650,7 +702,7 @@ Load_Menu () {
 	echo "$(iptables --version) - ($iface @ $(nvram get lan_ipaddr))"
 	ipset -v
 	echo "FW Version; $(nvram get buildno)_$(nvram get extendno) ($(uname -v | awk '{print $5" "$6" "$9}')) ($(uname -r))"
-	echo "Install Dir; $skynetloc ($(df -h $skynetloc | xargs | awk '{print $11 " / " $9}') Space Available)"
+	echo "Install Dir; $skynetloc ($(df -h "$skynetloc" | xargs | awk '{print $11 " / " $9}') Space Available)"
 	if grep -F "swapon" /jffs/scripts/post-mount 2>/dev/null | grep -qvE "^#"; then swaplocation="$(grep -o "swapon .*" /jffs/scripts/post-mount | grep -vE "^#" | awk '{print $2}')"; echo "SWAP File; $swaplocation ($(du -h "$swaplocation" | awk '{print $1}'))"; fi
 	echo "Boot Args; $(grep -E "start.* # Skynet" /jffs/scripts/firewall-start 2>/dev/null | grep -vE "^#" | cut -c 4- | cut -d '#' -f1)"
 	if [ -n "$countrylist" ]; then echo "Banned Countries; $countrylist"; fi
@@ -684,10 +736,11 @@ Load_Menu () {
 		echo "[8]  --> Restart Skynet"
 		echo "[9]  --> Temporarily Disable Skynet"
 		echo "[10] --> Update Skynet"
-		echo "[11] --> Debug Options"
-		echo "[12] --> Stats"
-		echo "[13] --> Install Skynet / Change Boot Options"
-		echo "[14] --> Uninstall"
+		echo "[11] --> Settings"
+		echo "[12] --> Debug Options"
+		echo "[13] --> Stats"
+		echo "[14] --> Install Skynet / Change Boot Options"
+		echo "[15] --> Uninstall"
 		echo
 		echo "[r]  --> Reload Menu"
 		echo "[e]  --> Exit Menu"
@@ -1211,30 +1264,324 @@ Load_Menu () {
 				break
 			;;
 			11)
-				option1="debug"
+				option1="settings"
 				while true; do
-					echo "Select Debug Option:"
-					echo "[1]  --> Temporarily Disable Debug Output"
-					echo "[2]  --> Show Debug Entries As They Appear"
-					echo "[3]  --> Print Debug Info"
-					echo "[4]  --> Cleanup Syslog Entries"
-					echo "[5]  --> SWAP File Management"
-					echo "[6]  --> Backup Skynet Files"
-					echo "[7]  --> Restore Skynet Files"
-					echo "[8]  --> Toggle PrivateIP Filtering"
-					echo "[9]  --> Toggle Invalid Packet Logging"
-					echo "[10] --> Toggle Ban AiProtect"
-					echo "[11] --> Toggle Secure Mode"
+					echo "Select Setting To Toggle:"
+					echo "[1]  --> Autoupdate"
+					echo "[2]  --> Banmalware"
+					echo "[3]  --> Debug Mode"
+					echo "[4]  --> Filter Traffic"
+					echo "[5]  --> Unban PrivateIP"
+					echo "[6]  --> Log Invalid Packets"
+					echo "[7]  --> Ban AiProtect"
+					echo "[8]  --> Secure Mode"
 					echo
-					printf "[1-11]: "
+					printf "[1-8]: "
 					read -r "menu2"
 					echo
 					case "$menu2" in
 						1)
-							option2="disable"
+							if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
+							option2="autoupdate"
+							while true; do
+								echo "Select Autoupdate Option"
+								echo "[1]  --> Enable"
+								echo "[2]  --> Disable"
+								echo
+								printf "[1-2]: "
+								read -r "menu3"
+								echo
+								case "$menu3" in
+									1)
+										option3="enable"
+										break
+									;;
+									2)
+										option3="disable"
+										break
+									;;
+									e|exit|back|menu)
+										unset "option1" "option2" "option3" "option4" "option5"
+										clear
+										Load_Menu
+										break
+									;;
+									*)
+										echo "$menu3 Isn't An Option!"
+										echo
+									;;
+								esac
+							done
 							break
 						;;
 						2)
+							if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
+							option2="banmalware"
+							while true; do
+								echo "Select Banmalware Option"
+								echo "[1]  --> Daily"
+								echo "[2]  --> Weekly"
+								echo "[3]  --> Disable"
+								echo
+								printf "[1-3]: "
+								read -r "menu3"
+								echo
+								case "$menu3" in
+									1)
+										option3="daily"
+										break
+									;;
+									2)
+										option3="weekly"
+										break
+									;;
+									3)
+										option3="disable"
+										break
+									;;
+									e|exit|back|menu)
+										unset "option1" "option2" "option3" "option4" "option5"
+										clear
+										Load_Menu
+										break
+									;;
+									*)
+										echo "$menu3 Isn't An Option!"
+										echo
+									;;
+								esac
+							done
+							break
+						;;
+						3)
+							if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
+							option2="debugmode"
+							while true; do
+								echo "Select Debug Mode Option"
+								echo "[1]  --> Enable"
+								echo "[2]  --> Disable"
+								echo
+								printf "[1-2]: "
+								read -r "menu3"
+								echo
+								case "$menu3" in
+									1)
+										option3="enable"
+										break
+									;;
+									2)
+										option3="disable"
+										break
+									;;
+									e|exit|back|menu)
+										unset "option1" "option2" "option3" "option4" "option5"
+										clear
+										Load_Menu
+										break
+									;;
+									*)
+										echo "$menu3 Isn't An Option!"
+										echo
+									;;
+								esac
+							done
+							break
+						;;
+						4)
+							if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
+							option2="filter"
+							while true; do
+								echo "Select Banmalware Option"
+								echo "[1]  --> All"
+								echo "[2]  --> Inbound"
+								echo "[3]  --> Outbound"
+								echo
+								printf "[1-3]: "
+								read -r "menu3"
+								echo
+								case "$menu3" in
+									1)
+										option3="all"
+										break
+									;;
+									2)
+										option3="inbound"
+										break
+									;;
+									3)
+										option3="outbound"
+										break
+									;;
+									e|exit|back|menu)
+										unset "option1" "option2" "option3" "option4" "option5"
+										clear
+										Load_Menu
+										break
+									;;
+									*)
+										echo "$menu3 Isn't An Option!"
+										echo
+									;;
+								esac
+							done
+							break
+						;;
+						5)
+							if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
+							option2="unbanprivate"
+							while true; do
+								echo "Select Filter PrivateIP Option"
+								echo "[1]  --> Enable"
+								echo "[2]  --> Disable"
+								echo
+								printf "[1-2]: "
+								read -r "menu3"
+								echo
+								case "$menu3" in
+									1)
+										option3="enable"
+										break
+									;;
+									2)
+										option3="disable"
+										break
+									;;
+									e|exit|back|menu)
+										unset "option1" "option2" "option3" "option4" "option5"
+										clear
+										Load_Menu
+										break
+									;;
+									*)
+										echo "$menu3 Isn't An Option!"
+										echo
+									;;
+								esac
+							done
+							break
+						;;
+						6)
+							if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
+							option2="loginvalid"
+							while true; do
+								echo "Select Invalid Packet Logging Option"
+								echo "[1]  --> Enable"
+								echo "[2]  --> Disable"
+								echo
+								printf "[1-2]: "
+								read -r "menu3"
+								echo
+								case "$menu3" in
+									1)
+										option3="enable"
+										break
+									;;
+									2)
+										option3="disable"
+										break
+									;;
+									e|exit|back|menu)
+										unset "option1" "option2" "option3" "option4" "option5"
+										clear
+										Load_Menu
+										break
+									;;
+									*)
+										echo "$menu3 Isn't An Option!"
+										echo
+									;;
+								esac
+							done
+							break
+						;;
+						7)
+							if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
+							option2="banaiprotect"
+							while true; do
+								echo "Select Ban AiProtect Option"
+								echo "[1]  --> Enable"
+								echo "[2]  --> Disable"
+								echo
+								printf "[1-2]: "
+								read -r "menu3"
+								echo
+								case "$menu3" in
+									1)
+										option3="enable"
+										break
+									;;
+									2)
+										option3="disable"
+										break
+									;;
+									e|exit|back|menu)
+										unset "option1" "option2" "option3" "option4" "option5"
+										clear
+										Load_Menu
+										break
+									;;
+									*)
+										echo "$menu3 Isn't An Option!"
+										echo
+									;;
+								esac
+							done
+							break
+						;;
+						8)
+							if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
+							option2="securemode"
+							while true; do
+								echo "Select Secure Mode Option"
+								echo "[1]  --> Enable"
+								echo "[2]  --> Disable"
+								echo
+								printf "[1-2]: "
+								read -r "menu3"
+								echo
+								case "$menu3" in
+									1)
+										option3="enable"
+										break
+									;;
+									2)
+										option3="disable"
+										break
+									;;
+									e|exit|back|menu)
+										unset "option1" "option2" "option3" "option4" "option5"
+										clear
+										Load_Menu
+										break
+									;;
+									*)
+										echo "$menu3 Isn't An Option!"
+										echo
+									;;
+								esac
+							done
+							break
+						;;
+					esac
+				done
+				break
+			;;
+			12)
+				option1="debug"
+				while true; do
+					echo "Select Debug Option:"
+					echo "[1]  --> Show Debug Entries As They Appear"
+					echo "[2]  --> Print Debug Info"
+					echo "[3]  --> Cleanup Syslog Entries"
+					echo "[4]  --> SWAP File Management"
+					echo "[5]  --> Backup Skynet Files"
+					echo "[6]  --> Restore Skynet Files"
+					echo
+					printf "[1-6]: "
+					read -r "menu2"
+					echo
+					case "$menu2" in
+						1)
 							if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
 							option2="watch"
 							while true; do
@@ -1280,15 +1627,15 @@ Load_Menu () {
 							done
 							break
 						;;
-						3)
+						2)
 							option2="info"
 							break
 						;;
-						4)
+						3)
 							option2="clean"
 							break
 						;;
-						5)
+						4)
 							option2="swap"
 							while true; do
 								echo "Select SWAP Option:"
@@ -1321,150 +1668,14 @@ Load_Menu () {
 							done
 							break
 						;;
-						6)
+						5)
 							if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
 							option2="backup"
 							break
 						;;
-						7)
+						6)
 							if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
 							option2="restore"
-							break
-						;;
-						8)
-							if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
-							option2="unbanprivate"
-							while true; do
-								echo "Select Filter PrivateIP Option"
-								echo "[1]  --> Enable"
-								echo "[2]  --> Disable"
-								echo
-								printf "[1-2]: "
-								read -r "menu3"
-								echo
-								case "$menu3" in
-									1)
-										option3="enable"
-										break
-									;;
-									2)
-										option3="disable"
-										break
-									;;
-									e|exit|back|menu)
-										unset "option1" "option2" "option3" "option4" "option5"
-										clear
-										Load_Menu
-										break
-									;;
-									*)
-										echo "$menu3 Isn't An Option!"
-										echo
-									;;
-								esac
-							done
-							break
-						;;
-						9)
-							if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
-							option2="loginvalid"
-							while true; do
-								echo "Select Invalid Packet Logging Option"
-								echo "[1]  --> Enable"
-								echo "[2]  --> Disable"
-								echo
-								printf "[1-2]: "
-								read -r "menu3"
-								echo
-								case "$menu3" in
-									1)
-										option3="enable"
-										break
-									;;
-									2)
-										option3="disable"
-										break
-									;;
-									e|exit|back|menu)
-										unset "option1" "option2" "option3" "option4" "option5"
-										clear
-										Load_Menu
-										break
-									;;
-									*)
-										echo "$menu3 Isn't An Option!"
-										echo
-									;;
-								esac
-							done
-							break
-						;;
-						10)
-							if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
-							option2="banaiprotect"
-							while true; do
-								echo "Select Ban AiProtect Option"
-								echo "[1]  --> Enable"
-								echo "[2]  --> Disable"
-								echo
-								printf "[1-2]: "
-								read -r "menu3"
-								echo
-								case "$menu3" in
-									1)
-										option3="enable"
-										break
-									;;
-									2)
-										option3="disable"
-										break
-									;;
-									e|exit|back|menu)
-										unset "option1" "option2" "option3" "option4" "option5"
-										clear
-										Load_Menu
-										break
-									;;
-									*)
-										echo "$menu3 Isn't An Option!"
-										echo
-									;;
-								esac
-							done
-							break
-						;;
-						11)
-							if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
-							option2="securemode"
-							while true; do
-								echo "Select Secure Mode Option"
-								echo "[1]  --> Enable"
-								echo "[2]  --> Disable"
-								echo
-								printf "[1-2]: "
-								read -r "menu3"
-								echo
-								case "$menu3" in
-									1)
-										option3="enable"
-										break
-									;;
-									2)
-										option3="disable"
-										break
-									;;
-									e|exit|back|menu)
-										unset "option1" "option2" "option3" "option4" "option5"
-										clear
-										Load_Menu
-										break
-									;;
-									*)
-										echo "$menu3 Isn't An Option!"
-										echo
-									;;
-								esac
-							done
 							break
 						;;
 						e|exit|back|menu)
@@ -1481,7 +1692,7 @@ Load_Menu () {
 				done
 				break
 			;;
-			12)
+			13)
 				option1="stats"
 				while true; do
 					echo "Select Stat Option:"
@@ -1768,11 +1979,11 @@ Load_Menu () {
 				done
 				break
 			;;
-			13)
+			14)
 				option1="install"
 				break
 			;;
-			14)
+			15)
 				option1="uninstall"
 				break
 			;;
@@ -1801,7 +2012,7 @@ fi
 if [ -n "$option1" ]; then
 	set "$option1" "$option2" "$option3" "$option4" "$option5"
 	stime="$(date +%s)"
-	echo "$0 $@" | tr -s " "
+	echo "$0 $*" | tr -s " "
 	echo
 fi
 
@@ -2277,10 +2488,10 @@ case "$1" in
 		trap '' 2
 		Check_Lock "$@"
 		logger -st Skynet "[INFO] Startup Initiated... ( $(echo "$@" | sed 's~start ~~g') )"
-		Unload_Cron
+		Unload_Cron "all"
 		Check_Settings
 		Check_Files "verify"
-		cru a Skynet_save "0 * * * * sh /jffs/scripts/firewall save"
+		Load_Cron "save"
 		modprobe xt_set
 		if [ -f "$skynetipset" ]; then ipset restore -! -f "$skynetipset"; else logger -st Skynet "[INFO] Setting Up Skynet..."; touch "$skynetipset"; fi
 		if ! ipset -L -n Skynet-Whitelist >/dev/null 2>&1; then ipset -q create Skynet-Whitelist hash:net comment; fi
@@ -2314,7 +2525,7 @@ case "$1" in
 		Check_Lock "$@"
 		Purge_Logs
 		logger -st Skynet "[INFO] Restarting Skynet..."
-		Unload_Cron
+		Unload_Cron "all"
 		Save_IPSets
 		Unload_IPTables
 		Unload_DebugIPTables
@@ -2328,7 +2539,7 @@ case "$1" in
 	disable)
 		Check_Lock "$@"
 		logger -st Skynet "[INFO] Disabling Skynet..."
-		Unload_Cron
+		Unload_Cron "all"
 		Save_IPSets
 		echo "Unloading IPTables Rules"
 		Unload_IPTables
@@ -2360,7 +2571,7 @@ case "$1" in
 		if [ "$localver" != "$remotever" ] || [ "$2" = "-f" ]; then
 			logger -st Skynet "[INFO] New Version Detected - Updating To $remotever..."
 			Save_IPSets >/dev/null 2>&1
-			Unload_Cron
+			Unload_Cron "all"
 			Unload_IPTables
 			Unload_DebugIPTables
 			Unload_IPSets
@@ -2371,13 +2582,261 @@ case "$1" in
 		fi
 	;;
 
+	settings)
+		case "$2" in
+			autoupdate)
+				case "$3" in
+					enable)
+						if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
+						Check_Lock "$@"
+						Purge_Logs
+						autoupdate="enabled"
+						Unload_Cron "checkupdate"
+						Load_Cron "autoupdate"
+						echo "Skynet Automatic Updates Enabled"
+					;;
+					disable)
+						if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
+						Check_Lock "$@"
+						Purge_Logs
+						autoupdate="disabled"
+						Unload_Cron "autoupdate"
+						Load_Cron "checkupdate"
+						echo "Skynet Automatic Updates Disabled"
+					;;
+					*)
+						echo "Command Not Recognized, Please Try Again"
+						echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
+						echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
+						echo; exit 2
+					;;
+				esac
+			;;
+			banmalware)
+				case "$3" in
+					daily)
+						if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
+						Check_Lock "$@"
+						Purge_Logs
+						banmalwareupdate="daily"
+						Unload_Cron "banmalware"
+						Load_Cron "banmalwaredaily"
+						echo "Daily Banmalware Updates Enabled"
+					;;
+					weekly)
+						if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
+						Check_Lock "$@"
+						Purge_Logs
+						banmalwareupdate="weekly"
+						Unload_Cron "banmalware"
+						Load_Cron "banmalwareweekly"
+						echo "Weekly Banmalware Updates Enabled"
+					;;
+					disable)
+						if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
+						Check_Lock "$@"
+						Purge_Logs
+						banmalwareupdate="disabled"
+						Unload_Cron "banmalware"
+						echo "Banmalware Updates Disabled"
+					;;
+					*)
+						echo "Command Not Recognized, Please Try Again"
+						echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
+						echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
+						echo; exit 2
+					;;
+				esac
+			;;
+			debugmode)
+				case "$3" in
+					enable)
+						if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
+						Check_Lock "$@"
+						Purge_Logs
+						debugmode="enabled"
+						Unload_DebugIPTables
+						Load_DebugIPTables
+						echo "Debug Mode Enabled"
+					;;
+					disable)
+						if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
+						Check_Lock "$@"
+						Purge_Logs
+						debugmode="disabled"
+						Unload_DebugIPTables
+						echo "Debug Mode Disabled"
+					;;
+					*)
+						echo "Command Not Recognized, Please Try Again"
+						echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
+						echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
+						echo; exit 2
+					;;
+				esac
+			;;
+			filter)
+				case "$3" in
+					all)
+						if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
+						Check_Lock "$@"
+						Purge_Logs
+						filtertraffic="all"
+						Unload_IPTables
+						Unload_DebugIPTables
+						Load_IPTables
+						Load_DebugIPTables
+						echo "Inbound & Outbound Filtering Enabled"
+
+					;;
+					inbound)
+						if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
+						Check_Lock "$@"
+						Purge_Logs
+						filtertraffic="inbound"
+						Unload_IPTables
+						Unload_DebugIPTables
+						Load_IPTables
+						Load_DebugIPTables
+						echo "Inbound Filtering Enabled"
+					;;
+					outbound)
+						if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
+						Check_Lock "$@"
+						Purge_Logs
+						filtertraffic="outbound"
+						Unload_IPTables
+						Unload_DebugIPTables
+						Load_IPTables
+						Load_DebugIPTables
+						echo "Outbound Filtering Enabled"
+					;;
+					*)
+						echo "Command Not Recognized, Please Try Again"
+						echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
+						echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
+						echo; exit 2
+					;;
+				esac
+			;;
+			unbanprivate)
+				case "$3" in
+					enable)
+						if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
+						Check_Lock "$@"
+						Purge_Logs
+						unbanprivateip="enabled"
+						echo "Unban Private IP Enabled"
+
+					;;
+					disable)
+						if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
+						Check_Lock "$@"
+						Purge_Logs
+						unbanprivateip="disabled"
+						echo "Unban Private IP Disabled"
+					;;
+					*)
+						echo "Command Not Recognized, Please Try Again"
+						echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
+						echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
+						echo; exit 2
+					;;
+				esac
+			;;
+			loginvalid)
+				case "$3" in
+					enable)
+						if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
+						Check_Lock "$@"
+						Purge_Logs
+						loginvalid="enabled"
+						Unload_DebugIPTables
+						Load_DebugIPTables
+						echo "Invalid IP Logging Enabled"
+					;;
+					disable)
+						if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
+						Check_Lock "$@"
+						Purge_Logs
+						loginvalid="disabled"
+						Unload_DebugIPTables
+						Load_DebugIPTables
+						echo "Invalid IP Logging Disabled"
+					;;
+					*)
+						echo "Command Not Recognized, Please Try Again"
+						echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
+						echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
+						echo; exit 2
+					;;
+				esac
+			;;
+			banaiprotect)
+				case "$3" in
+					enable)
+						if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
+						Check_Lock "$@"
+						Purge_Logs
+						if [ ! -f /opt/bin/opkg ]; then echo "This Feature Requires Entware - Aborting"; echo; exit 0; fi
+						banaiprotect="enabled"
+						Refresh_AiProtect
+						echo "Ban AiProtect Enabled"
+					;;
+					disable)
+						if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
+						Check_Lock "$@"
+						Purge_Logs
+						banaiprotect="disabled"
+						sed "\\~add Skynet-Blacklist ~!d;\\~BanAiProtect~!d;s~ comment.*~~;s~add~del~g" "$skynetipset" | ipset restore -!
+						echo "Ban AiProtect Disabled"
+					;;
+					*)
+						echo "Command Not Recognized, Please Try Again"
+						echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
+						echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
+						echo; exit 2
+					;;
+				esac
+				Save_IPSets
+			;;
+			securemode)
+				case "$3" in
+					enable)
+						if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
+						Check_Lock "$@"
+						Purge_Logs
+						securemode="enabled"
+						Check_Security
+						echo "Secure Mode Enabled"
+					;;
+					disable)
+						if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
+						Check_Lock "$@"
+						Purge_Logs
+						securemode="disabled"
+						echo "Secure Mode Disabled"
+					;;
+					*)
+						echo "Command Not Recognized, Please Try Again"
+						echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
+						echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
+						echo; exit 2
+					;;
+				esac
+			;;
+			*)
+				echo "Command Not Recognized, Please Try Again"
+				echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
+				echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
+				echo; exit 2
+			;;
+		esac
+		echo
+	;;
+
 	debug)
 		case "$2" in
-			disable)
-				logger -st Skynet "[INFO] Temporarily Disabling Debug Output..."
-				Unload_DebugIPTables
-				Purge_Logs
-			;;
 			watch)
 				if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
 				if [ "$debugmode" = "disabled" ]; then echo "Debug Mode Is Disabled - Exiting!"; echo; exit 2; fi
@@ -2394,7 +2853,7 @@ case "$1" in
 							if echo "$logoutput" | grep -qE "INVALID.*=$4 "; then
 								$blue "$logoutput"
 								if [ "$extendedstats" = "enabled" ]; then
-									domainlist="$(grep -E "reply.* is $(echo $logoutput | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | awk '!x[$0]++' | grep -vE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' | xargs)"
+									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | awk '!x[$0]++' | grep -vE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' | xargs)"
 									[ -n "$domainlist" ] && $blue "Associated Domain(s) - [$domainlist]"
 								fi
 							elif echo "$logoutput" | grep -qE "INBOUND.*=$4 "; then
@@ -2402,7 +2861,7 @@ case "$1" in
 							elif echo "$logoutput" | grep -qE "OUTBOUND.*=$4 "; then
 								$red "$logoutput"
 								if [ "$extendedstats" = "enabled" ]; then
-									domainlist="$(grep -E "reply.* is $(echo $logoutput | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | awk '!x[$0]++' | grep -vE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' | xargs)"
+									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | awk '!x[$0]++' | grep -vE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' | xargs)"
 									[ -n "$domainlist" ] && $red "Associated Domain(s) - [$domainlist]"
 								fi
 							fi
@@ -2416,7 +2875,7 @@ case "$1" in
 							if echo "$logoutput" | grep -qE "INAVLID.*PT=$4 "; then
 								$blue "$logoutput"
 								if [ "$extendedstats" = "enabled" ]; then
-									domainlist="$(grep -E "reply.* is $(echo $logoutput | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | awk '!x[$0]++' | grep -vE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' | xargs)"
+									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | awk '!x[$0]++' | grep -vE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' | xargs)"
 									[ -n "$domainlist" ] && $blue "Associated Domain(s) - [$domainlist]"
 								fi
 							elif echo "$logoutput" | grep -qE "INBOUND.*PT=$4 "; then
@@ -2424,7 +2883,7 @@ case "$1" in
 							elif echo "$logoutput" | grep -qE "OUTBOUND.*PT=$4 "; then
 								$red "$logoutput"
 								if [ "$extendedstats" = "enabled" ]; then
-									domainlist="$(grep -E "reply.* is $(echo $logoutput | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | awk '!x[$0]++' | grep -vE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' | xargs)"
+									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | awk '!x[$0]++' | grep -vE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' | xargs)"
 									[ -n "$domainlist" ] && $red "Associated Domain(s) - [$domainlist]"
 								fi
 							fi
@@ -2435,7 +2894,7 @@ case "$1" in
 							if echo "$logoutput" | grep -q "INVALID"; then
 								$blue "$logoutput"
 								if [ "$extendedstats" = "enabled" ]; then
-									domainlist="$(grep -E "reply.* is $(echo $logoutput | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | awk '!x[$0]++' | grep -vE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' | xargs)"
+									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | awk '!x[$0]++' | grep -vE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' | xargs)"
 									[ -n "$domainlist" ] && $blue "Associated Domain(s) - [$domainlist]"
 								fi
 							elif echo "$logoutput" | grep -q "INBOUND"; then
@@ -2443,7 +2902,7 @@ case "$1" in
 							elif echo "$logoutput" | grep -q "OUTBOUND"; then
 								$red "$logoutput"
 								if [ "$extendedstats" = "enabled" ]; then
-									domainlist="$(grep -E "reply.* is $(echo $logoutput | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | awk '!x[$0]++' | grep -vE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' | xargs)"
+									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | awk '!x[$0]++' | grep -vE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' | xargs)"
 									[ -n "$domainlist" ] && $red "Associated Domain(s) - [$domainlist]"
 								fi
 							fi
@@ -2554,7 +3013,7 @@ case "$1" in
 							Create_Swap
 							echo "Restarting Firewall Service"
 							Save_IPSets >/dev/null 2>&1
-							Unload_Cron
+							Unload_Cron "all"
 							Unload_IPTables
 							Unload_DebugIPTables
 							Unload_IPSets
@@ -2575,7 +3034,7 @@ case "$1" in
 							sed -i '\~swapon ~d' /jffs/scripts/post-mount
 							echo "SWAP File Removed"
 							echo "Restarting Firewall Service"
-							Unload_Cron
+							Unload_Cron "all"
 							Unload_IPTables
 							Unload_DebugIPTables
 							Unload_IPSets
@@ -2633,113 +3092,6 @@ case "$1" in
 				echo "Restarting Firewall Service"
 				restartfirewall="1"
 				nolog="2"
-			;;
-			unbanprivate)
-				case "$3" in
-					enable)
-						if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
-						Check_Lock "$@"
-						Purge_Logs
-						echo "Enabling PrivateIP Filtering"
-						unbanprivateip="enabled"
-
-					;;
-					disable)
-						if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
-						Check_Lock "$@"
-						Purge_Logs
-						echo "Disabling PrivateIP Filtering"
-						unbanprivateip="disabled"
-					;;
-					*)
-						echo "Command Not Recognized, Please Try Again"
-						echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
-						echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
-						echo; exit 2
-					;;
-				esac
-			;;
-			loginvalid)
-				case "$3" in
-					enable)
-						if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
-						Check_Lock "$@"
-						Purge_Logs
-						echo "Enabling Invalid IP Logging"
-						loginvalid="enabled"
-						Unload_DebugIPTables
-						Load_DebugIPTables
-
-					;;
-					disable)
-						if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
-						Check_Lock "$@"
-						Purge_Logs
-						echo "Disabling Invalid IP Logging"
-						loginvalid="disabled"
-						Unload_DebugIPTables
-						Load_DebugIPTables
-					;;
-					*)
-						echo "Command Not Recognized, Please Try Again"
-						echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
-						echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
-						echo; exit 2
-					;;
-				esac
-			;;
-			banaiprotect)
-				case "$3" in
-					enable)
-						if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
-						Check_Lock "$@"
-						Purge_Logs
-						if [ ! -f /opt/bin/opkg ]; then echo "This Feature Requires Entware - Aborting"; echo; exit 0; fi
-						echo "Enabling AiProtect Banning"
-						banaiprotect="enabled"
-						Refresh_AiProtect
-					;;
-					disable)
-						if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
-						Check_Lock "$@"
-						Purge_Logs
-						echo "Disabling AiProtect Banning"
-						banaiprotect="disabled"
-						sed "\\~add Skynet-Blacklist ~!d;\\~BanAiProtect~!d;s~ comment.*~~;s~add~del~g" "$skynetipset" | ipset restore -!
-					;;
-					*)
-						echo "Command Not Recognized, Please Try Again"
-						echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
-						echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
-						echo; exit 2
-					;;
-				esac
-				Save_IPSets
-			;;
-			securemode)
-				case "$3" in
-					enable)
-						if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
-						Check_Lock "$@"
-						Purge_Logs
-						echo "Enabling Secure Mode"
-						securemode="enabled"
-						Check_Security
-					;;
-					disable)
-						if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
-						Check_Lock "$@"
-						Purge_Logs
-						echo "Disabling Secure Mode"
-						securemode="disabled"
-					;;
-					*)
-						echo "Command Not Recognized, Please Try Again"
-						echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
-						echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
-						echo; exit 2
-					;;
-				esac
 			;;
 			*)
 				echo "Command Not Recognized, Please Try Again"
@@ -2972,7 +3324,7 @@ case "$1" in
 					;;
 				esac
 				if [ "$extendedstats" = "enabled" ]; then
-					grep -hE "reply.* is ([0-9]{1,3}\.){3}[0-9]{1,3}$" /opt/var/log/dnsmasq* | cut -d ' ' -f7,9 | awk '!x[$0]++' > /tmp/skynetstats.txt
+					grep -hE 'reply.* is ([0-9]{1,3}\.){3}[0-9]{1,3}$' /opt/var/log/dnsmasq* | cut -d ' ' -f7,9 | awk '!x[$0]++' > /tmp/skynetstats.txt
 				fi
 				$red "Top $counter Targeted Ports (Inbound); (Torrent Clients May Cause Excess Hits In Debug Mode)"
 				grep -E "INBOUND.*$proto" "$skynetlog" | grep -oE 'DPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://www.speedguide.net/port.php?port="$2}'
@@ -3291,7 +3643,7 @@ case "$1" in
 			exit 0
 		fi
 		echo "Restarting Firewall To Complete Installation"
-		Unload_Cron
+		Unload_Cron "all"
 		Unload_IPTables
 		Unload_DebugIPTables
 		Unload_IPSets
@@ -3352,7 +3704,7 @@ case "$1" in
 					fi
 					echo "Uninstalling Skynet And Restarting Firewall"
 					Purge_Logs "all"
-					Unload_Cron
+					Unload_Cron "all"
 					Kill_Lock
 					Unload_IPTables
 					Unload_DebugIPTables
