@@ -1391,8 +1391,8 @@ Load_Menu () {
 							if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
 							option2="filter"
 							while true; do
-								echo "Select Banmalware Option"
-								echo "[1]  --> All"
+								echo "Select Filter Option"
+								echo "[1]  --> All Traffic"
 								echo "[2]  --> Inbound"
 								echo "[3]  --> Outbound"
 								echo
