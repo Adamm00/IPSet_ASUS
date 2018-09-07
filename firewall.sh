@@ -1562,6 +1562,16 @@ Load_Menu () {
 							done
 							break
 						;;
+						e|exit|back|menu)
+							unset "option1" "option2" "option3" "option4" "option5"
+							clear
+							Load_Menu
+							break
+						;;
+						*)
+							echo "$menu Isn't An Option!"
+							echo
+						;;
 					esac
 				done
 				break
