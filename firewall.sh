@@ -658,9 +658,9 @@ Print_Log () {
 		fi
 		ftime="$(($(date +%s) - stime))"
 		if [ "$1" = "minimal" ]; then
-			$grn "$blacklist1count IPs - $blacklist2count Ranges Banned || $((blacklist1count - oldips)) New IPs - $((blacklist2count - oldranges)) New Ranges Banned || $hits1 Inbound - $hits2 Outbound Connections Blocked!"
+			$grn "$blacklist1count IPs -- $blacklist2count Ranges Banned || $((blacklist1count - oldips)) New IPs -- $((blacklist2count - oldranges)) New Ranges Banned || $hits1 Inbound -- $hits2 Outbound Connections Blocked!"
 		else
-			logz="$(echo "[#] $blacklist1count IPs - $blacklist2count Ranges Banned || $((blacklist1count - oldips)) New IPs - $((blacklist2count - oldranges)) New Ranges Banned || $hits1 Inbound - $hits2 Outbound Connections Blocked! [$1] [${ftime}s]")"
+			logz="$(echo "[#] $blacklist1count IPs -- $blacklist2count Ranges Banned || $((blacklist1count - oldips)) New IPs -- $((blacklist2count - oldranges)) New Ranges Banned || $hits1 Inbound -- $hits2 Outbound Connections Blocked! [$1] [${ftime}s]")"
 			echo "$logz"
 			logger -t Skynet "$logz"
 		fi
