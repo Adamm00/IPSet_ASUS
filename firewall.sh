@@ -635,8 +635,7 @@ Purge_Logs () {
 		fi
 		if [ "$1" = "all" ] || [ "$(grep -cE "Skynet: [#] " "/tmp/syslog.log" 2>/dev/null)" -gt "24" ] 2>/dev/null; then
 			sed '\~Skynet: \[#\] ~!d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null >> "$skynetevents"
-			sed -i '\~Skynet: \[#\] ~d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null
-			sed -i '\~Skynet: \[i\] ~d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null
+			sed -i '\~Skynet: \[#\] ~d;\~Skynet: \[i\] ~d;\~Skynet: \[\*\] Lock ~d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null
 		fi
 }
 
@@ -2363,13 +2362,13 @@ case "$1" in
 					grep -oE '^[0-9,./]*$' "$3" > /tmp/iplist-unfiltered.txt
 				elif [ -n "$3" ]; then
 					echo "[i] Remote Custom List Detected: $3"
-					/usr/sbin/curl -fsL --retry 3 "$3" | grep -oE '^[0-9,./]*$' > /tmp/iplist-unfiltered.txt || { logger -st Skynet "[*] 404 Error Detected - Stopping Import"; exit 1; }
+					/usr/sbin/curl -fsL --retry 3 "$3" | grep -oE '^[0-9,./]*$' > /tmp/iplist-unfiltered.txt || { echo "[*] 404 Error Detected - Stopping Import"; exit 1; }
 				else
 					echo "[*] URL/File Field Can't Be Empty - Please Try Again"
 					exit 2
 				fi
 				dos2unix /tmp/iplist-unfiltered.txt
-				if [ "$(grep -coE '^[0-9,./]*$' /tmp/iplist-unfiltered.txt)" = "0" ]; then { logger -st Skynet "[*] No Content Detected - Stopping Import"; rm -rf /tmp/iplist-unfiltered.txt /tmp/skynet.lock; exit 1; }; fi
+				if [ "$(grep -coE '^[0-9,./]*$' /tmp/iplist-unfiltered.txt)" = "0" ]; then { echo "[*] No Content Detected - Stopping Import"; rm -rf /tmp/iplist-unfiltered.txt /tmp/skynet.lock; exit 1; }; fi
 				echo "[i] Processing List"
 				if [ -n "$4" ] && [ "${#4}" -le "245" ]; then
 					grep -vF "/" /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk -v desc="Imported: $4" '{print "add Skynet-Blacklist " $1 " comment \"" desc "\""}' > /tmp/iplist-filtered.txt
@@ -2395,13 +2394,13 @@ case "$1" in
 					grep -oE '^[0-9,./]*$' "$3" > /tmp/iplist-unfiltered.txt
 				elif [ -n "$3" ]; then
 					echo "[i] Remote Custom List Detected: $3"
-					/usr/sbin/curl -fsL --retry 3 "$3" | grep -oE '^[0-9,./]*$' > /tmp/iplist-unfiltered.txt || { logger -st Skynet "[*] 404 Error Detected - Stopping Import"; exit 1; }
+					/usr/sbin/curl -fsL --retry 3 "$3" | grep -oE '^[0-9,./]*$' > /tmp/iplist-unfiltered.txt || { echo "[*] 404 Error Detected - Stopping Import"; exit 1; }
 				else
 					echo "[*] URL/File Field Can't Be Empty - Please Try Again"
 					exit 2
 				fi
 				dos2unix /tmp/iplist-unfiltered.txt
-				if [ "$(grep -coE '^[0-9,./]*$' /tmp/iplist-unfiltered.txt)" = "0" ]; then { logger -st Skynet "[*] No Content Detected - Stopping Import"; rm -rf /tmp/iplist-unfiltered.txt /tmp/skynet.lock; exit 1; }; fi
+				if [ "$(grep -coE '^[0-9,./]*$' /tmp/iplist-unfiltered.txt)" = "0" ]; then { echo "[*] No Content Detected - Stopping Import"; rm -rf /tmp/iplist-unfiltered.txt /tmp/skynet.lock; exit 1; }; fi
 				echo "[i] Processing List"
 				if [ -n "$4" ] && [ "${#4}" -le "245" ]; then
 					Filter_PrivateIP < /tmp/iplist-unfiltered.txt | awk -v desc="Imported: $4" '{print "add Skynet-Whitelist " $1 " comment \"" desc "\""}' > /tmp/iplist-filtered.txt
@@ -2436,13 +2435,13 @@ case "$1" in
 					grep -oE '^[0-9,./]*$' "$3" > /tmp/iplist-unfiltered.txt
 				elif [ -n "$3" ]; then
 					echo "[i] Remote Custom List Detected: $3"
-					/usr/sbin/curl -fsL --retry 3 "$3" | grep -oE '^[0-9,./]*$' > /tmp/iplist-unfiltered.txt || { logger -st Skynet "[*] 404 Error Detected - Stopping Import"; exit 1; }
+					/usr/sbin/curl -fsL --retry 3 "$3" | grep -oE '^[0-9,./]*$' > /tmp/iplist-unfiltered.txt || { echo "[*] 404 Error Detected - Stopping Import"; exit 1; }
 				else
 					echo "[*] URL/File Field Can't Be Empty - Please Try Again"
 					exit 2
 				fi
 				dos2unix /tmp/iplist-unfiltered.txt
-				if [ "$(grep -coE '^[0-9,./]*$' /tmp/iplist-unfiltered.txt)" = "0" ]; then { logger -st Skynet "[*] No Content Detected - Stopping Deport"; rm -rf /tmp/iplist-unfiltered.txt /tmp/skynet.lock; exit 1; }; fi
+				if [ "$(grep -coE '^[0-9,./]*$' /tmp/iplist-unfiltered.txt)" = "0" ]; then { echo "[*] No Content Detected - Stopping Deport"; rm -rf /tmp/iplist-unfiltered.txt /tmp/skynet.lock; exit 1; }; fi
 				echo "[i] Processing IPv4 Addresses"
 				grep -vF "/" /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk '{print "del Skynet-Blacklist " $1}' > /tmp/iplist-filtered.txt
 				echo "[i] Processing IPv4 Ranges"
@@ -2463,13 +2462,13 @@ case "$1" in
 					grep -oE '^[0-9,./]*$' "$3" > /tmp/iplist-unfiltered.txt
 				elif [ -n "$3" ]; then
 					echo "[i] Remote Custom List Detected: $3"
-					/usr/sbin/curl -fsL --retry 3 "$3" | grep -oE '^[0-9,./]*$' > /tmp/iplist-unfiltered.txt || { logger -st Skynet "[*] 404 Error Detected - Stopping Import"; exit 1; }
+					/usr/sbin/curl -fsL --retry 3 "$3" | grep -oE '^[0-9,./]*$' > /tmp/iplist-unfiltered.txt || { echo "[*] 404 Error Detected - Stopping Import"; exit 1; }
 				else
 					echo "[*] URL/File Field Can't Be Empty - Please Try Again"
 					exit 2
 				fi
 				dos2unix /tmp/iplist-unfiltered.txt
-				if [ "$(grep -coE '^[0-9,./]*$' /tmp/iplist-unfiltered.txt)" = "0" ]; then { logger -st Skynet "[*] No Content Detected - Stopping Deport"; rm -rf /tmp/iplist-unfiltered.txt /tmp/skynet.lock; exit 1; }; fi
+				if [ "$(grep -coE '^[0-9,./]*$' /tmp/iplist-unfiltered.txt)" = "0" ]; then { echo "[*] No Content Detected - Stopping Deport"; rm -rf /tmp/iplist-unfiltered.txt /tmp/skynet.lock; exit 1; }; fi
 				echo "[i] Processing IPv4 Addresses"
 				Filter_PrivateIP < /tmp/iplist-unfiltered.txt | awk '{print "del Skynet-Whitelist " $1}' > /tmp/iplist-filtered.txt
 				echo "[i] Removing IPs From Whitelist"
