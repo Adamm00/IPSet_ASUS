@@ -199,19 +199,19 @@ Check_Status () {
 Check_Security () {
 	if [ "$securemode" = "enabled" ]; then
 		if [ "$(nvram get sshd_enable)" = "1" ]; then
-			logger -st Skynet "[WARNING] Insecure Setting Detected - Disabling WAN SSH Access"
+			logger -st Skynet "[!] Insecure Setting Detected - Disabling WAN SSH Access"
 			nvram set sshd_enable="2"
 			nvram commit
 			restartfirewall="1"
 		fi
 		if [ "$(nvram get misc_http_x)" = "1" ]; then
-			logger -st Skynet "[WARNING] Insecure Setting Detected - Disabling WAN GUI Access"
+			logger -st Skynet "[!] Insecure Setting Detected - Disabling WAN GUI Access"
 			nvram set misc_http_x="0"
 			nvram commit
 			restartfirewall="1"
 		fi
 		if [ "$(nvram get pptpd_enable)" = "1" ] && nvram get pptpd_clientlist | grep -qE 'i[0-9]{7}|p[0-9]{7}'; then
-			logger -st Skynet "[WARNING] PPTP VPN Server Shows Signs Of Compromise - Investigate Immediately!"
+			logger -st Skynet "[!] PPTP VPN Server Shows Signs Of Compromise - Investigate Immediately!"
 			nvram set pptpd_enable="0"
 			nvram set pptpd_broadcast="0"
 			nvram commit
@@ -222,8 +222,8 @@ Check_Security () {
 			restartfirewall="1"
 		fi
 		if [ -e "/var/run/tor" ] || [ -e "/var/run/torrc" ] || [ -e "/var/run/tord" ] || [ -e "/var/run/vpnfilterm" ] || [ -e "/var/run/vpnfilterw" ]; then
-			logger -st Skynet "[WARNING] Suspected VPNFilter Malware Found - Investigate Immediately!"
-			logger -st Skynet "[WARNING] Caching Potential VPNFilter Malware: ${skynetloc}/vpnfilter.tar.gz"
+			logger -st Skynet "[!] Suspected VPNFilter Malware Found - Investigate Immediately!"
+			logger -st Skynet "[!] Caching Potential VPNFilter Malware: ${skynetloc}/vpnfilter.tar.gz"
 			tar -czf "${skynetloc}/vpnfilter.tar.gz" "/var/run/tor" "/var/run/torrc" "/var/run/tord" "/var/run/vpnfilterm" "/var/run/vpnfilterw" >/dev/null 2>&1
 			rm -rf "/var/run/tor" "/var/run/torrc" "/var/run/tord" "/var/run/vpnfilterm" "/var/run/vpnfilterw"
 			restartfirewall="1"
@@ -314,7 +314,7 @@ Unload_Cron () {
                                 cru d Skynet_checkupdate
                         ;;
                         *)
-								echo "Error - No Cron Specified To Unload"
+								echo "[*] Error - No Cron Specified To Unload"
 						;;
                 esac
         done
@@ -341,7 +341,7 @@ Load_Cron () {
 
                         ;;
                         *)
-								echo "Error - No Cron Specified To Load"
+								echo "[*] Error - No Cron Specified To Load"
 						;;
                 esac
         done
@@ -545,7 +545,7 @@ Manage_Device () {
 				read -r "partitionNumber"
 				echo
 				if [ "$partitionNumber" = "e" ] || [ "$partitionNumber" = "exit" ]; then
-					echo "Exiting!"
+					echo "[*] Exiting!"
 					echo
 					exit 0
 				elif [ -z "$partitionNumber" ] || [ "$partitionNumber" -gt $((i - 1)) ] 2>/dev/null || [ "$partitionNumber" = "0" ]; then
@@ -601,12 +601,12 @@ Create_Swap () {
 				break
 			;;
 			e|exit)
-				echo "Exiting!"
+				echo "[*] Exiting!"
 				echo
 				exit 0
 			;;
 			*)
-				echo "$menu Isn't An Option!"
+				echo "[*] $menu Isn't An Option!"
 				echo
 			;;
 		esac
@@ -709,8 +709,8 @@ Load_Menu () {
 	if grep -F "swapon" /jffs/scripts/post-mount 2>/dev/null | grep -qvE "^#"; then swaplocation="$(grep -o "swapon .*" /jffs/scripts/post-mount | grep -vE "^#" | awk '{print $2}')"; echo "SWAP File; $swaplocation ($(du -h "$swaplocation" | awk '{print $1}'))"; fi
 	echo "Boot Args; $(grep -E "start.* # Skynet" /jffs/scripts/firewall-start 2>/dev/null | grep -vE "^#" | cut -c 4- | cut -d '#' -f1)"
 	if [ -n "$countrylist" ]; then echo "Banned Countries; $countrylist"; fi
-	if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(sed -n '2p' /tmp/skynet.lock)" ]; then $red "Lock File Detected ($(sed -n '1p' /tmp/skynet.lock)) (pid=$(sed -n '2p' /tmp/skynet.lock))"; lockedwarning=1; fi
-	if [ -n "$lockedwarning" ]; then $ylow "Locked Processes Generally Take 1-2 Minutes To Complete And May Result In Temporarily \"Failed\" Tests"; fi
+	if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(sed -n '2p' /tmp/skynet.lock)" ]; then $red "[*] Lock File Detected ($(sed -n '1p' /tmp/skynet.lock)) (pid=$(sed -n '2p' /tmp/skynet.lock))"; lockedwarning=1; fi
+	if [ -n "$lockedwarning" ]; then $ylow "[*] Locked Processes Generally Take 1-2 Minutes To Complete And May Result In Temporarily \"Failed\" Tests"; fi
 	unset "lockedwarning"
 	echo
 	if ! grep -E "start.* # Skynet" /jffs/scripts/firewall-start 2>/dev/null | grep -qvE "^#"; then printf "Checking Firewall-Start Entry...			"; $red "[Failed]"; fi
@@ -742,7 +742,7 @@ Load_Menu () {
 		echo "[11] --> Settings"
 		echo "[12] --> Debug Options"
 		echo "[13] --> Stats"
-		echo "[14] --> Install Skynet / Change Boot Options"
+		echo "[14] --> Install Skynet"
 		echo "[15] --> Uninstall"
 		echo
 		echo "[r]  --> Reload Menu"
@@ -753,7 +753,7 @@ Load_Menu () {
 		echo
 		case "$menu" in
 			1)
-				if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; Load_Menu; break; fi
+				if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; Load_Menu; break; fi
 				option1="unban"
 				while true; do
 					echo "What Type Of Input Would You Like To Unban:"
@@ -777,7 +777,7 @@ Load_Menu () {
 							printf "[IP]: "
 							read -r "option3"
 							echo
-							if ! echo "$option3" | Is_IP; then echo "$option3 Is Not A Valid IP"; echo; unset "option2" "option3"; continue; fi
+							if ! echo "$option3" | Is_IP; then echo "[*] $option3 Is Not A Valid IP"; echo; unset "option2" "option3"; continue; fi
 							break
 						;;
 						2)
@@ -787,7 +787,7 @@ Load_Menu () {
 							printf "[Range]: "
 							read -r "option3"
 							echo
-							if ! echo "$option3" | Is_Range; then echo "$option3 Is Not A Valid Range"; echo; unset "option2" "option3"; continue; fi
+							if ! echo "$option3" | Is_Range; then echo "[*] $option3 Is Not A Valid Range"; echo; unset "option2" "option3"; continue; fi
 							break
 						;;
 						3)
@@ -797,7 +797,7 @@ Load_Menu () {
 							printf "[URL]: "
 							read -r "option3"
 							echo
-							if [ -z "$option3" ]; then echo "URL Field Can't Be Empty - Please Try Again"; echo; unset "option2" "option3"; continue; fi
+							if [ -z "$option3" ]; then echo "[*] URL Field Can't Be Empty - Please Try Again"; echo; unset "option2" "option3"; continue; fi
 							break
 						;;
 						4)
@@ -807,7 +807,7 @@ Load_Menu () {
 							printf "[Comment]: "
 							read -r "option3"
 							echo
-							if [ "${#option3}" -gt "255" ]; then echo "$option3 Is Not A Valid Comment. 255 Chars Max"; echo; unset "option2" "option3"; continue; fi
+							if [ "${#option3}" -gt "255" ]; then echo "[*] $option3 Is Not A Valid Comment. 255 Chars Max"; echo; unset "option2" "option3"; continue; fi
 							break
 						;;
 						5)
@@ -833,7 +833,7 @@ Load_Menu () {
 							break
 						;;
 						*)
-							echo "$menu2 Isn't An Option!"
+							echo "[*] $menu2 Isn't An Option!"
 							echo
 						;;
 					esac
@@ -841,7 +841,7 @@ Load_Menu () {
 				break
 			;;
 			2)
-				if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; Load_Menu; break; fi
+				if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; Load_Menu; break; fi
 				option1="ban"
 				while true; do
 					echo "What Type Of Input Would You Like To Ban:"
@@ -861,13 +861,13 @@ Load_Menu () {
 							printf "[IP]: "
 							read -r "option3"
 							echo
-							if ! echo "$option3" | Is_IP; then echo "$option3 Is Not A Valid IP"; echo; unset "option2" "option3"; continue; fi
+							if ! echo "$option3" | Is_IP; then echo "[*] $option3 Is Not A Valid IP"; echo; unset "option2" "option3"; continue; fi
 							echo "Input Comment For Ban:"
 							echo
 							printf "[Comment]: "
 							read -r "option4"
 							echo
-							if [ "${#option4}" -gt "244" ]; then echo "$option4 Is Not A Valid Comment. 244 Chars Max"; echo; unset "option2" "option3" "option4"; continue; fi
+							if [ "${#option4}" -gt "244" ]; then echo "[*] $option4 Is Not A Valid Comment. 244 Chars Max"; echo; unset "option2" "option3" "option4"; continue; fi
 							break
 						;;
 						2)
@@ -877,13 +877,13 @@ Load_Menu () {
 							printf "[Range]: "
 							read -r "option3"
 							echo
-							if ! echo "$option3" | Is_Range; then echo "$option3 Is Not A Valid Range"; echo; unset "option2" "option3"; continue; fi
+							if ! echo "$option3" | Is_Range; then echo "[*] $option3 Is Not A Valid Range"; echo; unset "option2" "option3"; continue; fi
 							echo "Input Comment For Ban:"
 							echo
 							printf "[Comment]: "
 							read -r "option4"
 							echo
-							if [ "${#option4}" -gt "243" ]; then echo "$option3 Is Not A Valid Comment. 243 Chars Max"; echo; unset "option2" "option3" "option4"; continue; fi
+							if [ "${#option4}" -gt "243" ]; then echo "[*] $option3 Is Not A Valid Comment. 243 Chars Max"; echo; unset "option2" "option3" "option4"; continue; fi
 							break
 						;;
 						3)
@@ -893,7 +893,7 @@ Load_Menu () {
 							printf "[URL]: "
 							read -r "option3"
 							echo
-							if [ -z "$option3" ]; then echo "URL Field Can't Be Empty - Please Try Again"; echo; unset "option2" "option3"; continue; fi
+							if [ -z "$option3" ]; then echo "[*] URL Field Can't Be Empty - Please Try Again"; echo; unset "option2" "option3"; continue; fi
 							break
 						;;
 						4)
@@ -903,7 +903,7 @@ Load_Menu () {
 							printf "[Countries]: "
 							read -r "option3"
 							echo
-							if [ -z "$option3" ]; then echo "Country Field Can't Be Empty - Please Try Again"; echo; unset "option2" "option3"; continue; fi
+							if [ -z "$option3" ]; then echo "[*] Country Field Can't Be Empty - Please Try Again"; echo; unset "option2" "option3"; continue; fi
 							break
 						;;
 						e|exit|back|menu)
@@ -913,7 +913,7 @@ Load_Menu () {
 							break
 						;;
 						*)
-							echo "$menu2 Isn't An Option!"
+							echo "[*] $menu2 Isn't An Option!"
 							echo
 						;;
 					esac
@@ -921,7 +921,7 @@ Load_Menu () {
 				break
 			;;
 			3)
-				if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; Load_Menu; break; fi
+				if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; Load_Menu; break; fi
 				option1="banmalware"
 				while true; do
 					echo "Select Option:"
@@ -943,7 +943,7 @@ Load_Menu () {
 							printf "[URL]: "
 							read -r "option2"
 							echo
-							if [ -z "$option2" ]; then echo "URL Field Can't Be Empty - Please Try Again"; echo; unset "option2"; continue; fi
+							if [ -z "$option2" ]; then echo "[*] URL Field Can't Be Empty - Please Try Again"; echo; unset "option2"; continue; fi
 							break
 						;;
 						3)
@@ -958,7 +958,7 @@ Load_Menu () {
 							printf "[Lists]: "
 							read -r "option3"
 							echo
-							if [ -z "$option3" ]; then echo "Exclusion List Can't Be Empty - Please Try Again"; echo; unset "option2" "option3"; continue; fi
+							if [ -z "$option3" ]; then echo "[*] Exclusion List Can't Be Empty - Please Try Again"; echo; unset "option2" "option3"; continue; fi
 							break
 						;;
 						5)
@@ -973,7 +973,7 @@ Load_Menu () {
 							break
 						;;
 						*)
-							echo "$menu2 Isn't An Option!"
+							echo "[*] $menu2 Isn't An Option!"
 							echo
 						;;
 					esac
@@ -981,7 +981,7 @@ Load_Menu () {
 				break
 			;;
 			4)
-				if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; Load_Menu; break; fi
+				if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; Load_Menu; break; fi
 				option1="whitelist"
 				while true; do
 					echo "Select Whitelist Option:"
@@ -1003,13 +1003,13 @@ Load_Menu () {
 							printf "[IP/Range]: "
 							read -r "option3"
 							echo
-							if ! echo "$option3" | Is_IP && ! echo "$option3" | Is_Range ; then echo "$option3 Is Not A Valid IP/Range"; echo; unset "option2" "option3"; continue; fi
+							if ! echo "$option3" | Is_IP && ! echo "$option3" | Is_Range ; then echo "[*] $option3 Is Not A Valid IP/Range"; echo; unset "option2" "option3"; continue; fi
 							echo "Input Comment For Whitelist:"
 							echo
 							printf "[Comment]: "
 							read -r "option4"
 							echo
-							if [ "${#option4}" -gt "242" ]; then echo "$option4 Is Not A Valid Comment. 242 Chars Max"; echo; unset "option2" "option3" "option4"; continue; fi
+							if [ "${#option4}" -gt "242" ]; then echo "[*] $option4 Is Not A Valid Comment. 242 Chars Max"; echo; unset "option2" "option3" "option4"; continue; fi
 							break
 						;;
 						2)
@@ -1019,7 +1019,7 @@ Load_Menu () {
 							printf "[URL]: "
 							read -r "option3"
 							echo
-							if [ -z "$option3" ]; then echo "URL Field Can't Be Empty - Please Try Again"; echo; unset "option2" "option3"; continue; fi
+							if [ -z "$option3" ]; then echo "[*] URL Field Can't Be Empty - Please Try Again"; echo; unset "option2" "option3"; continue; fi
 							break
 						;;
 						3)
@@ -1049,7 +1049,7 @@ Load_Menu () {
 										printf "[IP/Range]: "
 										read -r "option4"
 										echo
-										if ! echo "$option4" | Is_IP && ! echo "$option4" | Is_Range ; then echo "$option4 Is Not A Valid IP/Range"; echo; unset "option3" "option4"; continue; fi
+										if ! echo "$option4" | Is_IP && ! echo "$option4" | Is_Range ; then echo "[*] $option4 Is Not A Valid IP/Range"; echo; unset "option3" "option4"; continue; fi
 										break
 									;;
 									3)
@@ -1059,7 +1059,7 @@ Load_Menu () {
 										printf "[Comment]: "
 										read -r "option4"
 										echo
-										if [ "${#option4}" -gt "255" ]; then echo "$option4 Is Not A Valid Comment. 255 Chars Max"; echo; unset "option3" "option4"; continue; fi
+										if [ "${#option4}" -gt "255" ]; then echo "[*] $option4 Is Not A Valid Comment. 255 Chars Max"; echo; unset "option3" "option4"; continue; fi
 										break
 									;;
 									e|exit|back|menu)
@@ -1069,7 +1069,7 @@ Load_Menu () {
 										break
 									;;
 									*)
-										echo "$menu3 Isn't An Option!"
+										echo "[*] $menu3 Isn't An Option!"
 										echo
 									;;
 								esac
@@ -1115,7 +1115,7 @@ Load_Menu () {
 										break
 									;;
 									*)
-										echo "$menu3 Isn't An Option!"
+										echo "[*] $menu3 Isn't An Option!"
 										echo
 									;;
 								esac
@@ -1129,7 +1129,7 @@ Load_Menu () {
 							break
 						;;
 						*)
-							echo "$menu2 Isn't An Option!"
+							echo "[*] $menu2 Isn't An Option!"
 							echo
 						;;
 					esac
@@ -1137,7 +1137,7 @@ Load_Menu () {
 				break
 			;;
 			5)
-				if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; Load_Menu; break; fi
+				if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; Load_Menu; break; fi
 				option1="import"
 				while true; do
 					echo "Select Where To Import List:"
@@ -1163,7 +1163,7 @@ Load_Menu () {
 							break
 						;;
 						*)
-							echo "$menu3 Isn't An Option!"
+							echo "[*] $menu3 Isn't An Option!"
 							echo
 						;;
 					esac
@@ -1173,11 +1173,11 @@ Load_Menu () {
 				printf "[File]: "
 				read -r "option3"
 				echo
-				if [ -z "$option3" ]; then echo "File Field Can't Be Empty - Please Try Again"; echo; unset "option1" "option2" "option3"; continue; fi
+				if [ -z "$option3" ]; then echo "[*] File Field Can't Be Empty - Please Try Again"; echo; unset "option1" "option2" "option3"; continue; fi
 				break
 			;;
 			6)
-				if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; Load_Menu; break; fi
+				if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; Load_Menu; break; fi
 				option1="deport"
 				while true; do
 					echo "Select Where To Deport List:"
@@ -1203,7 +1203,7 @@ Load_Menu () {
 							break
 						;;
 						*)
-							echo "$menu3 Isn't An Option!"
+							echo "[*] $menu3 Isn't An Option!"
 							echo
 						;;
 					esac
@@ -1213,11 +1213,11 @@ Load_Menu () {
 				printf "[File]: "
 				read -r "option3"
 				echo
-				if [ -z "$option3" ]; then echo "File Field Can't Be Empty - Please Try Again"; echo; unset "option1" "option2" "option3"; continue; fi
+				if [ -z "$option3" ]; then echo "[*] File Field Can't Be Empty - Please Try Again"; echo; unset "option1" "option2" "option3"; continue; fi
 				break
 			;;
 			7)
-				if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; Load_Menu; break; fi
+				if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; Load_Menu; break; fi
 				option1="save"
 				break
 			;;
@@ -1259,7 +1259,7 @@ Load_Menu () {
 							break
 						;;
 						*)
-							echo "$menu2 Isn't An Option!"
+							echo "[*] $menu2 Isn't An Option!"
 							echo
 						;;
 					esac
@@ -1284,7 +1284,7 @@ Load_Menu () {
 					echo
 					case "$menu2" in
 						1)
-							if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
+							if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; exit 0; fi
 							option2="autoupdate"
 							while true; do
 								echo "Select Autoupdate Option"
@@ -1310,7 +1310,7 @@ Load_Menu () {
 										break
 									;;
 									*)
-										echo "$menu3 Isn't An Option!"
+										echo "[*] $menu3 Isn't An Option!"
 										echo
 									;;
 								esac
@@ -1318,7 +1318,7 @@ Load_Menu () {
 							break
 						;;
 						2)
-							if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
+							if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; exit 0; fi
 							option2="banmalware"
 							while true; do
 								echo "Select Banmalware Option"
@@ -1349,7 +1349,7 @@ Load_Menu () {
 										break
 									;;
 									*)
-										echo "$menu3 Isn't An Option!"
+										echo "[*] $menu3 Isn't An Option!"
 										echo
 									;;
 								esac
@@ -1357,7 +1357,7 @@ Load_Menu () {
 							break
 						;;
 						3)
-							if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
+							if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; exit 0; fi
 							option2="debugmode"
 							while true; do
 								echo "Select Debug Mode Option"
@@ -1383,7 +1383,7 @@ Load_Menu () {
 										break
 									;;
 									*)
-										echo "$menu3 Isn't An Option!"
+										echo "[*] $menu3 Isn't An Option!"
 										echo
 									;;
 								esac
@@ -1391,7 +1391,7 @@ Load_Menu () {
 							break
 						;;
 						4)
-							if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
+							if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; exit 0; fi
 							option2="filter"
 							while true; do
 								echo "Select Filter Option"
@@ -1422,7 +1422,7 @@ Load_Menu () {
 										break
 									;;
 									*)
-										echo "$menu3 Isn't An Option!"
+										echo "[*] $menu3 Isn't An Option!"
 										echo
 									;;
 								esac
@@ -1430,7 +1430,7 @@ Load_Menu () {
 							break
 						;;
 						5)
-							if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
+							if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; exit 0; fi
 							option2="unbanprivate"
 							while true; do
 								echo "Select Filter PrivateIP Option"
@@ -1456,7 +1456,7 @@ Load_Menu () {
 										break
 									;;
 									*)
-										echo "$menu3 Isn't An Option!"
+										echo "[*] $menu3 Isn't An Option!"
 										echo
 									;;
 								esac
@@ -1464,7 +1464,7 @@ Load_Menu () {
 							break
 						;;
 						6)
-							if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
+							if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; exit 0; fi
 							option2="loginvalid"
 							while true; do
 								echo "Select Invalid Packet Logging Option"
@@ -1490,7 +1490,7 @@ Load_Menu () {
 										break
 									;;
 									*)
-										echo "$menu3 Isn't An Option!"
+										echo "[*] $menu3 Isn't An Option!"
 										echo
 									;;
 								esac
@@ -1498,7 +1498,7 @@ Load_Menu () {
 							break
 						;;
 						7)
-							if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
+							if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; exit 0; fi
 							option2="banaiprotect"
 							while true; do
 								echo "Select Ban AiProtect Option"
@@ -1524,7 +1524,7 @@ Load_Menu () {
 										break
 									;;
 									*)
-										echo "$menu3 Isn't An Option!"
+										echo "[*] $menu3 Isn't An Option!"
 										echo
 									;;
 								esac
@@ -1532,7 +1532,7 @@ Load_Menu () {
 							break
 						;;
 						8)
-							if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
+							if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; exit 0; fi
 							option2="securemode"
 							while true; do
 								echo "Select Secure Mode Option"
@@ -1558,7 +1558,7 @@ Load_Menu () {
 										break
 									;;
 									*)
-										echo "$menu3 Isn't An Option!"
+										echo "[*] $menu3 Isn't An Option!"
 										echo
 									;;
 								esac
@@ -1572,7 +1572,7 @@ Load_Menu () {
 							break
 						;;
 						*)
-							echo "$menu Isn't An Option!"
+							echo "[*] $menu Isn't An Option!"
 							echo
 						;;
 					esac
@@ -1595,7 +1595,7 @@ Load_Menu () {
 					echo
 					case "$menu2" in
 						1)
-							if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
+							if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; exit 0; fi
 							option2="watch"
 							while true; do
 								echo "Select Watch Option:"
@@ -1615,7 +1615,7 @@ Load_Menu () {
 										printf "[IP]: "
 										read -r "option4"
 										echo
-										if ! echo "$option4" | Is_IP; then echo "$option4 Is Not A Valid IP"; echo; unset "option3" "option4"; continue; fi
+										if ! echo "$option4" | Is_IP; then echo "[*] $option4 Is Not A Valid IP"; echo; unset "option3" "option4"; continue; fi
 										break
 									;;
 									3)
@@ -1623,7 +1623,7 @@ Load_Menu () {
 										printf "[Port]: "
 										read -r "option4"
 										echo
-										if ! echo "$option4" | Is_Port || [ "$option4" -gt "65535" ]; then echo "$option4 Is Not A Valid Port"; echo; unset "option3" "option4"; continue; fi
+										if ! echo "$option4" | Is_Port || [ "$option4" -gt "65535" ]; then echo "[*] $option4 Is Not A Valid Port"; echo; unset "option3" "option4"; continue; fi
 										break
 									;;
 									e|exit|back|menu)
@@ -1633,7 +1633,7 @@ Load_Menu () {
 										break
 									;;
 									*)
-										echo "$menu3 Isn't An Option!"
+										echo "[*] $menu3 Isn't An Option!"
 										echo
 									;;
 								esac
@@ -1674,7 +1674,7 @@ Load_Menu () {
 										break
 									;;
 									*)
-										echo "$menu3 Isn't An Option!"
+										echo "[*] $menu3 Isn't An Option!"
 										echo
 									;;
 								esac
@@ -1682,12 +1682,12 @@ Load_Menu () {
 							break
 						;;
 						5)
-							if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
+							if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; exit 0; fi
 							option2="backup"
 							break
 						;;
 						6)
-							if ! Check_Status; then echo "Skynet Not Running - Aborting"; echo; exit 0; fi
+							if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; exit 0; fi
 							option2="restore"
 							break
 						;;
@@ -1698,7 +1698,7 @@ Load_Menu () {
 							break
 						;;
 						*)
-							echo "$menu2 Isn't An Option!"
+							echo "[*] $menu2 Isn't An Option!"
 							echo
 						;;
 					esac
@@ -1748,7 +1748,7 @@ Load_Menu () {
 										printf "[Number]: "
 										read -r "option3"
 										echo
-										if ! [ "$option3" -eq "$option3" ] 2>/dev/null; then echo "$option3 Isn't A Valid Number!"; echo; unset "option3" continue; fi
+										if ! [ "$option3" -eq "$option3" ] 2>/dev/null; then echo "[*] $option3 Isn't A Valid Number!"; echo; unset "option3" continue; fi
 										break
 									;;
 									e|exit|back|menu)
@@ -1758,7 +1758,7 @@ Load_Menu () {
 										break 2
 									;;
 									*)
-										echo "$menu3 Isn't An Option!"
+										echo "[*] $menu3 Isn't An Option!"
 										echo
 									;;
 								esac
@@ -1796,7 +1796,7 @@ Load_Menu () {
 										break
 									;;
 									*)
-										echo "$menu4 Isn't An Option!"
+										echo "[*] $menu4 Isn't An Option!"
 										echo
 									;;
 								esac
@@ -1823,7 +1823,7 @@ Load_Menu () {
 										printf "[Port]: "
 										read -r "option4"
 										echo
-										if ! echo "$option4" | Is_Port || [ "$option4" -gt "65535" ]; then echo "$option4 Is Not A Valid Port"; echo; unset "option3" "option4"; continue; fi
+										if ! echo "$option4" | Is_Port || [ "$option4" -gt "65535" ]; then echo "[*] $option4 Is Not A Valid Port"; echo; unset "option3" "option4"; continue; fi
 										break
 									;;
 									2)
@@ -1831,7 +1831,7 @@ Load_Menu () {
 										printf "[IP]: "
 										read -r "option4"
 										echo
-										if ! echo "$option4" | Is_IP && ! echo "$option4" | Is_Range ; then echo "$option4 Is Not A Valid IP/Range"; echo; unset "option3" "option4"; continue; fi
+										if ! echo "$option4" | Is_IP && ! echo "$option4" | Is_Range ; then echo "[*] $option4 Is Not A Valid IP/Range"; echo; unset "option3" "option4"; continue; fi
 										break
 									;;
 									3)
@@ -1839,7 +1839,7 @@ Load_Menu () {
 										printf "[IP]: "
 										read -r "option4"
 										echo
-										if ! echo "$option4" | Is_IP && ! echo "$option4" | Is_Range ; then echo "$option4 Is Not A Valid IP/Range"; echo; unset "option3" "option4"; continue; fi
+										if ! echo "$option4" | Is_IP && ! echo "$option4" | Is_Range ; then echo "[*] $option4 Is Not A Valid IP/Range"; echo; unset "option3" "option4"; continue; fi
 										break
 									;;
 									4)
@@ -1851,7 +1851,7 @@ Load_Menu () {
 										printf "[Local IP]: "
 										read -r "option4"
 										echo
-										if ! echo "$option4" | Is_IP; then echo "$option4 Is Not A Valid IP"; echo; unset "option3" "option4"; continue; fi
+										if ! echo "$option4" | Is_IP; then echo "[*] $option4 Is Not A Valid IP"; echo; unset "option3" "option4"; continue; fi
 										break
 									;;
 									6)
@@ -1865,7 +1865,7 @@ Load_Menu () {
 										break 2
 									;;
 									*)
-										echo "$menu4 Isn't An Option!"
+										echo "[*] $menu4 Isn't An Option!"
 										echo
 									;;
 								esac
@@ -1911,7 +1911,7 @@ Load_Menu () {
 										printf "[Number]: "
 										read -r "optionx"
 										echo
-										if ! [ "$optionx" -eq "$optionx" ] 2>/dev/null; then echo "$optionx Isn't A Valid Number!"; echo; unset "optionx"; continue; fi
+										if ! [ "$optionx" -eq "$optionx" ] 2>/dev/null; then echo "[*] $optionx Isn't A Valid Number!"; echo; unset "optionx"; continue; fi
 										if [ -n "$option4" ]; then
 											option5="$optionx"
 										else
@@ -1926,7 +1926,7 @@ Load_Menu () {
 										break
 									;;
 									*)
-										echo "$menu3 Isn't An Option!"
+										echo "[*] $menu3 Isn't An Option!"
 										echo
 									;;
 								esac
@@ -1949,7 +1949,7 @@ Load_Menu () {
 										printf "[IP]: "
 										read -r "option4"
 										echo
-										if ! echo "$option4" | Is_IP; then echo "$option4 Is Not A Valid IP"; echo; unset "option3" "option4"; continue; fi
+										if ! echo "$option4" | Is_IP; then echo "[*] $option4 Is Not A Valid IP"; echo; unset "option3" "option4"; continue; fi
 										break
 									;;
 									2)
@@ -1957,7 +1957,7 @@ Load_Menu () {
 										printf "[Port]: "
 										read -r "option4"
 										echo
-										if ! echo "$option4" | Is_Port || [ "$option4" -gt "65535" ]; then echo "$option4 Is Not A Valid Port"; echo; unset "option3" "option4"; continue; fi
+										if ! echo "$option4" | Is_Port || [ "$option4" -gt "65535" ]; then echo "[*] $option4 Is Not A Valid Port"; echo; unset "option3" "option4"; continue; fi
 										break
 									;;
 									e|exit|back|menu)
@@ -1967,7 +1967,7 @@ Load_Menu () {
 										break 2
 									;;
 									*)
-										echo "$menu3 Isn't An Option!"
+										echo "[*] $menu3 Isn't An Option!"
 										echo
 									;;
 								esac
@@ -1985,7 +1985,7 @@ Load_Menu () {
 							break
 						;;
 						*)
-							echo "$menu2 Isn't An Option!"
+							echo "[*] $menu2 Isn't An Option!"
 							echo
 						;;
 					esac
@@ -2006,12 +2006,12 @@ Load_Menu () {
 				break
 			;;
 			e|exit)
-				echo "Exiting!"
+				echo "[*] Exiting!"
 				echo
 				exit 0
 			;;
 			*)
-				echo "$menu Isn't An Option!"
+				echo "[*] $menu Isn't An Option!"
 				echo
 			;;
 		esac
@@ -2025,7 +2025,7 @@ fi
 if [ -n "$option1" ]; then
 	set "$option1" "$option2" "$option3" "$option4" "$option5"
 	stime="$(date +%s)"
-	echo "[i] $0 $*" | tr -s " "
+	echo "[$] $0 $*" | tr -s " "
 	echo
 fi
 
@@ -2575,16 +2575,14 @@ case "$1" in
 		remotever="$(/usr/sbin/curl -fsL --retry 3 "$remoteurl" | Filter_Version)"
 		if [ "$localver" = "$remotever" ] && [ "$2" != "-f" ]; then
 			logger -st Skynet "[i] Skynet Up To Date - $localver"
-			echo
-			exit 0
+			nolog="2"
 		elif [ "$localver" != "$remotever" ] && [ "$2" = "check" ]; then
 			logger -st Skynet "[i] Skynet Update Detected - $remotever"
-			echo
-			exit 0
+			nolog="2"
 		elif [ "$2" = "-f" ]; then
 			logger -st Skynet "[i] Forcing Update"
 		fi
-		if [ "$localver" != "$remotever" ] || [ "$2" = "-f" ]; then
+		if [ "$localver" != "$remotever" ] || [ "$2" = "-f" ] && [ "$nolog" != "2" ]; then
 			logger -st Skynet "[i] New Version Detected - Updating To $remotever"
 			Save_IPSets >/dev/null 2>&1
 			Unload_Cron "all"
@@ -2596,6 +2594,7 @@ case "$1" in
 			service restart_firewall
 			exit 0
 		fi
+		echo
 	;;
 
 	settings)
@@ -3496,12 +3495,12 @@ case "$1" in
 					break
 				;;
 				e|exit)
-					echo "Exiting!"
+					echo "[*] Exiting!"
 					echo
 					exit 0
 				;;
 				*)
-					echo "$mode1 Isn't An Option!"
+					echo "[*] $mode1 Isn't An Option!"
 					echo
 				;;
 			esac
@@ -3532,12 +3531,12 @@ case "$1" in
 					break
 				;;
 				e|exit)
-					echo "Exiting!"
+					echo "[*] Exiting!"
 					echo
 					exit 0
 				;;
 				*)
-					echo "$mode3 Isn't An Option!"
+					echo "[*] $mode3 Isn't An Option!"
 					echo
 				;;
 			esac
@@ -3575,12 +3574,12 @@ case "$1" in
 					break
 				;;
 				e|exit)
-					echo "Exiting!"
+					echo "[*] Exiting!"
 					echo
 					exit 0
 				;;
 				*)
-					echo "$mode4 Isn't An Option!"
+					echo "[*] $mode4 Isn't An Option!"
 					echo
 				;;
 			esac
@@ -3610,12 +3609,12 @@ case "$1" in
 					break
 				;;
 				e|exit)
-					echo "Exiting!"
+					echo "[*] Exiting!"
 					echo
 					exit 0
 				;;
 				*)
-					echo "$mode5 Isn't An Option!"
+					echo "[*] $mode5 Isn't An Option!"
 					echo
 				;;
 			esac
@@ -3709,12 +3708,12 @@ case "$1" in
 									break
 								;;
 								e|exit)
-									echo "Exiting!"
+									echo "[*] Exiting!"
 									echo
 									exit 0
 								;;
 								*)
-									echo "$removeswap Isn't An Option!"
+									echo "[*] $removeswap Isn't An Option!"
 									echo
 								;;
 							esac
@@ -3735,12 +3734,12 @@ case "$1" in
 					exit 0
 				;;
 				2|e|exit)
-					echo "Exiting!"
+					echo "[*] Exiting!"
 					echo
 					exit 0
 				;;
 				*)
-					echo "$continue Isn't An Option!"
+					echo "[*] $continue Isn't An Option!"
 					echo
 				;;
 			esac
