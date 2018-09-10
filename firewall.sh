@@ -532,8 +532,8 @@ Manage_Device () {
 			i=$((i + 1))
 		done
 		unset IFS
-		if [ $i = "1" ]; then
-			echo "No Compatible ext* USB Partitions Found - Exiting!"
+		if [ "$i" = "1" ]; then
+			echo "[*] No Compatible ext* USB Partitions Found - Exiting!"
 			echo; exit 1
 		fi
 		Select_Device (){
@@ -546,12 +546,12 @@ Manage_Device () {
 					echo "[*] Exiting!"
 					echo; exit 0
 				elif [ -z "$partitionNumber" ] || [ "$partitionNumber" -gt $((i - 1)) ] 2>/dev/null || [ "$partitionNumber" = "0" ]; then
-					echo "Invalid Partition Number!"
+					echo "[*] Invalid Partition Number!"
 					Select_Device
 				elif [ "$partitionNumber" -eq "$partitionNumber" ] 2>/dev/null;then
 					true
 				else
-					echo "$partitionNumber Isn't An Option!"
+					echo "[*] $partitionNumber Isn't An Option!"
 					Select_Device
 				fi
 		}
@@ -560,7 +560,7 @@ Manage_Device () {
 		eval device=\$mounts"$partitionNumber"
 		touch "${device}/rwtest"
 		if [ ! -w "${device}/rwtest" ]; then
-			echo "Writing To $device Failed - Exiting!"
+			echo "[*] Writing To $device Failed - Exiting!"
 			Manage_Device
 		else
 			rm -rf "${device}/rwtest"
@@ -608,13 +608,13 @@ Create_Swap () {
 		esac
 	done
 	if [ -f "${device}/myswap.swp" ]; then swapoff "${device}/myswap.swp" 2>/dev/null; rm -rf "${device}/myswap.swp"; fi
-	if [ "$(df $device | xargs | awk '{print $11}')" -le "$swapsize" ]; then echo "Not Enough Free Space Available On $device"; Create_Swap; fi
-	echo "Creating SWAP File"
+	if [ "$(df $device | xargs | awk '{print $11}')" -le "$swapsize" ]; then echo "[*] Not Enough Free Space Available On $device"; Create_Swap; fi
+	echo "[i] Creating SWAP File"
 	dd if=/dev/zero of="${device}/myswap.swp" bs=1k count="$swapsize"
 	mkswap "${device}/myswap.swp"
 	swapon "${device}/myswap.swp"
 	echo "swapon ${device}/myswap.swp # Skynet Firewall Addition" >> /jffs/scripts/post-mount
-	echo "SWAP File Located At ${device}/myswap.swp"
+	echo "[i] SWAP File Located At ${device}/myswap.swp"
 	echo
 }
 
@@ -3040,10 +3040,9 @@ case "$1" in
 						echo "[i] Removing SWAP File ($swaplocation)"
 						if [ -f "$swaplocation" ]; then
 							Save_IPSets >/dev/null 2>&1
-							swapoff "$swaplocation"
-							rm -rf "$swaplocation"
 							sed -i '\~swapon ~d' /jffs/scripts/post-mount
-							echo "[i] SWAP File Removed"
+							swapoff "$swaplocation"
+							rm -rf "$swaplocation" && echo "[i] SWAP File Removed" || "[*] SWAP File Partially Removed - Please Inspect Manually"
 							echo "[i] Restarting Firewall Service"
 							Unload_Cron "all"
 							Unload_IPTables
@@ -3052,7 +3051,8 @@ case "$1" in
 							restartfirewall="1"
 							nolog="2"
 						else
-							echo "[*] Unable To Remove Existing SWAP File - Please Remove Manually"
+							sed -i '\~swapon ~d' /jffs/scripts/post-mount
+							echo "[*] SWAP File Partially Removed - Please Inspect Manually"
 							echo; exit 1
 						fi
 					;;
