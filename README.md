@@ -21,26 +21,8 @@ To open the menu its as simple as;
 
 ```sh /jffs/scripts/firewall```
 
-[![Skynet GUI](https://i.imgur.com/KRHYq3e.png "Skynet GUI")](https://i.imgur.com/KRHYq3e.png "Skynet GUI")
+[![Skynet GUI](https://i.imgur.com/VBmw7e1.png "Skynet GUI")](https://i.imgur.com/VBmw7e1.png "Skynet GUI")
 
-To use the CLI, execute the following;
-
-```sh /jffs/scripts/firewall *commandhere*```
-
-    "unban"        # <-- Remove Entry From Blacklist (IP/Range/Domain/Country/Malware/Nomanual/All)
-    "ban"          # <-- Adds Entry To Blacklist (IP/Range/Domain/Country)
-    "banmalware"   # <-- Bans Various Malicious Domains/IPs
-    "whitelist"    # <-- Add Entry To Whitelist (IP/Range/Domain/VPN/Remove/Refresh/List)
-    "import"       # <-- Bans All IPs From URL/Local File
-    "deport"       # <-- Unbans All IPs From URL/Local File
-    "save"         # <-- Save Blacklists To skynet.ipset
-    "restart"      # <-- Restart Skynet
-    "disable"      # <-- Temporarily Disable Skynet
-    "update"       # <-- Update Script To Latest Version (check github for changes)
-    "debug"	       # <-- Debug Features
-    "stats"        # <-- Show/Search Stats Of Banned IPs (Requires debugging enabled)
-    "install"      # <-- Install Script (Or Change Boot Args)
-    "uninstall     # <-- Uninstall All Traces Of Script
 
 
 ## Installation
@@ -101,18 +83,24 @@ Here Are Some Example Update Commands;
 ( sh /jffs/scripts/firewall update check ) Check For Updates Only - Wont Update If Detected
 ( sh /jffs/scripts/firewall update -f ) Force Update Even If No Changes Detected
 
+Here Are Some Example Settings Commands;
+( sh /jffs/scripts/firewall settings autoupdate enable|disable ) Enable/Disable Skynet Autoupdating
+( sh /jffs/scripts/firewall settings banmalware daily|weekly|disable ) Enable/Disable Automatic Banmalware Updating
+( sh /jffs/scripts/firewall settings debugmode enable|disable ) Enable/Disable Debug Mode
+( sh /jffs/scripts/firewall settings filter all|inbound|outbound ) Select What Traffic To Filter
+( sh /jffs/scripts/firewall settings unbanprivate enable|disable ) Enable/Disable Unban_PrivateIP Function
+( sh /jffs/scripts/firewall settings loginvalid enable|disable ) Enable/Disable Invalid Packet Logging
+( sh /jffs/scripts/firewall settings banaiprotect enable|disable ) Enable/Disable Banning IP's Flagged By AiProtect
+( sh /jffs/scripts/firewall settings securemode enable|disable ) Enable/Disable Insecure Settings Being Applied In WebUI
+
 Here Are Some Example Debug Commands;
-( sh /jffs/scripts/firewall debug disable ) Disable Raw Debugging
 ( sh /jffs/scripts/firewall debug watch ) Show Debug Entries As They Appear
 ( sh /jffs/scripts/firewall debug info ) Print Useful Debug Info
 ( sh /jffs/scripts/firewall debug clean ) Cleanup Syslog Entries
 ( sh /jffs/scripts/firewall debug swap install|uninstall ) Install/Uninstall SWAP File
 ( sh /jffs/scripts/firewall debug backup ) Backup Skynet Files To Skynets Install Directory With The Name "Skynet-Backup.tar.gz"
 ( sh /jffs/scripts/firewall debug restore ) Restore Backup Files From Skynets Install Directory With The Name "Skynet-Backup.tar.gz"
-( sh /jffs/scripts/firewall debug unbanprivate enable|disable ) Enable/Disable Unban_PrivateIP Function
-( sh /jffs/scripts/firewall debug loginvalid enable|disable ) Enable/Disable Invalid Packet Logging
-( sh /jffs/scripts/firewall debug banaiprotect enable|disable ) Enable/Disable Banning IP's Flagged By AiProtect
-( sh /jffs/scripts/firewall debug securemode enable|disable ) Enable/Disable Insecure Settings Being Applied In WebUI
+
 
 Here Are Some Example Stats Commands;
 ( sh /jffs/scripts/firewall stats ) Compile Stats With Default Top10 Output
