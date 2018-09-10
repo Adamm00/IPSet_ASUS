@@ -636,6 +636,7 @@ Purge_Logs () {
 		if [ "$1" = "all" ] || [ "$(grep -cE "Skynet: [#] " "/tmp/syslog.log" 2>/dev/null)" -gt "24" ] 2>/dev/null; then
 			sed '\~Skynet: \[#\] ~!d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null >> "$skynetevents"
 			sed -i '\~Skynet: \[#\] ~d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null
+			sed -i '\~Skynet: \[i\] ~d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null
 		fi
 }
 
@@ -2500,7 +2501,7 @@ case "$1" in
 	start)
 		trap '' 2
 		Check_Lock "$@"
-		logger -st Skynet "[i] Startup Initiated... ( $(echo "$@" | sed 's~start ~~g') )"
+		logger -st Skynet "[%] Startup Initiated... ( $(echo "$@" | sed 's~start ~~g') )"
 		Unload_Cron "all"
 		Check_Settings
 		Check_Files "verify"
@@ -2537,7 +2538,7 @@ case "$1" in
 	restart)
 		Check_Lock "$@"
 		Purge_Logs
-		logger -t Skynet "[i] Restarting Skynet"
+		logger -t Skynet "[%] Restarting Skynet"
 		Unload_Cron "all"
 		Save_IPSets
 		echo "[i] Unloading Skynet Components"
