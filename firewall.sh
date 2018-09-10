@@ -2538,14 +2538,15 @@ case "$1" in
 		Check_Lock "$@"
 		Purge_Logs
 		logger -t Skynet "[i] Restarting Skynet"
-		echo "[i] Unloading Skynet Components"
 		Unload_Cron "all"
 		Save_IPSets
+		echo "[i] Unloading Skynet Components"
 		Unload_IPTables
 		Unload_DebugIPTables
 		Unload_IPSets
 		iptables -t raw -F
 		restartfirewall="1"
+		nolog="2"
 		echo "[i] Restarting Firewall Service"
 		echo
 	;;
@@ -3033,6 +3034,7 @@ case "$1" in
 							Unload_DebugIPTables
 							Unload_IPSets
 							restartfirewall="1"
+							nolog="2"
 						else
 							echo "[*] Pre-existing SWAP File Detected - Exiting!"
 						fi
@@ -3054,6 +3056,7 @@ case "$1" in
 							Unload_DebugIPTables
 							Unload_IPSets
 							restartfirewall="1"
+							nolog="2"
 						else
 							echo "[*] Unable To Remove Existing SWAP File - Please Remove Manually"
 							echo
