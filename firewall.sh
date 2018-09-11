@@ -213,9 +213,9 @@ Check_Security () {
 			nvram set pptpd_enable="0"
 			nvram set pptpd_broadcast="0"
 			nvram commit
-			echo "Stopping PPTP Service"
+			echo "[i] Stopping PPTP Service"
 			service stop_pptpd
-			echo "Restarting Samba Service"
+			echo "[i] Restarting Samba Service"
 			service restart_samba
 			restartfirewall="1"
 		fi
@@ -657,8 +657,7 @@ Print_Log () {
 			$grn "$blacklist1count IPs -- $blacklist2count Ranges Banned || $((blacklist1count - oldips)) New IPs -- $((blacklist2count - oldranges)) New Ranges Banned || $hits1 Inbound -- $hits2 Outbound Connections Blocked!"
 		else
 			logz="$(echo "[#] $blacklist1count IPs -- $blacklist2count Ranges Banned || $((blacklist1count - oldips)) New IPs -- $((blacklist2count - oldranges)) New Ranges Banned || $hits1 Inbound -- $hits2 Outbound Connections Blocked! [$1] [${ftime}s]")"
-			echo "$logz"
-			logger -t Skynet "$logz"
+			logger -t Skynet "$logz"; echo "$logz"
 		fi
 }
 
@@ -2357,13 +2356,13 @@ case "$1" in
 					grep -oE '^[0-9,./]*$' "$3" > /tmp/iplist-unfiltered.txt
 				elif [ -n "$3" ]; then
 					echo "[i] Remote Custom List Detected: $3"
-					/usr/sbin/curl -fsL --retry 3 "$3" | grep -oE '^[0-9,./]*$' > /tmp/iplist-unfiltered.txt || { echo "[*] 404 Error Detected - Stopping Import"; echo; exit 1; }
+					/usr/sbin/curl -fsL --retry 3 "$3" | grep -oE '^[0-9,./]*$' > /tmp/iplist-unfiltered.txt || { echo "[*] 404 Error Detected - Stopping Import"; rm -rf /tmp/iplist-unfiltered.txt; echo; exit 1; }
 				else
 					echo "[*] URL/File Field Can't Be Empty - Please Try Again"
 					echo; exit 2
 				fi
 				dos2unix /tmp/iplist-unfiltered.txt
-				if ! grep -qE '^[0-9,./]*$' /tmp/iplist-unfiltered.txt; then { echo "[*] No Content Detected - Stopping Import"; rm -rf /tmp/iplist-unfiltered.txt /tmp/skynet.lock; echo; exit 1; }; fi
+				if ! grep -qE '^[0-9,./]*$' /tmp/iplist-unfiltered.txt; then { echo "[*] No Content Detected - Stopping Import"; rm -rf /tmp/iplist-unfiltered.txt; echo; exit 1; }; fi
 				echo "[i] Processing List"
 				if [ -n "$4" ] && [ "${#4}" -le "245" ]; then
 					grep -vF "/" /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk -v desc="Imported: $4" '{print "add Skynet-Blacklist " $1 " comment \"" desc "\""}' > /tmp/iplist-filtered.txt
@@ -2389,13 +2388,13 @@ case "$1" in
 					grep -oE '^[0-9,./]*$' "$3" > /tmp/iplist-unfiltered.txt
 				elif [ -n "$3" ]; then
 					echo "[i] Remote Custom List Detected: $3"
-					/usr/sbin/curl -fsL --retry 3 "$3" | grep -oE '^[0-9,./]*$' > /tmp/iplist-unfiltered.txt || { echo "[*] 404 Error Detected - Stopping Import"; echo; exit 1; }
+					/usr/sbin/curl -fsL --retry 3 "$3" | grep -oE '^[0-9,./]*$' > /tmp/iplist-unfiltered.txt || { echo "[*] 404 Error Detected - Stopping Import"; rm -rf /tmp/iplist-unfiltered.txt; echo; exit 1; }
 				else
 					echo "[*] URL/File Field Can't Be Empty - Please Try Again"
 					echo; exit 2
 				fi
 				dos2unix /tmp/iplist-unfiltered.txt
-				if ! grep -qE '^[0-9,./]*$' /tmp/iplist-unfiltered.txt; then { echo "[*] No Content Detected - Stopping Import"; rm -rf /tmp/iplist-unfiltered.txt /tmp/skynet.lock; echo; exit 1; }; fi
+				if ! grep -qE '^[0-9,./]*$' /tmp/iplist-unfiltered.txt; then { echo "[*] No Content Detected - Stopping Import"; rm -rf /tmp/iplist-unfiltered.txt; echo; exit 1; }; fi
 				echo "[i] Processing List"
 				if [ -n "$4" ] && [ "${#4}" -le "245" ]; then
 					Filter_PrivateIP < /tmp/iplist-unfiltered.txt | awk -v desc="Imported: $4" '{print "add Skynet-Whitelist " $1 " comment \"" desc "\""}' > /tmp/iplist-filtered.txt
@@ -2430,13 +2429,13 @@ case "$1" in
 					grep -oE '^[0-9,./]*$' "$3" > /tmp/iplist-unfiltered.txt
 				elif [ -n "$3" ]; then
 					echo "[i] Remote Custom List Detected: $3"
-					/usr/sbin/curl -fsL --retry 3 "$3" | grep -oE '^[0-9,./]*$' > /tmp/iplist-unfiltered.txt || { echo "[*] 404 Error Detected - Stopping Import"; echo; exit 1; }
+					/usr/sbin/curl -fsL --retry 3 "$3" | grep -oE '^[0-9,./]*$' > /tmp/iplist-unfiltered.txt || { echo "[*] 404 Error Detected - Stopping Import"; rm -rf /tmp/iplist-unfiltered.txt; echo; exit 1; }
 				else
 					echo "[*] URL/File Field Can't Be Empty - Please Try Again"
 					echo; exit 2
 				fi
 				dos2unix /tmp/iplist-unfiltered.txt
-				if [ "$(grep -coE '^[0-9,./]*$' /tmp/iplist-unfiltered.txt)" = "0" ]; then { echo "[*] No Content Detected - Stopping Deport"; rm -rf /tmp/iplist-unfiltered.txt /tmp/skynet.lock; echo; exit 1; }; fi
+				if [ "$(grep -coE '^[0-9,./]*$' /tmp/iplist-unfiltered.txt)" = "0" ]; then { echo "[*] No Content Detected - Stopping Deport"; rm -rf /tmp/iplist-unfiltered.txt; echo; exit 1; }; fi
 				echo "[i] Processing IPv4 Addresses"
 				grep -vF "/" /tmp/iplist-unfiltered.txt | Filter_PrivateIP | awk '{print "del Skynet-Blacklist " $1}' > /tmp/iplist-filtered.txt
 				echo "[i] Processing IPv4 Ranges"
@@ -2457,13 +2456,13 @@ case "$1" in
 					grep -oE '^[0-9,./]*$' "$3" > /tmp/iplist-unfiltered.txt
 				elif [ -n "$3" ]; then
 					echo "[i] Remote Custom List Detected: $3"
-					/usr/sbin/curl -fsL --retry 3 "$3" | grep -oE '^[0-9,./]*$' > /tmp/iplist-unfiltered.txt || { echo "[*] 404 Error Detected - Stopping Import"; echo; exit 1; }
+					/usr/sbin/curl -fsL --retry 3 "$3" | grep -oE '^[0-9,./]*$' > /tmp/iplist-unfiltered.txt || { echo "[*] 404 Error Detected - Stopping Import"; rm -rf /tmp/iplist-unfiltered.txt; echo; exit 1; }
 				else
 					echo "[*] URL/File Field Can't Be Empty - Please Try Again"
 					echo; exit 2
 				fi
 				dos2unix /tmp/iplist-unfiltered.txt
-				if [ "$(grep -coE '^[0-9,./]*$' /tmp/iplist-unfiltered.txt)" = "0" ]; then { echo "[*] No Content Detected - Stopping Deport"; rm -rf /tmp/iplist-unfiltered.txt /tmp/skynet.lock; echo; exit 1; }; fi
+				if [ "$(grep -coE '^[0-9,./]*$' /tmp/iplist-unfiltered.txt)" = "0" ]; then { echo "[*] No Content Detected - Stopping Deport"; rm -rf /tmp/iplist-unfiltered.txt; echo; exit 1; }; fi
 				echo "[i] Processing IPv4 Addresses"
 				Filter_PrivateIP < /tmp/iplist-unfiltered.txt | awk '{print "del Skynet-Whitelist " $1}' > /tmp/iplist-filtered.txt
 				echo "[i] Removing IPs From Whitelist"
@@ -2532,63 +2531,66 @@ case "$1" in
 	restart)
 		Check_Lock "$@"
 		Purge_Logs
-		logger -t Skynet "[%] Restarting Skynet"
-		Unload_Cron "all"
 		Save_IPSets
 		echo "[i] Unloading Skynet Components"
+		Unload_Cron "all"
 		Unload_IPTables
 		Unload_DebugIPTables
 		Unload_IPSets
 		iptables -t raw -F
+		logger -t Skynet "[%] Restarting Firewall Service"; echo "[%] Restarting Firewall Service"
 		restartfirewall="1"
 		nolog="2"
-		echo "[i] Restarting Firewall Service"
 		echo
 	;;
 
 	disable)
 		Check_Lock "$@"
-		logger -t Skynet "[i] Disabling Skynet"
-		echo "[i] Disabling Skynet"
-		Unload_Cron "all"
 		Save_IPSets
-		echo "[i] Unloading IPTables Rules"
+		echo "[i] Unloading Skynet Components"
+		Unload_Cron "all"
 		Unload_IPTables
 		Unload_DebugIPTables
-		echo "[i] Unloading IPSets"
 		Unload_IPSets
+		logger -t Skynet "[%] Skynet Disabled"; echo "[%] Skynet Disabled"
 		Purge_Logs "all"
-		echo
 		nolog="2"
+		echo
 	;;
 
 	update)
 		Check_Lock "$@"
 		trap '' 2
+		rm -rf /tmp/skynet.tmp
 		remoteurl="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh"
-		/usr/sbin/curl -fsL --retry 3 "$remoteurl" | grep -qF "Adamm" || { logger -st Skynet "[*] 404 Error Detected - Stopping Update"; echo; exit 1; }
-		remotever="$(/usr/sbin/curl -fsL --retry 3 "$remoteurl" | Filter_Version)"
+		/usr/sbin/curl -fsL --retry 3 "$remoteurl" -o /tmp/skynet.tmp
+		grep -qF "Adamm" /tmp/skynet.tmp || { logger -st Skynet "[*] 404 Error Detected - Stopping Update"; rm -rf /tmp/skynet.tmp; echo; exit 1; }
+		remotever="$(Filter_Version /tmp/skynet.tmp)"
 		if [ "$localver" = "$remotever" ] && [ "$2" != "-f" ]; then
-			logger -st Skynet "[%] Skynet Up To Date - $localver"
+			logger -t Skynet "[%] Skynet Up To Date - $localver"; echo "[%] Skynet Up To Date - $localver"
 			nolog="2"
 		elif [ "$localver" != "$remotever" ] && [ "$2" = "check" ]; then
-			logger -st Skynet "[%] Skynet Update Detected - $remotever"
+			logger -t Skynet "[%] Skynet Update Detected - $remotever"; echo "[%] Skynet Update Detected - $remotever"
 			nolog="2"
 		elif [ "$2" = "-f" ]; then
-			logger -st Skynet "[i] Forcing Update"
+			echo "[i] Forcing Update"
 		fi
 		if [ "$localver" != "$remotever" ] || [ "$2" = "-f" ] && [ "$nolog" != "2" ]; then
-			logger -st Skynet "[%] New Version Detected - Updating To $remotever"
+			logger -t Skynet "[%] New Version Detected - Updating To $remotever"; echo "[%] New Version Detected - Updating To $remotever"
 			Save_IPSets >/dev/null 2>&1
+			echo "[i] Unloading Skynet Components"
 			Unload_Cron "all"
 			Unload_IPTables
 			Unload_DebugIPTables
 			Unload_IPSets
 			iptables -t raw -F
-			/usr/sbin/curl -fsL --retry 3 "$remoteurl" -o "$0" && logger -st Skynet "[i] Skynet Sucessfully Updated - Restarting Firewall"
+			logger -t Skynet "[%] Restarting Firewall Service"; echo "[%] Restarting Firewall Service"
+			chmod +x /tmp/skynet.tmp
+			mv /tmp/skynet.tmp "$0"
 			service restart_firewall
-			exit 0
+			echo; exit 0
 		fi
+		rm -rf /tmp/skynet.tmp
 		echo
 	;;
 
@@ -3021,12 +3023,13 @@ case "$1" in
 						if ! grep -qF "swapon" /jffs/scripts/post-mount; then
 							Manage_Device
 							Create_Swap
-							echo "[i] Restarting Firewall Service"
 							Save_IPSets >/dev/null 2>&1
+							echo "[i] Unloading Skynet Components"
 							Unload_Cron "all"
 							Unload_IPTables
 							Unload_DebugIPTables
 							Unload_IPSets
+							logger -t Skynet "[%] Restarting Firewall Service"; echo "[%] Restarting Firewall Service"
 							restartfirewall="1"
 							nolog="2"
 						else
@@ -3043,11 +3046,12 @@ case "$1" in
 							sed -i '\~swapon ~d' /jffs/scripts/post-mount
 							swapoff "$swaplocation"
 							rm -rf "$swaplocation" && echo "[i] SWAP File Removed" || "[*] SWAP File Partially Removed - Please Inspect Manually"
-							echo "[i] Restarting Firewall Service"
+							echo "[i] Unloading Skynet Components"
 							Unload_Cron "all"
 							Unload_IPTables
 							Unload_DebugIPTables
 							Unload_IPSets
+							logger -t Skynet "[%] Restarting Firewall Service"; echo "[%] Restarting Firewall Service"
 							restartfirewall="1"
 							nolog="2"
 						else
@@ -3099,7 +3103,7 @@ case "$1" in
 				tar -xzvf "$backuplocation" -C "$skynetloc"
 				echo
 				echo "[i] Backup Restored"
-				echo "[i] Restarting Firewall Service"
+				logger -t Skynet "[%] Restarting Firewall Service"; echo "[%] Restarting Firewall Service"
 				restartfirewall="1"
 				nolog="2"
 			;;
@@ -3647,12 +3651,12 @@ case "$1" in
 			reboot
 			exit 0
 		fi
-		echo "[i] Restarting Firewall To Complete Installation"
 		Unload_Cron "all"
 		Unload_IPTables
 		Unload_DebugIPTables
 		Unload_IPSets
 		iptables -t raw -F
+		echo "[%] Restarting Firewall Service To Complete Installation"
 		restartfirewall="1"
 		nolog="2"
 	;;
@@ -3706,7 +3710,7 @@ case "$1" in
 							esac
 						done
 					fi
-					echo "[i] Uninstalling Skynet And Restarting Firewall"
+					echo "[i] Unloading Skynet Components"
 					Purge_Logs "all"
 					Unload_Cron "all"
 					Kill_Lock
@@ -3714,9 +3718,11 @@ case "$1" in
 					Unload_DebugIPTables
 					Unload_IPSets
 					nvram set fw_log_x=none
+					echo "[i] Removing Traces Of Skynet"
 					sed -i '\~ Skynet ~d' /jffs/scripts/firewall-start /jffs/scripts/services-stop
 					rm -rf "/jffs/shared-Skynet-whitelist" "/jffs/shared-Skynet2-whitelist" "/opt/bin/firewall" "$skynetloc" "/jffs/scripts/firewall" "/tmp/skynet.lock"
 					iptables -t raw -F
+					echo "[%] Restarting Firewall Service"
 					service restart_firewall
 					exit 0
 				;;
@@ -3744,5 +3750,5 @@ esac
 if [ "$nolog" != "2" ]; then Print_Log "$@"; echo; fi
 if [ "$nocfg" != "1" ]; then Write_Config; fi
 if [ "$lockskynet" = "true" ]; then rm -rf "/tmp/skynet.lock"; fi
-if [ "$restartfirewall" = "1" ]; then service restart_firewall; fi
+if [ "$restartfirewall" = "1" ]; then service restart_firewall; echo; fi
 if [ -n "$reloadmenu" ]; then echo; echo; printf "[i] Press Enter To Continue..."; read -r "continue"; exec "$0"; fi
