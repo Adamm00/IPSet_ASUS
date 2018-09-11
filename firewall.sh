@@ -2569,16 +2569,16 @@ case "$1" in
 		/usr/sbin/curl -fsL --retry 3 "$remoteurl" | grep -qF "Adamm" || { logger -st Skynet "[*] 404 Error Detected - Stopping Update"; echo; exit 1; }
 		remotever="$(/usr/sbin/curl -fsL --retry 3 "$remoteurl" | Filter_Version)"
 		if [ "$localver" = "$remotever" ] && [ "$2" != "-f" ]; then
-			logger -st Skynet "[i] Skynet Up To Date - $localver"
+			logger -st Skynet "[%] Skynet Up To Date - $localver"
 			nolog="2"
 		elif [ "$localver" != "$remotever" ] && [ "$2" = "check" ]; then
-			logger -st Skynet "[i] Skynet Update Detected - $remotever"
+			logger -st Skynet "[%] Skynet Update Detected - $remotever"
 			nolog="2"
 		elif [ "$2" = "-f" ]; then
 			logger -st Skynet "[i] Forcing Update"
 		fi
 		if [ "$localver" != "$remotever" ] || [ "$2" = "-f" ] && [ "$nolog" != "2" ]; then
-			logger -st Skynet "[i] New Version Detected - Updating To $remotever"
+			logger -st Skynet "[%] New Version Detected - Updating To $remotever"
 			Save_IPSets >/dev/null 2>&1
 			Unload_Cron "all"
 			Unload_IPTables
