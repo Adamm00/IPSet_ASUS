@@ -748,7 +748,7 @@ Load_Menu () {
 		echo
 		case "$menu" in
 			1)
-				if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; Load_Menu; break; fi
+				if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; Load_Menu; break; fi
 				option1="unban"
 				while true; do
 					echo "What Type Of Input Would You Like To Unban:"
@@ -836,7 +836,7 @@ Load_Menu () {
 				break
 			;;
 			2)
-				if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; Load_Menu; break; fi
+				if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; Load_Menu; break; fi
 				option1="ban"
 				while true; do
 					echo "What Type Of Input Would You Like To Ban:"
@@ -916,7 +916,7 @@ Load_Menu () {
 				break
 			;;
 			3)
-				if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; Load_Menu; break; fi
+				if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; Load_Menu; break; fi
 				option1="banmalware"
 				while true; do
 					echo "Select Option:"
@@ -976,7 +976,7 @@ Load_Menu () {
 				break
 			;;
 			4)
-				if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; Load_Menu; break; fi
+				if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; Load_Menu; break; fi
 				option1="whitelist"
 				while true; do
 					echo "Select Whitelist Option:"
@@ -1132,7 +1132,7 @@ Load_Menu () {
 				break
 			;;
 			5)
-				if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; Load_Menu; break; fi
+				if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; Load_Menu; break; fi
 				option1="import"
 				while true; do
 					echo "Select Where To Import List:"
@@ -1172,7 +1172,7 @@ Load_Menu () {
 				break
 			;;
 			6)
-				if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; Load_Menu; break; fi
+				if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; Load_Menu; break; fi
 				option1="deport"
 				while true; do
 					echo "Select Where To Deport List:"
@@ -1212,7 +1212,7 @@ Load_Menu () {
 				break
 			;;
 			7)
-				if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; Load_Menu; break; fi
+				if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; Load_Menu; break; fi
 				option1="save"
 				break
 			;;
@@ -1279,7 +1279,7 @@ Load_Menu () {
 					echo
 					case "$menu2" in
 						1)
-							if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; exit 0; fi
+							if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 0; fi
 							option2="autoupdate"
 							while true; do
 								echo "Select Autoupdate Option"
@@ -1313,7 +1313,7 @@ Load_Menu () {
 							break
 						;;
 						2)
-							if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; exit 0; fi
+							if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 0; fi
 							option2="banmalware"
 							while true; do
 								echo "Select Banmalware Option"
@@ -1352,7 +1352,7 @@ Load_Menu () {
 							break
 						;;
 						3)
-							if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; exit 0; fi
+							if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 0; fi
 							option2="debugmode"
 							while true; do
 								echo "Select Debug Mode Option"
@@ -1386,7 +1386,7 @@ Load_Menu () {
 							break
 						;;
 						4)
-							if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; exit 0; fi
+							if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 0; fi
 							option2="filter"
 							while true; do
 								echo "Select Filter Option"
@@ -1425,7 +1425,7 @@ Load_Menu () {
 							break
 						;;
 						5)
-							if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; exit 0; fi
+							if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 0; fi
 							option2="unbanprivate"
 							while true; do
 								echo "Select Filter PrivateIP Option"
@@ -1459,7 +1459,7 @@ Load_Menu () {
 							break
 						;;
 						6)
-							if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; exit 0; fi
+							if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 0; fi
 							option2="loginvalid"
 							while true; do
 								echo "Select Invalid Packet Logging Option"
@@ -1493,7 +1493,7 @@ Load_Menu () {
 							break
 						;;
 						7)
-							if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; exit 0; fi
+							if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 0; fi
 							option2="banaiprotect"
 							while true; do
 								echo "Select Ban AiProtect Option"
@@ -1527,7 +1527,7 @@ Load_Menu () {
 							break
 						;;
 						8)
-							if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; exit 0; fi
+							if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 0; fi
 							option2="securemode"
 							while true; do
 								echo "Select Secure Mode Option"
@@ -1590,7 +1590,7 @@ Load_Menu () {
 					echo
 					case "$menu2" in
 						1)
-							if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; exit 0; fi
+							if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 0; fi
 							option2="watch"
 							while true; do
 								echo "Select Watch Option:"
@@ -1677,12 +1677,12 @@ Load_Menu () {
 							break
 						;;
 						5)
-							if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; exit 0; fi
+							if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 0; fi
 							option2="backup"
 							break
 						;;
 						6)
-							if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; exit 0; fi
+							if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 0; fi
 							option2="restore"
 							break
 						;;
@@ -2035,7 +2035,7 @@ fi
 
 case "$1" in
 	unban)
-		if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; exit 0; fi
+		if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 0; fi
 		Check_Lock "$@"
 		Purge_Logs
 		case "$2" in
@@ -2107,7 +2107,7 @@ case "$1" in
 	;;
 
 	ban)
-		if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; exit 0; fi
+		if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 0; fi
 		Check_Lock "$@"
 		Purge_Logs
 		case "$2" in
@@ -2167,7 +2167,7 @@ case "$1" in
 	;;
 
 	banmalware)
-		if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; exit 0; fi
+		if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 0; fi
 		trap '' 2
 		Check_Lock "$@"
 		Purge_Logs
@@ -2242,7 +2242,7 @@ case "$1" in
 	;;
 
 	whitelist)
-		if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; exit 0; fi
+		if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 0; fi
 		Check_Lock "$@"
 		Purge_Logs
 		case "$2" in
@@ -2347,7 +2347,7 @@ case "$1" in
 	import)
 		case "$2" in
 			blacklist)
-				if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; exit 0; fi
+				if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 0; fi
 				Check_Lock "$@"
 				Purge_Logs
 				echo "[i] This Function Extracts All IPs And Adds Them ALL To Blacklist"
@@ -2379,7 +2379,7 @@ case "$1" in
 				echo
 			;;
 			whitelist)
-				if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; exit 0; fi
+				if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 0; fi
 				Check_Lock "$@"
 				Purge_Logs
 				echo "[i] This Function Extracts All IPs And Adds Them ALL To Whitelist"
@@ -2420,7 +2420,7 @@ case "$1" in
 	deport)
 		case "$2" in
 			blacklist)
-				if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; exit 0; fi
+				if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 0; fi
 				Check_Lock "$@"
 				Purge_Logs
 				echo "[i] This Function Extracts All IPs And Removes Them ALL From Blacklist"
@@ -2447,7 +2447,7 @@ case "$1" in
 				echo
 			;;
 			whitelist)
-				if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; exit 0; fi
+				if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 0; fi
 				Check_Lock "$@"
 				Purge_Logs
 				echo "[i] This Function Extracts All IPs And Removes Them ALL From Whitelist"
@@ -2481,7 +2481,7 @@ case "$1" in
 	;;
 
 	save)
-		if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; exit 0; fi
+		if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 0; fi
 		Check_Lock "$@"
 		Unban_PrivateIP
 		Purge_Logs
@@ -2582,7 +2582,7 @@ case "$1" in
 			Unload_DebugIPTables
 			Unload_IPSets
 			iptables -t raw -F
-			/usr/sbin/curl -fsL --retry 3 "$remoteurl" -o "$0" || logger -st Skynet "[*] Update Failed - Exiting"; echo; exit 1
+			/usr/sbin/curl -fsL --retry 3 "$remoteurl" -o "$0" || { logger -st Skynet "[*] Update Failed - Exiting"; echo; exit 1; }
 			logger -t Skynet "[%] Restarting Firewall Service"; echo "[%] Restarting Firewall Service"
 			service restart_firewall
 			echo; exit 0
@@ -2595,7 +2595,7 @@ case "$1" in
 			autoupdate)
 				case "$3" in
 					enable)
-						if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; exit 0; fi
+						if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 0; fi
 						Check_Lock "$@"
 						Purge_Logs
 						autoupdate="enabled"
@@ -2604,7 +2604,7 @@ case "$1" in
 						echo "[i] Skynet Automatic Updates Enabled"
 					;;
 					disable)
-						if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; exit 0; fi
+						if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 0; fi
 						Check_Lock "$@"
 						Purge_Logs
 						autoupdate="disabled"
@@ -2623,7 +2623,7 @@ case "$1" in
 			banmalware)
 				case "$3" in
 					daily)
-						if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; exit 0; fi
+						if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 0; fi
 						Check_Lock "$@"
 						Purge_Logs
 						banmalwareupdate="daily"
@@ -2632,7 +2632,7 @@ case "$1" in
 						echo "[i] Daily Banmalware Updates Enabled"
 					;;
 					weekly)
-						if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; exit 0; fi
+						if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 0; fi
 						Check_Lock "$@"
 						Purge_Logs
 						banmalwareupdate="weekly"
@@ -2641,7 +2641,7 @@ case "$1" in
 						echo "[i] Weekly Banmalware Updates Enabled"
 					;;
 					disable)
-						if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; exit 0; fi
+						if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 0; fi
 						Check_Lock "$@"
 						Purge_Logs
 						banmalwareupdate="disabled"
@@ -2659,7 +2659,7 @@ case "$1" in
 			debugmode)
 				case "$3" in
 					enable)
-						if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; exit 0; fi
+						if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 0; fi
 						Check_Lock "$@"
 						Purge_Logs
 						debugmode="enabled"
@@ -2668,7 +2668,7 @@ case "$1" in
 						echo "[i] Debug Mode Enabled"
 					;;
 					disable)
-						if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; exit 0; fi
+						if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 0; fi
 						Check_Lock "$@"
 						Purge_Logs
 						debugmode="disabled"
@@ -2686,7 +2686,7 @@ case "$1" in
 			filter)
 				case "$3" in
 					all)
-						if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; exit 0; fi
+						if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 0; fi
 						Check_Lock "$@"
 						Purge_Logs
 						filtertraffic="all"
@@ -2698,7 +2698,7 @@ case "$1" in
 
 					;;
 					inbound)
-						if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; exit 0; fi
+						if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 0; fi
 						Check_Lock "$@"
 						Purge_Logs
 						filtertraffic="inbound"
@@ -2709,7 +2709,7 @@ case "$1" in
 						echo "[i] Inbound Filtering Enabled"
 					;;
 					outbound)
-						if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; exit 0; fi
+						if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 0; fi
 						Check_Lock "$@"
 						Purge_Logs
 						filtertraffic="outbound"
@@ -2730,7 +2730,7 @@ case "$1" in
 			unbanprivate)
 				case "$3" in
 					enable)
-						if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; exit 0; fi
+						if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 0; fi
 						Check_Lock "$@"
 						Purge_Logs
 						unbanprivateip="enabled"
@@ -2738,7 +2738,7 @@ case "$1" in
 
 					;;
 					disable)
-						if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; exit 0; fi
+						if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 0; fi
 						Check_Lock "$@"
 						Purge_Logs
 						unbanprivateip="disabled"
@@ -2755,7 +2755,7 @@ case "$1" in
 			loginvalid)
 				case "$3" in
 					enable)
-						if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; exit 0; fi
+						if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 0; fi
 						Check_Lock "$@"
 						Purge_Logs
 						loginvalid="enabled"
@@ -2764,7 +2764,7 @@ case "$1" in
 						echo "[i] Invalid IP Logging Enabled"
 					;;
 					disable)
-						if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; exit 0; fi
+						if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 0; fi
 						Check_Lock "$@"
 						Purge_Logs
 						loginvalid="disabled"
@@ -2783,16 +2783,16 @@ case "$1" in
 			banaiprotect)
 				case "$3" in
 					enable)
-						if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; exit 0; fi
+						if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 0; fi
 						Check_Lock "$@"
 						Purge_Logs
-						if [ ! -f /opt/bin/opkg ]; then echo "[i] This Feature Requires Entware - Aborting"; echo; exit 0; fi
+						if [ ! -f /opt/bin/opkg ]; then echo "[i] This Feature Requires Entware - Exiting"; echo; exit 0; fi
 						banaiprotect="enabled"
 						Refresh_AiProtect
 						echo "[i] Ban AiProtect Enabled"
 					;;
 					disable)
-						if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; exit 0; fi
+						if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 0; fi
 						Check_Lock "$@"
 						Purge_Logs
 						banaiprotect="disabled"
@@ -2811,7 +2811,7 @@ case "$1" in
 			securemode)
 				case "$3" in
 					enable)
-						if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; exit 0; fi
+						if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 0; fi
 						Check_Lock "$@"
 						Purge_Logs
 						securemode="enabled"
@@ -2819,7 +2819,7 @@ case "$1" in
 						echo "[i] Secure Mode Enabled"
 					;;
 					disable)
-						if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; exit 0; fi
+						if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 0; fi
 						Check_Lock "$@"
 						Purge_Logs
 						securemode="disabled"
@@ -2846,7 +2846,7 @@ case "$1" in
 	debug)
 		case "$2" in
 			watch)
-				if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; exit 0; fi
+				if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 0; fi
 				if [ "$debugmode" = "disabled" ]; then echo "[*] Debug Mode Is Disabled - Exiting!"; echo; exit 2; fi
 				trap 'echo;echo; echo "[*] Stopping Log Monitoring"; Purge_Logs' 2
 				echo "[i] Watching Logs For Debug Entries (ctrl +c) To Stop"
@@ -3065,7 +3065,7 @@ case "$1" in
 				esac
 			;;
 			backup)
-				if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; exit 0; fi
+				if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 0; fi
 				Check_Lock "$@"
 				Purge_Logs
 				echo "[i] Backing Up Skynet Related Files"
@@ -3076,7 +3076,7 @@ case "$1" in
 				echo "[i] Backup Saved To ${skynetloc}/Skynet-Backup.tar.gz"
 			;;
 			restore)
-				if ! Check_Status; then echo "[*] Skynet Not Running - Aborting"; echo; exit 0; fi
+				if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 0; fi
 				Check_Lock "$@"
 				backuplocation="${skynetloc}/Skynet-Backup.tar.gz"
 				if [ ! -f "$backuplocation" ]; then
