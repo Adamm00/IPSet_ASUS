@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 11/09/2018 -		   Asus Firewall Addition By Adamm v6.4.3				    #
+## - 12/09/2018 -		   Asus Firewall Addition By Adamm v6.4.3				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -2561,11 +2561,9 @@ case "$1" in
 	update)
 		Check_Lock "$@"
 		trap '' 2
-		rm -rf /tmp/skynet.tmp
 		remoteurl="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh"
-		/usr/sbin/curl -fsL --retry 3 "$remoteurl" -o /tmp/skynet.tmp
-		grep -qF "Adamm" /tmp/skynet.tmp || { logger -st Skynet "[*] 404 Error Detected - Stopping Update"; rm -rf /tmp/skynet.tmp; echo; exit 1; }
-		remotever="$(Filter_Version /tmp/skynet.tmp)"
+		/usr/sbin/curl -fsL --retry 3 "$remoteurl" | grep -qF "Adamm" || { logger -st Skynet "[*] 404 Error Detected - Stopping Update"; echo; exit 1; }
+		remotever="$(/usr/sbin/curl -fsL --retry 3 "$remoteurl" | Filter_Version)"
 		if [ "$localver" = "$remotever" ] && [ "$2" != "-f" ]; then
 			logger -t Skynet "[%] Skynet Up To Date - $localver"; echo "[%] Skynet Up To Date - $localver"
 			nolog="2"
@@ -2584,13 +2582,11 @@ case "$1" in
 			Unload_DebugIPTables
 			Unload_IPSets
 			iptables -t raw -F
+			/usr/sbin/curl -fsL --retry 3 "$remoteurl" -o "$0" || logger -st Skynet "[*] Update Failed - Exiting"; echo; exit 1
 			logger -t Skynet "[%] Restarting Firewall Service"; echo "[%] Restarting Firewall Service"
-			chmod +x /tmp/skynet.tmp
-			mv /tmp/skynet.tmp "$0"
 			service restart_firewall
 			echo; exit 0
 		fi
-		rm -rf /tmp/skynet.tmp
 		echo
 	;;
 
