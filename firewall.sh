@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 12/09/2018 -		   Asus Firewall Addition By Adamm v6.4.3				    #
+## - 13/09/2018 -		   Asus Firewall Addition By Adamm v6.4.3				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -2988,11 +2988,14 @@ case "$1" in
 					fi
 				fi
 				echo
-				echo
 				printf "[i] Checking Autoupdate Setting...			"
 				if [ "$autoupdate" = "enabled" ]; then $grn "[Enabled]"; else $red "[Disabled]"; fi
 				printf "[i] Checking Auto-Banmalware Update Setting...		"
 				if [ "$banmalwareupdate" = "daily" ] || [ "$banmalwareupdate" = "weekly" ]; then $grn "[Enabled]"; else $red "[Disabled]"; fi
+				printf "[i] Checking Debug Mode Setting...			"
+				if [ "$debugmode" = "enabled" ]; then $grn "[Enabled]"; else $red "[Disabled]"; fi
+				printf "[i] Checking Filter Traffic Setting...			"
+				if [ "$filtertraffic" = "all" ] ; then $grn "[Enabled]"; else $ylow "[Selective]"; fi
 				printf "[i] Checking Unban PrivateIP Setting...			"
 				if [ "$unbanprivateip" = "enabled" ]; then $grn "[Enabled]"; else $ylow "[Disabled]"; fi
 				printf "[i] Checking Log Invalid Setting...			"
