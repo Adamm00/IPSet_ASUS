@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 13/09/2018 -		   Asus Firewall Addition By Adamm v6.4.3				    #
+## - 14/09/2018 -		   Asus Firewall Addition By Adamm v6.4.4				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -656,7 +656,7 @@ Print_Log () {
 		if [ "$1" = "minimal" ]; then
 			$grn "$blacklist1count IPs -- $blacklist2count Ranges Banned || $((blacklist1count - oldips)) New IPs -- $((blacklist2count - oldranges)) New Ranges Banned || $hits1 Inbound -- $hits2 Outbound Connections Blocked!"
 		else
-			logz="$(echo "[#] $blacklist1count IPs -- $blacklist2count Ranges Banned || $((blacklist1count - oldips)) New IPs -- $((blacklist2count - oldranges)) New Ranges Banned || $hits1 Inbound -- $hits2 Outbound Connections Blocked! [$1] [${ftime}s]")"
+			logz="[#] $blacklist1count IPs -- $blacklist2count Ranges Banned || $((blacklist1count - oldips)) New IPs -- $((blacklist2count - oldranges)) New Ranges Banned || $hits1 Inbound -- $hits2 Outbound Connections Blocked! [$1] [${ftime}s]"
 			logger -t Skynet "$logz"; echo "$logz"
 		fi
 }
@@ -1265,14 +1265,14 @@ Load_Menu () {
 				option1="settings"
 				while true; do
 					echo "Select Setting To Toggle:"
-					echo "[1]  --> Autoupdate - 		$([ "$autoupdate" = "enabled" ] && $grn "[Enabled]" || $red "[Disabled]")"
-					echo "[2]  --> Banmalware - 		$([ "$banmalwareupdate" = "daily" ] || [ "$banmalwareupdate" = "weekly" ] && $grn "[$banmalwareupdate]" || $red "[Disabled]")"
-					echo "[3]  --> Debug Mode -		$([ "$debugmode" = "enabled" ] && $grn "[Enabled]" || $red "[Disabled]")"
+					echo "[1]  --> Autoupdate - 		$(if [ "$autoupdate" = "enabled" ]; then $grn "[Enabled]"; else $red "[Disabled]"; fi)"
+					echo "[2]  --> Banmalware - 		$(if [ "$banmalwareupdate" = "daily" ] || [ "$banmalwareupdate" = "weekly" ]; then $grn "[$banmalwareupdate]"; else $red "[Disabled]"; fi)"
+					echo "[3]  --> Debug Mode -		$(if [ "$debugmode" = "enabled" ]; then $grn "[Enabled]"; else $red "[Disabled]"; fi)"
 					echo "[4]  --> Filter Traffic - 	$($grn "[$filtertraffic]")"
-					echo "[5]  --> Unban PrivateIP - 	$([ "$unbanprivateip" = "enabled" ] && $grn "[Enabled]" || $red "[Disabled]")"
-					echo "[6]  --> Log Invalid Packets -	$([ "$loginvalid" = "enabled" ] && $grn "[Enabled]" || $ylow "[Disabled]")"
-					echo "[7]  --> Ban AiProtect - 	$([ "$banaiprotect" = "enabled" ] && $grn "[Enabled]" || $red "[Disabled]")"
-					echo "[8]  --> Secure Mode -		$([ "$securemode" = "enabled" ] && $grn "[Enabled]" || $red "[Disabled]")"
+					echo "[5]  --> Unban PrivateIP - 	$(if [ "$unbanprivateip" = "enabled" ]; then $grn "[Enabled]"; else $red "[Disabled]"; fi)"
+					echo "[6]  --> Log Invalid Packets -	$(if [ "$loginvalid" = "enabled" ]; then $grn "[Enabled]";else $ylow "[Disabled]"; fi)"
+					echo "[7]  --> Ban AiProtect - 	$(if [ "$banaiprotect" = "enabled" ]; then $grn "[Enabled]"; else $red "[Disabled]"; fi)"
+					echo "[8]  --> Secure Mode -		$(if [ "$securemode" = "enabled" ]; then $grn "[Enabled]"; else $red "[Disabled]"; fi)"
 					echo
 					printf "[1-8]: "
 					read -r "menu2"
@@ -3045,7 +3045,7 @@ case "$1" in
 							Save_IPSets >/dev/null 2>&1
 							sed -i '\~swapon ~d' /jffs/scripts/post-mount
 							swapoff "$swaplocation"
-							rm -rf "$swaplocation" && echo "[i] SWAP File Removed" || "[*] SWAP File Partially Removed - Please Inspect Manually"
+							if rm -rf "$swaplocation"; then echo "[i] SWAP File Removed"; else "[*] SWAP File Partially Removed - Please Inspect Manually"; fi
 							echo "[i] Unloading Skynet Components"
 							Unload_Cron "all"
 							Unload_IPTables
