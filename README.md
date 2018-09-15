@@ -21,7 +21,7 @@ To open the menu its as simple as;
 
 ```sh /jffs/scripts/firewall```
 
-[![Skynet GUI](https://i.imgur.com/VBmw7e1.png "Skynet GUI")](https://i.imgur.com/VBmw7e1.png "Skynet GUI")
+[![Skynet GUI](https://i.imgur.com/gE2aQWR.png "Skynet GUI")](https://i.imgur.com/gE2aQWR.png "Skynet GUI")
 
 
 
