@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 14/09/2018 -		   Asus Firewall Addition By Adamm v6.4.4				    #
+## - 15/09/2018 -		   Asus Firewall Addition By Adamm v6.4.5				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -653,10 +653,12 @@ Print_Log () {
 			fi
 		fi
 		ftime="$(($(date +%s) - stime))"
+		if ! echo "$((blacklist1count - oldips))" | grep -qF "-"; then newips="+$((blacklist1count - oldips))"; else newips="$((blacklist1count - oldips))"; fi
+		if ! echo "$((blacklist2count - oldranges))" | grep -qF "-"; then newranges="+$((blacklist2count - oldranges))"; else newranges="$((blacklist2count - oldranges))"; fi
 		if [ "$1" = "minimal" ]; then
-			$grn "$blacklist1count IPs -- $blacklist2count Ranges Banned || $((blacklist1count - oldips)) New IPs -- $((blacklist2count - oldranges)) New Ranges Banned || $hits1 Inbound -- $hits2 Outbound Connections Blocked!"
+			$grn "$blacklist1count IPs (${newips}) -- $blacklist2count Ranges Banned (${newranges}) || $hits1 Inbound -- $hits2 Outbound Connections Blocked!"
 		else
-			logz="[#] $blacklist1count IPs -- $blacklist2count Ranges Banned || $((blacklist1count - oldips)) New IPs -- $((blacklist2count - oldranges)) New Ranges Banned || $hits1 Inbound -- $hits2 Outbound Connections Blocked! [$1] [${ftime}s]"
+			logz="[#] $blacklist1count IPs (${newips}) -- $blacklist2count Ranges Banned (${newranges}) || $hits1 Inbound -- $hits2 Outbound Connections Blocked! [$1] [${ftime}s]"
 			logger -t Skynet "$logz"; echo "$logz"
 		fi
 }
