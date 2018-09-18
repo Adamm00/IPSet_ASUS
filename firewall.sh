@@ -761,7 +761,7 @@ Load_Menu () {
 					echo "[5]  --> Country"
 					echo "[6]  --> Malware"
 					echo "[7]  --> Non Manual Bans"
-					echo "[8] --> All"
+					echo "[8]  --> All"
 					echo
 					printf "[1-10]: "
 					read -r "menu2"
