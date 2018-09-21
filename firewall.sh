@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 15/09/2018 -		   Asus Firewall Addition By Adamm v6.4.5				    #
+## - 21/09/2018 -		   Asus Firewall Addition By Adamm v6.4.5				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -2240,6 +2240,7 @@ case "$1" in
 		echo
 		echo "[i] For False Positive Website Bans Use; ( sh $0 whitelist domain URL )"
 		rm -rf /tmp/skynet
+		trap - 2
 		echo
 	;;
 
@@ -2527,6 +2528,7 @@ case "$1" in
 		Load_IPTables
 		Load_DebugIPTables
 		sed -i '\~DROP IN=~d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null
+		trap - 2
 		if [ "$forcebanmalwareupdate" = "true" ]; then Write_Config; rm -rf "/tmp/skynet.lock"; exec "$0" banmalware; fi
 	;;
 
@@ -2589,6 +2591,7 @@ case "$1" in
 			service restart_firewall
 			echo; exit 0
 		fi
+		trap - 2
 		echo
 	;;
 
