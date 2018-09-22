@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 21/09/2018 -		   Asus Firewall Addition By Adamm v6.4.5				    #
+## - 23/09/2018 -		   Asus Firewall Addition By Adamm v6.4.6				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -144,15 +144,7 @@ Check_Settings () {
 			nvram set fw_enable_x=1
 		fi
 
-		if [ -f "$(/usr/bin/find /mnt/*/adblocking/.config/ab-solution.cfg 2>/dev/null)" ]; then
-			abcfg="$(find /mnt/*/adblocking/.config/ab-solution.cfg)"
-			ablocation="$(dirname "$abcfg")"
-			if ! grep -qE "hostsFileType=.*\\+" "$abcfg"; then
-				if [ ! -f "${ablocation}/AddPlusHosts" ] && [ ! -f "${ablocation}/AddPlusHostsDismissed" ]; then
-					touch "${ablocation}/AddPlusHosts"
-				fi
-			fi
-		elif [ -f /opt/share/diversion/.conf/diversion.conf ]; then
+		if [ -f /opt/share/diversion/.conf/diversion.conf ]; then
 			divlocation="/opt/share/diversion"
 			if ! grep -qE "bfPlusHosts=on" "${divlocation}/.conf/diversion.conf"; then
 				if [ ! -f "${divlocation}/AddPlusHosts" ] && [ ! -f "${divlocation}/AddPlusHostsDismissed" ]; then
@@ -2970,18 +2962,7 @@ case "$1" in
 				if ipset -L -n Skynet-Blacklist >/dev/null 2>&1; then $grn "[Passed]"; else $red "[Failed]"; fi
 				printf "[i] Checking Skynet IPSet...				"
 				if ipset -L -n Skynet-Master >/dev/null 2>&1; then $grn "[Passed]"; else $red "[Failed]"; fi
-				if [ -f "$(/usr/bin/find /mnt/*/adblocking/.config/ab-solution.cfg 2>/dev/null)" ]; then
-					printf "[i] Checking For AB-Solution Plus Content...            "
-					abcfg="$(find /mnt/*/adblocking/.config/ab-solution.cfg)"
-					ablocation="$(dirname "$abcfg")"
-					if grep -qE "hostsFileType=.*\\+" "$abcfg"; then
-						$grn "[Passed]"
-					elif [ -f "${ablocation}/AddPlusHostsDismissed" ]; then
-						$ylow "[Dismissed]"
-					else
-						$red "[Failed]"
-					fi
-				elif [ -f /opt/share/diversion/.conf/diversion.conf ]; then
+				if [ -f /opt/share/diversion/.conf/diversion.conf ]; then
 					printf "[i] Checking For Diversion Plus Content...   	        "
 					divlocation="/opt/share/diversion"
 					if grep -qE "bfPlusHosts=on" "${divlocation}/.conf/diversion.conf"; then
