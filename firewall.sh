@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 23/09/2018 -		   Asus Firewall Addition By Adamm v6.4.6				    #
+## - 24/09/2018 -		   Asus Firewall Addition By Adamm v6.4.7				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -358,7 +358,7 @@ Domain_Lookup () {
 }
 
 Extended_Stats () {
-	domainlist="$(grep -E "$(echo "$ip" | cut -d '/' -f6-)" /tmp/skynetstats.txt | awk '{print $1}' | Strip_Domain | xargs)"
+	domainlist="$(grep -E "$(echo "$ip" | cut -d '/' -f6-)" /tmp/skynetstats.txt | awk '{print $1}' | Strip_Domain | awk '!x[$0]++' | xargs)"
 	echo "${ip}$([ -n "$domainlist" ] && echo " - [$domainlist]")"
 }
 
@@ -2863,6 +2863,10 @@ case "$1" in
 								fi
 							elif echo "$logoutput" | grep -qE "INBOUND.*=$4 "; then
 								$ylow "$logoutput"
+								if [ "$extendedstats" = "enabled" ]; then
+									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | awk '!x[$0]++' | grep -vE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' | xargs)"
+									[ -n "$domainlist" ] && $red "Associated Domain(s) - [$domainlist]"
+								fi
 							elif echo "$logoutput" | grep -qE "OUTBOUND.*=$4 "; then
 								$red "$logoutput"
 								if [ "$extendedstats" = "enabled" ]; then
@@ -2885,6 +2889,10 @@ case "$1" in
 								fi
 							elif echo "$logoutput" | grep -qE "INBOUND.*PT=$4 "; then
 								$ylow "$logoutput"
+								if [ "$extendedstats" = "enabled" ]; then
+									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | awk '!x[$0]++' | grep -vE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' | xargs)"
+									[ -n "$domainlist" ] && $red "Associated Domain(s) - [$domainlist]"
+								fi
 							elif echo "$logoutput" | grep -qE "OUTBOUND.*PT=$4 "; then
 								$red "$logoutput"
 								if [ "$extendedstats" = "enabled" ]; then
@@ -2904,6 +2912,10 @@ case "$1" in
 								fi
 							elif echo "$logoutput" | grep -q "INBOUND"; then
 								$ylow "$logoutput"
+								if [ "$extendedstats" = "enabled" ]; then
+									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | awk '!x[$0]++' | grep -vE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' | xargs)"
+									[ -n "$domainlist" ] && $red "Associated Domain(s) - [$domainlist]"
+								fi
 							elif echo "$logoutput" | grep -q "OUTBOUND"; then
 								$red "$logoutput"
 								if [ "$extendedstats" = "enabled" ]; then
@@ -3332,7 +3344,13 @@ case "$1" in
 				grep -E "INBOUND.*$proto" "$skynetlog" | grep -oE 'SPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://www.speedguide.net/port.php?port="$2}'
 				echo
 				$red "Last $counter Unique Connections Blocked (Inbound);"
-				grep -E "INBOUND.*$proto" "$skynetlog" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' | awk '!x[$0]++' | head -"$counter" | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
+				if [ "$extendedstats" = "enabled" ]; then
+					grep -E "INBOUND.*$proto" "$skynetlog" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' | awk '!x[$0]++' | head -"$counter" | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}' | while IFS= read -r "ip"; do
+						Extended_Stats
+					done
+				else
+					grep -E "INBOUND.*$proto" "$skynetlog" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' | awk '!x[$0]++' | head -"$counter" | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
+				fi
 				echo
 				$red "Last $counter Unique Connections Blocked (Outbound);"
 				if [ "$extendedstats" = "enabled" ]; then
@@ -3382,7 +3400,13 @@ case "$1" in
 				fi
 				echo
 				$red "Top $counter Blocks (Inbound);"
-				grep -E "INBOUND.*$proto" "$skynetlog" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}'
+				if [ "$extendedstats" = "enabled" ]; then
+					grep -E "INBOUND.*$proto" "$skynetlog" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}' | while IFS= read -r "ip"; do
+						Extended_Stats
+					done
+				else
+					grep -E "INBOUND.*$proto" "$skynetlog" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}'
+				fi
 				echo
 				$red "Top $counter Blocks (Outbound);"
 				if [ "$extendedstats" = "enabled" ]; then
