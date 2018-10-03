@@ -755,7 +755,7 @@ Load_Menu () {
 					echo "[7]  --> Non Manual Bans"
 					echo "[8]  --> All"
 					echo
-					printf "[1-10]: "
+					printf "[1-8]: "
 					read -r "menu2"
 					echo
 					case "$menu2" in
@@ -1170,7 +1170,7 @@ Load_Menu () {
 				if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; Load_Menu; break; fi
 				option1="deport"
 				while true; do
-					echo "Select Where To Deport List:"
+					echo "Select Where To Deport List From:"
 					echo "[1]  --> Blacklist"
 					echo "[2]  --> Whitelist"
 					echo
