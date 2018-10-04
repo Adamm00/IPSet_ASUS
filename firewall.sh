@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 04/10/2018 -		   Asus Firewall Addition By Adamm v6.4.8				    #
+## - 04/10/2018 -		   Asus Firewall Addition By Adamm v6.5.0				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -672,13 +672,15 @@ Write_Config () {
 	echo "blacklist1count=\"$blacklist1count\""
 	echo "blacklist2count=\"$blacklist2count\""
 	echo "customlisturl=\"$customlisturl\""
+	echo "customlist2url=\"$customlist2url\""
 	echo "countrylist=\"$countrylist\""
 	echo "excludelists=\"$excludelists\""
 	echo "unbanprivateip=\"$unbanprivateip\""
 	echo "loginvalid=\"$loginvalid\""
 	echo "banaiprotect=\"$banaiprotect\""
 	echo "securemode=\"$securemode\""
-	echo "extendedstats=\"$extendedstats\""; } > "$skynetcfg"
+	echo "extendedstats=\"$extendedstats\""
+	echo "wifemode=\"$wifemode\""; } > "$skynetcfg"
 }
 
 
@@ -710,6 +712,7 @@ Load_Menu () {
 	if ! ipset -L -n Skynet-BlockedRanges >/dev/null 2>&1; then printf "Checking BlockedRanges IPSet...				"; $red "[Failed]"; nolog="1"; fi
 	if ! ipset -L -n Skynet-Blacklist >/dev/null 2>&1; then printf "Checking Blacklist IPSet...				"; $red "[Failed]"; nolog="1"; fi
 	if ! ipset -L -n Skynet-Master >/dev/null 2>&1; then printf "Checking Skynet IPSet...				"; $red "[Failed]"; nolog="1"; fi
+	if [ "$wifemode" = "enabled" ]; then $ylow "Wife Mode Is Enabled!"; fi
 	if [ "$nolog" != "1" ]; then Print_Log "minimal"; fi
 	unset "nolog"
 	unset "option1" "option2" "option3" "option4" "option5"
@@ -1269,8 +1272,9 @@ Load_Menu () {
 					echo "[6]  --> Log Invalid Packets -	$(if [ "$loginvalid" = "enabled" ]; then $grn "[Enabled]";else $ylow "[Disabled]"; fi)"
 					echo "[7]  --> Ban AiProtect - 	$(if [ "$banaiprotect" = "enabled" ]; then $grn "[Enabled]"; else $red "[Disabled]"; fi)"
 					echo "[8]  --> Secure Mode -		$(if [ "$securemode" = "enabled" ]; then $grn "[Enabled]"; else $red "[Disabled]"; fi)"
+					echo "[9]  --> Wife Mode -		$(if [ "$wifemode" = "enabled" ]; then $grn "[Enabled]"; else $red "[Disabled]"; fi)"
 					echo
-					printf "[1-8]: "
+					printf "[1-9]: "
 					read -r "menu2"
 					echo
 					case "$menu2" in
@@ -1556,6 +1560,45 @@ Load_Menu () {
 							done
 							break
 						;;
+						9)
+							if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 0; fi
+							option1="wm"
+							while true; do
+								echo "Select Wife Mode Option"
+								echo "[1]  --> Enable"
+								echo "[2]  --> Disable"
+								echo
+								printf "[1-2]: "
+								read -r "menu3"
+								echo
+								case "$menu3" in
+									1)
+										echo "Input Custom Filter List URL:"
+										printf "[URL]: "
+										read -r "option2"
+										echo
+										if [ -z "$option2" ]; then echo "[*] URL Field Can't Be Empty - Please Try Again"; echo; unset "option2"; continue; fi
+										break
+										break
+									;;
+									2)
+										option2="disable"
+										break
+									;;
+									e|exit|back|menu)
+										unset "option1" "option2" "option3" "option4" "option5"
+										clear
+										Load_Menu
+										break
+									;;
+									*)
+										echo "[*] $menu3 Isn't An Option!"
+										echo
+									;;
+								esac
+							done
+							break
+						;;
 						e|exit|back|menu)
 							unset "option1" "option2" "option3" "option4" "option5"
 							clear
@@ -1568,6 +1611,10 @@ Load_Menu () {
 						;;
 					esac
 				done
+				break
+			;;
+			wm)
+				option1="wm"
 				break
 			;;
 			12)
@@ -2163,11 +2210,23 @@ case "$1" in
 		echo
 	;;
 
-	banmalware)
+	banmalware|wm)
 		if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 0; fi
 		trap '' 2
 		Check_Lock "$@"
 		Purge_Logs
+		if [ "$2" = "disable" ] && [ "$wifemode" = "disabled" ] && [ "$1" = "wm" ]; then
+			echo "[*] Wife Mode Already Disabled - Stopping Banmalware"
+			echo; exit 1
+		fi
+		if [ "$wifemode" = "enabled" ] && [ "$1" = "wm" ] && [ -z "$2" ]; then
+			echo "[i] Wife Mode Disabled"
+			wifemode="disabled"
+			set "banmalware"
+		fi
+		if [ "$wifemode" = "enabled" ] && [ "$1" = "banmalware" ]; then
+			set "wm"
+		fi
 		if [ "$2" = "exclude" ]; then
 			if [ "$3" = "reset" ] || [ -z "$3" ]; then
 				echo "[i] Exclusion List Reset"
@@ -2182,10 +2241,25 @@ case "$1" in
 			echo "[i] Filter URL Reset"
 			unset "customlisturl"
 		fi
-		if [ -n "$2" ] && [ "$2" != "reset" ]; then
+		if [ -n "$2" ] && [ "$2" != "reset" ] && [ "$1" != "wm" ]; then
 			customlisturl="$2"
 			listurl="$customlisturl"
 			echo "[i] Custom Filter Detected: $customlisturl"
+		elif [ "$1" = "wm" ]; then
+			if [ -z "$2" ] && [ -z "$customlist2url" ]; then
+				logger -st Skynet "[*] Wife-Mode URL Not Detected - Stopping Banmalware"
+				echo; exit 1
+			else
+				wifemode="enabled"
+				echo "[i] Wife Mode Enabled"
+				if [ -z "$customlist2url" ] || [ -n "$2" ]; then
+					customlist2url="$2"
+					listurl="$customlist2url"
+				else
+					listurl="$customlist2url"
+				fi
+				echo "[i] Custom Filter Detected: $customlist2url"
+			fi
 		else
 			if [ -n "$customlisturl" ]; then
 				listurl="$customlisturl"
@@ -3005,6 +3079,8 @@ case "$1" in
 				if [ "$banaiprotect" = "enabled" ]; then $grn "[Enabled]"; else $red "[Disabled]"; fi
 				printf "[i] Checking Secure Mode Setting...			"
 				if [ "$securemode" = "enabled" ]; then $grn "[Enabled]"; else $red "[Disabled]"; fi
+				printf "[i] Checking Wife Mode Setting...			"
+				if [ "$wifemode" = "enabled" ]; then $grn "[Enabled]"; else $ylow "[Disabled]"; fi
 				nocfg="1"
 			;;
 			clean)
