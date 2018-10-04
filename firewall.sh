@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 03/10/2018 -		   Asus Firewall Addition By Adamm v6.4.8				    #
+## - 04/10/2018 -		   Asus Firewall Addition By Adamm v6.4.8				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -887,6 +887,7 @@ Load_Menu () {
 						;;
 						4)
 							option2="country"
+							if [ -n "$countrylist" ]; then echo "Countries Currently Banned: (${countrylist})"; fi
 							echo "Input Country Abbreviations To Ban:"
 							echo
 							printf "[Countries]: "
