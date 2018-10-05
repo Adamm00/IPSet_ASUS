@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 04/10/2018 -		   Asus Firewall Addition By Adamm v6.5.0				    #
+## - 05/10/2018 -		   Asus Firewall Addition By Adamm v6.5.0				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -131,7 +131,7 @@ Check_Settings () {
 			Load_Cron "checkupdate"
 		fi
 
-		if [ -d "/opt/bin" ] && [ ! -f "/opt/bin/firewall" ]; then
+		if [ -d "/opt/bin" ] && [ ! -L "/opt/bin/firewall" ]; then
 			ln -s /jffs/scripts/firewall /opt/bin
 		fi
 
@@ -2185,14 +2185,15 @@ case "$1" in
 			country)
 				if [ -z "$3" ]; then echo "[*] Country Field Can't Be Empty - Please Try Again"; echo; exit 2; fi
 				if echo "$3" | grep -qF "\""; then echo "[*] Country Field Can't Include Quotes - Please Try Again"; echo; exit 2; fi
+				countrylinklist="$(echo $3 | awk '{print tolower($0)}')"
 				if [ -n "$countrylist" ]; then
 					echo "[i] Removing Previous Country Bans (${countrylist})"
 					sed '\~add Skynet-Whitelist ~d;\~Country: ~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
 				fi
-				if [ "${#3}" -gt "246" ]; then countrylist="Multiple Countries"; else countrylist="$3"; fi
+				if [ "${#3}" -gt "246" ]; then countrylist="Multiple Countries"; else countrylist="$countrylinklist"; fi
 				echo "[i] Banning Known IP Ranges For (${3})"
 				echo "[i] Downloading Lists"
-				for country in $3; do
+				for country in $countrylinklist; do
 					/usr/sbin/curl -fsL --retry 3 http://ipdeny.com/ipblocks/data/aggregated/"$country"-aggregated.zone >> /tmp/countrylist.txt
 				done
 				echo "[i] Filtering IPv4 Ranges & Applying Blacklists"
