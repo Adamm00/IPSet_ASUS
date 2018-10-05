@@ -1272,7 +1272,7 @@ Load_Menu () {
 					echo "[6]  --> Log Invalid Packets -	$(if [ "$loginvalid" = "enabled" ]; then $grn "[Enabled]";else $ylow "[Disabled]"; fi)"
 					echo "[7]  --> Ban AiProtect - 	$(if [ "$banaiprotect" = "enabled" ]; then $grn "[Enabled]"; else $red "[Disabled]"; fi)"
 					echo "[8]  --> Secure Mode -		$(if [ "$securemode" = "enabled" ]; then $grn "[Enabled]"; else $red "[Disabled]"; fi)"
-					echo "[9]  --> Wife Mode -		$(if [ "$wifemode" = "enabled" ]; then $grn "[Enabled]"; else $red "[Disabled]"; fi)"
+					echo "[9]  --> Wife Mode -		$(if [ "$wifemode" = "enabled" ]; then $grn "[Enabled]"; else $ylow "[Disabled]"; fi)"
 					echo
 					printf "[1-9]: "
 					read -r "menu2"
