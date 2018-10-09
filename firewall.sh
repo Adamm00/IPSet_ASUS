@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 05/10/2018 -		   Asus Firewall Addition By Adamm v6.5.0				    #
+## - 09/10/2018 -		   Asus Firewall Addition By Adamm v6.5.0				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -1162,7 +1162,7 @@ Load_Menu () {
 						;;
 					esac
 				done
-				echo "Input URL/Local File To Import"
+				echo "Input URL/Local File To Import:"
 				echo
 				printf "[File]: "
 				read -r "option3"
@@ -1282,7 +1282,7 @@ Load_Menu () {
 							if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 0; fi
 							option2="autoupdate"
 							while true; do
-								echo "Select Autoupdate Option"
+								echo "Select Autoupdate Option:"
 								echo "[1]  --> Enable"
 								echo "[2]  --> Disable"
 								echo
@@ -1316,7 +1316,7 @@ Load_Menu () {
 							if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 0; fi
 							option2="banmalware"
 							while true; do
-								echo "Select Banmalware Option"
+								echo "Select Banmalware Option:"
 								echo "[1]  --> Daily"
 								echo "[2]  --> Weekly"
 								echo "[3]  --> Disable"
@@ -1355,7 +1355,7 @@ Load_Menu () {
 							if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 0; fi
 							option2="debugmode"
 							while true; do
-								echo "Select Debug Mode Option"
+								echo "Select Debug Mode Option:"
 								echo "[1]  --> Enable"
 								echo "[2]  --> Disable"
 								echo
@@ -1389,7 +1389,7 @@ Load_Menu () {
 							if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 0; fi
 							option2="filter"
 							while true; do
-								echo "Select Filter Option"
+								echo "Select Filter Option:"
 								echo "[1]  --> All Traffic"
 								echo "[2]  --> Inbound"
 								echo "[3]  --> Outbound"
@@ -1428,7 +1428,7 @@ Load_Menu () {
 							if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 0; fi
 							option2="unbanprivate"
 							while true; do
-								echo "Select Filter PrivateIP Option"
+								echo "Select Filter PrivateIP Option:"
 								echo "[1]  --> Enable"
 								echo "[2]  --> Disable"
 								echo
@@ -1462,7 +1462,7 @@ Load_Menu () {
 							if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 0; fi
 							option2="loginvalid"
 							while true; do
-								echo "Select Invalid Packet Logging Option"
+								echo "Select Invalid Packet Logging Option:"
 								echo "[1]  --> Enable"
 								echo "[2]  --> Disable"
 								echo
@@ -1496,7 +1496,7 @@ Load_Menu () {
 							if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 0; fi
 							option2="banaiprotect"
 							while true; do
-								echo "Select Ban AiProtect Option"
+								echo "Select Ban AiProtect Option:"
 								echo "[1]  --> Enable"
 								echo "[2]  --> Disable"
 								echo
@@ -1530,7 +1530,7 @@ Load_Menu () {
 							if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 0; fi
 							option2="securemode"
 							while true; do
-								echo "Select Secure Mode Option"
+								echo "Select Secure Mode Option:"
 								echo "[1]  --> Enable"
 								echo "[2]  --> Disable"
 								echo
@@ -1564,7 +1564,7 @@ Load_Menu () {
 							if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 0; fi
 							option1="wm"
 							while true; do
-								echo "Select Wife Mode Option"
+								echo "Select Wife Mode Option:"
 								echo "[1]  --> Enable"
 								echo "[2]  --> Disable"
 								echo
@@ -1844,7 +1844,7 @@ Load_Menu () {
 						2)
 							option2="search"
 							while true; do
-								echo "Search Options: "
+								echo "Search Options:"
 								echo "[1]  --> Based On Port x"
 								echo "[2]  --> Entries From Specific IP"
 								echo "[3]  --> Search Malwarelists For IP"
@@ -1974,7 +1974,7 @@ Load_Menu () {
 						3)
 							option2="remove"
 							while true; do
-								echo "Search Options: "
+								echo "Search Options:"
 								echo "[1]  --> Logs Containing Specific IP"
 								echo "[2]  --> Logs Containing Specific Port"
 								echo
