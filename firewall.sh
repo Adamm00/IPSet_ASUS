@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 09/10/2018 -		   Asus Firewall Addition By Adamm v6.5.0				    #
+## - 15/10/2018 -		   Asus Firewall Addition By Adamm v6.5.1				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -158,6 +158,8 @@ Check_Settings () {
 		else
 			extendedstats="disabled"
 		fi
+
+		if [ -z "$wifemode" ]; then wifemode="disabled"; fi
 }
 
 Check_Files () {
@@ -188,9 +190,15 @@ Check_Status () {
 
 Check_Security () {
 	if [ "$securemode" = "enabled" ]; then
-		if [ "$(nvram get sshd_enable)" = "1" ]; then
+		if [ "$(nvram get sshd_enable)" = "1" ] && [ "$(uname -o)" = "ASUSWRT-Merlin" ]; then
 			logger -st Skynet "[!] Insecure Setting Detected - Disabling WAN SSH Access"
 			nvram set sshd_enable="2"
+			nvram commit
+			restartfirewall="1"
+		fi
+		if [ "$(nvram get sshd_wan)" = "1" ] && [ "$(uname -o)" = "ASUSWRT-Merlin-LTS" ]; then
+			logger -st Skynet "[!] Insecure Setting Detected - Disabling WAN SSH Access"
+			nvram set sshd_wan="0"
 			nvram commit
 			restartfirewall="1"
 		fi
@@ -3718,6 +3726,7 @@ case "$1" in
 		if [ -z "$unbanprivateip" ]; then unbanprivateip="enabled"; fi
 		if [ -z "$banaiprotect" ] && [ -f /opt/bin/opkg ]; then banaiprotect="enabled"; fi
 		if [ -z "$securemode" ]; then securemode="enabled"; fi
+		if [ -z "$wifemode" ]; then wifemode="disabled"; fi
 		Write_Config
 		cmdline="sh /jffs/scripts/firewall start skynetloc=${device}/skynet # Skynet Firewall Addition"
 		if grep -E "sh /jffs/scripts/firewall .* # Skynet" /jffs/scripts/firewall-start 2>/dev/null | grep -qvE "^#"; then
