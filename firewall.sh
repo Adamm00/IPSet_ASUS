@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 15/10/2018 -		   Asus Firewall Addition By Adamm v6.5.1				    #
+## - 18/10/2018 -		   Asus Firewall Addition By Adamm v6.5.2				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -3271,7 +3271,7 @@ case "$1" in
 						echo
 					;;
 					ip)
-						if ! echo "$4" | Is_IP && ! echo "$4" | Is_Range ; then echo "[*] $4 Is Not A Valid IP/Range"; echo; exit 2; fi
+						if ! echo "$4" | Is_IP; then echo "[*] $4 Is Not A Valid IP"; echo; exit 2; fi
 						if [ "$5" -eq "$5" ] 2>/dev/null; then counter="$5"; fi
 						ipset test Skynet-Whitelist "$4" && found1=true
 						ipset test Skynet-Blacklist "$4" && found2=true
@@ -3286,6 +3286,8 @@ case "$1" in
 							grep -E "reply.* is $4" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | awk '!x[$0]++' | grep -vE '^([0-9]{1,3}\.){3}[0-9]{1,3}$'
 							echo; echo
 						fi
+						echo "[i] IP Location - $(curl -fsL https://ipapi.co/${4}/country_name/) ($(curl -fsL https://ipapi.co/${4}/asn/))"
+						echo
 						echo "[i] $4 First Tracked On $(grep -m1 -F "=$4 " "$skynetlog" | awk '{print $1" "$2" "$3}')"
 						echo "[i] $4 Last Tracked On $(grep -F "=$4 " "$skynetlog" | tail -1 | awk '{print $1" "$2" "$3}')"
 						echo "[i] $(grep -Foc "=$4 " "$skynetlog") Blocks Total"
