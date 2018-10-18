@@ -469,6 +469,7 @@ Whitelist_Extra () {
 		echo "astrill.com"
 		echo "strongpath.net"
 		echo "snbforums.com"
+		echo "ipapi.co"
 		nvram get ntp_server0
 		nvram get ntp_server1
 		nvram get firmware_server; } > /jffs/shared-Skynet2-whitelist
