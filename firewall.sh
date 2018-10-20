@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 18/10/2018 -		   Asus Firewall Addition By Adamm v6.5.2				    #
+## - 20/10/2018 -		   Asus Firewall Addition By Adamm v6.5.2				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -3028,49 +3028,55 @@ case "$1" in
 				if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(sed -n '2p' /tmp/skynet.lock)" ]; then $red "[*] Lock File Detected ($(sed -n '1p' /tmp/skynet.lock)) (pid=$(sed -n '2p' /tmp/skynet.lock))"; lockedwarning=1; else $grn "No Lock File Found"; fi
 				if [ -n "$lockedwarning" ]; then $ylow "[*] Locked Processes Generally Take 1-2 Minutes To Complete And May Result In Temporarily \"Failed\" Tests"; fi
 				unset "lockedwarning"
+				passedtests="0"
+				totaltests="16"
 				echo
 				printf "[i] Checking Install Directory Write Permissions...	"
-				if [ -w "$skynetloc" ]; then $grn "[Passed]"; else $red "[Failed]"; fi
+				if [ -w "$skynetloc" ]; then $grn "[Passed]"; passedtests=$((passedtests+1)); else $red "[Failed]"; fi
 				printf "[i] Checking Firewall-Start Entry...			"
-				if grep -E "start.* # Skynet" /jffs/scripts/firewall-start | grep -qvE "^#"; then $grn "[Passed]"; else $red "[Failed]"; fi
+				if grep -E "start.* # Skynet" /jffs/scripts/firewall-start | grep -qvE "^#"; then $grn "[Passed]"; passedtests=$((passedtests+1)); else $red "[Failed]"; fi
 				printf "[i] Checking Services-Stop Entry...			"
-				if grep -F "# Skynet" /jffs/scripts/services-stop | grep -qvE "^#"; then $grn "[Passed]"; else $red "[Failed]"; fi
+				if grep -F "# Skynet" /jffs/scripts/services-stop | grep -qvE "^#"; then $grn "[Passed]"; passedtests=$((passedtests+1)); else $red "[Failed]"; fi
 				printf "[i] Checking CronJobs...				"
-				if [ "$(cru l | grep -c "Skynet")" -ge "2" ]; then $grn "[Passed]"; else $red "[Failed]"; fi
+				if [ "$(cru l | grep -c "Skynet")" -ge "2" ]; then $grn "[Passed]"; passedtests=$((passedtests+1)); else $red "[Failed]"; fi
 				printf "[i] Checking IPSet Comment Support...			"
-				if [ -f /lib/modules/"$(uname -r)"/kernel/net/netfilter/ipset/ip_set_hash_ipmac.ko ]; then $grn "[Passed]"; else $red "[Failed]"; fi
+				if [ -f /lib/modules/"$(uname -r)"/kernel/net/netfilter/ipset/ip_set_hash_ipmac.ko ]; then $grn "[Passed]"; passedtests=$((passedtests+1)); else $red "[Failed]"; fi
 				printf "[i] Checking Log Level %s Settings...			" "$(nvram get message_loglevel)"
-				if [ "$(nvram get message_loglevel)" -le "$(nvram get log_level)" ]; then $grn "[Passed]"; else $red "[Failed]"; fi
+				if [ "$(nvram get message_loglevel)" -le "$(nvram get log_level)" ]; then $grn "[Passed]"; passedtests=$((passedtests+1)); else $red "[Failed]"; fi
 				printf "[i] Checking For Duplicate Rules In RAW...		"
-				if [ "$(iptables-save -t raw | sort | uniq -d | grep -c " ")" = "0" ]; then $grn "[Passed]"; else $red "[Failed]"; fi
+				if [ "$(iptables-save -t raw | sort | uniq -d | grep -c " ")" = "0" ]; then $grn "[Passed]"; passedtests=$((passedtests+1)); else $red "[Failed]"; fi
 				printf "[i] Checking Inbound Filter Rules...			"
-				if iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j DROP 2>/dev/null; then $grn "[Passed]";	elif [ "$filtertraffic" = "outbound" ]; then $ylow "[Disabled]"; else $red "[Failed]"; fi
+				if iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j DROP 2>/dev/null; then $grn "[Passed]"; passedtests=$((passedtests+1));	elif [ "$filtertraffic" = "outbound" ]; then $ylow "[Disabled]"; passedtests=$((passedtests+1)); else $red "[Failed]"; fi
 				printf "[i] Checking Inbound Debug Rules			"
-				if iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null; then $grn "[Passed]"; elif [ "$debugmode" = "disabled" ] || [ "$filtertraffic" = "outbound" ]; then $ylow "[Disabled]"; else $red "[Failed]"; fi
+				if iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null; then $grn "[Passed]"; passedtests=$((passedtests+1)); elif [ "$debugmode" = "disabled" ] || [ "$filtertraffic" = "outbound" ]; then $ylow "[Disabled]"; passedtests=$((passedtests+1)); else $red "[Failed]"; fi
 				printf "[i] Checking Outbound Filter Rules...			"
 				if iptables -t raw -C PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null && \
-				iptables -t raw -C OUTPUT -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null; then $grn "[Passed]"; elif [ "$filtertraffic" = "inbound" ]; then $ylow "[Disabled]"; else $red "[Failed]"; fi
+				iptables -t raw -C OUTPUT -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null; then $grn "[Passed]"; passedtests=$((passedtests+1)); elif [ "$filtertraffic" = "inbound" ]; then $ylow "[Disabled]"; passedtests=$((passedtests+1)); else $red "[Failed]"; fi
 				printf "[i] Checking Outbound Debug Rules			"
 				if iptables -t raw -C PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null && \
-				iptables -t raw -C OUTPUT -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null; then $grn "[Passed]"; elif [ "$debugmode" = "disabled" ] || [ "$filtertraffic" = "inbound" ]; then $ylow "[Disabled]"; else $red "[Failed]"; fi
+				iptables -t raw -C OUTPUT -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null; then $grn "[Passed]"; passedtests=$((passedtests+1)); elif [ "$debugmode" = "disabled" ] || [ "$filtertraffic" = "inbound" ]; then $ylow "[Disabled]"; passedtests=$((passedtests+1)); else $red "[Failed]"; fi
 				printf "[i] Checking Whitelist IPSet...				"
-				if ipset -L -n Skynet-Whitelist >/dev/null 2>&1; then $grn "[Passed]"; else $red "[Failed]"; fi
+				if ipset -L -n Skynet-Whitelist >/dev/null 2>&1; then $grn "[Passed]"; passedtests=$((passedtests+1)); else $red "[Failed]"; fi
 				printf "[i] Checking BlockedRanges IPSet...			"
-				if ipset -L -n Skynet-BlockedRanges >/dev/null 2>&1; then $grn "[Passed]"; else $red "[Failed]"; fi
+				if ipset -L -n Skynet-BlockedRanges >/dev/null 2>&1; then $grn "[Passed]"; passedtests=$((passedtests+1)); else $red "[Failed]"; fi
 				printf "[i] Checking Blacklist IPSet...				"
-				if ipset -L -n Skynet-Blacklist >/dev/null 2>&1; then $grn "[Passed]"; else $red "[Failed]"; fi
+				if ipset -L -n Skynet-Blacklist >/dev/null 2>&1; then $grn "[Passed]"; passedtests=$((passedtests+1)); else $red "[Failed]"; fi
 				printf "[i] Checking Skynet IPSet...				"
-				if ipset -L -n Skynet-Master >/dev/null 2>&1; then $grn "[Passed]"; else $red "[Failed]"; fi
+				if ipset -L -n Skynet-Master >/dev/null 2>&1; then $grn "[Passed]"; passedtests=$((passedtests+1)); else $red "[Failed]"; fi
 				if [ -f /opt/share/diversion/.conf/diversion.conf ]; then
 					printf "[i] Checking For Diversion Plus Content...   	        "
 					divlocation="/opt/share/diversion"
 					if grep -qE "bfPlusHosts=on" "${divlocation}/.conf/diversion.conf"; then
 						$grn "[Passed]"
+						passedtests=$((passedtests+1));
 					elif [ -f "${divlocation}/AddPlusHostsDismissed" ]; then
 						$ylow "[Dismissed]"
+						passedtests=$((passedtests+1));
 					else
 						$red "[Failed]"
 					fi
+				else
+					totaltests=$((totaltests-1));
 				fi
 				echo
 				printf "[i] Checking Autoupdate Setting...			"
@@ -3091,6 +3097,8 @@ case "$1" in
 				if [ "$securemode" = "enabled" ]; then $grn "[Enabled]"; else $red "[Disabled]"; fi
 				printf "[i] Checking Wife Mode Setting...			"
 				if [ "$wifemode" = "enabled" ]; then $grn "[Enabled]"; else $ylow "[Disabled]"; fi
+				echo
+				echo "${passedtests}/${totaltests} Tests Sucessful."
 				nocfg="1"
 			;;
 			clean)
