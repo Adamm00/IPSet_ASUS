@@ -2316,7 +2316,6 @@ case "$1" in
 			echo "[*] List Content Error Detected - Stopping Banmalware"
 			nocfg="1"
 		else
-			exit
 			cat /tmp/skynet/* | grep -oE '^[0-9,./]*$' | awk '!x[$0]++' | Filter_PrivateIP > /tmp/skynet/malwarelist.txt && $grn "[$(($(date +%s) - btime))s]"
 			btime="$(date +%s)" && printf "[i] Filtering IPv4 Addresses 	"
 			sed -i '\~comment \"BanMalware\"~d' "$skynetipset"
