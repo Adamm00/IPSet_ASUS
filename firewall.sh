@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 24/10/2018 -		   Asus Firewall Addition By Adamm v6.5.2				    #
+## - 28/10/2018 -		   Asus Firewall Addition By Adamm v6.5.3				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -292,25 +292,25 @@ Unload_Cron () {
                 case "$cron" in
                         save)
                                 cru d Skynet_save
-                        ;;
+						;;
                         banmalware)
                                 cru d Skynet_banmalware
 
-                        ;;
+						;;
                         autoupdate)
                                 cru d Skynet_autoupdate
 
-                        ;;
+						;;
                         checkupdate)
                                 cru d Skynet_checkupdate
 
-                        ;;
+						;;
                         all)
                                 cru d Skynet_save
                                 cru d Skynet_banmalware
                                 cru d Skynet_autoupdate
                                 cru d Skynet_checkupdate
-                        ;;
+						;;
                         *)
 								echo "[*] Error - No Cron Specified To Unload"
 						;;
@@ -351,6 +351,10 @@ Is_IP () {
 
 Is_Range () {
 		grep -qE '^([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}$'
+}
+
+Is_IPRange () {
+		grep -qE '^([0-9]{1,3}\.){3}[0-9]{1,3}?/?[0-9]{1,2}$'
 }
 
 Is_Port () {
@@ -1011,7 +1015,7 @@ Load_Menu () {
 							printf "[IP/Range]: "
 							read -r "option3"
 							echo
-							if ! echo "$option3" | Is_IP && ! echo "$option3" | Is_Range ; then echo "[*] $option3 Is Not A Valid IP/Range"; echo; unset "option2" "option3"; continue; fi
+							if ! echo "$option3" | Is_IPRange; then echo "[*] $option3 Is Not A Valid IP/Range"; echo; unset "option2" "option3"; continue; fi
 							echo "Input Comment For Whitelist:"
 							echo
 							printf "[Comment]: "
@@ -1057,7 +1061,7 @@ Load_Menu () {
 										printf "[IP/Range]: "
 										read -r "option4"
 										echo
-										if ! echo "$option4" | Is_IP && ! echo "$option4" | Is_Range ; then echo "[*] $option4 Is Not A Valid IP/Range"; echo; unset "option3" "option4"; continue; fi
+										if ! echo "$option4" | Is_IPRange; then echo "[*] $option4 Is Not A Valid IP/Range"; echo; unset "option3" "option4"; continue; fi
 										break
 									;;
 									3)
@@ -1883,7 +1887,7 @@ Load_Menu () {
 										printf "[IP]: "
 										read -r "option4"
 										echo
-										if ! echo "$option4" | Is_IP && ! echo "$option4" | Is_Range ; then echo "[*] $option4 Is Not A Valid IP/Range"; echo; unset "option3" "option4"; continue; fi
+										if ! echo "$option4" | Is_IPRange; then echo "[*] $option4 Is Not A Valid IP/Range"; echo; unset "option3" "option4"; continue; fi
 										break
 									;;
 									3)
@@ -1891,7 +1895,7 @@ Load_Menu () {
 										printf "[IP]: "
 										read -r "option4"
 										echo
-										if ! echo "$option4" | Is_IP && ! echo "$option4" | Is_Range ; then echo "[*] $option4 Is Not A Valid IP/Range"; echo; unset "option3" "option4"; continue; fi
+										if ! echo "$option4" | Is_IPRange; then echo "[*] $option4 Is Not A Valid IP/Range"; echo; unset "option3" "option4"; continue; fi
 										break
 									;;
 									4)
@@ -2283,7 +2287,7 @@ case "$1" in
 				listurl="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/filter.list"
 			fi
 		fi
-		/usr/sbin/curl -fsL --retry 3 "$listurl" >/dev/null 2>&1 || { logger -st Skynet "[*] 404 Error Detected - Stopping Banmalware" ; echo; exit 1; }
+		/usr/sbin/curl -fsL --retry 3 "$listurl" >/dev/null 2>&1 || { echo "[*] 404 Error Detected - Stopping Banmalware"; echo; exit 1; }
 		btime="$(date +%s)" && printf "[i] Downloading filter.list 	"
 		if [ -n "$excludelists" ]; then
 			/usr/sbin/curl -fsL --retry 3 "$listurl" | dos2unix | grep -vE "($excludelists)" > /jffs/shared-Skynet-whitelist && $grn "[$(($(date +%s) - btime))s]"
@@ -2307,22 +2311,29 @@ case "$1" in
 		wait
 		cd "$cwd" || exit 1
 		dos2unix /tmp/skynet/*
-		cat /tmp/skynet/* | grep -oE '^[0-9,./]*$' | awk '!x[$0]++' | Filter_PrivateIP > /tmp/skynet/malwarelist.txt && $grn "[$(($(date +%s) - btime))s]"
-		btime="$(date +%s)" && printf "[i] Filtering IPv4 Addresses 	"
-		sed -i '\~comment \"BanMalware\"~d' "$skynetipset"
-		grep -vF "/" /tmp/skynet/malwarelist.txt | awk '{print "add Skynet-Blacklist " $1 " comment \"BanMalware\""}' >> "$skynetipset" && $grn "[$(($(date +%s) - btime))s]"
-		btime="$(date +%s)" && printf "[i] Filtering IPv4 Ranges 	"
-		grep -F "/" /tmp/skynet/malwarelist.txt | awk '{print "add Skynet-BlockedRanges " $1 " comment \"BanMalware\""}' >> "$skynetipset" && $grn "[$(($(date +%s) - btime))s]"
-		btime="$(date +%s)" && printf "[i] Applying New Blacklist	"
-		ipset flush Skynet-Blacklist; ipset flush Skynet-BlockedRanges
-		ipset restore -! -f "$skynetipset" >/dev/null 2>&1 && $grn "[$(($(date +%s) - btime))s]"
-		btime="$(date +%s)" && printf "[i] Refreshing AiProtect Bans 	"
-		Refresh_AiProtect && $grn "[$(($(date +%s) - btime))s]"
-		btime="$(date +%s)" && printf "[i] Saving Changes 		"
-		Save_IPSets >/dev/null 2>&1 && $grn "[$(($(date +%s) - btime))s]"
-		unset "forcebanmalwareupdate"
-		echo
-		echo "[i] For False Positive Website Bans Use; ( sh $0 whitelist domain URL )"
+		if ! grep -qE '^([0-9]{1,3}\.){3}[0-9]{1,3}?/?[0-9]{1,2}$' /tmp/skynet/*; then
+			$red "[$(($(date +%s) - btime))s]"
+			echo "[*] List Content Error Detected - Stopping Banmalware"
+			nocfg="1"
+		else
+			exit
+			cat /tmp/skynet/* | grep -oE '^[0-9,./]*$' | awk '!x[$0]++' | Filter_PrivateIP > /tmp/skynet/malwarelist.txt && $grn "[$(($(date +%s) - btime))s]"
+			btime="$(date +%s)" && printf "[i] Filtering IPv4 Addresses 	"
+			sed -i '\~comment \"BanMalware\"~d' "$skynetipset"
+			grep -vF "/" /tmp/skynet/malwarelist.txt | awk '{print "add Skynet-Blacklist " $1 " comment \"BanMalware\""}' >> "$skynetipset" && $grn "[$(($(date +%s) - btime))s]"
+			btime="$(date +%s)" && printf "[i] Filtering IPv4 Ranges 	"
+			grep -F "/" /tmp/skynet/malwarelist.txt | awk '{print "add Skynet-BlockedRanges " $1 " comment \"BanMalware\""}' >> "$skynetipset" && $grn "[$(($(date +%s) - btime))s]"
+			btime="$(date +%s)" && printf "[i] Applying New Blacklist	"
+			ipset flush Skynet-Blacklist; ipset flush Skynet-BlockedRanges
+			ipset restore -! -f "$skynetipset" >/dev/null 2>&1 && $grn "[$(($(date +%s) - btime))s]"
+			btime="$(date +%s)" && printf "[i] Refreshing AiProtect Bans 	"
+			Refresh_AiProtect && $grn "[$(($(date +%s) - btime))s]"
+			btime="$(date +%s)" && printf "[i] Saving Changes 		"
+			Save_IPSets >/dev/null 2>&1 && $grn "[$(($(date +%s) - btime))s]"
+			unset "forcebanmalwareupdate"
+			echo
+			echo "[i] For False Positive Website Bans Use; ( sh $0 whitelist domain URL )"
+		fi
 		rm -rf /tmp/skynet
 		trap - 2
 		echo
@@ -2334,7 +2345,7 @@ case "$1" in
 		Purge_Logs
 		case "$2" in
 			ip|range)
-				if ! echo "$3" | Is_IP && ! echo "$3" | Is_Range ; then echo "[*] $3 Is Not A Valid IP/Range"; echo; exit 2; fi
+				if ! echo "$3" | Is_IPRange; then echo "[*] $3 Is Not A Valid IP/Range"; echo; exit 2; fi
 				if [ "${#4}" -gt "242" ]; then echo "[*] $4 Is Not A Valid Comment. 242 Chars Max"; echo; exit 2; fi
 				echo "[i] Whitelisting $3"
 				desc="$4"
@@ -2362,7 +2373,7 @@ case "$1" in
 			remove)
 				case "$3" in
 					entry)
-						if ! echo "$4" | Is_IP && ! echo "$4" | Is_Range ; then echo "[*] $4 Is Not A Valid IP/Range"; echo; exit 2; fi
+						if ! echo "$4" | Is_IPRange; then echo "[*] $4 Is Not A Valid IP/Range"; echo; exit 2; fi
 						echo "[i] Removing $4 From Whitelist"
 						ipset -D Skynet-Whitelist "$4" && sed -i "\\~=$4 ~d" "$skynetlog" "$skynetevents"
 					;;
@@ -3091,7 +3102,7 @@ case "$1" in
 				printf "[i] Checking Debug Mode Setting...			"
 				if [ "$debugmode" = "enabled" ]; then $grn "[Enabled]"; else $red "[Disabled]"; fi
 				printf "[i] Checking Filter Traffic Setting...			"
-				if [ "$filtertraffic" = "all" ] ; then $grn "[Enabled]"; else $ylow "[Selective]"; fi
+				if [ "$filtertraffic" = "all" ]; then $grn "[Enabled]"; else $ylow "[Selective]"; fi
 				printf "[i] Checking Unban PrivateIP Setting...			"
 				if [ "$unbanprivateip" = "enabled" ]; then $grn "[Enabled]"; else $ylow "[Disabled]"; fi
 				printf "[i] Checking Log Invalid Setting...			"
@@ -3235,7 +3246,7 @@ case "$1" in
 		fi
 		echo "[i] Monitoring From $(grep -m1 -F "BLOCKED -" "$skynetlog" | awk '{print $1" "$2" "$3}') To $(grep -F "BLOCKED -" "$skynetlog" | tail -1 | awk '{print $1" "$2" "$3}')"
 		echo "[i] $(wc -l < "$skynetlog") Block Events Detected"
-		echo "[i] $({ grep -E 'INBOUND|INVALID' "$skynetlog" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- ; grep -F "OUTBOUND" "$skynetlog" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- ; } | awk '!x[$0]++' | wc -l) Unique IPs"
+		echo "[i] $({ grep -E 'INBOUND|INVALID' "$skynetlog" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6-; grep -F "OUTBOUND" "$skynetlog" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6-; } | awk '!x[$0]++' | wc -l) Unique IPs"
 		echo "[i] $(grep -Fc "Manual Ban" "$skynetevents") Manual Bans Issued"
 		echo
 		counter=10
@@ -3324,7 +3335,7 @@ case "$1" in
 					;;
 					malware)
 						Check_Lock "$@"
-						if ! echo "$4" | Is_IP && ! echo "$4" | Is_Range ; then echo "[*] $4 Is Not A Valid IP/Range"; echo; exit 2; fi
+						if ! echo "$4" | Is_IPRange; then echo "[*] $4 Is Not A Valid IP/Range"; echo; exit 2; fi
 						if [ "$extendedstats" = "enabled" ] && grep -q "reply.* is $4" /opt/var/log/dnsmasq*; then
 							$red "Associated Domain(s);"
 							grep -E "reply.* is $4" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | awk '!x[$0]++' | grep -vE '^([0-9]{1,3}\.){3}[0-9]{1,3}$'
