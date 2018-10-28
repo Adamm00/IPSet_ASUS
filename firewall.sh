@@ -2203,7 +2203,7 @@ case "$1" in
 			country)
 				if [ -z "$3" ]; then echo "[*] Country Field Can't Be Empty - Please Try Again"; echo; exit 2; fi
 				if echo "$3" | grep -qF "\""; then echo "[*] Country Field Can't Include Quotes - Please Try Again"; echo; exit 2; fi
-				countrylinklist="$(echo $3 | awk '{print tolower($0)}')"
+				countrylinklist="$(echo "$3" | awk '{print tolower($0)}')"
 				if [ -n "$countrylist" ]; then
 					echo "[i] Removing Previous Country Bans (${countrylist})"
 					sed '\~add Skynet-Whitelist ~d;\~Country: ~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
@@ -3311,7 +3311,7 @@ case "$1" in
 							grep -E "reply.* is $4" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | awk '!x[$0]++' | grep -vE '^([0-9]{1,3}\.){3}[0-9]{1,3}$'
 							echo; echo
 						fi
-						echo "[i] IP Location - $(curl -fsL https://ipapi.co/${4}/country_name/) ($(curl -fsL https://ipapi.co/${4}/asn/))"
+						echo "[i] IP Location - $(curl -fsL "https://ipapi.co/${4}/country_name/") ($(curl -fsL "https://ipapi.co/${4}/asn/"))"
 						echo
 						echo "[i] $4 First Tracked On $(grep -m1 -F "=$4 " "$skynetlog" | awk '{print $1" "$2" "$3}')"
 						echo "[i] $4 Last Tracked On $(grep -F "=$4 " "$skynetlog" | tail -1 | awk '{print $1" "$2" "$3}')"
