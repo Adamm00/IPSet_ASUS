@@ -1,5 +1,5 @@
 # Skynet - Asus Firewall Addition
-Lightweight firewall addition for ARM/HND based ASUS Routers using IPSet as seen on [SmallNetBuilder](https://www.snbforums.com/threads/skynet-asus-firewall-addition-dynamic-malware-country-manual-ip-blocking.16798/)
+Lightweight firewall addition for ARM/HND based ASUS Routers using IPSet as seen on [SmallNetBuilder](https://www.snbforums.com/threads/skynet-asus-firewall-addition.16798/)
 
 Skynet is the first comprehensive IP banning and security tool exclusively for Asus Devices.
 
@@ -21,7 +21,7 @@ To open the menu its as simple as;
 
 ```sh /jffs/scripts/firewall```
 
-[![Skynet GUI](https://i.imgur.com/gE2aQWR.png "Skynet GUI")](https://i.imgur.com/gE2aQWR.png "Skynet GUI")
+[![Skynet GUI](https://i.imgur.com/Z06HnPE.png "Skynet GUI")](https://i.imgur.com/Z06HnPE.png "Skynet GUI")
 
 
 
@@ -92,11 +92,12 @@ Here Are Some Example Settings Commands;
 ( sh /jffs/scripts/firewall settings loginvalid enable|disable ) Enable/Disable Invalid Packet Logging
 ( sh /jffs/scripts/firewall settings banaiprotect enable|disable ) Enable/Disable Banning IP's Flagged By AiProtect
 ( sh /jffs/scripts/firewall settings securemode enable|disable ) Enable/Disable Insecure Settings Being Applied In WebUI
-( sh /jffs/scripts/firewall settings wm google.com/filter.list|disable ) Configure/Disable Fast Banmalware List Switching (Aka Wifemode)
+( sh /jffs/scripts/firewall settings fs google.com/filter.list|disable ) Configure/Disable Fast Banmalware List Switching
 
 Here Are Some Example Debug Commands;
 ( sh /jffs/scripts/firewall debug watch ) Show Debug Entries As They Appear
 ( sh /jffs/scripts/firewall debug info ) Print Useful Debug Info
+( sh /jffs/scripts/firewall debug info extended ) Debug Info + Config
 ( sh /jffs/scripts/firewall debug clean ) Cleanup Syslog Entries
 ( sh /jffs/scripts/firewall debug swap install|uninstall ) Install/Uninstall SWAP File
 ( sh /jffs/scripts/firewall debug backup ) Backup Skynet Files To Skynets Install Directory With The Name "Skynet-Backup.tar.gz"
