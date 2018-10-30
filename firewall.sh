@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 28/10/2018 -		   Asus Firewall Addition By Adamm v6.5.3				    #
+## - 30/10/2018 -		   Asus Firewall Addition By Adamm v6.5.4				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -159,7 +159,7 @@ Check_Settings () {
 			extendedstats="disabled"
 		fi
 
-		if [ -z "$fastswap" ]; then fastswap="disabled"; fi
+		if [ -z "$fastswitch" ]; then fastswitch="disabled"; fi
 }
 
 Check_Files () {
@@ -696,7 +696,7 @@ Write_Config () {
 	echo "banaiprotect=\"$banaiprotect\""
 	echo "securemode=\"$securemode\""
 	echo "extendedstats=\"$extendedstats\""
-	echo "fastswap=\"$fastswap\""
+	echo "fastswitch=\"$fastswitch\""
 	echo
 	echo "################################################"; } > "$skynetcfg"
 }
@@ -730,7 +730,7 @@ Load_Menu () {
 	if ! ipset -L -n Skynet-BlockedRanges >/dev/null 2>&1; then printf "Checking BlockedRanges IPSet...				"; $red "[Failed]"; nolog="1"; fi
 	if ! ipset -L -n Skynet-Blacklist >/dev/null 2>&1; then printf "Checking Blacklist IPSet...				"; $red "[Failed]"; nolog="1"; fi
 	if ! ipset -L -n Skynet-Master >/dev/null 2>&1; then printf "Checking Skynet IPSet...				"; $red "[Failed]"; nolog="1"; fi
-	if [ "$fastswap" = "enabled" ]; then $ylow "Fast Swap Is Enabled!"; fi
+	if [ "$fastswitch" = "enabled" ]; then $ylow "Fast Switch Is Enabled!"; fi
 	if [ "$nolog" != "1" ]; then Print_Log "minimal"; fi
 	unset "nolog"
 	unset "option1" "option2" "option3" "option4" "option5"
@@ -1290,7 +1290,7 @@ Load_Menu () {
 					echo "[6]  --> Log Invalid Packets -	$(if [ "$loginvalid" = "enabled" ]; then $grn "[Enabled]";else $ylow "[Disabled]"; fi)"
 					echo "[7]  --> Ban AiProtect - 	$(if [ "$banaiprotect" = "enabled" ]; then $grn "[Enabled]"; else $red "[Disabled]"; fi)"
 					echo "[8]  --> Secure Mode -		$(if [ "$securemode" = "enabled" ]; then $grn "[Enabled]"; else $red "[Disabled]"; fi)"
-					echo "[9]  --> Fast Swap -		$(if [ "$fastswap" = "enabled" ]; then $grn "[Enabled]"; else $ylow "[Disabled]"; fi)"
+					echo "[9]  --> Fast Switch -		$(if [ "$fastswitch" = "enabled" ]; then $grn "[Enabled]"; else $ylow "[Disabled]"; fi)"
 					echo
 					printf "[1-9]: "
 					read -r "menu2"
@@ -1582,7 +1582,7 @@ Load_Menu () {
 							if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 0; fi
 							option1="fs"
 							while true; do
-								echo "Select Fast Swap Option:"
+								echo "Select Fast Switch Option:"
 								echo "[1]  --> Enable"
 								echo "[2]  --> Disable"
 								echo
@@ -2234,16 +2234,16 @@ case "$1" in
 		trap '' 2
 		Check_Lock "$@"
 		Purge_Logs
-		if [ "$2" = "disable" ] && [ "$fastswap" = "disabled" ] && [ "$1" = "fs" ]; then
-			echo "[*] Fast Swap Already Disabled - Stopping Banmalware"
+		if [ "$2" = "disable" ] && [ "$fastswitch" = "disabled" ] && [ "$1" = "fs" ]; then
+			echo "[*] Fast Switch Already Disabled - Stopping Banmalware"
 			echo; exit 1
 		fi
-		if [ "$fastswap" = "enabled" ] && [ "$1" = "fs" ] && [ -z "$2" ]; then
-			echo "[i] Fast Swap Disabled"
-			fastswap="disabled"
+		if [ "$fastswitch" = "enabled" ] && [ "$1" = "fs" ] && [ -z "$2" ] || [ "$2" = "disable" ]; then
+			echo "[i] Fast Switch Disabled"
+			fastswitch="disabled"
 			set "banmalware"
 		fi
-		if [ "$fastswap" = "enabled" ] && [ "$1" = "banmalware" ]; then
+		if [ "$fastswitch" = "enabled" ] && [ "$1" = "banmalware" ]; then
 			set "fs"
 		fi
 		if [ "$2" = "exclude" ]; then
@@ -2266,11 +2266,11 @@ case "$1" in
 			echo "[i] Custom Filter Detected: $customlisturl"
 		elif [ "$1" = "fs" ]; then
 			if [ -z "$2" ] && [ -z "$customlist2url" ]; then
-				logger -st Skynet "[*] Wife-Mode URL Not Detected - Stopping Banmalware"
+				logger -st Skynet "[*] Fast Switch URL Not Configured - Stopping Banmalware"
 				echo; exit 1
 			else
-				fastswap="enabled"
-				echo "[i] Fast Swap Enabled"
+				fastswitch="enabled"
+				echo "[i] Fast Switch Enabled"
 				if [ -z "$customlist2url" ] || [ -n "$2" ]; then
 					customlist2url="$2"
 					listurl="$customlist2url"
@@ -3110,8 +3110,8 @@ case "$1" in
 				if [ "$banaiprotect" = "enabled" ]; then $grn "[Enabled]"; else $red "[Disabled]"; fi
 				printf "[i] Checking Secure Mode Setting...			"
 				if [ "$securemode" = "enabled" ]; then $grn "[Enabled]"; else $red "[Disabled]"; fi
-				printf "[i] Checking Fast Swap Setting...			"
-				if [ "$fastswap" = "enabled" ]; then $grn "[Enabled]"; else $ylow "[Disabled]"; fi
+				printf "[i] Checking Fast Switch Setting...			"
+				if [ "$fastswitch" = "enabled" ]; then $grn "[Enabled]"; else $ylow "[Disabled]"; fi
 				echo
 				echo "${passedtests}/${totaltests} Tests Sucessful."
 				if [ "$3" = "extended" ]; then echo; echo; cat "$skynetcfg"; echo; fi
@@ -3753,7 +3753,7 @@ case "$1" in
 		if [ -z "$unbanprivateip" ]; then unbanprivateip="enabled"; fi
 		if [ -z "$banaiprotect" ] && [ -f /opt/bin/opkg ]; then banaiprotect="enabled"; fi
 		if [ -z "$securemode" ]; then securemode="enabled"; fi
-		if [ -z "$fastswap" ]; then fastswap="disabled"; fi
+		if [ -z "$fastswitch" ]; then fastswitch="disabled"; fi
 		Write_Config
 		cmdline="sh /jffs/scripts/firewall start skynetloc=${device}/skynet # Skynet Firewall Addition"
 		if grep -E "sh /jffs/scripts/firewall .* # Skynet" /jffs/scripts/firewall-start 2>/dev/null | grep -qvE "^#"; then
