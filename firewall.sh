@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 02/11/2018 -		   Asus Firewall Addition By Adamm v6.5.5				    #
+## - 03/11/2018 -		   Asus Firewall Addition By Adamm v6.5.5				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -111,6 +111,9 @@ Check_Settings () {
 
 		if ! grep -F "swapon" /jffs/scripts/post-mount | grep -qvE "^#" && ! grep -F "swap" /jffs/configs/fstab 2>/dev/null | grep -qvE "^#"; then
 			logger -st Skynet "[*] Skynet Requires A SWAP File - Install One By Running ( $0 debug swap install )"
+			echo; exit 1
+		elif grep -F "swapon" /jffs/scripts/post-mount | grep -qvE "^#" && [ ! -f "$(grep -o "swapon .*" /jffs/scripts/post-mount | awk '{print $2}')" ]; then
+			logger -st Skynet "[*] SWAP File Missing - Fix This By Running ( $0 debug swap uninstall )"
 			echo; exit 1
 		fi
 
@@ -385,7 +388,7 @@ Is_Port () {
 }
 
 Strip_Domain () {
-		sed 's~http[s]*://~~;s~/.*~~;s~www\.~~g'
+		sed 's~http[s]*://~~;s~/.*~~;s~www\.~~g' | awk '!x[$0]++'
 }
 
 Domain_Lookup () {
@@ -393,7 +396,7 @@ Domain_Lookup () {
 }
 
 Extended_Stats () {
-		domainlist="$(grep -E "$(echo "$ip" | cut -d '/' -f6-)" /tmp/skynet/skynetstats.txt | awk '{print $1}' | Strip_Domain | awk '!x[$0]++' | xargs)"
+		domainlist="$(grep -E "$(echo "$ip" | cut -d '/' -f6-)" /tmp/skynet/skynetstats.txt | awk '{print $1}' | Strip_Domain | xargs)"
 		echo "${ip}$([ -n "$domainlist" ] && echo " - [$domainlist]")"
 }
 
@@ -423,7 +426,6 @@ Filter_PrivateDST () {
 
 Save_IPSets () {
 		if Check_Status; then
-			echo "[i] Saving Changes"
 			{ ipset save Skynet-Whitelist; ipset save Skynet-Blacklist; ipset save Skynet-BlockedRanges; ipset save Skynet-Master; } > "$skynetipset" 2>/dev/null
 		fi
 }
@@ -538,9 +540,8 @@ Whitelist_Shared () {
 		ipset -q -A Skynet-Whitelist 192.30.252.0/22 comment "nvram: Github Content Server"
 		ipset -q -A Skynet-Whitelist 192.168.1.0/24 comment "nvram: LAN Subnet"
 		if [ -n "$(/usr/bin/find /jffs -name 'shared-*-whitelist')" ]; then
-			echo "Whitelisting Shared Domains"
 			sed '\~add Skynet-Whitelist ~!d;\~Shared-Whitelist~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
-			grep -hvF "#" /jffs/shared-*-whitelist | Strip_Domain | awk '!x[$0]++' | while IFS= read -r "domain"; do
+			grep -hvF "#" /jffs/shared-*-whitelist | Strip_Domain | while IFS= read -r "domain"; do
 				for ip in $(Domain_Lookup "$domain" 2> /dev/null); do
 					ipset -q -A Skynet-Whitelist "$ip" comment "Shared-Whitelist: $domain"
 				done &
@@ -2188,6 +2189,7 @@ case "$1" in
 				echo; exit 2
 			;;
 		esac
+		echo "[i] Saving Changes"
 		Save_IPSets
 		echo
 	;;
@@ -2251,6 +2253,7 @@ case "$1" in
 				echo; exit 2
 			;;
 		esac
+		echo "[i] Saving Changes"
 		Save_IPSets
 		echo
 	;;
@@ -2326,7 +2329,7 @@ case "$1" in
 		Whitelist_Extra
 		Whitelist_CDN
 		Whitelist_VPN
-		Whitelist_Shared >/dev/null 2>&1
+		Whitelist_Shared
 		Refresh_MWhitelist && $grn "[$(($(date +%s) - btime))s]"
 		btime="$(date +%s)" && printf "[i] Consolidating Blacklist 	"
 		cwd="$(pwd)"
@@ -2355,7 +2358,7 @@ case "$1" in
 			btime="$(date +%s)" && printf "[i] Refreshing AiProtect Bans 	"
 			Refresh_AiProtect && $grn "[$(($(date +%s) - btime))s]"
 			btime="$(date +%s)" && printf "[i] Saving Changes 		"
-			Save_IPSets >/dev/null 2>&1 && $grn "[$(($(date +%s) - btime))s]"
+			Save_IPSets && $grn "[$(($(date +%s) - btime))s]"
 			unset "forcebanmalwareupdate"
 			echo
 			echo "[i] For False Positive Website Bans Use; ( sh $0 whitelist domain URL )"
@@ -2468,6 +2471,7 @@ case "$1" in
 				echo; exit 2
 			;;
 		esac
+		echo "[i] Saving Changes"
 		Save_IPSets
 		echo
 	;;
@@ -2504,6 +2508,7 @@ case "$1" in
 				echo "[i] Adding IPs To Blacklist"
 				ipset restore -! -f "/tmp/iplist-filtered.txt"
 				rm -rf /tmp/skynet/iplist-unfiltered.txt /tmp/iplist-filtered.txt
+				echo "[i] Saving Changes"
 				Save_IPSets
 				echo
 			;;
@@ -2535,6 +2540,7 @@ case "$1" in
 				echo "[i] Adding IPs To Whitelist"
 				ipset restore -! -f "/tmp/iplist-filtered.txt"
 				rm -rf /tmp/skynet/iplist-unfiltered.txt /tmp/iplist-filtered.txt
+				echo "[i] Saving Changes"
 				Save_IPSets
 				echo
 			;;
@@ -2574,6 +2580,7 @@ case "$1" in
 				echo "[i] Removing IPs From Blacklist"
 				ipset restore -! -f "/tmp/iplist-filtered.txt"
 				rm -rf /tmp/skynet/iplist-unfiltered.txt /tmp/iplist-filtered.txt
+				echo "[i] Saving Changes"
 				Save_IPSets
 				echo
 			;;
@@ -2600,6 +2607,7 @@ case "$1" in
 				echo "[i] Removing IPs From Whitelist"
 				ipset restore -! -f "/tmp/iplist-filtered.txt"
 				rm -rf /tmp/skynet/iplist-unfiltered.txt /tmp/iplist-filtered.txt
+				echo "[i] Saving Changes"
 				Save_IPSets
 				echo
 			;;
@@ -2617,6 +2625,7 @@ case "$1" in
 		if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 		Unban_PrivateIP
 		Purge_Logs
+		echo "[i] Saving Changes"
 		Save_IPSets
 		Check_Security
 		sed -i "\\~USER $(nvram get http_username) pid .*/jffs/scripts/firewall ~d" /tmp/syslog.log
@@ -2650,6 +2659,7 @@ case "$1" in
 		Refresh_MBans
 		Refresh_AiProtect
 		Check_Security
+		echo "[i] Saving Changes"
 		Save_IPSets
 		while [ "$(($(date +%s) - stime))" -lt "20" ]; do
 			sleep 1
@@ -2666,6 +2676,7 @@ case "$1" in
 	restart)
 		Check_Lock "$@"
 		Purge_Logs
+		echo "[i] Saving Changes"
 		Save_IPSets
 		echo "[i] Unloading Skynet Components"
 		Unload_Cron "all"
@@ -2681,6 +2692,7 @@ case "$1" in
 
 	disable)
 		Check_Lock "$@"
+		echo "[i] Saving Changes"
 		Save_IPSets
 		echo "[i] Unloading Skynet Components"
 		Unload_Cron "all"
@@ -2711,7 +2723,8 @@ case "$1" in
 		fi
 		if [ "$localver" != "$remotever" ] || [ "$2" = "-f" ] && [ "$nolog" != "2" ]; then
 			logger -t Skynet "[%] New Version Detected - Updating To $remotever"; echo "[%] New Version Detected - Updating To $remotever"
-			Save_IPSets >/dev/null 2>&1
+			echo "[i] Saving Changes"
+			Save_IPSets
 			echo "[i] Unloading Skynet Components"
 			Unload_Cron "all"
 			Unload_IPTables
@@ -2764,6 +2777,7 @@ case "$1" in
 						if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 						Purge_Logs
 						banmalwareupdate="daily"
+						forcebanmalwareupdate="true"
 						Unload_Cron "banmalware"
 						Load_Cron "banmalwaredaily"
 						echo "[i] Daily Banmalware Updates Enabled"
@@ -2773,6 +2787,7 @@ case "$1" in
 						if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 						Purge_Logs
 						banmalwareupdate="weekly"
+						forcebanmalwareupdate="true"
 						Unload_Cron "banmalware"
 						Load_Cron "banmalwareweekly"
 						echo "[i] Weekly Banmalware Updates Enabled"
@@ -2944,6 +2959,7 @@ case "$1" in
 						echo; exit 2
 					;;
 				esac
+				echo "[i] Saving Changes"
 				Save_IPSets
 			;;
 			securemode)
@@ -2999,19 +3015,19 @@ case "$1" in
 							if echo "$logoutput" | grep -qE "INVALID.*=$4 "; then
 								$blue "$logoutput"
 								if [ "$extendedstats" = "enabled" ]; then
-									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | awk '!x[$0]++' | grep -vE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' | xargs)"
+									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | grep -vE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' | xargs)"
 									[ -n "$domainlist" ] && $blue "Associated Domain(s) - [$domainlist]"
 								fi
 							elif echo "$logoutput" | grep -qE "INBOUND.*=$4 "; then
 								$ylow "$logoutput"
 								if [ "$extendedstats" = "enabled" ]; then
-									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | awk '!x[$0]++' | grep -vE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' | xargs)"
+									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | grep -vE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' | xargs)"
 									[ -n "$domainlist" ] && $red "Associated Domain(s) - [$domainlist]"
 								fi
 							elif echo "$logoutput" | grep -qE "OUTBOUND.*=$4 "; then
 								$red "$logoutput"
 								if [ "$extendedstats" = "enabled" ]; then
-									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | awk '!x[$0]++' | grep -vE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' | xargs)"
+									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | grep -vE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' | xargs)"
 									[ -n "$domainlist" ] && $red "Associated Domain(s) - [$domainlist]"
 								fi
 							fi
@@ -3025,19 +3041,19 @@ case "$1" in
 							if echo "$logoutput" | grep -qE "INAVLID.*PT=$4 "; then
 								$blue "$logoutput"
 								if [ "$extendedstats" = "enabled" ]; then
-									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | awk '!x[$0]++' | grep -vE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' | xargs)"
+									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | grep -vE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' | xargs)"
 									[ -n "$domainlist" ] && $blue "Associated Domain(s) - [$domainlist]"
 								fi
 							elif echo "$logoutput" | grep -qE "INBOUND.*PT=$4 "; then
 								$ylow "$logoutput"
 								if [ "$extendedstats" = "enabled" ]; then
-									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | awk '!x[$0]++' | grep -vE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' | xargs)"
+									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | grep -vE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' | xargs)"
 									[ -n "$domainlist" ] && $red "Associated Domain(s) - [$domainlist]"
 								fi
 							elif echo "$logoutput" | grep -qE "OUTBOUND.*PT=$4 "; then
 								$red "$logoutput"
 								if [ "$extendedstats" = "enabled" ]; then
-									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | awk '!x[$0]++' | grep -vE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' | xargs)"
+									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | grep -vE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' | xargs)"
 									[ -n "$domainlist" ] && $red "Associated Domain(s) - [$domainlist]"
 								fi
 							fi
@@ -3048,19 +3064,19 @@ case "$1" in
 							if echo "$logoutput" | grep -q "INVALID"; then
 								$blue "$logoutput"
 								if [ "$extendedstats" = "enabled" ]; then
-									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | awk '!x[$0]++' | grep -vE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' | xargs)"
+									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | grep -vE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' | xargs)"
 									[ -n "$domainlist" ] && $blue "Associated Domain(s) - [$domainlist]"
 								fi
 							elif echo "$logoutput" | grep -q "INBOUND"; then
 								$ylow "$logoutput"
 								if [ "$extendedstats" = "enabled" ]; then
-									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | awk '!x[$0]++' | grep -vE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' | xargs)"
+									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | grep -vE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' | xargs)"
 									[ -n "$domainlist" ] && $red "Associated Domain(s) - [$domainlist]"
 								fi
 							elif echo "$logoutput" | grep -q "OUTBOUND"; then
 								$red "$logoutput"
 								if [ "$extendedstats" = "enabled" ]; then
-									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | awk '!x[$0]++' | grep -vE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' | xargs)"
+									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | grep -vE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' | xargs)"
 									[ -n "$domainlist" ] && $red "Associated Domain(s) - [$domainlist]"
 								fi
 							fi
@@ -3172,10 +3188,11 @@ case "$1" in
 					install)
 						Check_Lock "$@"
 						Check_Files
-						if ! grep -qF "swapon" /jffs/scripts/post-mount; then
+						if ! grep -F "swapon" /jffs/scripts/post-mount | grep -qvE "^#"; then
 							Manage_Device
 							Create_Swap
-							Save_IPSets >/dev/null 2>&1
+							echo "[i] Saving Changes"
+							Save_IPSets
 							echo "[i] Unloading Skynet Components"
 							Unload_Cron "all"
 							Unload_IPTables
@@ -3183,6 +3200,9 @@ case "$1" in
 							Unload_IPSets
 							logger -t Skynet "[%] Restarting Firewall Service"; echo "[%] Restarting Firewall Service"
 							restartfirewall="1"
+							nolog="2"
+						elif grep -qF "swapon" /jffs/scripts/post-mount | grep -qvE "^#" && [ ! -f "$(grep -o "swapon .*" /jffs/scripts/post-mount | awk '{print $2}')" ]; then
+							echo "[*] SWAP File Missing - Fix This By First Running ( $0 debug swap uninstall )"
 							nolog="2"
 						else
 							echo "[*] Pre-existing SWAP File Detected - Exiting!"
@@ -3192,25 +3212,25 @@ case "$1" in
 						Check_Lock "$@"
 						if ! grep -qF "swapon" /jffs/scripts/post-mount 2>/dev/null; then echo "[*] No SWAP File Detected - Exiting!"; echo; exit 1; fi
 						swaplocation="$(grep -o "swapon .*" /jffs/scripts/post-mount | awk '{print $2}')"
+						echo "[i] Saving Changes"
+						Save_IPSets
+						echo "[i] Unloading Skynet Components"
+						Unload_Cron "all"
+						Unload_IPTables
+						Unload_DebugIPTables
+						Unload_IPSets
 						echo "[i] Removing SWAP File ($swaplocation)"
 						if [ -f "$swaplocation" ]; then
-							Save_IPSets >/dev/null 2>&1
 							sed -i '\~swapon ~d' /jffs/scripts/post-mount
 							swapoff "$swaplocation"
 							if rm -rf "$swaplocation"; then echo "[i] SWAP File Removed"; else "[*] SWAP File Partially Removed - Please Inspect Manually"; fi
-							echo "[i] Unloading Skynet Components"
-							Unload_Cron "all"
-							Unload_IPTables
-							Unload_DebugIPTables
-							Unload_IPSets
-							logger -t Skynet "[%] Restarting Firewall Service"; echo "[%] Restarting Firewall Service"
-							restartfirewall="1"
-							nolog="2"
 						else
 							sed -i '\~swapon ~d' /jffs/scripts/post-mount
 							echo "[*] SWAP File Partially Removed - Please Inspect Manually"
-							echo; exit 1
 						fi
+						logger -t Skynet "[%] Restarting Firewall Service"; echo "[%] Restarting Firewall Service"
+						restartfirewall="1"
+						nolog="2"
 					;;
 					*)
 						echo "Command Not Recognized, Please Try Again"
@@ -3224,9 +3244,10 @@ case "$1" in
 				Check_Lock "$@"
 				if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 				Purge_Logs
+				echo "[i] Saving Changes"
+				Save_IPSets
 				echo "[i] Backing Up Skynet Related Files"
 				echo
-				Save_IPSets >/dev/null 2>&1
 				tar -czvf "${skynetloc}/Skynet-Backup.tar.gz" -C "$skynetloc" skynet.ipset skynet.log events.log skynet.cfg
 				echo
 				echo "[i] Backup Saved To ${skynetloc}/Skynet-Backup.tar.gz"
@@ -3350,7 +3371,7 @@ case "$1" in
 						echo
 						if [ "$extendedstats" = "enabled" ] && grep -q "reply.* is $4" /opt/var/log/dnsmasq*; then
 							$red "Associated Domain(s);"
-							grep -E "reply.* is $4" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | awk '!x[$0]++' | grep -vE '^([0-9]{1,3}\.){3}[0-9]{1,3}$'
+							grep -E "reply.* is $4" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | grep -vE '^([0-9]{1,3}\.){3}[0-9]{1,3}$'
 							echo; echo
 						fi
 						echo "[i] IP Location - $(curl -fsL "https://ipapi.co/${4}/country_name/") ($(curl -fsL "https://ipapi.co/${4}/asn/"))"
@@ -3381,7 +3402,7 @@ case "$1" in
 						Clean_Temp
 						if [ "$extendedstats" = "enabled" ] && grep -q "reply.* is $4" /opt/var/log/dnsmasq*; then
 							$red "Associated Domain(s);"
-							grep -E "reply.* is $4" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | awk '!x[$0]++' | grep -vE '^([0-9]{1,3}\.){3}[0-9]{1,3}$'
+							grep -E "reply.* is $4" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | grep -vE '^([0-9]{1,3}\.){3}[0-9]{1,3}$'
 							echo; echo
 						fi
 						ip="$(echo "$4" | sed "s~\\.~\\\\.~g")"
