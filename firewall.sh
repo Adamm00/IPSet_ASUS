@@ -146,6 +146,7 @@ Check_Settings () {
 
 		if [ "$(nvram get fw_enable_x)" != "1" ]; then
 			nvram set fw_enable_x=1
+			restartfirewall="1"
 		fi
 
 		if [ -f /opt/share/diversion/.conf/diversion.conf ]; then
@@ -3857,6 +3858,7 @@ case "$1" in
 		echo "https://github.com/Adamm00/IPSet_ASUS"
 		echo
 		while true; do
+			echo "[!] Warning - This Will Delete All Files In The Skynet Directory"
 			echo "Are You Sure You Want To Uninstall?"
 			echo
 			echo "[1]  --> Yes"
@@ -3909,7 +3911,7 @@ case "$1" in
 					Unload_DebugIPTables
 					Unload_IPSets
 					nvram set fw_log_x=none
-					echo "[i] Removing Traces Of Skynet"
+					echo "[i] Deleting Skynet Files"
 					sed -i '\~ Skynet ~d' /jffs/scripts/firewall-start /jffs/scripts/services-stop
 					rm -rf "/jffs/shared-Skynet-whitelist" "/jffs/shared-Skynet2-whitelist" "/opt/bin/firewall" "$skynetloc" "/jffs/scripts/firewall" "/tmp/skynet.lock" "/tmp/skynet"
 					iptables -t raw -F
