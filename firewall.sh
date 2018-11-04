@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 03/11/2018 -		   Asus Firewall Addition By Adamm v6.5.5				    #
+## - 05/11/2018 -		   Asus Firewall Addition By Adamm v6.5.5				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -2326,6 +2326,7 @@ case "$1" in
 			/usr/sbin/curl -fsL --retry 3 "$listurl" | dos2unix > /jffs/shared-Skynet-whitelist && $grn "[$(($(date +%s) - btime))s]"
 		fi
 		echo >> /jffs/shared-Skynet-whitelist
+		sed -i "\\~^http://\|^https://\|^www.~!d;" /jffs/shared-Skynet-whitelist
 		btime="$(date +%s)" && printf "[i] Refreshing Whitelists	"
 		Whitelist_Extra
 		Whitelist_CDN
@@ -2341,8 +2342,8 @@ case "$1" in
 		done < /jffs/shared-Skynet-whitelist
 		wait
 		cd "$cwd" || exit 1
-		dos2unix /tmp/skynet/lists/*
-		if ! grep -qE '^([0-9]{1,3}\.){3}[0-9]{1,3}?/?[0-9]{1,2}$' /tmp/skynet/lists/*; then
+		dos2unix /tmp/skynet/lists/* 2>/dev/null
+		if ! grep -qE '^([0-9]{1,3}\.){3}[0-9]{1,3}?/?[0-9]{1,2}$' /tmp/skynet/lists/* 2>/dev/null; then
 			$red "[$(($(date +%s) - btime))s]"
 			echo "[*] List Content Error Detected - Stopping Banmalware"
 			nocfg="1"
