@@ -20,12 +20,12 @@ sed -n '2,16p' "$0"
 export LC_ALL=C
 mkdir -p /tmp/skynet/lists
 
-retry=1
-while [ "$(nvram get ntp_ready)" = "0" ] && [ "$retry" -lt "300" ]; do
-	retry=$((retry+1))
+ntptimer=0
+while [ "$(nvram get ntp_ready)" = "0" ] && [ "$ntptimer" -lt "300" ]; do
+	ntptimer=$((ntptimer+1))
 	sleep 1
 done
-if [ "$retry" -ge "300" ]; then logger -st Skynet "[*] NTP Failed To Start After 5 Minutes - Please Fix Immediately!"; echo; exit 1; fi
+if [ "$ntptimer" -ge "300" ]; then logger -st Skynet "[*] NTP Failed To Start After 5 Minutes - Please Fix Immediately!"; echo; exit 1; fi
 
 
 red="printf \\e[1;31m%s\\e[0m\\n"
@@ -77,11 +77,11 @@ Check_Lock () {
 
 if [ ! -d "$skynetloc" ] && ! echo "$@" | grep -wqE "(install|uninstall|disable|update|restart|info)"; then
 	Check_Lock "$@"
-	retry="0"
-	if [ -z "$skynetloc" ]; then retry="10"; fi
-	while [ ! -d "$skynetloc" ] && [ "$retry" -lt "11" ]; do
-		retry=$((retry+1))
-		logger -st Skynet "[*] USB Not Found - Sleeping For 10 Seconds ( Attempt $retry Of 10 )"
+	usbtest="0"
+	if [ -z "$skynetloc" ]; then usbtest="10"; fi
+	while [ ! -d "$skynetloc" ] && [ "$usbtest" -lt "11" ]; do
+		usbtest=$((usbtest+1))
+		logger -st Skynet "[*] USB Not Found - Sleeping For 10 Seconds ( Attempt $usbtest Of 10 )"
 		sleep 10
 	done
 	if [ ! -d "$skynetloc" ] || [ ! -w "$skynetloc" ]; then
@@ -106,7 +106,7 @@ Check_Settings () {
 
 		conflicting_scripts="(IPSet_Block.sh|malware-filter|privacy-filter|ipBLOCKer.sh|ya-malware-block.sh|iblocklist-loader.sh|firewall-reinstate.sh)$"
 		if /usr/bin/find /jffs /tmp/mnt | grep -qE "$conflicting_scripts"; then
-			logger -st Skynet "[*] $(/usr/bin/find /jffs /tmp/mnt | grep -E "$conflicting_scripts" | xargs) Detected - This Script Will Cause Conflicts! Please Uninstall It ASAP"
+			logger -st Skynet "[*] $(/usr/bin/find /jffs /tmp/mnt | grep -E "$conflicting_scripts" | xargs) Detected - This Script Will Cause Conflicts! Please Remove Immediately."
 		fi
 
 		swaplocation="$(grep -E "^swapon " /jffs/scripts/post-mount | awk '{print $2}')"
