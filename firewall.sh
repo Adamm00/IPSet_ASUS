@@ -391,7 +391,7 @@ Is_Range () {
 }
 
 Is_IPRange () {
-		grep -qE '^([0-9]{1,3}\.){3}[0-9]{1,3}?/?[0-9]{1,2}$'
+		grep -qE '^([0-9]{1,3}\.){3}[0-9]{1,3}(/[0-9]{1,2})?$'
 }
 
 Is_Port () {
@@ -2338,7 +2338,7 @@ case "$1" in
 		else
 			/usr/sbin/curl -fsL --retry 3 "$listurl" | dos2unix > /jffs/shared-Skynet-whitelist && $grn "[$(($(date +%s) - btime))s]"
 		fi
-		sed -i "\\~^http://\|^https://\|^www.~!d;" /jffs/shared-Skynet-whitelist
+		sed -i "\\~^http[s]*://\|^www.~!d;" /jffs/shared-Skynet-whitelist
 		echo >> /jffs/shared-Skynet-whitelist
 		btime="$(date +%s)" && printf "[i] Refreshing Whitelists	"
 		Whitelist_Extra
@@ -2356,7 +2356,7 @@ case "$1" in
 		wait
 		cd "$cwd" || exit 1
 		dos2unix /tmp/skynet/lists/* 2>/dev/null
-		if ! grep -qE '^([0-9]{1,3}\.){3}[0-9]{1,3}?/?[0-9]{1,2}$' /tmp/skynet/lists/* 2>/dev/null; then
+		if ! grep -qE '^([0-9]{1,3}\.){3}[0-9]{1,3}(/[0-9]{1,2})?$' /tmp/skynet/lists/* 2>/dev/null; then
 			$red "[$(($(date +%s) - btime))s]"
 			echo "[*] List Content Error Detected - Stopping Banmalware"
 			nocfg="1"
@@ -3292,6 +3292,7 @@ case "$1" in
 				tar -czvf "${skynetloc}/Skynet-Backup.tar.gz" -C "$skynetloc" skynet.ipset skynet.log events.log skynet.cfg
 				echo
 				echo "[i] Backup Saved To ${skynetloc}/Skynet-Backup.tar.gz"
+				echo "[i] Copy This File To A Safe Location"
 			;;
 			restore)
 				Check_Lock "$@"
