@@ -131,7 +131,7 @@ Check_Settings () {
 			nvram set fw_log_x=drop
 		fi
 
-		localver="$(Filter_Version "$0")"
+		localver="$(Filter_Version < "$0")"
 
 		if [ "$banmalwareupdate" = "daily" ]; then
 			Load_Cron "banmalwaredaily"
@@ -406,21 +406,17 @@ Domain_Lookup () {
 		nslookup "$(echo "$1" | Strip_Domain)" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' | awk 'NR>2'
 }
 
-Extended_Stats () {
+Extended_DNSStats () {
 		domainlist="$(grep -E "$(echo "$ip" | cut -d '/' -f6-)" /tmp/skynet/skynetstats.txt | awk '{print $1}' | Strip_Domain | xargs)"
 		echo "${ip}$([ -n "$domainlist" ] && echo " - [$domainlist]")"
 }
 
 Filter_Version () {
-		if [ -n "$1" ]; then
-			grep -m1 -oE 'v[0-9]{1,2}([.][0-9]{1,2})([.][0-9]{1,2})' "$1"
-		else
 			grep -m1 -oE 'v[0-9]{1,2}([.][0-9]{1,2})([.][0-9]{1,2})'
-		fi
 }
 
 Filter_Date () {
-		grep -m1 -oE '[0-9]{1,2}([/][0-9]{1,2})([/][0-9]{1,4})' "$1"
+		grep -m1 -oE '[0-9]{1,2}([/][0-9]{1,2})([/][0-9]{1,4})'
 }
 
 Filter_PrivateIP () {
@@ -462,7 +458,7 @@ Refresh_AiProtect () {
 			if [ -f /opt/bin/opkg ] && [ ! -f /opt/bin/sqlite3 ]; then
 				opkg update && opkg install sqlite3-cli
 			fi
-			if [ -f /opt/bin/opkg ] && [ -f /opt/bin/sqlite3 ] && sqlite3 /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db "SELECT src FROM monitor;" | grep -qE '^([0-9]{1,3}\.){3}[0-9]{1,3}$'; then
+			if [ -f /opt/bin/opkg ] && [ -f /opt/bin/sqlite3 ] && sqlite3 /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db "SELECT src FROM monitor;" | Is_IP; then
 				sed "\\~add Skynet-Blacklist ~!d;\\~BanAiProtect~!d;s~ comment.*~~;s~add~del~g" "$skynetipset" | ipset restore -!
 				sqlite3 /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db "SELECT src FROM monitor;" | grep -oE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' | awk '!x[$0]++' | Filter_PrivateIP | awk '{print "add Skynet-Blacklist " $1 " comment \"BanAiProtect\""}'  | ipset restore -!
 			fi
@@ -748,7 +744,7 @@ Write_Config () {
 Load_Menu () {
 	. "$skynetcfg"
 	echo "Router Model; $model"
-	echo "Skynet Version; $localver ($(Filter_Date "$0"))"
+	echo "Skynet Version; $localver ($(Filter_Date < "$0"))"
 	echo "$(iptables --version) - ($iface @ $(nvram get lan_ipaddr))"
 	ipset -v
 	echo "FW Version; $(nvram get buildno)_$(nvram get extendno) ($(uname -v | awk '{print $5" "$6" "$9}')) ($(uname -r))"
@@ -2511,7 +2507,7 @@ case "$1" in
 					echo; exit 2
 				fi
 				dos2unix /tmp/skynet/iplist-unfiltered.txt
-				if ! grep -qE '^([0-9]{1,3}\.){3}[0-9]{1,3}(/[0-9]{1,2})?$' /tmp/skynet/iplist-unfiltered.txt; then { echo "[*] No Content Detected - Stopping Import"; rm -rf /tmp/skynet/iplist-unfiltered.txt; echo; exit 1; }; fi
+				if ! Is_IPRange < /tmp/skynet/iplist-unfiltered.txt; then { echo "[*] No Content Detected - Stopping Import"; rm -rf /tmp/skynet/iplist-unfiltered.txt; echo; exit 1; }; fi
 				echo "[i] Processing List"
 				if [ -n "$4" ] && [ "${#4}" -le "245" ]; then
 					grep -vF "/" /tmp/skynet/iplist-unfiltered.txt | Filter_PrivateIP | awk -v desc="Imported: $4" '{print "add Skynet-Blacklist " $1 " comment \"" desc "\""}' > /tmp/skynet/iplist-filtered.txt
@@ -2545,7 +2541,7 @@ case "$1" in
 					echo; exit 2
 				fi
 				dos2unix /tmp/skynet/iplist-unfiltered.txt
-				if ! grep -qE '^([0-9]{1,3}\.){3}[0-9]{1,3}(/[0-9]{1,2})?$' /tmp/skynet/iplist-unfiltered.txt; then { echo "[*] No Content Detected - Stopping Import"; rm -rf /tmp/skynet/iplist-unfiltered.txt; echo; exit 1; }; fi
+				if ! Is_IPRange < /tmp/skynet/iplist-unfiltered.txt; then { echo "[*] No Content Detected - Stopping Import"; rm -rf /tmp/skynet/iplist-unfiltered.txt; echo; exit 1; }; fi
 				echo "[i] Processing List"
 				if [ -n "$4" ] && [ "${#4}" -le "245" ]; then
 					Filter_PrivateIP < /tmp/skynet/iplist-unfiltered.txt | awk -v desc="Imported: $4" '{print "add Skynet-Whitelist " $1 " comment \"" desc "\""}' > /tmp/skynet/iplist-filtered.txt
@@ -2588,7 +2584,7 @@ case "$1" in
 					echo; exit 2
 				fi
 				dos2unix /tmp/skynet/iplist-unfiltered.txt
-				if ! grep -qE '^([0-9]{1,3}\.){3}[0-9]{1,3}(/[0-9]{1,2})?$' /tmp/skynet/iplist-unfiltered.txt; then { echo "[*] No Content Detected - Stopping Deport"; rm -rf /tmp/skynet/iplist-unfiltered.txt; echo; exit 1; }; fi
+				if ! Is_IPRange < /tmp/skynet/iplist-unfiltered.txt; then { echo "[*] No Content Detected - Stopping Deport"; rm -rf /tmp/skynet/iplist-unfiltered.txt; echo; exit 1; }; fi
 				echo "[i] Processing IPv4 Addresses"
 				grep -vF "/" /tmp/skynet/iplist-unfiltered.txt | Filter_PrivateIP | awk '{print "del Skynet-Blacklist " $1}' > /tmp/skynet/iplist-filtered.txt
 				echo "[i] Processing IPv4 Ranges"
@@ -2617,7 +2613,7 @@ case "$1" in
 					echo; exit 2
 				fi
 				dos2unix /tmp/skynet/iplist-unfiltered.txt
-				if ! grep -qE '^([0-9]{1,3}\.){3}[0-9]{1,3}(/[0-9]{1,2})?$' /tmp/skynet/iplist-unfiltered.txt; then { echo "[*] No Content Detected - Stopping Deport"; rm -rf /tmp/skynet/iplist-unfiltered.txt; echo; exit 1; }; fi
+				if ! Is_IPRange < /tmp/skynet/iplist-unfiltered.txt; then { echo "[*] No Content Detected - Stopping Deport"; rm -rf /tmp/skynet/iplist-unfiltered.txt; echo; exit 1; }; fi
 				echo "[i] Processing IPv4 Addresses"
 				Filter_PrivateIP < /tmp/skynet/iplist-unfiltered.txt | awk '{print "del Skynet-Whitelist " $1}' > /tmp/skynet/iplist-filtered.txt
 				echo "[i] Removing IPs From Whitelist"
@@ -3103,7 +3099,7 @@ case "$1" in
 			;;
 			info)
 				echo "Router Model; $model"
-				echo "Skynet Version; $localver ($(Filter_Date "$0"))"
+				echo "Skynet Version; $localver ($(Filter_Date < "$0"))"
 				echo "$(iptables --version) - ($iface @ $(nvram get lan_ipaddr))"
 				ipset -v
 				echo "FW Version; $(nvram get buildno)_$(nvram get extendno) ($(uname -v | awk '{print $5" "$6" "$9}')) ($(uname -r))"
@@ -3568,7 +3564,7 @@ case "$1" in
 				$red "Last $counter Unique Connections Blocked (Inbound);"
 				if [ "$extendedstats" = "enabled" ]; then
 					grep -E "INBOUND.*$proto" "$skynetlog" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' | awk '!x[$0]++' | head -"$counter" | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}' | while IFS= read -r "ip"; do
-						Extended_Stats
+						Extended_DNSStats
 					done
 				else
 					grep -E "INBOUND.*$proto" "$skynetlog" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' | awk '!x[$0]++' | head -"$counter" | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
@@ -3577,7 +3573,7 @@ case "$1" in
 				$red "Last $counter Unique Connections Blocked (Outbound);"
 				if [ "$extendedstats" = "enabled" ]; then
 					grep -E "OUTBOUND.*$proto" "$skynetlog" | grep -vE 'DPT=80 |DPT=443 ' | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' | awk '!x[$0]++' | head -"$counter" | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}' | while IFS= read -r "ip"; do
-						Extended_Stats
+						Extended_DNSStats
 					done
 				else
 					grep -E "OUTBOUND.*$proto" "$skynetlog" | grep -vE 'DPT=80 |DPT=443 ' | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' | awk '!x[$0]++' | head -"$counter" | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
@@ -3587,7 +3583,7 @@ case "$1" in
 					$red "Last $counter Unique Connections Blocked (Invalid);"
 					if [ "$extendedstats" = "enabled" ]; then
 						grep -E "INVALID.*$proto" "$skynetlog" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' | awk '!x[$0]++' | head -"$counter" | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}' | while IFS= read -r "ip"; do
-							Extended_Stats
+							Extended_DNSStats
 						done
 					else
 						grep -E "INVALID.*$proto" "$skynetlog" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' | awk '!x[$0]++' | head -"$counter" | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
@@ -3597,7 +3593,7 @@ case "$1" in
 				$red "Last $counter Manual Bans;"
 				if [ "$extendedstats" = "enabled" ]; then
 					grep -F "Manual Ban" "$skynetevents" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | tail -"$counter" | awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}' | while IFS= read -r "ip"; do
-						Extended_Stats
+						Extended_DNSStats
 					done
 				else
 					grep -F "Manual Ban" "$skynetevents" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | tail -"$counter" | awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
@@ -3606,7 +3602,7 @@ case "$1" in
 				$red "Last $counter Unique HTTP(s) Blocks (Outbound);"
 				if [ "$extendedstats" = "enabled" ]; then
 					grep -E 'DPT=80 |DPT=443 ' "$skynetlog" | grep -E "OUTBOUND.*$proto" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' | awk '!x[$0]++' | head -"$counter" | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}' | while IFS= read -r "ip"; do
-						Extended_Stats
+						Extended_DNSStats
 					done
 				else
 					grep -E 'DPT=80 |DPT=443 ' "$skynetlog" | grep -E "OUTBOUND.*$proto" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' | awk '!x[$0]++' | head -"$counter" | awk '{print "https://otx.alienvault.com/indicator/ip/"$1}'
@@ -3615,7 +3611,7 @@ case "$1" in
 				$red "Top $counter HTTP(s) Blocks (Outbound);"
 				if [ "$extendedstats" = "enabled" ]; then
 					grep -E 'DPT=80 |DPT=443 ' "$skynetlog" | grep -E "OUTBOUND.*$proto" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}' | while IFS= read -r "ip"; do
-						Extended_Stats
+						Extended_DNSStats
 					done
 				else
 					grep -E 'DPT=80 |DPT=443 ' "$skynetlog" | grep -E "OUTBOUND.*$proto" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}'
@@ -3624,7 +3620,7 @@ case "$1" in
 				$red "Top $counter Blocks (Inbound);"
 				if [ "$extendedstats" = "enabled" ]; then
 					grep -E "INBOUND.*$proto" "$skynetlog" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}' | while IFS= read -r "ip"; do
-						Extended_Stats
+						Extended_DNSStats
 					done
 				else
 					grep -E "INBOUND.*$proto" "$skynetlog" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}'
@@ -3633,7 +3629,7 @@ case "$1" in
 				$red "Top $counter Blocks (Outbound);"
 				if [ "$extendedstats" = "enabled" ]; then
 					grep -E "OUTBOUND.*$proto" "$skynetlog" | grep -vE 'DPT=80 |DPT=443 ' | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}' | while IFS= read -r "ip"; do
-						Extended_Stats
+						Extended_DNSStats
 					done
 				else
 					grep -E "OUTBOUND.*$proto" "$skynetlog" | grep -vE 'DPT=80 |DPT=443 ' | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}'
@@ -3643,7 +3639,7 @@ case "$1" in
 					$red "Top $counter Blocks (Invalid);"
 					if [ "$extendedstats" = "enabled" ]; then
 						grep -E "INVALID.*$proto" "$skynetlog" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}' | while IFS= read -r "ip"; do
-							Extended_Stats
+							Extended_DNSStats
 						done
 					else
 						grep -E "INVALID.*$proto" "$skynetlog" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://otx.alienvault.com/indicator/ip/"$2}'
@@ -3689,7 +3685,7 @@ case "$1" in
 			nvram set fw_log_x=drop
 		fi
 		Check_Files
-		echo "[i] Installing Skynet $(Filter_Version "$0")"
+		echo "[i] Installing Skynet $(Filter_Version < "$0")"
 		echo
 		Manage_Device
 		mkdir -p "${device}/skynet"
