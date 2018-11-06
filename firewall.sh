@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 05/11/2018 -		   Asus Firewall Addition By Adamm v6.5.6				    #
+## - 06/11/2018 -		   Asus Firewall Addition By Adamm v6.5.6				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -105,26 +105,33 @@ Check_Settings () {
 		fi
 
 		conflicting_scripts="(IPSet_Block.sh|malware-filter|privacy-filter|ipBLOCKer.sh|ya-malware-block.sh|iblocklist-loader.sh|firewall-reinstate.sh)$"
-		if /usr/bin/find /jffs /tmp/mnt | grep -qE "$conflicting_scripts"; then
-			logger -st Skynet "[*] $(/usr/bin/find /jffs /tmp/mnt | grep -E "$conflicting_scripts" | xargs) Detected - This Script Will Cause Conflicts! Please Remove Immediately."
+		if find /jffs /tmp/mnt | grep -qE "$conflicting_scripts"; then
+			logger -st Skynet "[*] $(find /jffs /tmp/mnt | grep -E "$conflicting_scripts" | xargs) Detected - This Script Will Cause Conflicts! Please Remove Immediately."
 		fi
 
 		swaplocation="$(grep -E "^swapon " /jffs/scripts/post-mount | awk '{print $2}')"
-		if [ -z "$swaplocation" ] && ! grep -qF "myswap.swp" /proc/swaps && ! grep -E "swap " /jffs/configs/fstab 2>/dev/null; then
+		findswap="$(find /tmp/mnt/*/myswap.swp >/dev/null 2>&1)"
+		if [ -z "$swaplocation" ] && [ "$(wc -l < /proc/swaps)" = "1" ] && [ -z "$findswap" ]; then
 			logger -st Skynet "[*] Skynet Requires A SWAP File - Install One By Running ( $0 debug swap install )"
 			echo; exit 1
-		elif [ -z "$swaplocation" ] && grep -qF "myswap.swp" /proc/swaps; then
-			findswap="$(/usr/bin/find /mnt/*/myswap.swp 2> /dev/null)"
+		elif [ -z "$swaplocation" ] && [ -n "$findswap" ]; then
+			logger -st Skynet "[*] Restoring Damaged Swap File Installation ( $findswap )"
+			sed -i '\~swapon ~d' /jffs/scripts/post-mount
+			echo "swapon $findswap # Skynet Firewall Addition" >> /jffs/scripts/post-mount
+			swapon "$findswap" 2>/dev/null
+			swaplocation="$findswap"
+		elif [ -z "$swaplocation" ] && [ "$(wc -l < /proc/swaps)" -ge "2" ] && ! grep -F "swap" /jffs/configs/fstab 2>/dev/null; then
+			findswap="$(sed -n '2p' /proc/swaps | awk '{print $1}')"
 			if [ -n "$findswap" ]; then
 				logger -st Skynet "[*] Restoring Damaged Swap File Installation ( $findswap )"
 				sed -i '\~swapon ~d' /jffs/scripts/post-mount
 				echo "swapon $findswap # Skynet Firewall Addition" >> /jffs/scripts/post-mount
 				swapon "$findswap" 2>/dev/null
 				swaplocation="$findswap"
-			else
-				logger -st Skynet "[*] SWAP File Missing - Fix This By Running ( $0 debug swap uninstall )"
-				echo; exit 1
 			fi
+		elif [ -n "$swaplocation" ] && [ ! -f "$swaplocation" ]; then
+			logger -st Skynet "[*] SWAP File Missing - Fix This By Running ( $0 debug swap uninstall )"
+			echo; exit 1
 		fi
 
 		if [ "$(nvram get fw_log_x)" != "drop" ] && [ "$(nvram get fw_log_x)" != "both" ]; then
@@ -550,7 +557,7 @@ Whitelist_Shared () {
 		ipset -q -A Skynet-Whitelist "$(nvram get wan0_xdns | awk '{print $2}')"/32 comment "nvram: wan0_xdns"
 		ipset -q -A Skynet-Whitelist 192.30.252.0/22 comment "nvram: Github Content Server"
 		ipset -q -A Skynet-Whitelist 192.168.1.0/24 comment "nvram: LAN Subnet"
-		if [ -n "$(/usr/bin/find /jffs -name 'shared-*-whitelist')" ]; then
+		if [ -n "$(find /jffs -name 'shared-*-whitelist')" ]; then
 			sed '\~add Skynet-Whitelist ~!d;\~Shared-Whitelist~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
 			grep -hvF "#" /jffs/shared-*-whitelist | Strip_Domain | while IFS= read -r "domain"; do
 				for ip in $(Domain_Lookup "$domain" 2> /dev/null); do
@@ -752,7 +759,7 @@ Load_Menu () {
 	ipset -v
 	echo "FW Version; $(nvram get buildno)_$(nvram get extendno) ($(uname -v | awk '{print $5" "$6" "$9}')) ($(uname -r))"
 	echo "Install Dir; $skynetloc ($(df -h "$skynetloc" | xargs | awk '{print $11 " / " $9}') Space Available)"
-	if [ -n "$swaplocation" ]; then echo "SWAP File; $swaplocation ($(du -h "$swaplocation" | awk '{print $1}'))"; fi
+	if [ -f "$swaplocation" ]; then echo "SWAP File; $swaplocation ($(du -h "$swaplocation" | awk '{print $1}'))"; fi
 	echo "Boot Args; $(grep -E "start.* # Skynet" /jffs/scripts/firewall-start 2>/dev/null | grep -vE "^#" | cut -c 4- | cut -d '#' -f1)"
 	if [ -n "$countrylist" ]; then echo "Banned Countries; $countrylist"; fi
 	if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(sed -n '2p' /tmp/skynet.lock)" ]; then $red "[*] Lock File Detected ($(sed -n '1p' /tmp/skynet.lock)) (pid=$(sed -n '2p' /tmp/skynet.lock))"; lockedwarning=1; fi
@@ -3204,8 +3211,8 @@ case "$1" in
 						Check_Lock "$@"
 						Check_Files
 						swaplocation="$(grep -E "^swapon " /jffs/scripts/post-mount | awk '{print $2}')"
-						findswap="$(/usr/bin/find /mnt/*/myswap.swp 2>/dev/null)"
-						if ! grep -qE "^swapon " /jffs/scripts/post-mount && [ -z "$findswap" ]; then
+						findswap="$(find /tmp/mnt/*/myswap.swp >/dev/null 2>&1)"
+						if [ -z "$swaplocation" ] && [ -z "$findswap" ] && ! grep -F "swap" /jffs/configs/fstab 2>/dev/null && [ "$(wc -l < /proc/swaps)" = "1" ]; then
 							Manage_Device
 							Create_Swap
 							echo "[i] Saving Changes"
@@ -3218,7 +3225,7 @@ case "$1" in
 							logger -t Skynet "[%] Restarting Firewall Service"; echo "[%] Restarting Firewall Service"
 							restartfirewall="1"
 							nolog="2"
-						elif ! grep -qE "^swapon " /jffs/scripts/post-mount && [ -n "$findswap" ]; then
+						elif [ -z "$swaplocation" ] && [ -n "$findswap" ]; then
 							echo "[*] Restoring Damaged Swap File Installation ( $findswap )"
 							sed -i '\~swapon ~d' /jffs/scripts/post-mount
 							echo "swapon $findswap # Skynet Firewall Addition" >> /jffs/scripts/post-mount
@@ -3234,7 +3241,26 @@ case "$1" in
 							logger -t Skynet "[%] Restarting Firewall Service"; echo "[%] Restarting Firewall Service"
 							restartfirewall="1"
 							nolog="2"
-						elif grep -qE "^swapon " /jffs/scripts/post-mount && [ ! -f "$(grep -E "^swapon " /jffs/scripts/post-mount | awk '{print $2}')" ]; then
+						elif [ -z "$swaplocation" ] && [ "$(wc -l < /proc/swaps)" -ge "2" ] && ! grep -F "swap" /jffs/configs/fstab 2>/dev/null; then
+							findswap="$(sed -n '2p' /proc/swaps | awk '{print $1}')"
+							if [ -n "$findswap" ]; then
+								echo "[*] Restoring Damaged Swap File Installation ( $findswap )"
+								sed -i '\~swapon ~d' /jffs/scripts/post-mount
+								echo "swapon $findswap # Skynet Firewall Addition" >> /jffs/scripts/post-mount
+								swapon "$findswap" 2>/dev/null
+								swaplocation="$findswap"
+								echo "[i] Saving Changes"
+								Save_IPSets
+								echo "[i] Unloading Skynet Components"
+								Unload_Cron "all"
+								Unload_IPTables
+								Unload_DebugIPTables
+								Unload_IPSets
+								logger -t Skynet "[%] Restarting Firewall Service"; echo "[%] Restarting Firewall Service"
+								restartfirewall="1"
+								nolog="2"
+							fi
+						elif [ -n "$swaplocation" ] && [ ! -f "$swaplocation" ]; then
 							echo "[*] SWAP File Missing - Fix This By First Running ( $0 debug swap uninstall )"
 							nolog="2"
 						else
@@ -3243,8 +3269,11 @@ case "$1" in
 					;;
 					uninstall)
 						Check_Lock "$@"
+						if grep -F "swap" /jffs/configs/fstab 2>/dev/null; then
+							echo "[*] Skynet Can Not Modify Swap Partitions - Exiting!"; echo; exit 1
+						fi
 						if ! grep -qE "^swapon " /jffs/scripts/post-mount 2>/dev/null; then
-							findswap="$(/usr/bin/find /mnt/*/myswap.swp 2> /dev/null)"
+							findswap="$(find /tmp/mnt/*/myswap.swp 2> /dev/null)"
 							if [ -n "$findswap" ]; then
 								swaplocation="$findswap"
 							else
@@ -3264,7 +3293,7 @@ case "$1" in
 						if [ -f "$swaplocation" ]; then
 							sed -i '\~swapon ~d' /jffs/scripts/post-mount
 							swapoff "$swaplocation"
-							if rm -rf "$swaplocation"; then echo "[i] SWAP File Removed"; else "[*] SWAP File Partially Removed - Please Inspect Manually"; fi
+							if rm -r "$swaplocation"; then echo "[i] SWAP File Removed"; else "[*] SWAP File Partially Removed - Please Inspect Manually"; fi
 						else
 							sed -i '\~swapon ~d' /jffs/scripts/post-mount
 							echo "[*] SWAP File Partially Removed - Please Inspect Manually"
@@ -3844,7 +3873,7 @@ case "$1" in
 		done
 		echo
 		echo
-		if ! grep -qE "^swapon " /jffs/scripts/post-mount && ! grep -E "swap " /jffs/configs/fstab 2>/dev/null; then Create_Swap; fi
+		if ! grep -qE "^swapon " /jffs/scripts/post-mount && ! grep -qF "swap" /jffs/configs/fstab 2>/dev/null; then Create_Swap; fi
 		if [ -f "$skynetlog" ]; then mv "$skynetlog" "${device}/skynet/skynet.log"; fi
 		if [ -f "$skynetevents" ]; then mv "$skynetevents" "${device}/skynet/events.log"; fi
 		if [ -f "$skynetipset" ]; then mv "$skynetipset" "${device}/skynet/skynet.ipset"; fi
