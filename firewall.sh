@@ -110,7 +110,7 @@ Check_Settings () {
 		fi
 
 		swaplocation="$(grep -E "^swapon " /jffs/scripts/post-mount | awk '{print $2}')"
-		if [ -z "$swaplocation" ] && ! grep -qF "myswap.swp" /proc/swaps && ! grep -E "^swap " /jffs/configs/fstab 2>/dev/null; then
+		if [ -z "$swaplocation" ] && ! grep -qF "myswap.swp" /proc/swaps && ! grep -E "swap " /jffs/configs/fstab 2>/dev/null; then
 			logger -st Skynet "[*] Skynet Requires A SWAP File - Install One By Running ( $0 debug swap install )"
 			echo; exit 1
 		elif [ -z "$swaplocation" ] && grep -qF "myswap.swp" /proc/swaps; then
