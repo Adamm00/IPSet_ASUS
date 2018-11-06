@@ -3844,7 +3844,7 @@ case "$1" in
 		done
 		echo
 		echo
-		if ! grep -qE "^swapon " /jffs/scripts/post-mount && ! grep -E "^swap " /jffs/configs/fstab 2>/dev/null; then Create_Swap; fi
+		if ! grep -qE "^swapon " /jffs/scripts/post-mount && ! grep -E "swap " /jffs/configs/fstab 2>/dev/null; then Create_Swap; fi
 		if [ -f "$skynetlog" ]; then mv "$skynetlog" "${device}/skynet/skynet.log"; fi
 		if [ -f "$skynetevents" ]; then mv "$skynetevents" "${device}/skynet/events.log"; fi
 		if [ -f "$skynetipset" ]; then mv "$skynetipset" "${device}/skynet/skynet.ipset"; fi
