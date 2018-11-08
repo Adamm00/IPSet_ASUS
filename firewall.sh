@@ -97,6 +97,9 @@ else
 	iface="$(nvram get wan0_ifname)"
 fi
 
+Check_Swap () {
+	[ "$(wc -l < /proc/swaps)" -ge "2" ] && true || false
+}
 
 Check_Settings () {
 		if [ ! -f "$skynetcfg" ]; then
@@ -111,7 +114,7 @@ Check_Settings () {
 
 		unset "swappartition" "swaplocation"
 		if grep -qE "^swapon " /jffs/scripts/post-mount; then
-			if [ "$(wc -l < /proc/swaps)" -ge "2" ]; then
+			if Check_Swap; then
 				swaplocation="$(sed -n '2p' /proc/swaps | awk '{print $1}')"
 				if [ "$(grep -E "^swapon " /jffs/scripts/post-mount | awk '{print $2}')" != "$swaplocation" ]; then
 					logger -st Skynet "[*] Restoring Damaged Swap File ( $swaplocation )"
@@ -120,7 +123,7 @@ Check_Settings () {
 				fi
 			fi
 		elif grep -qF "swap" /jffs/configs/fstab; then
-			if [ "$(wc -l < /proc/swaps)" -ge "2" ]; then
+			if Check_Swap; then
 				swappartition="$(sed -n '2p' /proc/swaps | awk '{print $1}')"
 			fi
 		else
@@ -129,9 +132,9 @@ Check_Settings () {
 				logger -st Skynet "[*] Restoring Damaged Swap File ( $findswap )"
 				sed -i '\~swapon ~d' /jffs/scripts/post-mount
 				sed -i "2i swapon $findswap # Skynet Firewall Addition" /jffs/scripts/post-mount
-				if [ "$(wc -l < /proc/swaps)" -lt "2" ]; then swapon "$findswap"; fi
+				if ! Check_Swap; then swapon "$findswap"; fi
 				swaplocation="$findswap"
-			elif [ "$(wc -l < /proc/swaps)" -ge "2" ] && ! grep -qF "partition" /proc/swaps; then
+			elif Check_Swap && ! grep -qF "partition" /proc/swaps; then
 				findswap="$(sed -n '2p' /proc/swaps | awk '{print $1}')"
 				if [ -n "$findswap" ] && [ -f "$findswap" ]; then
 					logger -st Skynet "[*] Restoring Damaged Swap File ( $findswap )"
@@ -144,10 +147,10 @@ Check_Settings () {
 		if [ -n "$swaplocation" ] && [ ! -f "$swaplocation" ]; then
 			logger -st Skynet "[*] SWAP File Missing - Fix This By Running ( $0 debug swap uninstall )"
 			echo; exit 1
-		elif [ -n "$swappartition" ] && [ "$(wc -l < /proc/swaps)" -lt "2" ]; then
+		elif [ -n "$swappartition" ] && ! Check_Swap; then
 			logger -st Skynet "[*] SWAP Partition Missing - Please Investigate Manually"
 			echo; exit 1
-		elif [ -z "$swaplocation" ] && [ -z "$swappartition" ]; then
+		elif [ -z "$swaplocation" ] && [ -z "$swappartition" ] && ! Check_Swap; then
 			logger -st Skynet "[*] Skynet Requires A SWAP File - Install One By Running ( $0 debug swap install )"
 			echo; exit 1
 		fi
@@ -3247,7 +3250,7 @@ case "$1" in
 						if [ -z "$findswap" ] && ! grep -qF "partition" /proc/swaps; then
 							findswap="$(sed -n '2p' /proc/swaps | awk '{print $1}')"
 						fi 
-						if [ -z "$swaplocation" ] && [ -z "$findswap" ] && ! grep -F "swap" /jffs/configs/fstab && [ "$(wc -l < /proc/swaps)" = "1" ]; then
+						if [ -z "$swaplocation" ] && [ -z "$findswap" ] && ! grep -F "swap" /jffs/configs/fstab && ! Check_Swap; then
 							Manage_Device
 							Create_Swap
 							echo "[i] Saving Changes"
