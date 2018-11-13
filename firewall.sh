@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 09/11/2018 -		   Asus Firewall Addition By Adamm v6.5.7				    #
+## - 14/11/2018 -		   Asus Firewall Addition By Adamm v6.5.7				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -98,7 +98,7 @@ else
 fi
 
 Check_Swap () {
-	[ "$(wc -l < /proc/swaps)" -ge "2" ] && true || false
+	[ "$(wc -l < /proc/swaps)" -ge "2" ]
 }
 
 Check_Settings () {
@@ -427,6 +427,10 @@ Is_IPRange () {
 
 Is_Port () {
 		grep -qE '^[0-9]{1,5}$'
+}
+
+Is_Domain () {
+		grep -qE '^[a-zA-Z0-9][-a-zA-Z0-9]+[a-zA-Z0-9].[a-z]{2,3}(.[a-z]{2,3})?(.[a-z]{2,63})?$'
 }
 
 Strip_Domain () {
@@ -882,6 +886,8 @@ Load_Menu () {
 							read -r "option3"
 							echo
 							if [ -z "$option3" ]; then echo "[*] URL Field Can't Be Empty - Please Try Again"; echo; unset "option2" "option3"; continue; fi
+							domain="$(echo $option3 | Strip_Domain)"
+							if ! echo "$domain" | Is_Domain; then echo "[*] Domain Not Valid - Please Try Again"; echo; unset "option2" "option3"; continue; fi
 							break
 						;;
 						4)
@@ -978,6 +984,8 @@ Load_Menu () {
 							read -r "option3"
 							echo
 							if [ -z "$option3" ]; then echo "[*] URL Field Can't Be Empty - Please Try Again"; echo; unset "option2" "option3"; continue; fi
+							domain="$(echo $option3 | Strip_Domain)"
+							if ! echo "$domain" | Is_Domain; then echo "[*] Domain Not Valid - Please Try Again"; echo; unset "option2" "option3"; continue; fi
 							break
 						;;
 						4)
@@ -1106,6 +1114,8 @@ Load_Menu () {
 							read -r "option3"
 							echo
 							if [ -z "$option3" ]; then echo "[*] URL Field Can't Be Empty - Please Try Again"; echo; unset "option2" "option3"; continue; fi
+							domain="$(echo $option3 | Strip_Domain)"
+							if ! echo "$domain" | Is_Domain; then echo "[*] Domain Not Valid - Please Try Again"; echo; unset "option2" "option3"; continue; fi
 							break
 						;;
 						3)
@@ -2189,8 +2199,10 @@ case "$1" in
 			domain)
 				if ! Check_Connection; then echo "[*] Connection Error Detected - Exiting"; echo; exit 1; fi
 				if [ -z "$3" ]; then echo "[*] Domain Field Can't Be Empty - Please Try Again"; echo; exit 2; fi
-				echo "[i] Removing $3 From Blacklist"
-				for ip in $(Domain_Lookup "$3"); do
+				domain="$(echo $3 | Strip_Domain)"
+				if ! echo "$domain" | Is_Domain; then echo "[*] Domain Not Valid - Please Try Again"; echo; exit 2; fi
+				echo "[i] Removing $domain From Blacklist"
+				for ip in $(Domain_Lookup "$domain"); do
 					echo "[i] Unbanning $ip"
 					ipset -D Skynet-Blacklist "$ip"
 					sed -i "\\~\\(BLOCKED.*=$ip \\|Manual Ban.*=$ip \\)~d" "$skynetlog" "$skynetevents"
@@ -2272,8 +2284,10 @@ case "$1" in
 			;;
 			domain)
 				if [ -z "$3" ]; then echo "[*] Domain Field Can't Be Empty - Please Try Again"; echo; exit 2; fi
-				echo "[i] Adding $3 To Blacklist"
-				for ip in $(Domain_Lookup "$3"); do
+				domain="$(echo $3 | Strip_Domain)"
+				if ! echo "$domain" | Is_Domain; then echo "[*] Domain Not Valid - Please Try Again"; echo; exit 2; fi
+				echo "[i] Adding $domain To Blacklist"
+				for ip in $(Domain_Lookup "$domain"); do
 					echo "[i] Banning $ip"
 					ipset -A Skynet-Blacklist "$ip" comment "ManualBanD: $3" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$3 " >> "$skynetevents"
 				done
@@ -2440,8 +2454,10 @@ case "$1" in
 			domain)
 				if ! Check_Connection; then echo "[*] Connection Error Detected - Exiting"; echo; exit 1; fi
 				if [ -z "$3" ]; then echo "[*] Domain Field Can't Be Empty - Please Try Again"; echo; exit 2; fi
-				echo "[i] Adding $3 To Whitelist"
-				for ip in $(Domain_Lookup "$3"); do
+				domain="$(echo $3 | Strip_Domain)"
+				if ! echo "$domain" | Is_Domain; then echo "[*] Domain Not Valid - Please Try Again"; echo; exit 2; fi
+				echo "[i] Adding $domain To Whitelist"
+				for ip in $(Domain_Lookup "$domain"); do
 					echo "[i] Whitelisting $ip"
 					ipset -A Skynet-Whitelist "$ip" comment "ManualWlistD: $3" && sed -i "\\~=$ip ~d" "$skynetlog" "$skynetevents" && echo "$(date +"%b %d %T") Skynet: [Manual Whitelist] TYPE=Domain SRC=$ip Host=$3 " >> "$skynetevents"
 					ipset -q -D Skynet-Blacklist "$ip"
