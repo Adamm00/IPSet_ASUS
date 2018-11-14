@@ -474,7 +474,7 @@ Spinner_End () {
 		if [ -f /tmp/skynet/spinstart ]; then
 			pider="$(cat /tmp/skynet/spinstart)"
 			rm -rf /tmp/skynet/spinstart
-			while [ -d "/proc/${pider}" ]; do true; done
+			wait "$pider"
 		fi
 }
 
@@ -2406,7 +2406,6 @@ case "$1" in
 			fi
 		fi
 		curl -sI "$listurl" | grep -qE "HTTP/1.[01] [23].." || { echo "[*] 404 Error Detected - Stopping Banmalware"; echo; exit 1; }
-		Spinner_Start
 		btime="$(date +%s)" && printf "[i] Downloading filter.list 	"
 		if [ -n "$excludelists" ]; then
 			/usr/sbin/curl -fsL --retry 3 "$listurl" | dos2unix | grep -vE "($excludelists)" > /jffs/shared-Skynet-whitelist && $grn "[$(($(date +%s) - btime))s]"
@@ -2729,7 +2728,6 @@ case "$1" in
 	start)
 		Check_Lock "$@"
 		Spinner_End
-		trap '' 2
 		logger -st Skynet "[%] Startup Initiated... ( $(echo "$@" | sed 's~start ~~g') )"
 		Unload_Cron "all"
 		Check_Settings
@@ -2803,7 +2801,6 @@ case "$1" in
 	update)
 		Check_Lock "$@"
 		if ! Check_Connection; then echo "[*] Connection Error Detected - Exiting"; echo; exit 1; fi
-		trap '' 2
 		remoteurl="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh"
 		/usr/sbin/curl -fsL --retry 3 "$remoteurl" | grep -qF "Adamm" || { logger -st Skynet "[*] 404 Error Detected - Stopping Update"; echo; exit 1; }
 		remotever="$(/usr/sbin/curl -fsL --retry 3 "$remoteurl" | Filter_Version)"
