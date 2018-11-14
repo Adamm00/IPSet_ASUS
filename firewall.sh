@@ -127,7 +127,7 @@ Check_Settings () {
 				swappartition="$(sed -n '2p' /proc/swaps | awk '{print $1}')"
 			fi
 		else
-			findswap="$(find /tmp/mnt/*/myswap.swp >/dev/null 2>&1)"
+			findswap="$(find /tmp/mnt -name "myswap.swp" >/dev/null 2>&1)"
 			if [ -n "$findswap" ] && [ -f "$findswap" ]; then
 				logger -st Skynet "[*] Restoring Damaged Swap File ( $findswap )"
 				sed -i '\~swapon ~d' /jffs/scripts/post-mount
@@ -481,7 +481,6 @@ Spinner_End () {
 Spinner_Start () {
 		Spinner_End
 		touch /tmp/skynet/spinstart
-		trap 'Spinner_End' 2
 		{ while [ -f "/tmp/skynet/spinstart" ]; do 
 			for c in \*-- -\*- --\* ; do
 				printf '\e[1;32m%s\e[0m\b\b\b' "$c" 
@@ -2190,6 +2189,7 @@ if [ -n "$option1" ]; then
 	echo
 fi
 
+trap 'Spinner_End' EXIT
 Spinner_Start
 
 if [ -f "$skynetcfg" ]; then
@@ -2350,7 +2350,6 @@ case "$1" in
 		Check_Lock "$@"
 		if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 		if ! Check_Connection; then echo "[*] Connection Error Detected - Exiting"; echo; exit 1; fi
-		trap '' 2
 		Purge_Logs
 		if [ "$2" = "disable" ] && [ "$fastswitch" = "disabled" ] && [ "$1" = "fs" ]; then
 			echo "[*] Fast Switch Already Disabled - Stopping Banmalware"
@@ -2454,7 +2453,6 @@ case "$1" in
 			echo "[i] https://www.snbforums.com/threads/skynet-asus-firewall-addition.16798/#post-115872"
 		fi
 		Clean_Temp
-		trap - 2
 		echo
 	;;
 
@@ -2762,7 +2760,6 @@ case "$1" in
 		Load_IPTables
 		Load_DebugIPTables
 		sed -i '\~DROP IN=~d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null
-		trap - 2
 		if [ "$forcebanmalwareupdate" = "true" ]; then Write_Config; rm -rf "/tmp/skynet.lock"; exec "$0" banmalware; fi
 	;;
 
@@ -2828,7 +2825,6 @@ case "$1" in
 			service restart_firewall
 			echo; exit 0
 		fi
-		trap - 2
 		echo
 	;;
 
@@ -3094,7 +3090,7 @@ case "$1" in
 			watch)
 				if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 				if [ "$debugmode" = "disabled" ]; then echo "[*] Debug Mode Is Disabled - Exiting!"; echo; exit 2; fi
-				trap 'echo;echo; echo "[*] Stopping Log Monitoring"; Purge_Logs' 2
+				trap 'echo;echo; echo "[*] Stopping Log Monitoring"; Purge_Logs; Spinner_End' 2
 				echo "[i] Watching Logs For Debug Entries (ctrl +c) To Stop"
 				echo
 				Purge_Logs
@@ -3286,7 +3282,7 @@ case "$1" in
 						Check_Lock "$@"
 						Check_Files
 						swaplocation="$(grep -E "^swapon " /jffs/scripts/post-mount | awk '{print $2}')"
-						findswap="$(find /tmp/mnt/*/myswap.swp >/dev/null 2>&1)"
+						findswap="$(find /tmp/mnt -name "myswap.swp" >/dev/null 2>&1)"
 						if [ -z "$findswap" ] && ! grep -qF "partition" /proc/swaps; then
 							findswap="$(sed -n '2p' /proc/swaps | awk '{print $1}')"
 						fi 
@@ -3332,7 +3328,7 @@ case "$1" in
 							echo "[*] Skynet Can Not Modify Swap Partitions - Exiting!"; echo; exit 1
 						fi
 						if ! grep -qE "^swapon " /jffs/scripts/post-mount; then
-							findswap="$(find /tmp/mnt/*/myswap.swp 2> /dev/null)"
+							findswap="$(find /tmp/mnt -name "myswap.swp" 2> /dev/null)"
 							if [ -n "$findswap" ]; then
 								swaplocation="$findswap"
 							elif [ -z "$findswap" ]; then
@@ -3763,7 +3759,7 @@ case "$1" in
 	install)
 		Check_Lock "$@"
 		Spinner_End
-		if ! ipset -v | grep -qF "v6"; then
+		if ! ipset -v | grep -qE 'v6|v7'; then
 			echo "[*] IPSet Version Not Supported - Please Update To Latest Firmware"
 			echo; exit 1
 		fi
