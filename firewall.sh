@@ -470,6 +470,28 @@ Filter_PrivateDST () {
 		grep -E '(DST=127\.)|(DST=10\.)|(DST=172\.1[6-9]\.)|(DST=172\.2[0-9]\.)|(DST=172\.3[0-1]\.)|(DST=192\.168\.)|(DST=0.)|(DST=169\.254\.)|(DST=22[4-9]\.)|(DST=23[0-9]\.)|(DST=255\.255\.255\.255)'
 }
 
+Spinner_End () {
+		if [ -f /tmp/skynet/spinstart ]; then
+			pider="$(cat /tmp/skynet/spinstart)"
+			rm -rf /tmp/skynet/spinstart
+			while [ -d "/proc/${pider}" ]; do true; done
+		fi
+}
+
+Spinner_Start () {
+		Spinner_End
+		touch /tmp/skynet/spinstart
+		trap 'Spinner_End' 2
+		{ while [ -f "/tmp/skynet/spinstart" ]; do 
+			for c in \*-- -\*- --\* ; do
+				printf '\e[1;32m%s\e[0m\b\b\b' "$c" 
+				usleep 200000 
+				printf '   \b\b\b'
+			done
+		done; } &
+		echo "$!" > /tmp/skynet/spinstart
+}
+
 Save_IPSets () {
 		if Check_Status; then
 			{ ipset save Skynet-Whitelist; ipset save Skynet-Blacklist; ipset save Skynet-BlockedRanges; ipset save Skynet-Master; } > "$skynetipset" 2>/dev/null
@@ -514,7 +536,7 @@ Refresh_MBans () {
 					ipset -q -A Skynet-Blacklist "$ip" comment "ManualBanD: $domain" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$domain " >> "$skynetevents"
 				done
 			done < /tmp/skynet/mbans.list
-			wait
+			Spinner_End; wait; Spinner_Start
 			rm -rf /tmp/skynet/mbans.list
 		fi
 }
@@ -529,7 +551,7 @@ Refresh_MWhitelist () {
 					ipset -q -A Skynet-Whitelist "$ip" comment "ManualWlistD: $domain" && echo "$(date +"%b %d %T") Skynet: [Manual Whitelist] TYPE=Domain SRC=$ip Host=$domain " >> "$skynetevents"
 				done &
 			done < /tmp/skynet/mwhitelist.list
-			wait
+			Spinner_End; wait; Spinner_Start
 			cat /tmp/skynet/mwhitelist.list >> /jffs/shared-Skynet2-whitelist
 			rm -rf /tmp/skynet/mwhitelist.list
 		fi
@@ -592,7 +614,7 @@ Whitelist_Shared () {
 					ipset -q -A Skynet-Whitelist "$ip" comment "Shared-Whitelist: $domain"
 				done &
 			done
-			wait
+			Spinner_End; wait; Spinner_Start
 		fi
 }
 
@@ -2168,6 +2190,8 @@ if [ -n "$option1" ]; then
 	echo
 fi
 
+Spinner_Start
+
 if [ -f "$skynetcfg" ]; then
 	. "$skynetcfg"
 fi
@@ -2382,6 +2406,7 @@ case "$1" in
 			fi
 		fi
 		curl -sI "$listurl" | grep -qE "HTTP/1.[01] [23].." || { echo "[*] 404 Error Detected - Stopping Banmalware"; echo; exit 1; }
+		Spinner_Start
 		btime="$(date +%s)" && printf "[i] Downloading filter.list 	"
 		if [ -n "$excludelists" ]; then
 			/usr/sbin/curl -fsL --retry 3 "$listurl" | dos2unix | grep -vE "($excludelists)" > /jffs/shared-Skynet-whitelist && $grn "[$(($(date +%s) - btime))s]"
@@ -2403,7 +2428,7 @@ case "$1" in
 		while IFS= read -r "domain" && [ -n "$domain" ]; do
 			/usr/sbin/curl -fsL --retry 3 "$domain" -O &
 		done < /jffs/shared-Skynet-whitelist
-		wait
+		Spinner_End; wait; Spinner_Start
 		cd "$cwd" || exit 1
 		dos2unix /tmp/skynet/lists/* 2>/dev/null
 		if ! grep -qE '^([0-9]{1,3}\.){3}[0-9]{1,3}(/[0-9]{1,2})?$' /tmp/skynet/lists/* 2>/dev/null; then
@@ -2690,6 +2715,7 @@ case "$1" in
 
 	save)
 		Check_Lock "$@"
+		Spinner_End
 		if ! Check_Status; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 		Unban_PrivateIP
 		Purge_Logs
@@ -2702,6 +2728,7 @@ case "$1" in
 
 	start)
 		Check_Lock "$@"
+		Spinner_End
 		trap '' 2
 		logger -st Skynet "[%] Startup Initiated... ( $(echo "$@" | sed 's~start ~~g') )"
 		Unload_Cron "all"
@@ -3525,16 +3552,16 @@ case "$1" in
 						while IFS= read -r "domain" && [ -n "$domain" ]; do
 							/usr/sbin/curl -fsL --retry 3 "$domain" -O &
 						done < /jffs/shared-Skynet-whitelist
-						wait
+						Spinner_End; wait; Spinner_Start
 						dos2unix /tmp/skynet/lists/*
 						cd "$cwd" || exit 1
 						$red "Exact Matches;"
-						grep -HE "^$ip$" /tmp/skynet/lists/* | cut -d '/' -f4- | while IFS= read -r "list"; do
+						grep -HE "^$ip$" /tmp/skynet/lists/* | cut -d '/' -f5- | while IFS= read -r "list"; do
 							echo "$(grep -F "$(echo "$list" | cut -d ':' -f1)" /jffs/shared-Skynet-whitelist) - $(echo "$list" | cut -d ':' -f2-)"
 						done
 						echo;echo
 						$red "Possible CIDR Matches;"
-						grep -HE "^$(echo "$ip" | cut -d '.' -f1-3)..*/" /tmp/skynet/lists/* | cut -d '/' -f4- | while IFS= read -r "list"; do
+						grep -HE "^$(echo "$ip" | cut -d '.' -f1-3)..*/" /tmp/skynet/lists/* | cut -d '/' -f5- | while IFS= read -r "list"; do
 							echo "$(grep -F "$(echo "$list" | cut -d ':' -f1)" /jffs/shared-Skynet-whitelist) - $(echo "$list" | cut -d ':' -f2-)"
 						done
 						echo
@@ -3738,6 +3765,7 @@ case "$1" in
 
 	install)
 		Check_Lock "$@"
+		Spinner_End
 		if ! ipset -v | grep -qF "v6"; then
 			echo "[*] IPSet Version Not Supported - Please Update To Latest Firmware"
 			echo; exit 1
@@ -3965,6 +3993,7 @@ case "$1" in
 	;;
 
 	uninstall)
+		Spinner_End
 		echo "If You Were Experiencing Issues, Try Update Or Visit SNBForums/Github For Support"
 		echo "https://github.com/Adamm00/IPSet_ASUS"
 		echo
@@ -4050,6 +4079,7 @@ case "$1" in
 
 esac
 
+Spinner_End
 if [ "$nolog" != "2" ]; then Print_Log "$@"; echo; fi
 if [ "$nocfg" != "1" ]; then Write_Config; fi
 if [ "$lockskynet" = "true" ]; then rm -rf "/tmp/skynet.lock"; fi
