@@ -453,13 +453,13 @@ Domain_Lookup () {
 }
 
 Extended_DNSStats1 () {
-		printf "%-16s | %-56s | %-60s %s\n" "$statdata" "https://otx.alienvault.com/indicator/ip/${statdata}" "$(grep -F "$statdata" /tmp/skynet/skynetstats.txt | awk '{print $1}' | Strip_Domain | xargs)"
+		printf "%-16s | %-56s | %-60s \n" "$statdata" "https://otx.alienvault.com/indicator/ip/${statdata}" "$(grep -F "$statdata" /tmp/skynet/skynetstats.txt | awk '{print $1}' | Strip_Domain | xargs)"
 }
 
 Extended_DNSStats2 () {
-		hits="$(echo $statdata | awk '{print $1}')"
-		ipaddr="$(echo $statdata | awk '{print $2}')"
-		printf "%-8s | %-16s | %-55s | %-60s %s\n" "${hits}x" "${ipaddr}" "https://otx.alienvault.com/indicator/ip/${ipaddr}" "$(grep -F "$ipaddr" /tmp/skynet/skynetstats.txt | awk '{print $1}' | Strip_Domain | xargs)"
+		hits="$(echo "$statdata" | awk '{print $1}')"
+		ipaddr="$(echo "$statdata" | awk '{print $2}')"
+		printf "%-8s | %-16s | %-55s | %-60s\n" "${hits}x" "${ipaddr}" "https://otx.alienvault.com/indicator/ip/${ipaddr}" "$(grep -F "$ipaddr" /tmp/skynet/skynetstats.txt | awk '{print $1}' | Strip_Domain | xargs)"
 }
 
 Filter_Version () {
@@ -3665,107 +3665,107 @@ case "$1" in
 				fi
 				printf "\n\n=============================================================================================================\n\n\n"
 				Red "Top $counter Targeted Ports (Inbound);"
-				printf "\n\n%-8s | %-8s | %-60s %s\n" "----" "----" "----------"
-				printf "%-8s | %-8s | %-60s %s\n" "Hits" "Port" "SpeedGuide"
-				printf "%-8s | %-8s | %-60s %s\n\n" "----" "----" "----------"
-				grep -E "INBOUND.*$proto" "$skynetlog" | grep -oE 'DPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{printf "%-8s | %-8s | %-60s %s\n", $1 "x", $2, "https://www.speedguide.net/port.php?port=" $2 }'
+				printf "\n\n%-8s | %-8s | %-60s\n" "----" "----" "----------"
+				printf "%-8s | %-8s | %-60s\n" "Hits" "Port" "SpeedGuide"
+				printf "%-8s | %-8s | %-60s\n\n" "----" "----" "----------"
+				grep -E "INBOUND.*$proto" "$skynetlog" | grep -oE 'DPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{printf "%-8s | %-8s | %-60s\n", $1 "x", $2, "https://www.speedguide.net/port.php?port=" $2 }'
 				printf "\n\n=============================================================================================================\n\n\n"
 				Red "Top $counter Source Ports (Inbound);"
-				printf "\n\n%-8s | %-8s | %-60s %s\n" "----" "----" "----------"
-				printf "%-8s | %-8s | %-60s %s\n" "Hits" "Port" "SpeedGuide"
-				printf "%-8s | %-8s | %-60s %s\n\n" "----" "----" "----------"
-				grep -E "INBOUND.*$proto" "$skynetlog" | grep -oE 'SPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{printf "%-8s | %-8s | %-60s %s\n", $1 "x", $2, "https://www.speedguide.net/port.php?port=" $2 }'
+				printf "\n\n%-8s | %-8s | %-60s\n" "----" "----" "----------"
+				printf "%-8s | %-8s | %-60s\n" "Hits" "Port" "SpeedGuide"
+				printf "%-8s | %-8s | %-60s\n\n" "----" "----" "----------"
+				grep -E "INBOUND.*$proto" "$skynetlog" | grep -oE 'SPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{printf "%-8s | %-8s | %-60s\n", $1 "x", $2, "https://www.speedguide.net/port.php?port=" $2 }'
 				printf "\n\n=============================================================================================================\n\n\n"
 				Red "Last $counter Unique Connections Blocked (Inbound);"
-				printf "\n\n%-16s | %-56s | %-60s %s\n" "-------" "----------" "------------------"
-				printf "%-16s | %-56s | %-60s %s\n" "Address" "AlienVault" "Associated Domains"
-				printf "%-16s | %-56s | %-60s %s\n\n" "-------" "----------"  "------------------"
+				printf "\n\n%-16s | %-56s | %-60s\n" "-------" "----------" "------------------"
+				printf "%-16s | %-56s | %-60s\n" "Address" "AlienVault" "Associated Domains"
+				printf "%-16s | %-56s | %-60s\n\n" "-------" "----------"  "------------------"
 				grep -E "INBOUND.*$proto" "$skynetlog" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' | awk '!x[$0]++' | head -"$counter" | while IFS= read -r "statdata"; do
 					Extended_DNSStats1
 				done
 				printf "\n\n=============================================================================================================\n\n\n"
 				Red "Last $counter Unique Connections Blocked (Outbound);"
-				printf "\n\n%-16s | %-56s | %-60s %s\n" "-------" "----------" "------------------"
-				printf "%-16s | %-56s | %-60s %s\n" "Address" "AlienVault" "Associated Domains"
-				printf "%-16s | %-56s | %-60s %s\n\n" "-------" "----------"  "------------------"
+				printf "\n\n%-16s | %-56s | %-60s\n" "-------" "----------" "------------------"
+				printf "%-16s | %-56s | %-60s\n" "Address" "AlienVault" "Associated Domains"
+				printf "%-16s | %-56s | %-60s\n\n" "-------" "----------"  "------------------"
 				grep -E "OUTBOUND.*$proto" "$skynetlog" | grep -vE 'DPT=80 |DPT=443 ' | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' | awk '!x[$0]++' | head -"$counter" | while IFS= read -r "statdata"; do
 					Extended_DNSStats1
 				done
 				if [ "$loginvalid" = "enabled" ]; then
 					printf "\n\n=============================================================================================================\n\n\n"
 					Red "Last $counter Unique Connections Blocked (Invalid);"
-					printf "\n\n%-16s | %-56s | %-60s %s\n" "-------" "----------" "------------------"
-					printf "%-16s | %-56s | %-60s %s\n" "Address" "AlienVault" "Associated Domains"
-					printf "%-16s | %-56s | %-60s %s\n\n" "-------" "----------"  "------------------"
+					printf "\n\n%-16s | %-56s | %-60s\n" "-------" "----------" "------------------"
+					printf "%-16s | %-56s | %-60s\n" "Address" "AlienVault" "Associated Domains"
+					printf "%-16s | %-56s | %-60s\n\n" "-------" "----------"  "------------------"
 					grep -E "INVALID.*$proto" "$skynetlog" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' | awk '!x[$0]++' | head -"$counter" | while IFS= read -r "statdata"; do
 						Extended_DNSStats1
 					done
 				fi
 				printf "\n\n=============================================================================================================\n\n\n"
 				Red "Last $counter Manual Bans;"
-				printf "\n\n%-16s | %-56s | %-60s %s\n" "-------" "----------" "------------------"
-				printf "%-16s | %-56s | %-60s %s\n" "Address" "AlienVault" "Associated Domains"
-				printf "%-16s | %-56s | %-60s %s\n\n" "-------" "----------"  "------------------"
+				printf "\n\n%-16s | %-56s | %-60s\n" "-------" "----------" "------------------"
+				printf "%-16s | %-56s | %-60s\n" "Address" "AlienVault" "Associated Domains"
+				printf "%-16s | %-56s | %-60s\n\n" "-------" "----------"  "------------------"
 				grep -F "Manual Ban" "$skynetevents" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | tail -"$counter" | awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' | while IFS= read -r "statdata"; do
 					Extended_DNSStats1
 				done
 				printf "\n\n=============================================================================================================\n\n\n"
 				Red "Last $counter Unique HTTP(s) Blocks (Outbound);"
-				printf "\n\n%-16s | %-56s | %-60s %s\n" "-------" "----------" "------------------"
-				printf "%-16s | %-56s | %-60s %s\n" "Address" "AlienVault" "Associated Domains"
-				printf "%-16s | %-56s | %-60s %s\n\n" "-------" "----------"  "------------------"
+				printf "\n\n%-16s | %-56s | %-60s\n" "-------" "----------" "------------------"
+				printf "%-16s | %-56s | %-60s\n" "Address" "AlienVault" "Associated Domains"
+				printf "%-16s | %-56s | %-60s\n\n" "-------" "----------"  "------------------"
 				grep -E 'DPT=80 |DPT=443 ' "$skynetlog" | grep -E "OUTBOUND.*$proto" | grep -oE ' DST=[0-9,\.]*' | cut -c 6- | awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' | awk '!x[$0]++' | head -"$counter" | while IFS= read -r "statdata"; do
 					Extended_DNSStats1
 				done
 				printf "\n\n=============================================================================================================\n\n\n"
 				Red "Top $counter HTTP(s) Blocks (Outbound);"
-				printf "\n\n%-8s | %-16s | %-55s | %-60s %s\n" "----" "-------" "----------" "------------------"
-				printf "%-8s | %-16s | %-55s | %-60s %s\n" "Hits" "Address" "AlienVault" "Associated Domains"
-				printf "%-8s | %-16s | %-55s | %-60s %s\n\n" "----" "-------" "----------" "------------------"
+				printf "\n\n%-8s | %-16s | %-55s | %-60s\n" "----" "-------" "----------" "------------------"
+				printf "%-8s | %-16s | %-55s | %-60s\n" "Hits" "Address" "AlienVault" "Associated Domains"
+				printf "%-8s | %-16s | %-55s | %-60s\n\n" "----" "-------" "----------" "------------------"
 				grep -E 'DPT=80 |DPT=443 ' "$skynetlog" | grep -E "OUTBOUND.*$proto" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | while IFS= read -r "statdata"; do
 					Extended_DNSStats2
 				done
 				printf "\n\n=============================================================================================================\n\n\n"
 				Red "Top $counter Blocks (Inbound);"
-				printf "\n\n%-8s | %-16s | %-55s | %-60s %s\n" "----" "-------" "----------" "------------------"
-				printf "%-8s | %-16s | %-55s | %-60s %s\n" "Hits" "Address" "AlienVault" "Associated Domains"
-				printf "%-8s | %-16s | %-55s | %-60s %s\n\n" "----" "-------" "----------" "------------------"
+				printf "\n\n%-8s | %-16s | %-55s | %-60s\n" "----" "-------" "----------" "------------------"
+				printf "%-8s | %-16s | %-55s | %-60s\n" "Hits" "Address" "AlienVault" "Associated Domains"
+				printf "%-8s | %-16s | %-55s | %-60s\n\n" "----" "-------" "----------" "------------------"
 				grep -E "INBOUND.*$proto" "$skynetlog" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | while IFS= read -r "statdata"; do
 					Extended_DNSStats2
 				done
 				printf "\n\n=============================================================================================================\n\n\n"
 				Red "Top $counter Blocks (Outbound);"
-				printf "\n\n%-8s | %-16s | %-55s | %-60s %s\n" "----" "-------" "----------" "------------------"
-				printf "%-8s | %-16s | %-55s | %-60s %s\n" "Hits" "Address" "AlienVault" "Associated Domains"
-				printf "%-8s | %-16s | %-55s | %-60s %s\n\n" "----" "-------" "----------" "------------------"
+				printf "\n\n%-8s | %-16s | %-55s | %-60s\n" "----" "-------" "----------" "------------------"
+				printf "%-8s | %-16s | %-55s | %-60s\n" "Hits" "Address" "AlienVault" "Associated Domains"
+				printf "%-8s | %-16s | %-55s | %-60s\n\n" "----" "-------" "----------" "------------------"
 				grep -E "OUTBOUND.*$proto" "$skynetlog" | grep -vE 'DPT=80 |DPT=443 ' | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | while IFS= read -r "statdata"; do
 					Extended_DNSStats2
 				done
 				if [ "$loginvalid" = "enabled" ]; then
 					printf "\n\n=============================================================================================================\n\n\n"
 					Red "Top $counter Blocks (Invalid);"
-					printf "\n\n%-8s | %-16s | %-55s | %-60s %s\n" "----" "-------" "----------" "------------------"
-					printf "%-8s | %-16s | %-55s | %-60s %s\n" "Hits" "Address" "AlienVault" "Associated Domains"
-					printf "%-8s | %-16s | %-55s | %-60s %s\n\n" "----" "-------" "----------" "------------------"
+					printf "\n\n%-8s | %-16s | %-55s | %-60s\n" "----" "-------" "----------" "------------------"
+					printf "%-8s | %-16s | %-55s | %-60s\n" "Hits" "Address" "AlienVault" "Associated Domains"
+					printf "%-8s | %-16s | %-55s | %-60s\n\n" "----" "-------" "----------" "------------------"
 						grep -E "INVALID.*$proto" "$skynetlog" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | while IFS= read -r "statdata"; do
 							Extended_DNSStats2
 						done
 				fi
 				printf "\n\n=============================================================================================================\n\n\n"
 				Red "Top $counter Blocked Devices (Outbound);"
-				printf "\n\n%-8s | %-16s | %-60s %s\n" "----" "--------" "-----------"
-				printf "%-8s | %-16s | %-60s %s\n" "Hits" "Local IP" "Device Name"
-				printf "%-8s | %-16s | %-60s %s\n\n" "----" "--------" "-----------"
+				printf "\n\n%-8s | %-16s | %-60s\n" "----" "--------" "-----------"
+				printf "%-8s | %-16s | %-60s\n" "Hits" "Local IP" "Device Name"
+				printf "%-8s | %-16s | %-60s\n\n" "----" "--------" "-----------"
 				grep -E "OUTBOUND.*$proto" "$skynetlog" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | while IFS= read -r "statdata"; do
-					hits="$(echo $statdata | awk '{print $1}')"
-					ipaddr="$(echo $statdata | awk '{print $2}')"
+					hits="$(echo "$statdata" | awk '{print $1}')"
+					ipaddr="$(echo "$statdata" | awk '{print $2}')"
 					localname="$(grep -F "$ipaddr" /var/lib/misc/dnsmasq.leases | awk '{print $4}')"
 					if [ -z "$localname" ] && [ "$ipaddr" = "$(nvram get wan0_ipaddr)" ]; then
 						localname="$model"
 					elif [ -z "$localname" ]; then
 						localname="Not Found"
 					fi
-					printf "%-8s | %-16s | %-60s %s\n" "${hits}x" "${ipaddr}" "$localname"
+					printf "%-8s | %-16s | %-60s\n" "${hits}x" "${ipaddr}" "$localname"
 				done	
 				rm -rf /tmp/skynet/skynetstats.txt
 				printf "\n\n=============================================================================================================\n\n\n"
