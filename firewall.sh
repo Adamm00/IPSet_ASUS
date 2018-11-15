@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 15/11/2018 -		   Asus Firewall Addition By Adamm v6.5.7				    #
+## - 15/11/2018 -		   Asus Firewall Addition By Adamm v6.6.0				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -28,8 +28,6 @@ done
 if [ "$ntptimer" -ge "300" ]; then logger -st Skynet "[*] NTP Failed To Start After 5 Minutes - Please Fix Immediately!"; echo; exit 1; fi
 
 
-
-
 Red () {
 	printf -- '\033[1;31m%s\033[0m\n' "$1"
 }
@@ -44,7 +42,6 @@ Ylow () {
 }
 
 stime="$(date +%s)"
-
 
 skynetloc="$(grep -ow "skynetloc=.* # Skynet" /jffs/scripts/firewall-start 2>/dev/null | grep -vE "^#" | awk '{print $1}' | cut -c 11-)"
 skynetcfg="${skynetloc}/skynet.cfg"
@@ -487,7 +484,7 @@ Display_Header4 () {
 }
 
 Filter_Version () {
-			grep -m1 -oE 'v[0-9]{1,2}([.][0-9]{1,2})([.][0-9]{1,2})'
+		grep -m1 -oE 'v[0-9]{1,2}([.][0-9]{1,2})([.][0-9]{1,2})'
 }
 
 Filter_Date () {
@@ -3561,10 +3558,14 @@ case "$1" in
 						grep -F "=$4 " "$skynetlog" | tail -"$counter"
 						echo
 						Red "Top $counter Targeted Ports From $4 (Inbound);"
-						grep -E "INBOUND.*SRC=$4 " "$skynetlog" | grep -oE 'DPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://www.speedguide.net/port.php?port="$2}'
+						Display_Header3
+						grep -E "INBOUND.*SRC=$4 " "$skynetlog" | grep -oE 'DPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{printf "%-6s | %-8s | %-60s\n", $1 "x", $2, "https://www.speedguide.net/port.php?port=" $2 }'
+						echo
 						echo
 						Red "Top $counter Sourced Ports From $4 (Inbound);"
-						grep -E "INBOUND.*SRC=$4 " "$skynetlog" | grep -oE 'SPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{print $1"x https://www.speedguide.net/port.php?port="$2}'
+						Display_Header3
+						grep -E "INBOUND.*SRC=$4 " "$skynetlog" | grep -oE 'SPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{printf "%-6s | %-8s | %-60s\n", $1 "x", $2, "https://www.speedguide.net/port.php?port=" $2 }'
+						echo
 					;;
 					malware)
 						Check_Lock "$@"
@@ -3627,7 +3628,7 @@ case "$1" in
 						echo "[i] $(grep -Eoc -E "OUTBOUND.* SRC=$4 " "$skynetlog") Blocks Total"
 						echo
 						Red "Device Name;"
-						if grep -qF " $4 " "/var/lib/misc/dnsmasq.leases"; then grep -F " $4 " "/var/lib/misc/dnsmasq.leases" | awk '{print $4}'; else echo "No Name Found"; fi
+						if grep -qF " $4 " "/var/lib/misc/dnsmasq.leases"; then grep -F " $4 " "/var/lib/misc/dnsmasq.leases" | awk '{print $4}'; else echo "Unknown"; fi
 						echo
 						Red "First Block Tracked From $4;"
 						grep -m1 -E "OUTBOUND.* SRC=$4 " "$skynetlog"
