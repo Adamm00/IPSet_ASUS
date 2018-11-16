@@ -538,6 +538,7 @@ Spinner_Start () {
 				printf '\033[1;32m%s\033[0m\b\b\b' "$c"
 				usleep 200000
 			done
+			printf "   \b\b\b"
 		done; } &
 		echo "$!" > /tmp/skynet/spinstart
 }
