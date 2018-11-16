@@ -3633,19 +3633,21 @@ case "$1" in
 						Spinner_End; wait; Spinner_Start
 						dos2unix /tmp/skynet/lists/*
 						cd "$cwd" || exit 1
+						printf "   \b\b\b"
+						printf "\n=============================================================================================================\n\n\n"
 						Red "Exact Matches;"
 						Display_Header "5"
 						grep -HE "^$ip$" /tmp/skynet/lists/* | cut -d '/' -f5- | while IFS= read -r "list"; do
 							printf "%-20s | %-40s\n" "$(grep -F "$(echo "$list" | cut -d ':' -f1)" /jffs/shared-Skynet-whitelist)" "$(echo "$list" | cut -d ':' -f2-)"
 						done
-						printf "   \b\b\b"
+						printf "   \b\b\b\n"
 						Red "Possible CIDR Matches;"
 						Display_Header "5"
 						grep -HE "^$(echo "$ip" | cut -d '.' -f1-3)..*/" /tmp/skynet/lists/* | cut -d '/' -f5- | while IFS= read -r "list"; do
 							printf "%-20s | %-40s\n" "$(echo "$list" | cut -d ':' -f2-)" "$(grep -F "$(echo "$list" | cut -d ':' -f1)" /jffs/shared-Skynet-whitelist)"
 						done
 						printf "   \b\b\b"
-						echo
+						printf "\n\n=============================================================================================================\n\n"
 						Clean_Temp
 					;;
 					manualbans)
