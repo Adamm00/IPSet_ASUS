@@ -3638,17 +3638,17 @@ case "$1" in
 						printf "\n=============================================================================================================\n\n\n"
 						Red "Exact Matches;"
 						Display_Header "5"
-						grep -HE "^$ip$" /tmp/skynet/lists/* | cut -d '/' -f5- | while IFS= read -r "list"; do
-							printf "%-20s | %-40s\n" "$(grep -F "$(echo "$list" | cut -d ':' -f1)" /jffs/shared-Skynet-whitelist)" "$(echo "$list" | cut -d ':' -f2-)"
+						grep -HE "^$ip$" /tmp/skynet/lists/* | cut -d '/' -f5- | while IFS= read -r "list" && [ -n "$list" ]; do
+							printf "%-20s | %-40s\n" "$(echo "$list" | cut -d ':' -f2-)" "$(grep -F "$(echo "$list" | cut -d ':' -f1)" /jffs/shared-Skynet-whitelist)"
 						done
-						printf "   \b\b\b\n"
+						printf "   \b\b\b\n\n"
 						Red "Possible CIDR Matches;"
 						Display_Header "5"
 						grep -HE "^$(echo "$ip" | cut -d '.' -f1-3)..*/" /tmp/skynet/lists/* | cut -d '/' -f5- | while IFS= read -r "list"; do
 							printf "%-20s | %-40s\n" "$(echo "$list" | cut -d ':' -f2-)" "$(grep -F "$(echo "$list" | cut -d ':' -f1)" /jffs/shared-Skynet-whitelist)"
 						done
 						printf "   \b\b\b"
-						printf "\n\n=============================================================================================================\n\n"
+						printf "\n=============================================================================================================\n\n"
 						Clean_Temp
 					;;
 					manualbans)
