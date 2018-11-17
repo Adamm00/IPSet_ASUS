@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 17/11/2018 -		   Asus Firewall Addition By Adamm v6.6.1				    #
+## - 18/11/2018 -		   Asus Firewall Addition By Adamm v6.6.1				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -466,14 +466,14 @@ Extended_DNSStats () {
 Display_Header () {
 		case "$1" in
 			1)
-				printf "\n\n%-16s | %-56s | %-60s\n" "-------" "----------" "------------------"
-				printf "%-16s | %-56s | %-60s\n" "Address" "AlienVault" "Associated Domains"
-				printf "%-16s | %-56s | %-60s\n\n" "-------" "----------"  "------------------"
+				printf "\n\n%-16s | %-56s | %-60s\n" "----------" "----------" "------------------"
+				printf "%-16s | %-56s | %-60s\n" "IP Address" "AlienVault" "Associated Domains"
+				printf "%-16s | %-56s | %-60s\n\n" "----------" "----------"  "------------------"
 			;;
 			2)
-				printf "\n\n%-6s | %-16s | %-55s | %-60s\n" "----" "-------" "----------" "------------------"
-				printf "%-6s | %-16s | %-55s | %-60s\n" "Hits" "Address" "AlienVault" "Associated Domains"
-				printf "%-6s | %-16s | %-55s | %-60s\n\n" "----" "-------" "----------" "------------------"
+				printf "\n\n%-6s | %-16s | %-55s | %-60s\n" "----" "----------" "----------" "------------------"
+				printf "%-6s | %-16s | %-55s | %-60s\n" "Hits" "IP Address" "AlienVault" "Associated Domains"
+				printf "%-6s | %-16s | %-55s | %-60s\n\n" "----" "----------" "----------" "------------------"
 			;;
 			3)
 				printf "\n\n%-6s | %-8s | %-60s\n" "----" "----" "----------"
@@ -572,7 +572,7 @@ Refresh_AiProtect () {
 			fi
 			if [ -f /opt/bin/opkg ] && [ -f /opt/bin/sqlite3 ] && sqlite3 /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db "SELECT src FROM monitor;" | Is_IP; then
 				sed "\\~add Skynet-Blacklist ~!d;\\~BanAiProtect~!d;s~ comment.*~~;s~add~del~g" "$skynetipset" | ipset restore -!
-				sqlite3 /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db "SELECT src FROM monitor;" | grep -oE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' | awk '!x[$0]++' | Filter_PrivateIP | awk '{print "add Skynet-Blacklist " $1 " comment \"BanAiProtect\""}'  | ipset restore -!
+				sqlite3 /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db "SELECT src FROM monitor;" | grep -oE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' | awk '!x[$0]++' | Filter_PrivateIP | awk '{printf "add Skynet-Blacklist %s comment \"BanAiProtect\"\n", $1 }' | ipset restore -!
 			fi
 		fi
 }
@@ -626,7 +626,7 @@ Whitelist_Extra () {
 Whitelist_CDN () {
 		sed '\~add Skynet-Whitelist ~!d;\~CDN-Whitelist~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
 		curl -fsL --retry 3 "https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/cdn.list" | dos2unix | grep -E '^([0-9]{1,3}\.){3}[0-9]{1,3}(/[0-9]{1,2})?$' | awk '!x[$0]++' > /tmp/skynet/cdn.list
-		awk '{print "add Skynet-Whitelist " $1 " comment \"CDN-Whitelist\""}' /tmp/skynet/cdn.list | ipset restore -!
+		awk '{printf "add Skynet-Whitelist %s comment \"CDN-Whitelist\"\n", $1 }' /tmp/skynet/cdn.list | ipset restore -!
 		rm -rf /tmp/skynet/cdn.list
 }
 
@@ -674,7 +674,7 @@ Manage_Device () {
 		i=1
 		IFS="
 		"
-		for mounted in $(/bin/mount | grep -E "ext2|ext3|ext4|tfat|exfat" | awk '{print $3" - ("$1")"}') ; do
+		for mounted in $(/bin/mount | grep -E "ext2|ext3|ext4|tfat|exfat" | awk '{printf "%s - (%s)\n", $3, $1}'); do
 			echo "[$i]  --> $mounted"
 			eval mounts$i="$(echo "$mounted" | awk '{print $1}')"
 			i=$((i + 1))
@@ -859,8 +859,8 @@ Load_Menu () {
 	echo "Skynet Version; $localver ($(Filter_Date < "$0"))"
 	echo "$(iptables --version) - ($iface @ $(nvram get lan_ipaddr))"
 	ipset -v
-	echo "FW Version; $(nvram get buildno)_$(nvram get extendno) ($(uname -v | awk '{print $5" "$6" "$9}')) ($(uname -r))"
-	echo "Install Dir; $skynetloc ($(df -h "$skynetloc" | xargs | awk '{print $11 " / " $9}') Space Available)"
+	echo "FW Version; $(nvram get buildno)_$(nvram get extendno) ($(uname -v | awk '{printf "%s %s %s\n", $5, $6, $9}')) ($(uname -r))"
+	echo "Install Dir; $skynetloc ($(df -h "$skynetloc" | xargs | awk '{printf "%s / %s\n", $11, $9}') Space Available)"
 	if [ -n "$swaplocation" ]; then
 		echo "SWAP File; $swaplocation ($(du -h "$swaplocation" | awk '{print $1}'))";
 	elif [ -n "$swappartition" ]; then
@@ -2498,11 +2498,11 @@ case "$1" in
 			btime="$(date +%s)"
 			printf "%-35s | " "[i] Filtering IPv4 Addresses"
 			sed -i '\~comment \"BanMalware\"~d' "$skynetipset"
-			grep -vF "/" /tmp/skynet/malwarelist.txt | awk '{print "add Skynet-Blacklist " $1 " comment \"BanMalware\""}' >> "$skynetipset"
+			grep -vF "/" /tmp/skynet/malwarelist.txt | awk '{printf "add Skynet-Blacklist %s comment \"BanMalware\"\n", $1 }' >> "$skynetipset"
 			Display_Result
 			btime="$(date +%s)"
 			printf "%-35s | " "[i] Filtering IPv4 Ranges"
-			grep -F "/" /tmp/skynet/malwarelist.txt | awk '{print "add Skynet-BlockedRanges " $1 " comment \"BanMalware\""}' >> "$skynetipset"
+			grep -F "/" /tmp/skynet/malwarelist.txt | awk '{printf "add Skynet-BlockedRanges %s comment \"BanMalware\"\n", $1 }' >> "$skynetipset"
 			Display_Result
 			btime="$(date +%s)"
 			printf "%-35s | " "[i] Applying New Blacklist"
@@ -2658,12 +2658,12 @@ case "$1" in
 				if ! Is_IPRange < /tmp/skynet/iplist-unfiltered.txt; then { echo "[*] No Content Detected - Stopping Import"; rm -rf /tmp/skynet/iplist-unfiltered.txt; echo; exit 1; }; fi
 				echo "[i] Processing List"
 				if [ -n "$4" ] && [ "${#4}" -le "245" ]; then
-					grep -vF "/" /tmp/skynet/iplist-unfiltered.txt | Filter_PrivateIP | awk -v desc="Imported: $4" '{print "add Skynet-Blacklist " $1 " comment \"" desc "\""}' > /tmp/skynet/iplist-filtered.txt
-					grep -F "/" /tmp/skynet/iplist-unfiltered.txt | Filter_PrivateIP | awk -v desc="Imported: $4" '{print "add Skynet-BlockedRanges " $1 " comment \"" desc "\""}' >> /tmp/skynet/iplist-filtered.txt
+					grep -vF "/" /tmp/skynet/iplist-unfiltered.txt | Filter_PrivateIP | awk -v desc="Imported: $4" '{printf "add Skynet-Blacklist %s comment \"%s\"\n", $1, desc }' > /tmp/skynet/iplist-filtered.txt
+					grep -F "/" /tmp/skynet/iplist-unfiltered.txt | Filter_PrivateIP | awk -v desc="Imported: $4" '{printf "add Skynet-BlockedRanges %s comment \"%s\"\n", $1, desc }' >> /tmp/skynet/iplist-filtered.txt
 				else
 					imptime="$(date +"%b %d %T")"
-					grep -vF "/" /tmp/skynet/iplist-unfiltered.txt | Filter_PrivateIP | awk -v imptime="$imptime" '{print "add Skynet-Blacklist " $1 " comment \"Imported: " imptime "\""}' > /tmp/skynet/iplist-filtered.txt
-					grep -F "/" /tmp/skynet/iplist-unfiltered.txt | Filter_PrivateIP | awk -v imptime="$imptime" '{print "add Skynet-BlockedRanges " $1 " comment \"Imported: " imptime "\""}' >> /tmp/skynet/iplist-filtered.txt
+					grep -vF "/" /tmp/skynet/iplist-unfiltered.txt | Filter_PrivateIP | awk -v desc="Imported: $imptime" '{printf "add Skynet-Blacklist %s comment \"%s\"\n", $1, desc }' > /tmp/skynet/iplist-filtered.txt
+					grep -F "/" /tmp/skynet/iplist-unfiltered.txt | Filter_PrivateIP | awk -v desc="Imported: $imptime" '{printf "add Skynet-BlockedRanges %s comment \"%s\"\n", $1, desc }' >> /tmp/skynet/iplist-filtered.txt
 				fi
 				echo "[i] Adding IPs To Blacklist"
 				ipset restore -! -f "/tmp/skynet/iplist-filtered.txt"
@@ -2692,10 +2692,10 @@ case "$1" in
 				if ! Is_IPRange < /tmp/skynet/iplist-unfiltered.txt; then { echo "[*] No Content Detected - Stopping Import"; rm -rf /tmp/skynet/iplist-unfiltered.txt; echo; exit 1; }; fi
 				echo "[i] Processing List"
 				if [ -n "$4" ] && [ "${#4}" -le "245" ]; then
-					Filter_PrivateIP < /tmp/skynet/iplist-unfiltered.txt | awk -v desc="Imported: $4" '{print "add Skynet-Whitelist " $1 " comment \"" desc "\""}' > /tmp/skynet/iplist-filtered.txt
+					Filter_PrivateIP < /tmp/skynet/iplist-unfiltered.txt | awk -v desc="Imported: $4" '{printf "add Skynet-Whitelist %s comment \"%s\"\n", $1, desc }' > /tmp/skynet/iplist-filtered.txt
 				else
 					imptime="$(date +"%b %d %T")"
-					Filter_PrivateIP < /tmp/skynet/iplist-unfiltered.txt | awk -v imptime="$imptime" '{print "add Skynet-Whitelist " $1 " comment \"Imported: " imptime "\""}' > /tmp/skynet/iplist-filtered.txt
+					Filter_PrivateIP < /tmp/skynet/iplist-unfiltered.txt | awk -v desc="Imported: $imptime" '{printf "add Skynet-Whitelist %s comment \"%s\"\n", $1, desc }' > /tmp/skynet/iplist-filtered.txt
 				fi
 				echo "[i] Adding IPs To Whitelist"
 				ipset restore -! -f "/tmp/skynet/iplist-filtered.txt"
@@ -2734,9 +2734,9 @@ case "$1" in
 				dos2unix /tmp/skynet/iplist-unfiltered.txt
 				if ! Is_IPRange < /tmp/skynet/iplist-unfiltered.txt; then { echo "[*] No Content Detected - Stopping Deport"; rm -rf /tmp/skynet/iplist-unfiltered.txt; echo; exit 1; }; fi
 				echo "[i] Processing IPv4 Addresses"
-				grep -vF "/" /tmp/skynet/iplist-unfiltered.txt | Filter_PrivateIP | awk '{print "del Skynet-Blacklist " $1}' > /tmp/skynet/iplist-filtered.txt
+				grep -vF "/" /tmp/skynet/iplist-unfiltered.txt | Filter_PrivateIP | awk '{printf "del Skynet-Blacklist %s\n", $1}' > /tmp/skynet/iplist-filtered.txt
 				echo "[i] Processing IPv4 Ranges"
-				grep -F "/" /tmp/skynet/iplist-unfiltered.txt | Filter_PrivateIP | awk '{print "del Skynet-BlockedRanges " $1}' >> /tmp/skynet/iplist-filtered.txt
+				grep -F "/" /tmp/skynet/iplist-unfiltered.txt | Filter_PrivateIP | awk '{printf "del Skynet-BlockedRanges %s\n", $1}' >> /tmp/skynet/iplist-filtered.txt
 				echo "[i] Removing IPs From Blacklist"
 				ipset restore -! -f "/tmp/skynet/iplist-filtered.txt"
 				rm -rf /tmp/skynet/iplist-unfiltered.txt /tmp/skynet/iplist-filtered.txt
@@ -2763,7 +2763,7 @@ case "$1" in
 				dos2unix /tmp/skynet/iplist-unfiltered.txt
 				if ! Is_IPRange < /tmp/skynet/iplist-unfiltered.txt; then { echo "[*] No Content Detected - Stopping Deport"; rm -rf /tmp/skynet/iplist-unfiltered.txt; echo; exit 1; }; fi
 				echo "[i] Processing IPv4 Addresses"
-				Filter_PrivateIP < /tmp/skynet/iplist-unfiltered.txt | awk '{print "del Skynet-Whitelist " $1}' > /tmp/skynet/iplist-filtered.txt
+				Filter_PrivateIP < /tmp/skynet/iplist-unfiltered.txt | awk '{print "del Skynet-Whitelist %s\n", $1}' > /tmp/skynet/iplist-filtered.txt
 				echo "[i] Removing IPs From Whitelist"
 				ipset restore -! -f "/tmp/skynet/iplist-filtered.txt"
 				rm -rf /tmp/skynet/iplist-unfiltered.txt /tmp/skynet/iplist-filtered.txt
@@ -3248,8 +3248,8 @@ case "$1" in
 				echo "Skynet Version; $localver ($(Filter_Date < "$0"))"
 				echo "$(iptables --version) - ($iface @ $(nvram get lan_ipaddr))"
 				ipset -v
-				echo "FW Version; $(nvram get buildno)_$(nvram get extendno) ($(uname -v | awk '{print $5" "$6" "$9}')) ($(uname -r))"
-				echo "Install Dir; $skynetloc ($(df -h "$skynetloc" | xargs | awk '{print $11 " / " $9}') Space Available)"
+				echo "FW Version; $(nvram get buildno)_$(nvram get extendno) ($(uname -v | awk '{printf "%s %s %s\n", $5, $6, $9}')) ($(uname -r))"
+				echo "Install Dir; $skynetloc ($(df -h "$skynetloc" | xargs | awk '{printf "%s / %s\n", $11, $9}') Space Available)"
 				if [ -n "$swaplocation" ]; then
 					echo "SWAP File; $swaplocation ($(du -h "$swaplocation" | awk '{print $1}'))";
 				elif [ -n "$swappartition" ]; then
@@ -3518,7 +3518,7 @@ case "$1" in
 		else
 			echo "[i] Debug Data Detected in $skynetlog - $(du -h "$skynetlog" | awk '{print $1}')"
 		fi
-		echo "[i] Monitoring From $(grep -m1 -F "BLOCKED -" "$skynetlog" | awk '{print $1" "$2" "$3}') To $(grep -F "BLOCKED -" "$skynetlog" | tail -1 | awk '{print $1" "$2" "$3}')"
+		echo "[i] Monitoring From $(grep -m1 -F "BLOCKED -" "$skynetlog" | awk '{printf "%s %s %s\n", $1, $2, $3}') To $(grep -F "BLOCKED -" "$skynetlog" | tail -1 | awk '{printf "%s %s %s\n", $1, $2, $3}')"
 		echo "[i] $(wc -l < "$skynetlog") Block Events Detected"
 		echo "[i] $({ grep -E 'INBOUND|INVALID' "$skynetlog" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6-; grep -F "OUTBOUND" "$skynetlog" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6-; } | awk '!x[$0]++' | wc -l) Unique IPs"
 		echo "[i] $(grep -Fc "Manual Ban" "$skynetevents") Manual Bans Issued"
@@ -3558,8 +3558,8 @@ case "$1" in
 					port)
 						if ! echo "$4" | Is_Port || [ "$4" -gt "65535" ]; then echo "[*] $4 Is Not A Valid Port"; echo; exit 2; fi
 						if [ "$5" -eq "$5" ] 2>/dev/null; then counter="$5"; fi
-						echo "[i] Port $4 First Tracked On $(grep -m1 -F "PT=$4 " "$skynetlog" | awk '{print $1" "$2" "$3}')"
-						echo "[i] Port $4 Last Tracked On $(grep -F "PT=$4 " "$skynetlog" | tail -1 | awk '{print $1" "$2" "$3}')"
+						echo "[i] Port $4 First Tracked On $(grep -m1 -F "PT=$4 " "$skynetlog" | awk '{printf "%s %s %s\n", $1, $2, $3}')"
+						echo "[i] Port $4 Last Tracked On $(grep -F "PT=$4 " "$skynetlog" | tail -1 | awk '{printf "%s %s %s\n", $1, $2, $3}')"
 						echo "[i] $(grep -Foc "PT=$4 " "$skynetlog") Attempts Total"
 						echo "[i] $(grep -F "PT=$4 " "$skynetlog" | grep -oE ' SRC=[0-9,\.]* ' | awk '!x[$0]++' | wc -l) Unique IPs"
 						echo
@@ -3589,8 +3589,8 @@ case "$1" in
 						fi
 						echo "[i] IP Location - $(curl -fsL "https://ipapi.co/${4}/country_name/") ($(curl -fsL "https://ipapi.co/${4}/asn/"))"
 						echo
-						echo "[i] $4 First Tracked On $(grep -m1 -F "=$4 " "$skynetlog" | awk '{print $1" "$2" "$3}')"
-						echo "[i] $4 Last Tracked On $(grep -F "=$4 " "$skynetlog" | tail -1 | awk '{print $1" "$2" "$3}')"
+						echo "[i] $4 First Tracked On $(grep -m1 -F "=$4 " "$skynetlog" | awk '{printf "%s %s %s\n", $1, $2, $3}')"
+						echo "[i] $4 Last Tracked On $(grep -F "=$4 " "$skynetlog" | tail -1 | awk '{printf "%s %s %s\n", $1, $2, $3}')"
 						echo "[i] $(grep -Foc "=$4 " "$skynetlog") Blocks Total"
 						echo
 						Red "Event Log Entries From $4;"
@@ -3653,8 +3653,8 @@ case "$1" in
 					;;
 					manualbans)
 						if [ "$4" -eq "$4" ] 2>/dev/null; then counter="$4"; fi
-						echo "First Manual Ban Issued On $(grep -m1 -F "Manual Ban" "$skynetevents" | awk '{print $1" "$2" "$3}')"
-						echo "Last Manual Ban Issued On $(grep -F "Manual Ban" "$skynetevents" | tail -1 | awk '{print $1" "$2" "$3}')"
+						echo "First Manual Ban Issued On $(grep -m1 -F "Manual Ban" "$skynetevents" | awk '{printf "%s %s %s\n", $1, $2, $3}')"
+						echo "Last Manual Ban Issued On $(grep -F "Manual Ban" "$skynetevents" | tail -1 | awk '{printf "%s %s %s\n", $1, $2, $3}')"
 						echo
 						Red "First Manual Ban Issued;"
 						grep -m1 -F "Manual Ban" "$skynetevents"
@@ -3673,8 +3673,8 @@ case "$1" in
 						if [ -n "$found2" ]; then Red "Blacklist Reason;"; grep -F "add Skynet-Blacklist $4 " "$skynetipset" | awk '{$1=$2=$3=$4=""; print $0}' | tr -s " "; echo; fi
 						if [ -n "$found3" ]; then Red "BlockedRanges Reason;"; grep -F "add Skynet-BlockedRanges $(echo "$4" | cut -d '.' -f1-3)." "$skynetipset" | awk '{$1=$2=$4=""; print $0}' | tr -s " "; fi
 						echo
-						echo "[i] $4 First Tracked On $(grep -m1 -E "OUTBOUND.* SRC=$4 " "$skynetlog" | awk '{print $1" "$2" "$3}')"
-						echo "[i] $4 Last Tracked On $(grep -E "OUTBOUND.* SRC=$4 " "$skynetlog" | tail -1 | awk '{print $1" "$2" "$3}')"
+						echo "[i] $4 First Tracked On $(grep -m1 -E "OUTBOUND.* SRC=$4 " "$skynetlog" | awk '{printf "%s %s %s\n", $1, $2, $3}')"
+						echo "[i] $4 Last Tracked On $(grep -E "OUTBOUND.* SRC=$4 " "$skynetlog" | tail -1 | awk '{printf "%s %s %s\n", $1, $2, $3}')"
 						echo "[i] $(grep -Eoc -E "OUTBOUND.* SRC=$4 " "$skynetlog") Blocks Total"
 						echo
 						Red "Device Name;"
@@ -3690,8 +3690,8 @@ case "$1" in
 						if [ "$4" -eq "$4" ] 2>/dev/null; then counter="$4"; fi
 						sed '\~Skynet: \[#\] ~!d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null >> "$skynetevents"
 						sed -i '\~Skynet: \[#\] ~d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null
-						echo "[i] First Report Issued On $(grep -m1 -F "Skynet: [#] " "$skynetevents" | awk '{print $1" "$2" "$3}')"
-						echo "[i] Last Report Issued On $(grep -F "Skynet: [#] " "$skynetevents" | tail -1 | awk '{print $1" "$2" "$3}')"
+						echo "[i] First Report Issued On $(grep -m1 -F "Skynet: [#] " "$skynetevents" | awk '{printf "%s %s %s\n", $1, $2, $3}')"
+						echo "[i] Last Report Issued On $(grep -F "Skynet: [#] " "$skynetevents" | tail -1 | awk '{printf "%s %s %s\n", $1, $2, $3}')"
 						echo
 						Red "First Report Issued;"
 						grep -m1 -F "Skynet: [#] " "$skynetevents"
@@ -3701,8 +3701,8 @@ case "$1" in
 					;;
 					invalid)
 						if [ "$4" -eq "$4" ] 2>/dev/null; then counter="$4"; fi
-						echo "[i] First Invalid Block Issued On $(grep -m1 -F "BLOCKED - INVALID" "$skynetlog" | awk '{print $1" "$2" "$3}')"
-						echo "[i] Last Invalid Block Issued On $(grep -F "BLOCKED - INVALID" "$skynetlog" | tail -1 | awk '{print $1" "$2" "$3}')"
+						echo "[i] First Invalid Block Issued On $(grep -m1 -F "BLOCKED - INVALID" "$skynetlog" | awk '{printf "%s %s %s\n", $1, $2, $3}')"
+						echo "[i] Last Invalid Block Issued On $(grep -F "BLOCKED - INVALID" "$skynetlog" | tail -1 | awk '{printf "%s %s %s\n", $1, $2, $3}')"
 						echo
 						Red "First Report Issued;"
 						grep -m1 -F "BLOCKED - INVALID" "$skynetlog"
@@ -3736,7 +3736,7 @@ case "$1" in
 					;;
 				esac
 				if [ "$extendedstats" = "enabled" ]; then
-					grep -hE 'reply.* is ([0-9]{1,3}\.){3}[0-9]{1,3}$' /opt/var/log/dnsmasq* | awk '{print $6 " " $8}' | Strip_Domain > /tmp/skynet/skynetstats.txt
+					grep -hE 'reply.* is ([0-9]{1,3}\.){3}[0-9]{1,3}$' /opt/var/log/dnsmasq* | awk '{printf "%s %s\n", $6, $8}' | Strip_Domain > /tmp/skynet/skynetstats.txt
 					printf "   \b\b\b"
 				else
 					touch "/tmp/skynet/skynetstats.txt"
