@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 18/11/2018 -		   Asus Firewall Addition By Adamm v6.6.1				    #
+## - 19/11/2018 -		   Asus Firewall Addition By Adamm v6.6.1				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -434,6 +434,10 @@ Is_IPRange () {
 		grep -qE '^([0-9]{1,3}\.){3}[0-9]{1,3}(/[0-9]{1,2})?$'
 }
 
+Is_MAC () {
+	grep -qE '^([[:xdigit:]]{1,2}:){5}[[:xdigit:]]{1,2}$'
+}
+
 Is_Port () {
 		grep -qE '^[0-9]{1,5}$'
 }
@@ -492,6 +496,11 @@ Display_Header () {
 				printf "\n\n%-20s | %-40s\n" "----------" "-----"
 				printf "%-20s | %-40s\n" "IP Address" "List"
 				printf "%-20s | %-40s\n\n" "----------" "-----"
+			;;
+			6)
+				printf "\n\n%-40s | %-16s | %-20s | %-15s\n" "-----------" "--------" "-----------" "------"
+				printf "%-40s | %-16s | %-20s | %-15s\n" "Device Name" "Local IP" "MAC Address" "Status"
+				printf "%-40s | %-16s | %-20s | %-15s\n\n" "-----------" "--------" "-----------" "------"
 			;;
             *)
 				echo "[*] Error - No Header Specified To Load"
@@ -3287,8 +3296,24 @@ case "$1" in
 				unset "lockedwarning"
 				passedtests="0"
 				totaltests="17"
-				echo
-				printf "%-35s | %-8s\n" "----------------" "------"
+				Display_Header "6"
+				ip neigh show | while IFS= read -r "ip"; do
+					ipaddr="$(echo $ip | awk '{print $1}')"
+					macaddr="$(echo $ip | awk '{print $5}')"
+					localname="$(grep -F "$ipaddr" /var/lib/misc/dnsmasq.leases | awk '{print $4}')"
+					state="$(echo $ip | awk '{print $6}')"
+					if [ "$state" = "STALE" ]; then
+						state="Inactive"
+					elif [ "$state" = "REACHABLE" ]; then
+						state="Online"
+					fi		
+					if ! echo "$macaddr" | Is_MAC; then
+						printf "%-40s | %-16s | %-20s | %-15s\n" "$localname" "$ipaddr" "Unknown" "$(Red "Offline")"
+					else
+						printf "%-40s | %-16s | %-20s | %-15s\n" "$localname" "$ipaddr" "$macaddr" "$(Grn "$state")"
+					fi
+				done
+				printf "\n\n%-35s | %-8s\n" "----------------" "------"
 				printf "%-35s | %-8s\n" "Test Description" "Result"
 				printf "%-35s | %-8s\n\n" "----------------" "------"
 				printf "%-35s | " "Internet-Connectivity"
@@ -3369,8 +3394,8 @@ case "$1" in
 				printf "%-35s | %-8s\n" "Ban AiProtect" "$(if [ "$banaiprotect" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
 				printf "%-35s | %-8s\n" "Secure Mode" "$(if [ "$securemode" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
 				printf "%-35s | %-8s\n\n" "Fast Switch" "$(if [ "$fastswitch" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
-				printf "%-35s\n" "${passedtests}/${totaltests} Tests Sucessful"
-				if [ "$3" = "extended" ]; then echo; echo; cat "$skynetcfg"; echo; fi
+				printf "%-35s\n\n" "${passedtests}/${totaltests} Tests Sucessful"
+				if [ "$3" = "extended" ]; then echo; cat "$skynetcfg"; echo; fi
 				nocfg="1"
 			;;
 			clean)
