@@ -460,6 +460,9 @@ Extended_DNSStats () {
 				ipaddr="$(echo "$statdata" | awk '{print $2}')"
 				printf "%-6s | %-16s | %-55s | %-60s\n" "${hits}x" "${ipaddr}" "https://otx.alienvault.com/indicator/ip/${ipaddr}" "$(grep -F "$ipaddr" /tmp/skynet/skynetstats.txt | awk '{print $1}' | xargs)"
 			;;
+			*)
+				echo "[*] Error - No Stats Specified To Load"
+			;;
 		esac
 }
 
@@ -489,6 +492,9 @@ Display_Header () {
 				printf "\n\n%-20s | %-40s\n" "----------" "-----"
 				printf "%-20s | %-40s\n" "IP Address" "List"
 				printf "%-20s | %-40s\n\n" "----------" "-----"
+			;;
+            *)
+				echo "[*] Error - No Header Specified To Load"
 			;;
 		esac
 }
@@ -536,7 +542,7 @@ Spinner_Start () {
 		{ while [ -f "/tmp/skynet/spinstart" ]; do
 			for c in \*-- -\*- --\* ; do
 				printf '\033[1;32m%s\033[0m\b\b\b' "$c"
-				usleep 200000
+				usleep 500000
 			done
 			printf "   \b\b\b"
 		done; } &
@@ -873,14 +879,31 @@ Load_Menu () {
 	if [ -n "$lockedwarning" ]; then Ylow "[*] Locked Processes Generally Take 1-2 Minutes To Complete And May Result In Temporarily \"Failed\" Tests"; fi
 	unset "lockedwarning"
 	echo
-	if ! grep -E "start.* # Skynet" /jffs/scripts/firewall-start 2>/dev/null | grep -qvE "^#"; then printf "Checking Firewall-Start Entry...			"; Red "[Failed]"; fi
-	if ! iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j DROP 2>/dev/null && [ "$filtertraffic" != "outbound" ]; then printf "Checking Inbound Filter Rules...			"; Red "[Failed]"; nolog="1"; fi
+	if Check_Connection >/dev/null 2>&1; then
+		printf "%-35s | %-8s\n" "Internet-Connectivity" "$(Red "[Failed]")"
+	fi
+	if ! grep -E "start.* # Skynet" /jffs/scripts/firewall-start 2>/dev/null | grep -qvE "^#"; then
+		printf "%-35s | %-8s\n" "Firewall-Start Entry" "$(Red "[Failed]")"
+	fi
+	if ! iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j DROP 2>/dev/null && [ "$filtertraffic" != "outbound" ]; then 
+		printf "%-35s | %-8s\n" "Inbound Filter Rules" "$(Red "[Failed]")"; nolog="1"
+	fi
 	if ! iptables -t raw -C PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null || \
-	! iptables -t raw -C OUTPUT -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null && [ "$filtertraffic" != "inbound" ]; then printf "Checking Outbound Filter Rules...			"; Red "[Failed]"; nolog="1"; fi
-	if ! ipset -L -n Skynet-Whitelist >/dev/null 2>&1; then printf "Checking Whitelist IPSet...				"; Red "[Failed]"; nolog="1"; fi
-	if ! ipset -L -n Skynet-BlockedRanges >/dev/null 2>&1; then printf "Checking BlockedRanges IPSet...				"; Red "[Failed]"; nolog="1"; fi
-	if ! ipset -L -n Skynet-Blacklist >/dev/null 2>&1; then printf "Checking Blacklist IPSet...				"; Red "[Failed]"; nolog="1"; fi
-	if ! ipset -L -n Skynet-Master >/dev/null 2>&1; then printf "Checking Skynet IPSet...				"; Red "[Failed]"; nolog="1"; fi
+	! iptables -t raw -C OUTPUT -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null && [ "$filtertraffic" != "inbound" ]; then 
+		printf "%-35s | %-8s\n" "Outbound Filter Rules" "$(Red "[Failed]")"; nolog="1"
+	fi
+	if ! ipset -L -n Skynet-Whitelist >/dev/null 2>&1; then 
+		printf "%-35s | %-8s\n" "Whitelist IPSet" "$(Red "[Failed]")"; nolog="1"
+	fi
+	if ! ipset -L -n Skynet-BlockedRanges >/dev/null 2>&1; then 
+		printf "%-35s | %-8s\n" "BlockedRanges IPSet" "$(Red "[Failed]")"; nolog="1"
+	fi
+	if ! ipset -L -n Skynet-Blacklist >/dev/null 2>&1; then 
+		printf "%-35s | %-8s\n" "Blacklist IPSet" "$(Red "[Failed]")"; nolog="1"
+	fi
+	if ! ipset -L -n Skynet-Master >/dev/null 2>&1; then 
+		printf "%-35s | %-8s\n" "Skynet IPSet" "$(Red "[Failed]")"; nolog="1"
+	fi
 	if [ "$fastswitch" = "enabled" ]; then Ylow "Fast Switch Is Enabled!"; fi
 	if [ "$nolog" != "1" ]; then Print_Log "minimal"; fi
 	unset "nolog"
