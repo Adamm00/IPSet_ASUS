@@ -879,7 +879,7 @@ Load_Menu () {
 	if [ -n "$lockedwarning" ]; then Ylow "[*] Locked Processes Generally Take 1-2 Minutes To Complete And May Result In Temporarily \"Failed\" Tests"; fi
 	unset "lockedwarning"
 	echo
-	if Check_Connection >/dev/null 2>&1; then
+	if ! Check_Connection >/dev/null 2>&1; then
 		printf "%-35s | %-8s\n" "Internet-Connectivity" "$(Red "[Failed]")"
 	fi
 	if ! grep -E "start.* # Skynet" /jffs/scripts/firewall-start 2>/dev/null | grep -qvE "^#"; then
@@ -905,6 +905,7 @@ Load_Menu () {
 		printf "%-35s | %-8s\n" "Skynet IPSet" "$(Red "[Failed]")"; nolog="1"
 	fi
 	if [ "$fastswitch" = "enabled" ]; then Ylow "Fast Switch Is Enabled!"; fi
+	echo
 	if [ "$nolog" != "1" ]; then Print_Log "minimal"; fi
 	unset "nolog"
 	unset "option1" "option2" "option3" "option4" "option5"
