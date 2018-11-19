@@ -505,7 +505,17 @@ Display_Header () {
 				printf "%-40s | %-16s | %-20s | %-15s\n" "Device Name" "Local IP" "MAC Address" "Status"
 				printf "%-40s | %-16s | %-20s | %-15s\n\n" "-----------" "--------" "-----------" "------"
 			;;
-            *)
+			7)
+				printf "\n\n%-35s | %-8s\n" "----------------" "------"
+				printf "%-35s | %-8s\n" "Test Description" "Result"
+				printf "%-35s | %-8s\n\n" "----------------" "------"
+			;;
+			8)
+				printf "\n\n%-35s | %-8s\n" "-------" "------"
+				printf "%-35s | %-8s\n" "Setting" "Status"
+				printf "%-35s | %-8s\n\n" "-------" "------"
+			;;
+			*)
 				echo "[*] Error - No Header Specified To Load"
 			;;
 		esac
@@ -3316,9 +3326,7 @@ case "$1" in
 						printf "%-40s | %-16s | %-20s | %-15s\n" "$localname" "$ipaddr" "$macaddr" "$(Grn "$state")"
 					fi
 				done
-				printf "\n\n%-35s | %-8s\n" "----------------" "------"
-				printf "%-35s | %-8s\n" "Test Description" "Result"
-				printf "%-35s | %-8s\n\n" "----------------" "------"
+				Display_Header "7"
 				printf "%-35s | " "Internet-Connectivity"
 				if Check_Connection >/dev/null 2>&1; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
 				printf "%-8s\n" "$result"
@@ -3385,9 +3393,7 @@ case "$1" in
 				else
 					totaltests=$((totaltests-1))
 				fi
-				printf "\n\n%-35s | %-8s\n" "-------" "------"
-				printf "%-35s | %-8s\n" "Setting" "Status"
-				printf "%-35s | %-8s\n\n" "-------" "------"
+				Display_Header "8"
 				printf "%-35s | %-8s\n" "Autoupdate" "$(if [ "$autoupdate" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
 				printf "%-35s | %-8s\n" "Auto-Banmalware Update" "$(if [ "$banmalwareupdate" = "daily" ] || [ "$banmalwareupdate" = "weekly" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
 				printf "%-35s | %-8s\n" "Debug Mode" "$(if [ "$debugmode" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
