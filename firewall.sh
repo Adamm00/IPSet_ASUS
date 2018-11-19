@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 19/11/2018 -		   Asus Firewall Addition By Adamm v6.6.2				    #
+## - 20/11/2018 -		   Asus Firewall Addition By Adamm v6.6.2				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -465,7 +465,7 @@ Extended_DNSStats () {
 			2)
 				hits="$(echo "$statdata" | awk '{print $1}')"
 				ipaddr="$(echo "$statdata" | awk '{print $2}')"
-				printf "%-6s | %-16s | %-55s | %-60s\n" "${hits}x" "${ipaddr}" "https://otx.alienvault.com/indicator/ip/${ipaddr}" "$(grep -F "$ipaddr" /tmp/skynet/skynetstats.txt | awk '{print $1}' | xargs)"
+				printf "%-10s | %-16s | %-55s | %-60s\n" "${hits}x" "${ipaddr}" "https://otx.alienvault.com/indicator/ip/${ipaddr}" "$(grep -F "$ipaddr" /tmp/skynet/skynetstats.txt | awk '{print $1}' | xargs)"
 			;;
 			*)
 				echo "[*] Error - No Stats Specified To Load"
@@ -476,44 +476,44 @@ Extended_DNSStats () {
 Display_Header () {
 		case "$1" in
 			1)
-				printf "\n\n%-16s | %-56s | %-60s\n" "----------" "----------" "------------------"
-				printf "%-16s | %-56s | %-60s\n" "IP Address" "AlienVault" "Associated Domains"
-				printf "%-16s | %-56s | %-60s\n\n" "----------" "----------"  "------------------"
+				printf "\n\n%-16s | %-56s | %-60s\n" "--------------" "--------------" "----------------------"
+				printf "%-16s | %-56s | %-60s\n" "| IP Address |" "| AlienVault |" "| Associated Domains |"
+				printf "%-16s | %-56s | %-60s\n\n" "--------------" "--------------"  "----------------------"
 			;;
 			2)
-				printf "\n\n%-6s | %-16s | %-55s | %-60s\n" "----" "----------" "----------" "------------------"
-				printf "%-6s | %-16s | %-55s | %-60s\n" "Hits" "IP Address" "AlienVault" "Associated Domains"
-				printf "%-6s | %-16s | %-55s | %-60s\n\n" "----" "----------" "----------" "------------------"
+				printf "\n\n%-10s | %-16s | %-55s | %-60s\n" "--------" "--------------" "--------------" "----------------------"
+				printf "%-10s | %-16s | %-55s | %-60s\n" "| Hits |" "| IP Address |" "| AlienVault |" "| Associated Domains |"
+				printf "%-10s | %-16s | %-55s | %-60s\n\n" "--------" "--------------" "--------------" "----------------------"
 			;;
 			3)
-				printf "\n\n%-6s | %-8s | %-60s\n" "----" "----" "----------"
-				printf "%-6s | %-8s | %-60s\n" "Hits" "Port" "SpeedGuide"
-				printf "%-6s | %-8s | %-60s\n\n" "----" "----" "----------"
+				printf "\n\n%-10s | %-10s | %-60s\n" "--------" "--------" "--------------"
+				printf "%-10s | %-10s | %-60s\n" "| Hits |" "| Port |" "| SpeedGuide |"
+				printf "%-10s | %-10s | %-60s\n\n" "--------" "--------" "--------------"
 			;;
 			4)
-				printf "\n\n%-6s | %-16s | %-60s\n" "----" "--------" "-----------"
-				printf "%-6s | %-16s | %-60s\n" "Hits" "Local IP" "Device Name"
-				printf "%-6s | %-16s | %-60s\n\n" "----" "--------" "-----------"
+				printf "\n\n%-10s | %-16s | %-60s\n" "--------" "------------" "---------------"
+				printf "%-10s | %-16s | %-60s\n" "| Hits |" "| Local IP |" "| Device Name |"
+				printf "%-10s | %-16s | %-60s\n\n" "--------" "------------" "---------------"
 			;;
 			5)
-				printf "\n\n%-20s | %-40s\n" "----------" "-----"
-				printf "%-20s | %-40s\n" "IP Address" "List"
-				printf "%-20s | %-40s\n\n" "----------" "-----"
+				printf "\n\n%-20s | %-40s\n" "--------------" "---------"
+				printf "%-20s | %-40s\n" "| IP Address |" "| List |"
+				printf "%-20s | %-40s\n\n" "--------------" "---------"
 			;;
 			6)
-				printf "\n\n%-40s | %-16s | %-20s | %-15s\n" "-----------" "--------" "-----------" "------"
-				printf "%-40s | %-16s | %-20s | %-15s\n" "Device Name" "Local IP" "MAC Address" "Status"
-				printf "%-40s | %-16s | %-20s | %-15s\n\n" "-----------" "--------" "-----------" "------"
+				printf "\n\n%-40s | %-16s | %-20s | %-15s\n" "---------------" "------------" "---------------" "----------"
+				printf "%-40s | %-16s | %-20s | %-15s\n" "| Device Name |" "| Local IP |" "| MAC Address |" "| Status |"
+				printf "%-40s | %-16s | %-20s | %-15s\n\n" "---------------" "------------" "---------------" "----------"
 			;;
 			7)
-				printf "\n\n%-35s | %-8s\n" "----------------" "------"
-				printf "%-35s | %-8s\n" "Test Description" "Result"
-				printf "%-35s | %-8s\n\n" "----------------" "------"
+				printf "\n\n%-35s | %-8s\n" "--------------------" "----------"
+				printf "%-35s | %-8s\n" "| Test Description |" "| Result |"
+				printf "%-35s | %-8s\n\n" "--------------------" "----------"
 			;;
 			8)
-				printf "\n\n%-35s | %-8s\n" "-------" "------"
-				printf "%-35s | %-8s\n" "Setting" "Status"
-				printf "%-35s | %-8s\n\n" "-------" "------"
+				printf "\n\n%-35s | %-8s\n" "-----------" "----------"
+				printf "%-35s | %-8s\n" "| Setting |" "| Status |"
+				printf "%-35s | %-8s\n\n" "----------" "----------"
 			;;
 			*)
 				echo "[*] Error - No Header Specified To Load"
@@ -1485,15 +1485,15 @@ Load_Menu () {
 				option1="settings"
 				while true; do
 					echo "Select Setting To Toggle:"
-					echo "[1]  --> Autoupdate - 		$(if [ "$autoupdate" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
-					echo "[2]  --> Banmalware - 		$(if [ "$banmalwareupdate" = "daily" ] || [ "$banmalwareupdate" = "weekly" ]; then Grn "[$banmalwareupdate]"; else Red "[Disabled]"; fi)"
-					echo "[3]  --> Debug Mode -		$(if [ "$debugmode" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
-					echo "[4]  --> Filter Traffic - 	$(Grn "[$filtertraffic]")"
-					echo "[5]  --> Unban PrivateIP - 	$(if [ "$unbanprivateip" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
-					echo "[6]  --> Log Invalid Packets -	$(if [ "$loginvalid" = "enabled" ]; then Grn "[Enabled]";else Ylow "[Disabled]"; fi)"
-					echo "[7]  --> Ban AiProtect - 	$(if [ "$banaiprotect" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
-					echo "[8]  --> Secure Mode -		$(if [ "$securemode" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
-					echo "[9]  --> Fast Switch -		$(if [ "$fastswitch" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
+					printf "%-30s | %-40s\n" "[1]  --> Autoupdate" "$(if [ "$autoupdate" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
+					printf "%-30s | %-40s\n" "[2]  --> Banmalware" "$(if [ "$banmalwareupdate" = "daily" ] || [ "$banmalwareupdate" = "weekly" ]; then Grn "[$banmalwareupdate]"; else Red "[Disabled]"; fi)"
+					printf "%-30s | %-40s\n" "[3]  --> Debug Mode" "$(if [ "$debugmode" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
+					printf "%-30s | %-40s\n" "[4]  --> Filter Traffic" "$(Grn "[$filtertraffic]")"
+					printf "%-30s | %-40s\n" "[5]  --> Unban PrivateIP" "$(if [ "$unbanprivateip" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
+					printf "%-30s | %-40s\n" "[6]  --> Log Invalid Packets" "$(if [ "$loginvalid" = "enabled" ]; then Grn "[Enabled]";else Ylow "[Disabled]"; fi)"
+					printf "%-30s | %-40s\n" "[7]  --> Ban AiProtect" "$(if [ "$banaiprotect" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
+					printf "%-30s | %-40s\n" "[8]  --> Secure Mode" "$(if [ "$securemode" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
+					printf "%-30s | %-40s\n" "[9]  --> Fast Switch" "$(if [ "$fastswitch" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
 					echo
 					printf "[1-9]: "
 					read -r "menu2"
@@ -3662,12 +3662,12 @@ case "$1" in
 						echo
 						Red "Top $counter Targeted Ports From $4 (Inbound);"
 						Display_Header "3"
-						grep -E "INBOUND.*SRC=$4 " "$skynetlog" | grep -oE 'DPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{printf "%-6s | %-8s | %-60s\n", $1 "x", $2, "https://www.speedguide.net/port.php?port=" $2 }'
+						grep -E "INBOUND.*SRC=$4 " "$skynetlog" | grep -oE 'DPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{printf "%-10s | %-10s | %-60s\n", $1 "x", $2, "https://www.speedguide.net/port.php?port=" $2 }'
 						echo
 						echo
 						Red "Top $counter Sourced Ports From $4 (Inbound);"
 						Display_Header "3"
-						grep -E "INBOUND.*SRC=$4 " "$skynetlog" | grep -oE 'SPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{printf "%-6s | %-8s | %-60s\n", $1 "x", $2, "https://www.speedguide.net/port.php?port=" $2 }'
+						grep -E "INBOUND.*SRC=$4 " "$skynetlog" | grep -oE 'SPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{printf "%-10s | %-10s | %-60s\n", $1 "x", $2, "https://www.speedguide.net/port.php?port=" $2 }'
 						echo
 					;;
 					malware)
@@ -3802,11 +3802,11 @@ case "$1" in
 				printf "\n\n=============================================================================================================\n\n\n"
 				Red "Top $counter Targeted Ports (Inbound);"
 				Display_Header "3"
-				grep -E "INBOUND.*$proto" "$skynetlog" | grep -oE 'DPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{printf "%-6s | %-8s | %-60s\n", $1 "x", $2, "https://www.speedguide.net/port.php?port=" $2 }'
+				grep -E "INBOUND.*$proto" "$skynetlog" | grep -oE 'DPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{printf "%-10s | %-10s | %-60s\n", $1 "x", $2, "https://www.speedguide.net/port.php?port=" $2 }'
 				printf "\n\n=============================================================================================================\n\n\n"
 				Red "Top $counter Attacker Source Ports (Inbound);"
 				Display_Header "3"
-				grep -E "INBOUND.*$proto" "$skynetlog" | grep -oE 'SPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{printf "%-6s | %-8s | %-60s\n", $1 "x", $2, "https://www.speedguide.net/port.php?port=" $2 }'
+				grep -E "INBOUND.*$proto" "$skynetlog" | grep -oE 'SPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{printf "%-10s | %-10s | %-60s\n", $1 "x", $2, "https://www.speedguide.net/port.php?port=" $2 }'
 				printf "\n\n=============================================================================================================\n\n\n"
 				Red "Last $counter Unique Connections Blocked (Inbound);"
 				Display_Header "1"
@@ -3877,7 +3877,7 @@ case "$1" in
 					elif [ -z "$localname" ]; then
 						localname="Unknown"
 					fi
-					printf "%-6s | %-16s | %-60s\n" "${hits}x" "${ipaddr}" "$localname"
+					printf "%-10s | %-16s | %-60s\n" "${hits}x" "${ipaddr}" "$localname"
 				done
 				rm -rf /tmp/skynet/skynetstats.txt
 				printf "\n\n=============================================================================================================\n\n\n"
