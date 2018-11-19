@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 19/11/2018 -		   Asus Firewall Addition By Adamm v6.6.1				    #
+## - 19/11/2018 -		   Asus Firewall Addition By Adamm v6.6.2				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -438,7 +438,7 @@ Is_IPRange () {
 }
 
 Is_MAC () {
-	grep -qE '^([[:xdigit:]]{1,2}:){5}[[:xdigit:]]{1,2}$'
+		grep -qE '^([[:xdigit:]]{1,2}:){5}[[:xdigit:]]{1,2}$'
 }
 
 Is_Port () {
@@ -2312,7 +2312,7 @@ case "$1" in
 				if ! Check_Connection; then echo "[*] Connection Error Detected - Exiting"; echo; exit 1; fi
 				if [ -z "$3" ]; then echo "[*] Domain Field Can't Be Empty - Please Try Again"; echo; exit 2; fi
 				domain="$(echo "$3" | Strip_Domain)"
-				if ! echo "$domain" | Is_Domain; then echo "[*] Domain Not Valid - Please Try Again"; echo; exit 2; fi
+				# if ! echo "$domain" | Is_Domain; then echo "[*] Domain Not Valid - Please Try Again"; echo; exit 2; fi
 				echo "[i] Removing $domain From Blacklist"
 				for ip in $(Domain_Lookup "$domain"); do
 					echo "[i] Unbanning $ip"
@@ -2397,7 +2397,7 @@ case "$1" in
 			domain)
 				if [ -z "$3" ]; then echo "[*] Domain Field Can't Be Empty - Please Try Again"; echo; exit 2; fi
 				domain="$(echo "$3" | Strip_Domain)"
-				if ! echo "$domain" | Is_Domain; then echo "[*] Domain Not Valid - Please Try Again"; echo; exit 2; fi
+				# if ! echo "$domain" | Is_Domain; then echo "[*] Domain Not Valid - Please Try Again"; echo; exit 2; fi
 				echo "[i] Adding $domain To Blacklist"
 				for ip in $(Domain_Lookup "$domain"); do
 					echo "[i] Banning $ip"
@@ -2583,7 +2583,7 @@ case "$1" in
 				if ! Check_Connection; then echo "[*] Connection Error Detected - Exiting"; echo; exit 1; fi
 				if [ -z "$3" ]; then echo "[*] Domain Field Can't Be Empty - Please Try Again"; echo; exit 2; fi
 				domain="$(echo "$3" | Strip_Domain)"
-				if ! echo "$domain" | Is_Domain; then echo "[*] Domain Not Valid - Please Try Again"; echo; exit 2; fi
+				# if ! echo "$domain" | Is_Domain; then echo "[*] Domain Not Valid - Please Try Again"; echo; exit 2; fi
 				echo "[i] Adding $domain To Whitelist"
 				for ip in $(Domain_Lookup "$domain"); do
 					echo "[i] Whitelisting $ip"
@@ -3300,7 +3300,7 @@ case "$1" in
 				passedtests="0"
 				totaltests="17"
 				Display_Header "6"
-				ip neigh show | while IFS= read -r "ip"; do
+				ip neigh | while IFS= read -r "ip"; do
 					ipaddr="$(echo $ip | awk '{print $1}')"
 					macaddr="$(echo $ip | awk '{print $5}')"
 					localname="$(grep -F "$ipaddr" /var/lib/misc/dnsmasq.leases | awk '{print $4}')"
