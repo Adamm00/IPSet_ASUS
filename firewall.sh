@@ -130,6 +130,9 @@ Check_Settings () {
 					sed -i '\~swapon ~d' /jffs/scripts/post-mount
 					sed -i "2i swapon $swaplocation # Skynet Firewall Addition" /jffs/scripts/post-mount
 				fi
+			else
+				sleep 10
+				swapon "$(grep -E "^swapon " /jffs/scripts/post-mount | awk '{print $2}')" 2>/dev/null
 			fi
 		elif grep -qF "swap" /jffs/configs/fstab; then
 			if Check_Swap; then
@@ -894,23 +897,23 @@ Load_Menu () {
 	if ! grep -E "start.* # Skynet" /jffs/scripts/firewall-start 2>/dev/null | grep -qvE "^#"; then
 		printf "%-35s | %-8s\n" "Firewall-Start Entry" "$(Red "[Failed]")"
 	fi
-	if ! iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j DROP 2>/dev/null && [ "$filtertraffic" != "outbound" ]; then 
+	if ! iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j DROP 2>/dev/null && [ "$filtertraffic" != "outbound" ]; then
 		printf "%-35s | %-8s\n" "Inbound Filter Rules" "$(Red "[Failed]")"; nolog="1"
 	fi
 	if ! iptables -t raw -C PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null || \
-	! iptables -t raw -C OUTPUT -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null && [ "$filtertraffic" != "inbound" ]; then 
+	! iptables -t raw -C OUTPUT -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null && [ "$filtertraffic" != "inbound" ]; then
 		printf "%-35s | %-8s\n" "Outbound Filter Rules" "$(Red "[Failed]")"; nolog="1"
 	fi
-	if ! ipset -L -n Skynet-Whitelist >/dev/null 2>&1; then 
+	if ! ipset -L -n Skynet-Whitelist >/dev/null 2>&1; then
 		printf "%-35s | %-8s\n" "Whitelist IPSet" "$(Red "[Failed]")"; nolog="1"
 	fi
-	if ! ipset -L -n Skynet-BlockedRanges >/dev/null 2>&1; then 
+	if ! ipset -L -n Skynet-BlockedRanges >/dev/null 2>&1; then
 		printf "%-35s | %-8s\n" "BlockedRanges IPSet" "$(Red "[Failed]")"; nolog="1"
 	fi
-	if ! ipset -L -n Skynet-Blacklist >/dev/null 2>&1; then 
+	if ! ipset -L -n Skynet-Blacklist >/dev/null 2>&1; then
 		printf "%-35s | %-8s\n" "Blacklist IPSet" "$(Red "[Failed]")"; nolog="1"
 	fi
-	if ! ipset -L -n Skynet-Master >/dev/null 2>&1; then 
+	if ! ipset -L -n Skynet-Master >/dev/null 2>&1; then
 		printf "%-35s | %-8s\n" "Skynet IPSet" "$(Red "[Failed]")"; nolog="1"
 	fi
 	if [ "$fastswitch" = "enabled" ]; then Ylow "Fast Switch Is Enabled!"; fi
@@ -3306,7 +3309,7 @@ case "$1" in
 						state="Inactive"
 					elif [ "$state" = "REACHABLE" ]; then
 						state="Online"
-					fi		
+					fi
 					if ! echo "$macaddr" | Is_MAC; then
 						printf "%-40s | %-16s | %-20s | %-15s\n" "$localname" "$ipaddr" "Unknown" "$(Red "Offline")"
 					else
