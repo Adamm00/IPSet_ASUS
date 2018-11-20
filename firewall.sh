@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 21/11/2018 -		   Asus Firewall Addition By Adamm v6.6.2				    #
+## - 21/11/2018 -		   Asus Firewall Addition By Adamm v6.6.3				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -261,7 +261,7 @@ Check_Files () {
 		if [ "$1" = "verify" ] && ! grep -qF "# Skynet" /jffs/scripts/services-stop; then
 			echo "sh /jffs/scripts/firewall save # Skynet Firewall Addition" >> /jffs/scripts/services-stop
 		fi
-		if [ "$(wc -l < /jffs/scripts/post-mount)" -lt "2" ]; echo >> /jffs/scripts/post-mount; fi
+		if [ "$(wc -l < /jffs/scripts/post-mount)" -lt "2" ]; then echo >> /jffs/scripts/post-mount; fi
 		chmod 755 "/jffs/scripts/firewall" "/jffs/scripts/firewall-start" "/jffs/scripts/services-stop" "/jffs/scripts/post-mount" "/jffs/configs/fstab"
 }
 
