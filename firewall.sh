@@ -261,6 +261,8 @@ Check_Files () {
 		if [ "$1" = "verify" ] && ! grep -qF "# Skynet" /jffs/scripts/services-stop; then
 			echo "sh /jffs/scripts/firewall save # Skynet Firewall Addition" >> /jffs/scripts/services-stop
 		fi
+		if [ "$(wc -l < /jffs/scripts/post-mount)" -lt "2" ]; echo >> /jffs/scripts/post-mount; fi
+		chmod 755 "/jffs/scripts/firewall" "/jffs/scripts/firewall-start" "/jffs/scripts/services-stop" "/jffs/scripts/post-mount" "/jffs/configs/fstab"
 }
 
 Check_Security () {
@@ -4093,7 +4095,6 @@ case "$1" in
 		else
 			echo "$cmdline" >> /jffs/scripts/services-stop
 		fi
-		chmod 0755 /jffs/scripts/*
 		Clean_Temp
 		echo
 		nvram commit
