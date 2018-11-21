@@ -2879,6 +2879,7 @@ case "$1" in
 
 	restart)
 		Check_Lock "$@"
+		Spinner_End
 		Purge_Logs
 		echo "[i] Saving Changes"
 		Save_IPSets
@@ -2911,6 +2912,7 @@ case "$1" in
 
 	update)
 		Check_Lock "$@"
+		Spinner_End
 		if ! Check_Connection; then echo "[*] Connection Error Detected - Exiting"; echo; exit 1; fi
 		remoteurl="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh"
 		curl -fsL --retry 3 "$remoteurl" | grep -qF "Adamm" || { logger -st Skynet "[*] 404 Error Detected - Stopping Update"; echo; exit 1; }
