@@ -2929,16 +2929,16 @@ case "$1" in
 		localmd5="$(md5sum "$0" | awk '{print $1}')"
 		remotemd5="$(curl -fsL --retry 3 "$remoteurl" | md5sum | awk '{print $1}')"
 		if [ "$localmd5" = "$remotemd5" ] && [ "$2" != "-f" ]; then
-			logger -t Skynet "[%] Skynet Up To Date - $localver"; echo "[%] Skynet Up To Date - $localver"
+			logger -t Skynet "[%] Skynet Up To Date - $localver (${localmd5})"; echo "[%] Skynet Up To Date - $localver (${localmd5})"
 			nolog="2"
 		elif [ "$localmd5" != "$remotemd5" ] && [ "$2" = "check" ]; then
-			logger -t Skynet "[%] Skynet Update Detected - $remotever"; echo "[%] Skynet Update Detected - $remotever"
+			logger -t Skynet "[%] Skynet Update Detected - $remotever (${remotemd5})"; echo "[%] Skynet Update Detected - $remotever (${remotemd5})"
 			nolog="2"
 		elif [ "$2" = "-f" ]; then
 			echo "[i] Forcing Update"
 		fi
 		if [ "$localmd5" != "$remotemd5" ] || [ "$2" = "-f" ] && [ "$nolog" != "2" ]; then
-			logger -t Skynet "[%] New Version Detected - Updating To $remotever"; echo "[%] New Version Detected - Updating To $remotever"
+			logger -t Skynet "[%] New Version Detected - Updating To $remotever (${remotemd5})"; echo "[%] New Version Detected - Updating To $remotever (${remotemd5})"
 			echo "[i] Saving Changes"
 			Save_IPSets
 			echo "[i] Unloading Skynet Components"
@@ -2952,7 +2952,6 @@ case "$1" in
 			service restart_firewall
 			echo; exit 0
 		fi
-		echo
 	;;
 
 	settings)
