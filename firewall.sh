@@ -243,13 +243,13 @@ Check_Files () {
 		fi
 		if [ ! -f "/jffs/scripts/services-stop" ]; then
 			echo "#!/bin/sh" > /jffs/scripts/services-stop
-			echo >> /jffs/scripts/firewall-start
+			echo >> /jffs/scripts/services-stop
 		elif [ -f "/jffs/scripts/services-stop" ] && ! head -1 /jffs/scripts/services-stop | grep -qE "^#!/bin/sh"; then
 			sed -i '1s~^~#!/bin/sh\n~' /jffs/scripts/services-stop
 		fi
 		if [ ! -f "/jffs/scripts/post-mount" ]; then
 			echo "#!/bin/sh" > /jffs/scripts/post-mount
-			echo >> /jffs/scripts/firewall-start
+			echo >> /jffs/scripts/post-mount
 		elif [ -f "/jffs/scripts/post-mount" ] && ! head -1 /jffs/scripts/post-mount | grep -qE "^#!/bin/sh"; then
 			sed -i '1s~^~#!/bin/sh\n~' /jffs/scripts/post-mount
 		fi
