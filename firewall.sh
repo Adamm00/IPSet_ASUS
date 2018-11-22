@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 22/11/2018 -		   Asus Firewall Addition By Adamm v6.6.3				    #
+## - 23/11/2018 -		   Asus Firewall Addition By Adamm v6.6.3				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -17,7 +17,7 @@
 export PATH=/sbin:/bin:/usr/sbin:/usr/bin$PATH
 printf '\033[?7l'
 clear
-sed -n '2,16p' "$0"
+sed -n '2,14p' "$0"
 export LC_ALL=C
 mkdir -p /tmp/skynet/lists
 
@@ -908,7 +908,7 @@ Write_Config () {
 
 Load_Menu () {
 	. "$skynetcfg"
-	printf "=============================================================================================================\n\n\n"
+	printf "\n\n=============================================================================================================\n\n\n"
 	echo "Router Model; $model"
 	echo "Skynet Version; $localver ($(Filter_Date < "$0"))"
 	echo "$(iptables --version) - ($iface @ $(nvram get lan_ipaddr))"
@@ -2300,7 +2300,6 @@ if [ -n "$option1" ]; then
 	set "$option1" "$option2" "$option3" "$option4" "$option5"
 	stime="$(date +%s)"
 	echo "[$] $0 $*" | tr -s " "
-	echo
 fi
 
 trap 'Spinner_End' EXIT
@@ -2309,7 +2308,7 @@ if [ -f "$skynetcfg" ]; then
 	. "$skynetcfg"
 fi
 
-printf "=============================================================================================================\n\n\n"
+printf "\n\n=============================================================================================================\n\n\n"
 
 ##############
 #- Commands -#
@@ -2927,16 +2926,18 @@ case "$1" in
 		remoteurl="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh"
 		curl -fsL --retry 3 "$remoteurl" | grep -qF "Adamm" || { logger -st Skynet "[*] 404 Error Detected - Stopping Update"; echo; exit 1; }
 		remotever="$(curl -fsL --retry 3 "$remoteurl" | Filter_Version)"
-		if [ "$localver" = "$remotever" ] && [ "$2" != "-f" ]; then
+		localmd5="$(md5sum "$0" | awk '{print $1}')"
+		remotemd5="$(curl -fsL --retry 3 "$remoteurl" | md5sum | awk '{print $1}')"
+		if [ "$localmd5" = "$remotemd5" ] && [ "$2" != "-f" ]; then
 			logger -t Skynet "[%] Skynet Up To Date - $localver"; echo "[%] Skynet Up To Date - $localver"
 			nolog="2"
-		elif [ "$localver" != "$remotever" ] && [ "$2" = "check" ]; then
+		elif [ "$localmd5" != "$remotemd5" ] && [ "$2" = "check" ]; then
 			logger -t Skynet "[%] Skynet Update Detected - $remotever"; echo "[%] Skynet Update Detected - $remotever"
 			nolog="2"
 		elif [ "$2" = "-f" ]; then
 			echo "[i] Forcing Update"
 		fi
-		if [ "$localver" != "$remotever" ] || [ "$2" = "-f" ] && [ "$nolog" != "2" ]; then
+		if [ "$localmd5" != "$remotemd5" ] || [ "$2" = "-f" ] && [ "$nolog" != "2" ]; then
 			logger -t Skynet "[%] New Version Detected - Updating To $remotever"; echo "[%] New Version Detected - Updating To $remotever"
 			echo "[i] Saving Changes"
 			Save_IPSets
