@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 23/11/2018 -		   Asus Firewall Addition By Adamm v6.6.3				    #
+## - 24/11/2018 -		   Asus Firewall Addition By Adamm v6.6.3				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -910,7 +910,7 @@ Load_Menu () {
 	. "$skynetcfg"
 	printf "\n\n=============================================================================================================\n\n\n"
 	echo "Router Model; $model"
-	echo "Skynet Version; $localver ($(Filter_Date < "$0"))"
+	echo "Skynet Version; $localver ($(Filter_Date < "$0")) ($(md5sum "$0" | awk '{print $1}'))"
 	echo "$(iptables --version) - ($iface @ $(nvram get lan_ipaddr))"
 	ipset -v
 	echo "FW Version; $(nvram get buildno)_$(nvram get extendno) ($(uname -v | awk '{printf "%s %s %s\n", $5, $6, $9}')) ($(uname -r))"
@@ -3301,7 +3301,7 @@ case "$1" in
 			;;
 			info)
 				echo "Router Model; $model"
-				echo "Skynet Version; $localver ($(Filter_Date < "$0"))"
+				echo "Skynet Version; $localver ($(Filter_Date < "$0")) ($(md5sum "$0" | awk '{print $1}'))"
 				echo "$(iptables --version) - ($iface @ $(nvram get lan_ipaddr))"
 				ipset -v
 				echo "FW Version; $(nvram get buildno)_$(nvram get extendno) ($(uname -v | awk '{printf "%s %s %s\n", $5, $6, $9}')) ($(uname -r))"
