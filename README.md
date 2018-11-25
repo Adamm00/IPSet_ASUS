@@ -21,7 +21,7 @@ To open the menu its as simple as;
 
 ```sh /jffs/scripts/firewall```
 
-[![Skynet GUI](https://i.imgur.com/Z06HnPE.png "Skynet GUI")](https://i.imgur.com/Z06HnPE.png "Skynet GUI")
+[![Skynet GUI](https://i.imgur.com/nDkMdRl.png "Skynet GUI")](https://i.imgur.com/nDkMdRl.png "Skynet GUI")
 
 
 
@@ -29,8 +29,8 @@ To open the menu its as simple as;
 
 In your favorite SSH Client;
 
-```sh
-/usr/sbin/curl --retry 3 "https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh" -o "/jffs/scripts/firewall" && chmod +x /jffs/scripts/firewall && sh /jffs/scripts/firewall install
+```
+/usr/sbin/curl "https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh" -o "/jffs/scripts/firewall" && chmod 755 /jffs/scripts/firewall && sh /jffs/scripts/firewall install
 ```
 
 ## Help

@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 24/11/2018 -		   Asus Firewall Addition By Adamm v6.6.3				    #
+## - 25/11/2018 -		   Asus Firewall Addition By Adamm v6.6.4				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -544,6 +544,12 @@ Display_Header () {
 				printf "%-35s | %-8s\n" "| Setting |" "| Status |"
 				printf "%-35s | %-8s\n\n" "----------" "----------"
 			;;
+			9)
+				printf "\n\n=============================================================================================================\n\n\n"
+			;;
+			10)
+				printf "\n=============================================================================================================\n\n\n"
+			;;
 			*)
 				echo "[*] Error - No Header Specified To Load"
 			;;
@@ -583,7 +589,7 @@ Spinner_End () {
 		if [ -f /tmp/skynet/spinstart ]; then
 			pider="$(cat /tmp/skynet/spinstart)"
 			rm -rf /tmp/skynet/spinstart
-			if [ -d "/proc/$pider" ]; then wait "$pider"; fi
+			if [ -d "/proc/$pider" ]; then kill "$pider"; fi
 		fi
 }
 
@@ -908,7 +914,7 @@ Write_Config () {
 
 Load_Menu () {
 	. "$skynetcfg"
-	printf "\n\n=============================================================================================================\n\n\n"
+	Display_Header "9"
 	echo "Router Model; $model"
 	echo "Skynet Version; $localver ($(Filter_Date < "$0")) ($(md5sum "$0" | awk '{print $1}'))"
 	echo "$(iptables --version) - ($iface @ $(nvram get lan_ipaddr))"
@@ -948,8 +954,9 @@ Load_Menu () {
 	if ! Check_IPTables; then
 		printf "%-35s | %-8s\n" "IPTables Rules" "$(Red "[Failed]")"; nolog="1"
 	fi
-	if [ "$fastswitch" = "enabled" ]; then Ylow "Fast Switch Is Enabled!"; fi
-	echo
+	if [ "$fastswitch" = "enabled" ]; then
+		Ylow "Fast Switch Is Enabled!"
+	fi
 	if [ "$nolog" != "1" ]; then Print_Log "minimal"; fi
 	unset "nolog"
 	unset "option1" "option2" "option3" "option4" "option5"
@@ -2308,7 +2315,7 @@ if [ -f "$skynetcfg" ]; then
 	. "$skynetcfg"
 fi
 
-printf "\n\n=============================================================================================================\n\n\n"
+Display_Header "9"
 
 ##############
 #- Commands -#
@@ -3707,7 +3714,7 @@ case "$1" in
 						dos2unix /tmp/skynet/lists/*
 						cd "$cwd" || exit 1
 						printf "   \b\b\b"
-						printf "\n=============================================================================================================\n\n\n"
+						Display_Header "10"
 						Red "Exact Matches;"
 						Display_Header "5"
 						grep -HE "^$ip$" /tmp/skynet/lists/* | cut -d '/' -f5- | while IFS= read -r "list" && [ -n "$list" ]; do
@@ -3812,73 +3819,73 @@ case "$1" in
 				else
 					touch "/tmp/skynet/skynetstats.txt"
 				fi
-				printf "\n=============================================================================================================\n\n\n"
+				Display_Header "10"
 				Red "Top $counter Targeted Ports (Inbound);"
 				Display_Header "3"
 				grep -E "INBOUND.*$proto" "$skynetlog" | grep -oE 'DPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{printf "%-10s | %-10s | %-60s\n", $1 "x", $2, "https://www.speedguide.net/port.php?port=" $2 }'
-				printf "\n\n=============================================================================================================\n\n\n"
+				Display_Header "9"
 				Red "Top $counter Attacker Source Ports (Inbound);"
 				Display_Header "3"
 				grep -E "INBOUND.*$proto" "$skynetlog" | grep -oE 'SPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{printf "%-10s | %-10s | %-60s\n", $1 "x", $2, "https://www.speedguide.net/port.php?port=" $2 }'
-				printf "\n\n=============================================================================================================\n\n\n"
+				Display_Header "9"
 				Red "Last $counter Unique Connections Blocked (Inbound);"
 				Display_Header "1"
 				grep -E "INBOUND.*$proto" "$skynetlog" | grep -oE ' SRC=[0-9,\.]*' | cut -c 6- | awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' | awk '!x[$0]++' | head -"$counter" | while IFS= read -r "statdata"; do
 					Extended_DNSStats "1"
 				done
-				printf "\n\n=============================================================================================================\n\n\n"
+				Display_Header "9"
 				Red "Last $counter Unique Connections Blocked (Outbound);"
 				Display_Header "1"
 				grep -E "OUTBOUND.*$proto" "$skynetlog" | grep -vE 'DPT=80 |DPT=443 ' | grep -oE ' DST=[0-9,\.]*' | cut -c 6- | awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' | awk '!x[$0]++' | head -"$counter" | while IFS= read -r "statdata"; do
 					Extended_DNSStats "1"
 				done
 				if [ "$loginvalid" = "enabled" ]; then
-					printf "\n\n=============================================================================================================\n\n\n"
+					Display_Header "9"
 					Red "Last $counter Unique Connections Blocked (Invalid);"
 					Display_Header "1"
 					grep -E "INVALID.*$proto" "$skynetlog" | grep -oE ' SRC=[0-9,\.]*' | cut -c 6- | awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' | awk '!x[$0]++' | head -"$counter" | while IFS= read -r "statdata"; do
 						Extended_DNSStats "1"
 					done
 				fi
-				printf "\n\n=============================================================================================================\n\n\n"
+				Display_Header "9"
 				Red "Last $counter Manual Bans;"
 				Display_Header "1"
 				grep -F "Manual Ban" "$skynetevents" | grep -oE ' SRC=[0-9,\.]*' | cut -c 6- | tail -"$counter" | awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' | while IFS= read -r "statdata"; do
 					Extended_DNSStats "1"
 				done
-				printf "\n\n=============================================================================================================\n\n\n"
+				Display_Header "9"
 				Red "Last $counter Unique HTTP(s) Blocks (Outbound);"
 				Display_Header "1"
 				grep -E 'DPT=80 |DPT=443 ' "$skynetlog" | grep -E "OUTBOUND.*$proto" | grep -oE ' DST=[0-9,\.]*' | cut -c 6- | awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' | awk '!x[$0]++' | head -"$counter" | while IFS= read -r "statdata"; do
 					Extended_DNSStats "1"
 				done
-				printf "\n\n=============================================================================================================\n\n\n"
+				Display_Header "9"
 				Red "Top $counter HTTP(s) Blocks (Outbound);"
 				Display_Header "2"
 				grep -E 'DPT=80 |DPT=443 ' "$skynetlog" | grep -E "OUTBOUND.*$proto" | grep -oE ' DST=[0-9,\.]*' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | while IFS= read -r "statdata"; do
 					Extended_DNSStats "2"
 				done
-				printf "\n\n=============================================================================================================\n\n\n"
+				Display_Header "9"
 				Red "Top $counter Blocks (Inbound);"
 				Display_Header "2"
 				grep -E "INBOUND.*$proto" "$skynetlog" | grep -oE ' SRC=[0-9,\.]*' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | while IFS= read -r "statdata"; do
 					Extended_DNSStats "2"
 				done
-				printf "\n\n=============================================================================================================\n\n\n"
+				Display_Header "9"
 				Red "Top $counter Blocks (Outbound);"
 				Display_Header "2"
 				grep -E "OUTBOUND.*$proto" "$skynetlog" | grep -vE 'DPT=80 |DPT=443 ' | grep -oE ' DST=[0-9,\.]*' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | while IFS= read -r "statdata"; do
 					Extended_DNSStats "2"
 				done
 				if [ "$loginvalid" = "enabled" ]; then
-					printf "\n\n=============================================================================================================\n\n\n"
+					Display_Header "9"
 					Red "Top $counter Blocks (Invalid);"
 					Display_Header "2"
 						grep -E "INVALID.*$proto" "$skynetlog" | grep -oE ' SRC=[0-9,\.]*' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | while IFS= read -r "statdata"; do
 							Extended_DNSStats "2"
 						done
 				fi
-				printf "\n\n=============================================================================================================\n\n\n"
+				Display_Header "9"
 				Red "Top $counter Blocked Devices (Outbound);"
 				Display_Header "4"
 				grep -E "OUTBOUND.*$proto" "$skynetlog" | grep -oE ' SRC=[0-9,\.]*' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | while IFS= read -r "statdata"; do
@@ -3999,7 +4006,7 @@ case "$1" in
 		echo
 		echo
 		while true; do
-			echo "Would You Like To Enable Automatic Malwarelist Updating?"
+			echo "Would You Like To Enable Automatic Malware Blacklist Updating?"
 			echo "[1]  --> Yes (Daily)  - (Recommended)"
 			echo "[2]  --> Yes (Weekly)"
 			echo "[3]  --> No"
@@ -4210,7 +4217,7 @@ case "$1" in
 esac
 
 Spinner_End
-printf "\n\n=============================================================================================================\n\n\n"
+Display_Header "9"
 if [ "$nolog" != "2" ]; then Print_Log "$@"; echo; fi
 if [ "$nocfg" != "1" ]; then Write_Config; fi
 if [ "$lockskynet" = "true" ]; then rm -rf "/tmp/skynet.lock"; fi
