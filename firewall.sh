@@ -3579,7 +3579,7 @@ case "$1" in
 					"$3"
 					printf "\n[i] Complete\n"
 				else
-					echo "${3}() Doesn't Exist"
+					printf "%s() Doesn't Exist" "$3"
 				fi
 			;;
 			*)
