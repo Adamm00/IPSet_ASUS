@@ -360,34 +360,34 @@ Load_DebugIPTables () {
 }
 
 Check_IPSets () {
-		ipset -L -n Skynet-Whitelist >/dev/null 2>&1 || return 1
-		ipset -L -n Skynet-Blacklist >/dev/null 2>&1 || return 1
-		ipset -L -n Skynet-BlockedRanges >/dev/null 2>&1 || return 1
-		ipset -L -n Skynet-Master >/dev/null 2>&1 || return 1
+		ipset -L -n Skynet-Whitelist >/dev/null 2>&1 || { fail="1"; return 1; }
+		ipset -L -n Skynet-Blacklist >/dev/null 2>&1 || { fail="2"; return 1; }
+		ipset -L -n Skynet-BlockedRanges >/dev/null 2>&1 || { fail="3"; return 1; }
+		ipset -L -n Skynet-Master >/dev/null 2>&1 || { fail="4"; return 1; }
 }
 
 Check_IPTables () {
 		if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "inbound" ]; then
-			iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j DROP 2>/dev/null || return 1
+			iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j DROP 2>/dev/null || { fail="5"; return 1; }
 		fi
 		if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "outbound" ]; then
-			iptables -t raw -C PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null || return 1
-			iptables -t raw -C OUTPUT -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null || return 1
+			iptables -t raw -C PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null || { fail="6"; return 1; }
+			iptables -t raw -C OUTPUT -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null || { fail="7"; return 1; }
 		fi
 		if [ "$(nvram get sshd_enable)" = "1" ] && [ "$(nvram get sshd_bfp)" = "1" ] && [ "$(uname -o)" = "ASUSWRT-Merlin" ]; then
-			iptables -C SSHBFP -m recent --update --seconds 60 --hitcount 4 --name SSH --rsource -j SET --add-set Skynet-Master src 2>/dev/null || return 1
-			iptables -C SSHBFP -m recent --update --seconds 60 --hitcount 4 --name SSH --rsource -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || return 1
+			iptables -C SSHBFP -m recent --update --seconds 60 --hitcount 4 --name SSH --rsource -j SET --add-set Skynet-Master src 2>/dev/null || { fail="8"; return 1; }
+			iptables -C SSHBFP -m recent --update --seconds 60 --hitcount 4 --name SSH --rsource -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || { fail="9"; return 1; }
 		fi
 		if [ "$debugmode" = "enabled" ]; then
 			if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "inbound" ]; then
-				iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || return 1
+				iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || { fail="10"; return 1; }
 			fi
 			if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "outbound" ]; then
-				iptables -t raw -C PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || return 1
-				iptables -t raw -C OUTPUT -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || return 1
+				iptables -t raw -C PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || { fail="11"; return 1; }
+				iptables -t raw -C OUTPUT -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || { fail="12"; return 1; }
 			fi
 			if [ "$(nvram get fw_log_x)" = "drop" ] || [ "$(nvram get fw_log_x)" = "both" ] && [ "$loginvalid" = "enabled" ]; then
-				iptables -C logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - INVALID] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || return 1
+				iptables -C logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - INVALID] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || { fail="13"; return 1; }
 			fi
 		fi
 }
@@ -2845,7 +2845,7 @@ case "$1" in
 	save)
 		Check_Lock "$@"
 		if ! Check_IPSets || ! Check_IPTables; then
-			logger -st Skynet "[*] Rule Integrity Violation - Restarting Firewall"
+			logger -st Skynet "[*] Rule Integrity Violation - Restarting Firewall [#${fail}]"
 			restartfirewall="1"
 			nolog="2"
 		else
@@ -3571,6 +3571,16 @@ case "$1" in
 				logger -t Skynet "[%] Restarting Firewall Service"; echo "[%] Restarting Firewall Service"
 				restartfirewall="1"
 				nolog="2"
+			;;
+			run)
+				Check_Lock
+				if grep -qE "^${3}()" "$0"; then
+					printf "[i] Running Function %s()\n\n" "$3"
+					"$3"
+					printf "\n[i] Complete\n"
+				else
+					echo "${3}() Doesn't Exist"
+				fi
 			;;
 			*)
 				echo "Command Not Recognized, Please Try Again"
