@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 27/11/2018 -		   Asus Firewall Addition By Adamm v6.6.4				    #
+## - 28/11/2018 -		   Asus Firewall Addition By Adamm v6.6.4				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -3579,7 +3579,7 @@ case "$1" in
 					"$3"
 					printf "\n[i] Complete\n"
 				else
-					printf "%s() Doesn't Exist" "$3"
+					printf "%s() Doesn't Exist\n" "$3"
 				fi
 			;;
 			*)
