@@ -139,7 +139,7 @@ Check_Settings () {
 				swappartition="$(sed -n '2p' /proc/swaps | awk '{print $1}')"
 			fi
 		else
-			findswap="$(find /tmp/mnt -name "myswap.swp" >/dev/null 2>&1)"
+			findswap="$(find /tmp/mnt -name "myswap.swp")"
 			if [ -n "$findswap" ] && [ -f "$findswap" ]; then
 				logger -st Skynet "[*] Restoring Damaged Swap File ( $findswap )"
 				sed -i '\~swapon ~d' /jffs/scripts/post-mount
