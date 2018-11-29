@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 28/11/2018 -		   Asus Firewall Addition By Adamm v6.6.4				    #
+## - 29/11/2018 -		   Asus Firewall Addition By Adamm v6.6.4				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -220,15 +220,23 @@ Check_Settings () {
 Check_Connection () {
 		livecheck="0"
 		while [ "$livecheck" != "4" ]; do
-			if ping -q -w1 -c1 google.com >/dev/null 2>&1; then
+			if ping -q -w3 -c1 google.com >/dev/null 2>&1; then
 				break
 			else
-				if ping -q -w1 -c1 github.com >/dev/null 2>&1; then
+				if ping -q -w3 -c1 github.com >/dev/null 2>&1; then
 					break
 				else
-					livecheck=$((livecheck+1))
-					if [ "$livecheck" != "4" ]; then echo "[*] Internet Connectivity Error"; sleep 10; fi
-					return "1"
+					if ping -q -w3 -c1 snbforums.com >/dev/null 2>&1; then
+						break
+					else
+						livecheck=$((livecheck+1))
+						if [ "$livecheck" != "4" ]; then
+							echo "[*] Internet Connectivity Error"
+							sleep 10
+						else
+							return "1"
+						fi
+					fi
 				fi
 			fi
 		done
@@ -3331,6 +3339,7 @@ case "$1" in
 					ipaddr="$(echo "$ip" | awk '{print $1}')"
 					macaddr="$(echo "$ip" | awk '{print $5}')"
 					localname="$(grep -F "$ipaddr" /var/lib/misc/dnsmasq.leases | awk '{print $4}')"
+					[ -z "$localname" ] && localname="Unknown"
 					state="$(echo "$ip" | awk '{print $6}')"
 					if [ "$state" = "STALE" ]; then
 						state="Inactive"
