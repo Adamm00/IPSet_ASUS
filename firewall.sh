@@ -128,6 +128,7 @@ Check_Settings () {
 				if [ "$(grep -E "^swapon " /jffs/scripts/post-mount | awk '{print $2}')" != "$swaplocation" ]; then
 					logger -st Skynet "[*] Restoring Damaged Swap File ( $swaplocation )"
 					sed -i '\~swapon ~d' /jffs/scripts/post-mount
+					if [ "$(wc -l < /jffs/scripts/post-mount)" -lt "2" ]; then echo >> /jffs/scripts/post-mount; fi
 					sed -i "2i swapon $swaplocation # Skynet Firewall Addition" /jffs/scripts/post-mount
 				fi
 			else
@@ -834,6 +835,7 @@ Create_Swap () {
 		mkswap "$swaplocation"
 		swapon "$swaplocation"
 		sed -i '\~swapon ~d' /jffs/scripts/post-mount
+		if [ "$(wc -l < /jffs/scripts/post-mount)" -lt "2" ]; then echo >> /jffs/scripts/post-mount; fi
 		sed -i "2i swapon $swaplocation # Skynet Firewall Addition" /jffs/scripts/post-mount
 		echo "[i] SWAP File Located At $swaplocation"
 		echo
