@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 29/11/2018 -		   Asus Firewall Addition By Adamm v6.6.4				    #
+## - 01/12/2018 -		   Asus Firewall Addition By Adamm v6.6.4				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -157,10 +157,10 @@ Check_Settings () {
 			fi
 		fi
 		if [ -n "$swaplocation" ] && [ ! -f "$swaplocation" ]; then
-			logger -st Skynet "[*] SWAP File Missing - Fix This By Running ( $0 debug swap uninstall )"
+			logger -st Skynet "[*] SWAP File Missing ( $swaplocation ) - Fix This By Running ( $0 debug swap uninstall )"
 			echo; exit 1
 		elif [ -n "$swappartition" ] && ! Check_Swap; then
-			logger -st Skynet "[*] SWAP Partition Missing - Please Investigate Manually"
+			logger -st Skynet "[*] SWAP Partition Missing ( $swappartition ) - Please Investigate Manually"
 			echo; exit 1
 		elif [ -z "$swaplocation" ] && [ -z "$swappartition" ] && ! Check_Swap; then
 			logger -st Skynet "[*] Skynet Requires A SWAP File - Install One By Running ( $0 debug swap install )"
@@ -3446,7 +3446,6 @@ case "$1" in
 				nocfg="1"
 			;;
 			swap)
-				Spinner_Start
 				case "$3" in
 					install)
 						Check_Lock "$@"
