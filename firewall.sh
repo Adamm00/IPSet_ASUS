@@ -746,7 +746,7 @@ Manage_Device () {
 		i=1
 		IFS="
 		"
-		for mounted in $(/bin/mount | grep -E "ext2|ext3|ext4" | awk '{printf "%s - (%s)\n", $3, $1}'); do
+		for mounted in $(/bin/mount | grep -E "ext2|ext3|ext4|tfat|exfat" | awk '{printf "%s - (%s)\n", $3, $1}'); do
 			echo "[$i]  --> $mounted"
 			eval mounts$i="$(echo "$mounted" | awk '{print $1}')"
 			i=$((i + 1))
