@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 01/12/2018 -		   Asus Firewall Addition By Adamm v6.6.4				    #
+## - 05/12/2018 -		   Asus Firewall Addition By Adamm v6.6.4				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -144,6 +144,7 @@ Check_Settings () {
 			if [ -n "$findswap" ] && [ -f "$findswap" ]; then
 				logger -st Skynet "[*] Restoring Damaged Swap File ( $findswap )"
 				sed -i '\~swapon ~d' /jffs/scripts/post-mount
+				if [ "$(wc -l < /jffs/scripts/post-mount)" -lt "2" ]; then echo >> /jffs/scripts/post-mount; fi
 				sed -i "2i swapon $findswap # Skynet Firewall Addition" /jffs/scripts/post-mount
 				if ! Check_Swap; then swapon "$findswap"; fi
 				swaplocation="$findswap"
@@ -152,6 +153,7 @@ Check_Settings () {
 				if [ -n "$findswap" ] && [ -f "$findswap" ]; then
 					logger -st Skynet "[*] Restoring Damaged Swap File ( $findswap )"
 					sed -i '\~swapon ~d' /jffs/scripts/post-mount
+					if [ "$(wc -l < /jffs/scripts/post-mount)" -lt "2" ]; then echo >> /jffs/scripts/post-mount; fi
 					sed -i "2i swapon $findswap # Skynet Firewall Addition" /jffs/scripts/post-mount
 					swaplocation="$findswap"
 				fi
@@ -3473,6 +3475,7 @@ case "$1" in
 						elif [ -z "$swaplocation" ] && [ -n "$findswap" ]; then
 							echo "[*] Restoring Damaged Swap File ( $findswap )"
 							sed -i '\~swapon ~d' /jffs/scripts/post-mount
+							if [ "$(wc -l < /jffs/scripts/post-mount)" -lt "2" ]; then echo >> /jffs/scripts/post-mount; fi
 							sed -i "2i swapon $findswap # Skynet Firewall Addition" /jffs/scripts/post-mount
 							swapon "$findswap" 2>/dev/null
 							swaplocation="$findswap"
