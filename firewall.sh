@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 05/12/2018 -		   Asus Firewall Addition By Adamm v6.6.4				    #
+## - 08/12/2018 -		   Asus Firewall Addition By Adamm v6.6.4				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -3340,7 +3340,7 @@ case "$1" in
 				totaltests="18"
 				Display_Header "6"
 				ip neigh | while IFS= read -r "ip"; do
-					ipaddr="$(echo "$ip" | awk '{print $1}')"
+					ipaddr="$(echo "$ip" | awk '{print $1}' | Filter_OutIP)"
 					macaddr="$(echo "$ip" | awk '{print $5}')"
 					localname="$(grep -F "$ipaddr" /var/lib/misc/dnsmasq.leases | awk '{print $4}')"
 					[ -z "$localname" ] && localname="Unknown"
