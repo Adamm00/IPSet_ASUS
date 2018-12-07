@@ -580,6 +580,10 @@ Filter_Date () {
 		grep -m1 -oE '[0-9]{1,2}([/][0-9]{1,2})([/][0-9]{1,4})'
 }
 
+Filter_IP () {
+		grep -E '^([0-9]{1,3}\.){3}[0-9]{1,3}$'
+}
+
 Filter_OutIP () {
 		grep -vE '^([0-9]{1,3}\.){3}[0-9]{1,3}$'
 }
@@ -3340,7 +3344,7 @@ case "$1" in
 				totaltests="18"
 				Display_Header "6"
 				ip neigh | while IFS= read -r "ip"; do
-					ipaddr="$(echo "$ip" | awk '{print $1}' | Filter_OutIP)"
+					ipaddr="$(echo "$ip" | awk '{print $1}' | Filter_IP)"
 					macaddr="$(echo "$ip" | awk '{print $5}')"
 					localname="$(grep -F "$ipaddr" /var/lib/misc/dnsmasq.leases | awk '{print $4}')"
 					[ -z "$localname" ] && localname="Unknown"
