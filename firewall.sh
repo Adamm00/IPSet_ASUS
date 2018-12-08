@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 08/12/2018 -		   Asus Firewall Addition By Adamm v6.6.5				    #
+## - 09/12/2018 -		   Asus Firewall Addition By Adamm v6.6.5				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -3340,7 +3340,12 @@ case "$1" in
 				echo "Boot Args; $(grep -E "start.* # Skynet" /jffs/scripts/firewall-start | grep -vE "^#" | cut -c 4- | cut -d '#' -f1)"
 				if [ -n "$countrylist" ]; then echo "Banned Countries; $countrylist"; fi
 				echo "Uptime; $(uptime | awk -F'( |,|:)+' '{if ($7=="min") m=$6; else {if ($7~/^day/) {d=$6;h=$8;m=$9} else {h=$6;m=$7}}} {print d+0,"days,",h+0,"hours,",m+0,"minutes."}')"
-				echo "Ram Available; ($(($(grep -F "MemAvailable" /proc/meminfo | awk '{print $2}') / 1024))M / $(($(grep -F "MemTotal" /proc/meminfo | awk '{print $2}') / 1024))M)"
+				if grep -qF "MemAvailable" /proc/meminfo; then
+					memavailable="$(($(grep -F "MemAvailable" /proc/meminfo | awk '{print $2}') / 1024))"
+				else
+					memavailable="$(($(grep -F "MemFree" /proc/meminfo | awk '{print $2}') / 1024))"
+				fi
+				echo "Ram Available; (${memavailable}M / $(($(grep -F "MemTotal" /proc/meminfo | awk '{print $2}') / 1024))M)"
 				if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(sed -n '2p' /tmp/skynet.lock)" ]; then
 					echo
 					Red "[*] Lock File Detected ($(sed -n '1p' /tmp/skynet.lock)) (pid=$(sed -n '2p' /tmp/skynet.lock))"
