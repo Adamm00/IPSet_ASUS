@@ -3340,7 +3340,7 @@ case "$1" in
 				echo "Boot Args; $(grep -E "start.* # Skynet" /jffs/scripts/firewall-start | grep -vE "^#" | cut -c 4- | cut -d '#' -f1)"
 				if [ -n "$countrylist" ]; then echo "Banned Countries; $countrylist"; fi
 				echo "Uptime; $(uptime | awk -F'( |,|:)+' '{if ($7=="min") m=$6; else {if ($7~/^day/) {d=$6;h=$8;m=$9} else {h=$6;m=$7}}} {print d+0,"days,",h+0,"hours,",m+0,"minutes."}')"
-				echo "Ram Available; $(($(cat /proc/meminfo | grep -F MemAvailable | awk '{print $2}')/1024))M / $(($(cat /proc/meminfo | grep -F MemTotal | awk '{print $2}')/1024))M"
+				echo "Ram Available; ($(($(grep -F "MemAvailable" /proc/meminfo | awk '{print $2}') / 1024))M / $(($(grep -F "MemTotal" /proc/meminfo | awk '{print $2}') / 1024))M)"
 				if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(sed -n '2p' /tmp/skynet.lock)" ]; then
 					echo
 					Red "[*] Lock File Detected ($(sed -n '1p' /tmp/skynet.lock)) (pid=$(sed -n '2p' /tmp/skynet.lock))"
