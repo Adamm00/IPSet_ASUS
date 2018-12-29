@@ -3357,7 +3357,7 @@ case "$1" in
 				ip neigh | while IFS= read -r "ip"; do
 					ipaddr="$(echo "$ip" | awk '{print $1}' | Filter_IP)"
 					macaddr="$(echo "$ip" | awk '{print $5}')"
-					localname="$(grep -E " $ipaddr " /var/lib/misc/dnsmasq.leases | awk '{print $4}')"
+					localname="$(grep -F " $ipaddr " /var/lib/misc/dnsmasq.leases | awk '{print $4}')"
 					[ -z "$localname" ] && localname="Unknown"
 					state="$(echo "$ip" | awk '{print $6}')"
 					if ! echo "$macaddr" | Is_MAC; then 
