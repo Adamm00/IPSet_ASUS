@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 09/12/2018 -		   Asus Firewall Addition By Adamm v6.6.5				    #
+## - 29/12/2018 -		   Asus Firewall Addition By Adamm v6.6.5				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -3357,19 +3357,18 @@ case "$1" in
 				ip neigh | while IFS= read -r "ip"; do
 					ipaddr="$(echo "$ip" | awk '{print $1}' | Filter_IP)"
 					macaddr="$(echo "$ip" | awk '{print $5}')"
-					localname="$(grep -F "$ipaddr" /var/lib/misc/dnsmasq.leases | awk '{print $4}')"
+					localname="$(grep -E " $ipaddr " /var/lib/misc/dnsmasq.leases | awk '{print $4}')"
 					[ -z "$localname" ] && localname="Unknown"
 					state="$(echo "$ip" | awk '{print $6}')"
-					if [ "$state" = "STALE" ]; then
-						state="Inactive"
-					elif [ "$state" = "REACHABLE" ]; then
-						state="Online"
-					fi
-					if ! echo "$macaddr" | Is_MAC; then
-						printf "%-40s | %-16s | %-20s | %-15s\n" "$localname" "$ipaddr" "Unknown" "$(Red "Offline")"
+					if ! echo "$macaddr" | Is_MAC; then 
+						macaddr="Unknown"
+						state="$(Red Offline)"
+					elif [ "$state" = "STALE" ]; then
+						state="$(Grn Inactive)"
 					else
-						printf "%-40s | %-16s | %-20s | %-15s\n" "$localname" "$ipaddr" "$macaddr" "$(Grn "$state")"
+						state="$(Grn Online)"
 					fi
+					printf "%-40s | %-16s | %-20s | %-15s\n" "$localname" "$ipaddr" "$macaddr" "$state"
 				done
 				Display_Header "7"
 				printf "%-35s | " "Internet-Connectivity"
