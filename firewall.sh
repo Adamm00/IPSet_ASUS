@@ -107,7 +107,7 @@ else
 fi
 
 Check_Swap () {
-	[ "$(wc -l < /proc/swaps)" -ge "2" ]
+		[ "$(wc -l < /proc/swaps)" -ge "2" ]
 }
 
 Check_Settings () {
