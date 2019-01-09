@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 29/12/2018 -		   Asus Firewall Addition By Adamm v6.6.5				    #
+## - 09/01/2019 -		   Asus Firewall Addition By Adamm v6.6.5				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -648,9 +648,14 @@ Refresh_AiProtect () {
 			if [ -f /opt/bin/opkg ] && [ ! -f /opt/bin/sqlite3 ]; then
 				opkg update && opkg install sqlite3-cli
 			fi
-			if [ -f /opt/bin/opkg ] && [ -f /opt/bin/sqlite3 ] && sqlite3 /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db "SELECT src FROM monitor;" | Is_IP; then
+			if [ -f /opt/bin/opkg ] && [ -f /opt/bin/sqlite3 ]; then
 				sed "\\~add Skynet-Blacklist ~!d;\\~BanAiProtect~!d;s~ comment.*~~;s~add~del~g" "$skynetipset" | ipset restore -!
-				sqlite3 /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db "SELECT src FROM monitor;" | grep -oE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' | awk '!x[$0]++' | Filter_PrivateIP | awk '{printf "add Skynet-Blacklist %s comment \"BanAiProtect\"\n", $1 }' | ipset restore -!
+				sqlite3 /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db "SELECT src FROM monitor;" | grep -oE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' | awk '!x[$0]++' | Filter_PrivateIP | awk '{printf "add Skynet-Blacklist %s comment \"BanAiProtect\"\n", $1 }' | ipset restore -!			
+				sqlite3 /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db "SELECT dst FROM monitor;" | awk '!x[$0]++' | while IFS= read -r "domain"; do
+					for ip in $(Domain_Lookup "$domain"); do
+						ipset -q -A Skynet-Blacklist "$ip" comment "BanAiProtect: $domain"
+					done
+				done
 			fi
 		fi
 }
