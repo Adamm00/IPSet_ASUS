@@ -1,1 +1,6 @@
-*		eol=lf
+# Ensure all YML/SH/MD/TXT files use LF.
+*.yml	eol=lf
+*.sh	eol=lf
+*.md	eol=lf
+*.txt	eol=lf
+*.list	eol=lf
