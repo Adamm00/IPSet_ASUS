@@ -1,4 +1,4 @@
-# Skynet - Asus Firewall Addition
+# Skynet - Asus Firewall Addition   [![Build Status](https://travis-ci.com/Adamm00/IPSet_ASUS.svg?branch=master)](https://travis-ci.com/Adamm00/IPSet_ASUS)
 Lightweight firewall addition for ARM/HND based ASUS Routers using IPSet as seen on [SmallNetBuilder](https://www.snbforums.com/threads/skynet-asus-firewall-addition.16798/)
 
 Skynet is the first comprehensive IP banning and security tool exclusively for Asus Devices.
