@@ -654,7 +654,7 @@ Refresh_AiProtect () {
 				sqlite3 /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db "SELECT dst FROM monitor;" | awk '!x[$0]++' | while IFS= read -r "domain"; do
 					for ip in $(Domain_Lookup "$domain"); do
 						ipset -q -A Skynet-Blacklist "$ip" comment "BanAiProtect: $domain"
-					done
+					done &
 				done
 			fi
 		fi
@@ -668,7 +668,7 @@ Refresh_MBans () {
 			while IFS= read -r "domain"; do
 				for ip in $(Domain_Lookup "$domain"); do
 					ipset -q -A Skynet-Blacklist "$ip" comment "ManualBanD: $domain" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$domain " >> "$skynetevents"
-				done
+				done &
 			done < /tmp/skynet/mbans.list
 			wait
 			rm -rf /tmp/skynet/mbans.list
