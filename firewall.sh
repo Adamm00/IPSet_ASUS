@@ -3373,7 +3373,7 @@ case "$1" in
 					elif [ "$state" = "REACHABLE" ]; then
 						state="$(Grn Online)"
 					else
-						state="$(Grn $state)"
+						state="$(Grn "$state")"
 					fi
 					printf "%-40s | %-16s | %-20s | %-15s\n" "$localname" "$ipaddr" "$macaddr" "$state"
 				done

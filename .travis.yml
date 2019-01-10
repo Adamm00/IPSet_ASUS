@@ -1,3 +1,3 @@
 language: shell
 script:
-  - bash -c 'shopt -s globstar; shellcheck **/*.{sh}'
+  - bash -c 'shopt -s globstar; shellcheck firewall.sh'
