@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 09/01/2019 -		   Asus Firewall Addition By Adamm v6.6.5				    #
+## - 10/01/2019 -		   Asus Firewall Addition By Adamm v6.6.6				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -3710,7 +3710,7 @@ case "$1" in
 							grep -E "reply.* is $4" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | Filter_OutIP
 							echo; echo
 						fi
-						echo "[i] IP Location - $(curl -fsL "https://ipapi.co/${4}/country_name/") ($(curl -fsL "https://ipapi.co/${4}/asn/"))"
+						echo "[i] IP Location - $(curl -fsL "https://ipapi.co/${4}/country_name/") ($(curl -fsL "https://ipapi.co/${4}/org/") / $(curl -fsL "https://ipapi.co/${4}/asn/"))"
 						echo
 						echo "[i] $4 First Tracked On $(grep -m1 -F "=$4 " "$skynetlog" | awk '{printf "%s %s %s\n", $1, $2, $3}')"
 						echo "[i] $4 Last Tracked On $(grep -F "=$4 " "$skynetlog" | tail -1 | awk '{printf "%s %s %s\n", $1, $2, $3}')"
