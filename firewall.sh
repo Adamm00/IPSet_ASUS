@@ -652,7 +652,7 @@ Refresh_AiProtect () {
 				sed "\\~add Skynet-Blacklist ~!d;\\~BanAiProtect~!d;s~ comment.*~~;s~add~del~g" "$skynetipset" | ipset restore -!
 				sqlite3 /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db "SELECT src FROM monitor;" | grep -oE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' | awk '!x[$0]++' | Filter_PrivateIP | awk '{printf "add Skynet-Blacklist %s comment \"BanAiProtect\"\n", $1 }' | ipset restore -!			
 				sqlite3 /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db "SELECT dst FROM monitor;" | awk '!x[$0]++' | while IFS= read -r "domain"; do
-					for ip in $(Domain_Lookup "$domain"); do
+					for ip in $(Domain_Lookup "$domain" | Filter_PrivateIP); do
 						ipset -q -A Skynet-Blacklist "$ip" comment "BanAiProtect: $domain"
 					done &
 				done
@@ -666,7 +666,7 @@ Refresh_MBans () {
 			sed -i '\~\[Manual Ban\] TYPE=Domain~d;' "$skynetevents"
 			sed "\\~add Skynet-Blacklist ~!d;\\~ManualBanD~!d;s~ comment.*~~;s~add~del~g" "$skynetipset" | ipset restore -!
 			while IFS= read -r "domain"; do
-				for ip in $(Domain_Lookup "$domain"); do
+				for ip in $(Domain_Lookup "$domain" | Filter_PrivateIP); do
 					ipset -q -A Skynet-Blacklist "$ip" comment "ManualBanD: $domain" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$domain " >> "$skynetevents"
 				done &
 			done < /tmp/skynet/mbans.list
@@ -2451,7 +2451,7 @@ case "$1" in
 				if [ -z "$3" ]; then echo "[*] Domain Field Can't Be Empty - Please Try Again"; echo; exit 2; fi
 				domain="$(echo "$3" | Strip_Domain)"
 				echo "[i] Adding $domain To Blacklist"
-				for ip in $(Domain_Lookup "$domain"); do
+				for ip in $(Domain_Lookup "$domain" | Filter_PrivateIP); do
 					echo "[i] Banning $ip"
 					ipset -A Skynet-Blacklist "$ip" comment "ManualBanD: $3" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$3 " >> "$skynetevents"
 				done
