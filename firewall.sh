@@ -714,33 +714,34 @@ Whitelist_CDN () {
 }
 
 Whitelist_VPN () {
-		ipset -q -A Skynet-Whitelist "$(nvram get vpn_server1_sn)"/24 comment "nvram: vpn_server1_sn"
-		ipset -q -A Skynet-Whitelist "$(nvram get vpn_server2_sn)"/24 comment "nvram: vpn_server2_sn"
-		ipset -q -A Skynet-Whitelist "$(nvram get vpn_server_sn)"/24 comment "nvram: vpn_server_sn"
-		ipset -q -A Skynet-Whitelist "$(nvram get vpn_client1_addr)"/24 comment "nvram: vpn_client1_addr"
-		ipset -q -A Skynet-Whitelist "$(nvram get vpn_client2_addr)"/24 comment "nvram: vpn_client2_addr"
-		ipset -q -A Skynet-Whitelist "$(nvram get vpn_client3_addr)"/24 comment "nvram: vpn_client3_addr"
-		ipset -q -A Skynet-Whitelist "$(nvram get vpn_client4_addr)"/24 comment "nvram: vpn_client4_addr"
-		ipset -q -A Skynet-Whitelist "$(nvram get vpn_client5_addr)"/24 comment "nvram: vpn_client5_addr"
-		if [ -f "/dev/astrill/openvpn.conf" ]; then ipset -q -A Skynet-Whitelist "$(sed '\~remote ~!d;s~remote ~~' "/dev/astrill/openvpn.conf")"/24 comment "nvram: Astrill_VPN"; fi
+		ipset -q -A Skynet-Whitelist "$(nvram get vpn_server1_sn)/24" comment "nvram: vpn_server1_sn"
+		ipset -q -A Skynet-Whitelist "$(nvram get vpn_server2_sn)/24" comment "nvram: vpn_server2_sn"
+		ipset -q -A Skynet-Whitelist "$(nvram get vpn_server_sn)/24" comment "nvram: vpn_server_sn"
+		ipset -q -A Skynet-Whitelist "$(nvram get vpn_client1_addr)/24" comment "nvram: vpn_client1_addr"
+		ipset -q -A Skynet-Whitelist "$(nvram get vpn_client2_addr)/24" comment "nvram: vpn_client2_addr"
+		ipset -q -A Skynet-Whitelist "$(nvram get vpn_client3_addr)/24" comment "nvram: vpn_client3_addr"
+		ipset -q -A Skynet-Whitelist "$(nvram get vpn_client4_addr)/24" comment "nvram: vpn_client4_addr"
+		ipset -q -A Skynet-Whitelist "$(nvram get vpn_client5_addr)/24" comment "nvram: vpn_client5_addr"
+		if [ -f "/dev/astrill/openvpn.conf" ]; then ipset -q -A Skynet-Whitelist "$(sed '\~remote ~!d;s~remote ~~' "/dev/astrill/openvpn.conf")/24" comment "nvram: Astrill_VPN"; fi
 }
 
 Whitelist_Shared () {
-		ipset -q -A Skynet-Whitelist "$(nvram get wan0_ipaddr)"/32 comment "nvram: wan0_ipaddr"
-		ipset -q -A Skynet-Whitelist "$(nvram get lan_ipaddr)"/24 comment "nvram: lan_ipaddr"
-		ipset -q -A Skynet-Whitelist "$(nvram get lan_netmask)"/24 comment "nvram: lan_netmask"
-		ipset -q -A Skynet-Whitelist "$(nvram get wan_dns1_x)"/32 comment "nvram: wan_dns1_x"
-		ipset -q -A Skynet-Whitelist "$(nvram get wan_dns2_x)"/32 comment "nvram: wan_dns2_x"
-		ipset -q -A Skynet-Whitelist "$(nvram get wan0_dns1_x)"/32 comment "nvram: wan0_dns1_x"
-		ipset -q -A Skynet-Whitelist "$(nvram get wan0_dns2_x)"/32 comment "nvram: wan0_dns2_x"
-		ipset -q -A Skynet-Whitelist "$(nvram get wan_dns | awk '{print $1}')"/32 comment "nvram: wan_dns"
-		ipset -q -A Skynet-Whitelist "$(nvram get wan_dns | awk '{print $2}')"/32 comment "nvram: wan_dns"
-		ipset -q -A Skynet-Whitelist "$(nvram get wan0_dns | awk '{print $1}')"/32 comment "nvram: wan0_dns"
-		ipset -q -A Skynet-Whitelist "$(nvram get wan0_dns | awk '{print $2}')"/32 comment "nvram: wan0_dns"
-		ipset -q -A Skynet-Whitelist "$(nvram get wan0_xdns | awk '{print $1}')"/32 comment "nvram: wan0_xdns"
-		ipset -q -A Skynet-Whitelist "$(nvram get wan0_xdns | awk '{print $2}')"/32 comment "nvram: wan0_xdns"
-		ipset -q -A Skynet-Whitelist 192.30.252.0/22 comment "nvram: Github Content Server"
-		ipset -q -A Skynet-Whitelist 192.168.1.0/24 comment "nvram: LAN Subnet"
+		ipset -q -A Skynet-Whitelist "$(nvram get wan0_ipaddr)/32" comment "nvram: wan0_ipaddr"
+		ipset -q -A Skynet-Whitelist "$(nvram get lan_ipaddr)/24" comment "nvram: lan_ipaddr"
+		ipset -q -A Skynet-Whitelist "$(nvram get lan_netmask)/24" comment "nvram: lan_netmask"
+		ipset -q -A Skynet-Whitelist "$(nvram get wan_dns1_x)/32" comment "nvram: wan_dns1_x"
+		ipset -q -A Skynet-Whitelist "$(nvram get wan_dns2_x)/32" comment "nvram: wan_dns2_x"
+		ipset -q -A Skynet-Whitelist "$(nvram get wan0_dns1_x)/32" comment "nvram: wan0_dns1_x"
+		ipset -q -A Skynet-Whitelist "$(nvram get wan0_dns2_x)/32" comment "nvram: wan0_dns2_x"
+		ipset -q -A Skynet-Whitelist "$(nvram get wan_dns | awk '{print $1}')/32" comment "nvram: wan_dns"
+		ipset -q -A Skynet-Whitelist "$(nvram get wan_dns | awk '{print $2}')/32" comment "nvram: wan_dns"
+		ipset -q -A Skynet-Whitelist "$(nvram get wan0_dns | awk '{print $1}')/32" comment "nvram: wan0_dns"
+		ipset -q -A Skynet-Whitelist "$(nvram get wan0_dns | awk '{print $2}')/32" comment "nvram: wan0_dns"
+		ipset -q -A Skynet-Whitelist "$(nvram get wan0_xdns | awk '{print $1}')/32" comment "nvram: wan0_xdns"
+		ipset -q -A Skynet-Whitelist "$(nvram get wan0_xdns | awk '{print $2}')/32" comment "nvram: wan0_xdns"
+		ipset -q -A Skynet-Whitelist "192.30.252.0/22" comment "nvram: Github Content Server"
+		ipset -q -A Skynet-Whitelist "192.168.1.0/24" comment "nvram: LAN Subnet"
+		ipset -q -A Skynet-Whitelist "127.0.0.1" comment "nvram: Localhost"
 		if [ -n "$(find /jffs -name 'shared-*-whitelist')" ]; then
 			sed '\~add Skynet-Whitelist ~!d;\~Shared-Whitelist~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
 			grep -hvF "#" /jffs/shared-*-whitelist | Strip_Domain | while IFS= read -r "domain"; do
