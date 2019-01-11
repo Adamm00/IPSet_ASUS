@@ -650,8 +650,8 @@ Refresh_AiProtect () {
 			fi
 			if [ -f /opt/bin/opkg ] && [ -f /opt/bin/sqlite3 ]; then
 				sed "\\~add Skynet-Blacklist ~!d;\\~BanAiProtect~!d;s~ comment.*~~;s~add~del~g" "$skynetipset" | ipset restore -!
-				sqlite3 /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db "SELECT src FROM monitor;" | awk '!x[$0]++' | Filter_IP | Filter_PrivateIP | awk '{printf "add Skynet-Blacklist %s comment \"BanAiProtect\"\n", $1 }' | ipset restore -!			
-				sqlite3 /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db "SELECT dst FROM monitor;" | awk '!x[$0]++' | Filter_OutIP | while IFS= read -r "domain"; do
+				sqlite3 /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db "SELECT src FROM monitor;" | awk '!x[$0]++' | Filter_IP | Filter_PrivateIP | grep -v ":" | awk '{printf "add Skynet-Blacklist %s comment \"BanAiProtect\"\n", $1 }' | ipset restore -!			
+				sqlite3 /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db "SELECT dst FROM monitor;" | awk '!x[$0]++' | Filter_OutIP | grep -v ":" | while IFS= read -r "domain"; do
 					for ip in $(Domain_Lookup "$domain" | Filter_PrivateIP); do
 						ipset -q -A Skynet-Blacklist "$ip" comment "BanAiProtect: $domain"
 					done &
