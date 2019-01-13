@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 10/01/2019 -		   Asus Firewall Addition By Adamm v6.6.6				    #
+## - 13/01/2019 -		   Asus Firewall Addition By Adamm v6.6.6				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -560,6 +560,11 @@ Display_Header () {
 			;;
 			10)
 				printf "\n=============================================================================================================\n\n\n"
+			;;
+			11)
+				printf "%-10s | %-16s | %-10s | %-20s | %-10s | %-15s\n" "---------" "-------------" "---------" "------------------" "---------" "------------------"
+				printf "%-10s | %-16s | %-10s | %-20s | %-10s | %-15s\n" "| Proto |" "| Source IP |" "| SPort |" "| Destination IP |" "| DPort |" "| Identification |"
+				printf "%-10s | %-16s | %-10s | %-20s | %-10s | %-15s\n\n" "---------" "-------------" "---------" "------------------" "---------" "------------------"
 			;;
 			*)
 				echo "[*] Error - No Header Specified To Load"
@@ -3616,6 +3621,34 @@ case "$1" in
 				else
 					printf "%s() Doesn't Exist\n" "$3"
 				fi
+			;;
+			connections)
+				Display_Header "11"
+				cat /proc/bw_cte_dump | while IFS= read -r "logs"; do
+				mark="$(echo $logs | awk '{printf $8}' | sed 's/mark=//')"
+				mark="$(printf "%d\n" "0x${mark}")"
+				mark2="$(printf '%X\n' "$((mark & 0x3F0000))")"
+				mark2="0x${mark2}"
+				id="$(awk -v mark=$mark2 'BEGIN {printf "%.3f\n", mark / 65535}' | sed 's/\..*//')"
+				hex="$(printf '%X\n' "$((mark & 0xFFFF))")"
+				cat="$(printf "%d%s\n" "0x${hex}")"
+
+
+				#echo "ID = ${id} CAT = ${cat}"
+
+
+				proto="$(echo $logs | awk '{print $2}')"
+				sourceip="$(echo $logs | awk '{print $3}' | cut -d '=' -f2)"
+				destip="$(echo $logs | awk '{print $4}' | cut -d '=' -f2)"
+				sport="$(echo $logs | awk '{print $5}' | cut -d '=' -f2)"
+				dport="$(echo $logs | awk '{print $6}' | cut -d '=' -f2)"
+				if [ "$cat" = "0" ] && [ "$id" = "0" ]; then
+					reason="Unidentified"
+				else
+					reason="$(grep -E "^${id},${cat},0" "/tmp/bwdpi/bwdpi.app.db" | cut -d ',' -f4)"
+				fi
+					printf "%-10s | %-16s | %-10s | %-20s | %-10s | %-15s\n" "$proto" "$sourceip" "$sport" "$destip" "$dport" "$reason"
+				done
 			;;
 			*)
 				echo "Command Not Recognized, Please Try Again"
