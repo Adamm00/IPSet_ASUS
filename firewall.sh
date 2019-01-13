@@ -3623,28 +3623,32 @@ case "$1" in
 				fi
 			;;
 			connections)
-				Display_Header "11"
-				while IFS= read -r "logs"; do
-					mark="$(echo "$logs" | awk '{printf $8}' | sed 's/mark=//')"
-					mark="$(printf "%d\n" "0x${mark}")"
-					mark2="$(printf '%X\n' "$((mark & 0x3F0000))")"
-					mark2="0x${mark2}"
-					id="$(awk -v mark="$mark2" 'BEGIN {printf "%.3f\n", mark / 65535}' | sed 's/\..*//')"
-					hex="$(printf '%X\n' "$((mark & 0xFFFF))")"
-					cat="$(printf "%d\n" "0x${hex}")"
-					
-					proto="$(echo "$logs" | awk '{print $2}')"
-					sourceip="$(echo "$logs" | awk '{print $3}' | cut -d '=' -f2)"
-					destip="$(echo "$logs" | awk '{print $4}' | cut -d '=' -f2)"
-					sport="$(echo "$logs" | awk '{print $5}' | cut -d '=' -f2)"
-					dport="$(echo "$logs" | awk '{print $6}' | cut -d '=' -f2)"
-					if [ "$cat" = "0" ] && [ "$id" = "0" ]; then
-						reason="Unidentified"
-					else
-						reason="$(grep -E "^${id},${cat},0" "/tmp/bwdpi/bwdpi.app.db" | cut -d ',' -f4)"
-					fi
-					printf "%-10s | %-16s | %-10s | %-20s | %-10s | %-15s\n" "$proto" "$sourceip" "$sport" "$destip" "$dport" "$reason"
-				done < /proc/bw_cte_dump 
+				if [ -f "/proc/bw_cte_dump" ] && [ -f "/tmp/bwdpi/bwdpi.app.db" ]; then
+					Display_Header "11"
+					while IFS= read -r "logs"; do
+						mark="$(echo "$logs" | awk '{printf $8}' | sed 's/mark=//')"
+						mark="$(printf "%d\n" "0x${mark}")"
+						mark2="$(printf '%X\n' "$((mark & 0x3F0000))")"
+						mark2="0x${mark2}"
+						id="$(awk -v mark="$mark2" 'BEGIN {printf "%.3f\n", mark / 65535}' | sed 's/\..*//')"
+						hex="$(printf '%X\n' "$((mark & 0xFFFF))")"
+						cat="$(printf "%d\n" "0x${hex}")"
+						
+						proto="$(echo "$logs" | awk '{print $2}')"
+						sourceip="$(echo "$logs" | awk '{print $3}' | cut -d '=' -f2)"
+						destip="$(echo "$logs" | awk '{print $4}' | cut -d '=' -f2)"
+						sport="$(echo "$logs" | awk '{print $5}' | cut -d '=' -f2)"
+						dport="$(echo "$logs" | awk '{print $6}' | cut -d '=' -f2)"
+						if [ "$cat" = "0" ] && [ "$id" = "0" ]; then
+							reason="Unidentified"
+						else
+							reason="$(grep -E "^${id},${cat},0" "/tmp/bwdpi/bwdpi.app.db" | cut -d ',' -f4)"
+						fi
+						printf "%-10s | %-16s | %-10s | %-20s | %-10s | %-15s\n" "$proto" "$sourceip" "$sport" "$destip" "$dport" "$reason"
+					done < /proc/bw_cte_dump
+				else
+					echo "Please Enable AiProtect To Use This Feature"
+				fi
 			;;
 			*)
 				echo "Command Not Recognized, Please Try Again"
