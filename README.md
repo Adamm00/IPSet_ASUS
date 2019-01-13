@@ -116,6 +116,8 @@ Here Are Some Example Stats Commands;
 ( sh /jffs/scripts/firewall stats search manualbans ) Search For All Manual Bans
 ( sh /jffs/scripts/firewall stats search device 192.168.1.134 ) Search For All Outbound Entries From Local Device 192.168.1.134
 ( sh /jffs/scripts/firewall stats search device reports ) Search Previous Hourly Report History
+( sh /jffs/scripts/firewall stats search invalid ) Search For Invalid Packets
+( sh /jffs/scripts/firewall stats search connections ip|port|id xxxxxxxxxx) Search Active Connections
 ( sh /jffs/scripts/firewall stats remove ip 8.8.8.8 ) Remove Log Entries Containing IP 8.8.8.8
 ( sh /jffs/scripts/firewall stats remove port 23 ) Remove Log Entries Containing Port 23
 ( sh /jffs/scripts/firewall stats reset ) Reset All Collected Debug Data

@@ -2124,8 +2124,10 @@ Load_Menu () {
 								echo "[4]  --> Search Manualbans"
 								echo "[5]  --> Search For Outbound Entries From Local Device"
 								echo "[6]  --> Hourly Reports"
+								echo "[7]  --> Invalid Packets"
+								echo "[8]  --> Active Connections"
 								echo
-								printf "[1-6]: "
+								printf "[1-8]: "
 								read -r "menu4"
 								echo
 								case "$menu4" in
@@ -2169,6 +2171,63 @@ Load_Menu () {
 										option3="reports"
 										break
 									;;
+									7)
+										option3="invalid"
+										break
+									;;
+									8)
+										option3="connections"
+										while true; do
+											echo "Search Options:"
+											echo "[1]  --> All Results"
+											echo "[2]  --> Search By IP"
+											echo "[3]  --> Search By Port"
+											echo "[4]  --> Search By Identification"
+											echo
+											printf "[1-4]: "
+											read -r "menu5"
+											echo
+											case "$menu5" in
+												1)
+													break
+												;;
+												2)
+													option4="ip"
+													printf "[IP]: "
+													read -r "option5"
+													echo
+													if ! echo "$option5" | Is_IP; then echo "[*] $option5 Is Not A Valid IP"; echo; unset "option4" "option5"; continue; fi
+													break
+												;;
+												3)
+													option4="port"
+													printf "[Port]: "
+													read -r "option5"
+													echo
+													if ! echo "$option5" | Is_Port || [ "$option5" -gt "65535" ]; then echo "[*] $option5 Is Not A Valid Port"; echo; unset "option4" "option5"; continue; fi
+													break
+												;;
+												4)
+													option4="id"
+													printf "[Identification]: "
+													read -r "option5"
+													echo
+													break
+												;;
+												e|exit|back|menu)
+													unset "option1" "option2" "option3" "option4" "option5"
+													clear
+													Load_Menu
+													break
+												;;
+												*)
+													echo "[*] $menu5 Isn't An Option!"
+													echo
+												;;
+											esac
+										done
+										break
+									;;
 									e|exit|back|menu)
 										unset "option1" "option2" "option3" "option4" "option5"
 										clear
@@ -2181,67 +2240,69 @@ Load_Menu () {
 									;;
 								esac
 							done
-							while true; do
-								echo "Show Top x Results:"
-								echo "[1]  --> 10"
-								echo "[2]  --> 20"
-								echo "[3]  --> 50"
-								echo "[4]  --> Custom"
-								echo
-								printf "[1-4]: "
-								read -r "menu3"
-								echo
-								case "$menu3" in
-									1)
-										if [ -n "$option4" ]; then
-											option5="10"
-										else
-											option4="10"
-										fi
-										break
-									;;
-									2)
-										if [ -n "$option4" ]; then
-											option5="20"
-										else
-											option4="20"
-										fi
-										break
-									;;
-									3)
-										if [ -n "$option4" ]; then
-											option5="50"
-										else
-											option4="50"
-										fi
-										break
-									;;
-									4)
-										echo "Enter Custom Amount:"
-										echo
-										printf "[Number]: "
-										read -r "optionx"
-										echo
-										if ! [ "$optionx" -eq "$optionx" ] 2>/dev/null; then echo "[*] $optionx Isn't A Valid Number!"; echo; unset "optionx"; continue; fi
-										if [ -n "$option4" ]; then
-											option5="$optionx"
-										else
-											option4="$optionx"
-										fi
-										break
-									;;
-									e|exit|back|menu)
-										unset "option1" "option2" "option3" "option4" "option5"
-										clear
-										Load_Menu
-										break
-									;;
-									*)
-										echo "[*] $menu3 Isn't An Option!"
-										echo
-									;;
-								esac
-							done
+							if [ "$option3" != "connections" ]; then
+								while true; do
+									echo "Show Top x Results:"
+									echo "[1]  --> 10"
+									echo "[2]  --> 20"
+									echo "[3]  --> 50"
+									echo "[4]  --> Custom"
+									echo
+									printf "[1-4]: "
+									read -r "menu3"
+									echo
+									case "$menu3" in
+										1)
+											if [ -n "$option4" ]; then
+												option5="10"
+											else
+												option4="10"
+											fi
+											break
+										;;
+										2)
+											if [ -n "$option4" ]; then
+												option5="20"
+											else
+												option4="20"
+											fi
+											break
+										;;
+										3)
+											if [ -n "$option4" ]; then
+												option5="50"
+											else
+												option4="50"
+											fi
+											break
+										;;
+										4)
+											echo "Enter Custom Amount:"
+											echo
+											printf "[Number]: "
+											read -r "optionx"
+											echo
+											if ! [ "$optionx" -eq "$optionx" ] 2>/dev/null; then echo "[*] $optionx Isn't A Valid Number!"; echo; unset "optionx"; continue; fi
+											if [ -n "$option4" ]; then
+												option5="$optionx"
+											else
+												option4="$optionx"
+											fi
+											break
+										;;
+										e|exit|back|menu)
+											unset "option1" "option2" "option3" "option4" "option5"
+											clear
+											Load_Menu
+											break
+										;;
+										*)
+											echo "[*] $menu3 Isn't An Option!"
+											echo
+										;;
+									esac
+								done
+							fi
 							break
 						;;
 						3)
@@ -3622,34 +3683,6 @@ case "$1" in
 					printf "%s() Doesn't Exist\n" "$3"
 				fi
 			;;
-			connections)
-				if [ -f "/proc/bw_cte_dump" ] && [ -f "/tmp/bwdpi/bwdpi.app.db" ]; then
-					Display_Header "11"
-					while IFS= read -r "logs"; do
-						mark="$(echo "$logs" | awk '{printf $8}' | sed 's/mark=//')"
-						mark="$(printf "%d\n" "0x${mark}")"
-						mark2="$(printf '%X\n' "$((mark & 0x3F0000))")"
-						mark2="0x${mark2}"
-						id="$(awk -v mark="$mark2" 'BEGIN {printf "%.3f\n", mark / 65535}' | sed 's/\..*//')"
-						hex="$(printf '%X\n' "$((mark & 0xFFFF))")"
-						cat="$(printf "%d\n" "0x${hex}")"
-						
-						proto="$(echo "$logs" | awk '{print $2}')"
-						sourceip="$(echo "$logs" | awk '{print $3}' | cut -d '=' -f2)"
-						destip="$(echo "$logs" | awk '{print $4}' | cut -d '=' -f2)"
-						sport="$(echo "$logs" | awk '{print $5}' | cut -d '=' -f2)"
-						dport="$(echo "$logs" | awk '{print $6}' | cut -d '=' -f2)"
-						if [ "$cat" = "0" ] && [ "$id" = "0" ]; then
-							reason="Unidentified"
-						else
-							reason="$(grep -E "^${id},${cat},0" "/tmp/bwdpi/bwdpi.app.db" | cut -d ',' -f4)"
-						fi
-						printf "%-10s | %-16s | %-10s | %-20s | %-10s | %-15s\n" "$proto" "$sourceip" "$sport" "$destip" "$dport" "$reason"
-					done < /proc/bw_cte_dump
-				else
-					echo "Please Enable AiProtect To Use This Feature"
-				fi
-			;;
 			*)
 				echo "Command Not Recognized, Please Try Again"
 				echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
@@ -3865,6 +3898,44 @@ case "$1" in
 						echo
 						Red "$counter Most Recent Reports;"
 						grep -F "BLOCKED - INVALID" "$skynetlog" | tail -"$counter"
+					;;
+					connections)
+						if [ -f "/proc/bw_cte_dump" ] && [ -f "/tmp/bwdpi/bwdpi.app.db" ]; then
+							Display_Header "11"
+							while IFS= read -r "logs"; do
+								mark="$(echo "$logs" | awk '{printf $8}' | sed 's/mark=//')"
+								mark="$(printf "%d\n" "0x${mark}")"
+								mark2="$(printf '%X\n' "$((mark & 0x3F0000))")"
+								mark2="0x${mark2}"
+								id="$(awk -v mark="$mark2" 'BEGIN {printf "%.3f\n", mark / 65535}' | sed 's/\..*//')"
+								hex="$(printf '%X\n' "$((mark & 0xFFFF))")"
+								cat="$(printf "%d\n" "0x${hex}")"
+								
+								proto="$(echo "$logs" | awk '{print $2}')"
+								sourceip="$(echo "$logs" | awk '{print $3}' | cut -d '=' -f2)"
+								destip="$(echo "$logs" | awk '{print $4}' | cut -d '=' -f2)"
+								sport="$(echo "$logs" | awk '{print $5}' | cut -d '=' -f2)"
+								dport="$(echo "$logs" | awk '{print $6}' | cut -d '=' -f2)"
+								if [ "$cat" = "0" ] && [ "$id" = "0" ]; then
+									reason="Unidentified"
+								else
+									reason="$(grep -E "^${id},${cat},0" "/tmp/bwdpi/bwdpi.app.db" | cut -d ',' -f4)"
+								fi
+								if [ "$4" = "ip" ] && [ -n "$5" ] && [ "$5" != "$sourceip" ] && [ "$5" != "$destip" ]; then
+									true
+								elif [ "$4" = "port" ] && [ -n "$5" ] && [ "$5" != "$sport" ] && [ "$5" != "$dport" ]; then
+									true
+								elif [ "$4" = "proto" ] && [ -n "$5" ] && [ "$5" != "$proto" ]; then
+									true
+								elif [ "$4" = "id" ] && [ -n "$5" ] && [ "$5" != "$reason" ]; then
+									true
+								else
+									printf "%-10s | %-16s | %-10s | %-20s | %-10s | %-15s\n" "$proto" "$sourceip" "$sport" "$destip" "$dport" "$reason"
+								fi
+							done < /proc/bw_cte_dump
+						else
+							echo "Please Enable AiProtect To Use This Feature"
+						fi
 					;;
 					*)
 						echo "Command Not Recognized, Please Try Again"
