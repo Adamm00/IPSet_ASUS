@@ -3912,11 +3912,11 @@ case "$1" in
 						if [ -f "/proc/bw_cte_dump" ] && [ -f "/tmp/bwdpi/bwdpi.app.db" ]; then
 							Display_Header "11"
 							while IFS= read -r "logs"; do
-								mark="$(echo "$logs" | awk '{printf $8}' | sed 's/mark=//')"
+								mark="$(echo "$logs" | awk '{printf $8}' | sed 's~mark=~~g')"
 								mark="$(printf "%d\n" "0x${mark}")"
 								mark2="$(printf '%X\n' "$((mark & 0x3F0000))")"
 								mark2="0x${mark2}"
-								id="$(awk -v mark="$mark2" 'BEGIN {printf "%.3f\n", mark / 65535}' | sed 's/\..*//')"
+								id="$(awk -v mark="$mark2" 'BEGIN {printf "%.3f\n", mark / 65535}' | sed 's~\..*~~g')"
 								hex="$(printf '%X\n' "$((mark & 0xFFFF))")"
 								cat="$(printf "%d\n" "0x${hex}")"
 								
