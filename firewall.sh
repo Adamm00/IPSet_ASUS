@@ -2182,9 +2182,10 @@ Load_Menu () {
 											echo "[1]  --> All Results"
 											echo "[2]  --> Search By IP"
 											echo "[3]  --> Search By Port"
-											echo "[4]  --> Search By Identification"
+											echo "[4]  --> Search By Protocol"
+											echo "[5]  --> Search By Identification"
 											echo
-											printf "[1-4]: "
+											printf "[1-5]: "
 											read -r "menu5"
 											echo
 											case "$menu5" in
@@ -2208,6 +2209,14 @@ Load_Menu () {
 													break
 												;;
 												4)
+													option4="proto"
+													printf "[Protocol]: "
+													read -r "option5"
+													echo
+													if [ "$option5" != "tcp" ] && [ "$option5" != "udp" ] && [ "$option5" != "icmp" ]; then echo "[*] $option5 Is Not A Valid Protocol"; echo; unset "option4" "option5"; continue; fi
+													break
+												;;
+												5)
 													option4="id"
 													printf "[Identification]: "
 													read -r "option5"
