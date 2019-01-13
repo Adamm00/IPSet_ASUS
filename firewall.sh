@@ -3629,9 +3629,9 @@ case "$1" in
 					mark="$(printf "%d\n" "0x${mark}")"
 					mark2="$(printf '%X\n' "$((mark & 0x3F0000))")"
 					mark2="0x${mark2}"
-					id="$(awk -v mark=$mark2 'BEGIN {printf "%.3f\n", mark / 65535}' | sed 's/\..*//')"
+					id="$(awk -v mark="$mark2" 'BEGIN {printf "%.3f\n", mark / 65535}' | sed 's/\..*//')"
 					hex="$(printf '%X\n' "$((mark & 0xFFFF))")"
-					cat="$(printf "%d%s\n" "0x${hex}")"
+					cat="$(printf "%d\n" "0x${hex}")"
 					
 					proto="$(echo "$logs" | awk '{print $2}')"
 					sourceip="$(echo "$logs" | awk '{print $3}' | cut -d '=' -f2)"
