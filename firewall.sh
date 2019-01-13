@@ -562,9 +562,9 @@ Display_Header () {
 				printf "\n=============================================================================================================\n\n\n"
 			;;
 			11)
-				printf "%-10s | %-16s | %-10s | %-20s | %-10s | %-15s\n" "---------" "-------------" "---------" "------------------" "---------" "------------------"
-				printf "%-10s | %-16s | %-10s | %-20s | %-10s | %-15s\n" "| Proto |" "| Source IP |" "| SPort |" "| Destination IP |" "| DPort |" "| Identification |"
-				printf "%-10s | %-16s | %-10s | %-20s | %-10s | %-15s\n\n" "---------" "-------------" "---------" "------------------" "---------" "------------------"
+				printf "%-10s | %-18s | %-10s | %-18s | %-10s | %-20s\n" "---------" "-------------" "---------" "------------------" "---------" "------------------"
+				printf "%-10s | %-18s | %-10s | %-18s | %-10s | %-20s\n" "| Proto |" "| Source IP |" "| SPort |" "| Destination IP |" "| DPort |" "| Identification |"
+				printf "%-10s | %-18s | %-10s | %-18s | %-10s | %-20s\n\n" "---------" "-------------" "---------" "------------------" "---------" "------------------"
 			;;
 			*)
 				echo "[*] Error - No Header Specified To Load"
@@ -3922,7 +3922,9 @@ case "$1" in
 								
 								proto="$(echo "$logs" | awk '{print $2}')"
 								sourceip="$(echo "$logs" | awk '{print $3}' | cut -d '=' -f2)"
+								if echo "$sourceip" | grep -q ":"; then sourceip="IPv6 Address"; fi
 								destip="$(echo "$logs" | awk '{print $4}' | cut -d '=' -f2)"
+								if echo "$destip" | grep -q ":"; then destip="IPv6 Address"; fi
 								sport="$(echo "$logs" | awk '{print $5}' | cut -d '=' -f2)"
 								dport="$(echo "$logs" | awk '{print $6}' | cut -d '=' -f2)"
 								if [ "$cat" = "0" ] && [ "$id" = "0" ]; then
@@ -3939,7 +3941,7 @@ case "$1" in
 								elif [ "$4" = "id" ] && [ -n "$5" ] && [ "$5" != "$reason" ]; then
 									true
 								else
-									printf "%-10s | %-16s | %-10s | %-20s | %-10s | %-15s\n" "$proto" "$sourceip" "$sport" "$destip" "$dport" "$reason"
+									printf "%-10s | %-18s | %-10s | %-18s | %-10s | %-18s\n" "$proto" "$sourceip" "$sport" "$destip" "$dport" "$reason"
 								fi
 							done < /proc/bw_cte_dump
 						else
