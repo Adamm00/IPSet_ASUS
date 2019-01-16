@@ -5,12 +5,12 @@ Skynet is the first comprehensive IP banning and security tool exclusively for A
 
 The goal of this tool is to enhance the firmware's built in functionality such as the SPI Firewall, Brute Force Detection and AiProtect while adding easy to use tools for users to implement custom firewall rules they desire. Skynet has a range of feature from banning single IPs, domains, entire countries or pulling predefined malware lists from reputable providers. It is the one stop shop for router security and the first line of defense in your home network.
 
+Skynet fully supports (router) OpenVPN implementations, the Astrill VPN Plugin along with various user scripts such as Diversion & Stubby. Extensive testing has also been done with home security products like the [Annke DW81KE](https://www.amazon.com/dp/B07L4R4YNP/?tag=snbforums-20).
+
 
 ## Donate
 
-Want to help support Skynet future development? All donations are appreciated.
-
-[Donate With PayPal](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=BPN4LTRZKDTML)
+This script will always be open source and free to use, but if you want to support future development you can do so by [Donating With PayPal.](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=BPN4LTRZKDTML)
 
 
 ## Usage
@@ -21,7 +21,7 @@ To open the menu its as simple as;
 
 ```sh /jffs/scripts/firewall```
 
-[![Skynet GUI](https://i.imgur.com/ulqlqdO.png "Skynet GUI")](https://i.imgur.com/ulqlqdO.png "Skynet GUI")
+[![Skynet GUI](https://i.imgur.com/dO8VB2D.png "Skynet GUI")](https://i.imgur.com/dO8VB2D.png "Skynet GUI")
 
 
 
