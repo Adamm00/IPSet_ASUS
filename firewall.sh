@@ -655,7 +655,7 @@ Refresh_AiProtect () {
 			fi
 			if [ -f /opt/bin/opkg ] && [ -f /opt/bin/sqlite3 ]; then
 				sed "\\~add Skynet-Blacklist ~!d;\\~BanAiProtect~!d;s~ comment.*~~;s~add~del~g" "$skynetipset" | ipset restore -!
-				sqlite3 /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db "SELECT src FROM monitor;" | awk '!x[$0]++' | Filter_IP | Filter_PrivateIP | awk '{printf "add Skynet-Blacklist %s comment \"BanAiProtect\"\n", $1 }' | ipset restore -!			
+				sqlite3 /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db "SELECT src FROM monitor;" | awk '!x[$0]++' | Filter_IP | Filter_PrivateIP | awk '{printf "add Skynet-Blacklist %s comment \"BanAiProtect\"\n", $1 }' | ipset restore -!
 				sqlite3 /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db "SELECT dst FROM monitor;" | awk '!x[$0]++' | Filter_OutIP | grep -v ":" | while IFS= read -r "domain"; do
 					for ip in $(Domain_Lookup "$domain" 2>/dev/null | Filter_PrivateIP); do
 						ipset -q -A Skynet-Blacklist "$ip" comment "BanAiProtect: $domain"
@@ -3441,7 +3441,7 @@ case "$1" in
 					localname="$(grep -F " $ipaddr " /var/lib/misc/dnsmasq.leases | awk '{print $4}')"
 					[ -z "$localname" ] && localname="Unknown"
 					state="$(echo "$ip" | awk '{print $6}')"
-					if ! echo "$macaddr" | Is_MAC; then 
+					if ! echo "$macaddr" | Is_MAC; then
 						macaddr="Unknown"
 						state="$(Red Offline)"
 					elif [ "$state" = "STALE" ]; then
@@ -3919,7 +3919,7 @@ case "$1" in
 								id="$(awk -v mark="$mark2" 'BEGIN {printf "%.3f\n", mark / 65535}' | sed 's~\..*~~g')"
 								hex="$(printf '%X\n' "$((mark & 0xFFFF))")"
 								cat="$(printf "%d\n" "0x${hex}")"
-								
+
 								proto="$(echo "$logs" | awk '{print $2}')"
 								sourceip="$(echo "$logs" | awk '{print $3}' | cut -d '=' -f2)"
 								if echo "$sourceip" | grep -q ":"; then sourceip="IPv6 Address"; fi
