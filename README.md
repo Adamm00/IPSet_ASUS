@@ -10,9 +10,7 @@ Skynet fully supports (router) OpenVPN implementations, the Astrill VPN Plugin a
 
 ## Donate
 
-Want to help support Skynet future development? All donations are appreciated.
-
-[Donate With PayPal](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=BPN4LTRZKDTML)
+This script will always be open source and free to use, but if you want to support future development you can do so by [Donating With PayPal.](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=BPN4LTRZKDTML)
 
 
 ## Usage
