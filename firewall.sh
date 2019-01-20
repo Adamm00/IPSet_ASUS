@@ -963,25 +963,25 @@ Load_Menu () {
 	fi
 	echo
 	if ! Check_Connection >/dev/null 2>&1; then
-		printf "%-35s | %-8s\n" "Internet-Connectivity" "$(Red "[Failed]")"
+		printf "%-35s | %-8s\\n" "Internet-Connectivity" "$(Red "[Failed]")"
 	fi
 	if ! grep -E "start.* # Skynet" /jffs/scripts/firewall-start 2>/dev/null | grep -qvE "^#"; then
-		printf "%-35s | %-8s\n" "Firewall-Start Entry" "$(Red "[Failed]")"
+		printf "%-35s | %-8s\\n" "Firewall-Start Entry" "$(Red "[Failed]")"
 	fi
 	if ! [ -w "$skynetloc" ]; then
-		printf "%-35s | %-8s\n" "Write Permission" "$(Red "[Failed]")"
+		printf "%-35s | %-8s\\n" "Write Permission" "$(Red "[Failed]")"
 	fi
 	if ! Check_Swap; then
-		printf "%-35s | %-8s\n" "SWAP" "$(Red "[Failed]")"
+		printf "%-35s | %-8s\\n" "SWAP" "$(Red "[Failed]")"
 	fi
 	if [ "$(cru l | grep -c "Skynet")" -lt "2" ]; then
-		printf "%-35s | %-8s\n" "Cron Jobs" "$(Red "[Failed]")"
+		printf "%-35s | %-8s\\n" "Cron Jobs" "$(Red "[Failed]")"
 	fi
 	if ! Check_IPSets; then
-		printf "%-35s | %-8s\n" "IPSets" "$(Red "[Failed]")"; nolog="1"
+		printf "%-35s | %-8s\\n" "IPSets" "$(Red "[Failed]")"; nolog="1"
 	fi
 	if ! Check_IPTables; then
-		printf "%-35s | %-8s\n" "IPTables Rules" "$(Red "[Failed]")"; nolog="1"
+		printf "%-35s | %-8s\\n" "IPTables Rules" "$(Red "[Failed]")"; nolog="1"
 	fi
 	if [ "$fastswitch" = "enabled" ]; then
 		Ylow "Fast Switch Is Enabled!"
@@ -1537,15 +1537,15 @@ Load_Menu () {
 				option1="settings"
 				while true; do
 					echo "Select Setting To Toggle:"
-					printf "%-30s | %-40s\n" "[1]  --> Autoupdate" "$(if [ "$autoupdate" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
-					printf "%-30s | %-40s\n" "[2]  --> Banmalware" "$(if [ "$banmalwareupdate" = "daily" ] || [ "$banmalwareupdate" = "weekly" ]; then Grn "[$banmalwareupdate]"; else Red "[Disabled]"; fi)"
-					printf "%-30s | %-40s\n" "[3]  --> Debug Mode" "$(if [ "$debugmode" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
-					printf "%-30s | %-40s\n" "[4]  --> Filter Traffic" "$(Grn "[$filtertraffic]")"
-					printf "%-30s | %-40s\n" "[5]  --> Unban PrivateIP" "$(if [ "$unbanprivateip" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
-					printf "%-30s | %-40s\n" "[6]  --> Log Invalid Packets" "$(if [ "$loginvalid" = "enabled" ]; then Grn "[Enabled]";else Ylow "[Disabled]"; fi)"
-					printf "%-30s | %-40s\n" "[7]  --> Ban AiProtect" "$(if [ "$banaiprotect" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
-					printf "%-30s | %-40s\n" "[8]  --> Secure Mode" "$(if [ "$securemode" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
-					printf "%-30s | %-40s\n" "[9]  --> Fast Switch" "$(if [ "$fastswitch" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
+					printf "%-30s | %-40s\\n" "[1]  --> Autoupdate" "$(if [ "$autoupdate" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
+					printf "%-30s | %-40s\\n" "[2]  --> Banmalware" "$(if [ "$banmalwareupdate" = "daily" ] || [ "$banmalwareupdate" = "weekly" ]; then Grn "[$banmalwareupdate]"; else Red "[Disabled]"; fi)"
+					printf "%-30s | %-40s\\n" "[3]  --> Debug Mode" "$(if [ "$debugmode" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
+					printf "%-30s | %-40s\\n" "[4]  --> Filter Traffic" "$(Grn "[$filtertraffic]")"
+					printf "%-30s | %-40s\\n" "[5]  --> Unban PrivateIP" "$(if [ "$unbanprivateip" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
+					printf "%-30s | %-40s\\n" "[6]  --> Log Invalid Packets" "$(if [ "$loginvalid" = "enabled" ]; then Grn "[Enabled]";else Ylow "[Disabled]"; fi)"
+					printf "%-30s | %-40s\\n" "[7]  --> Ban AiProtect" "$(if [ "$banaiprotect" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
+					printf "%-30s | %-40s\\n" "[8]  --> Secure Mode" "$(if [ "$securemode" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
+					printf "%-30s | %-40s\\n" "[9]  --> Fast Switch" "$(if [ "$fastswitch" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
 					echo
 					printf "[1-9]: "
 					read -r "menu2"
@@ -2653,8 +2653,8 @@ case "$1" in
 		dos2unix /tmp/skynet/lists/* 2>/dev/null
 		if ! grep -qE '^([0-9]{1,3}\.){3}[0-9]{1,3}(/[0-9]{1,2})?$' /tmp/skynet/lists/* 2>/dev/null; then
 			result="$(Red "[$(($(date +%s) - btime))s]")"
-			printf "%-8s\n" "$result"
-			printf "%-35s\n" "[*] List Content Error Detected - Stopping Banmalware"
+			printf "%-8s\\n" "$result"
+			printf "%-35s\\n" "[*] List Content Error Detected - Stopping Banmalware"
 			nocfg="1"
 			result="1"
 		fi
@@ -3451,62 +3451,62 @@ case "$1" in
 					else
 						state="$(Grn "$state")"
 					fi
-					printf "%-40s | %-16s | %-20s | %-15s\n" "$localname" "$ipaddr" "$macaddr" "$state"
+					printf "%-40s | %-16s | %-20s | %-15s\\n" "$localname" "$ipaddr" "$macaddr" "$state"
 				done
 				Display_Header "7"
 				printf "%-35s | " "Internet-Connectivity"
 				if Check_Connection >/dev/null 2>&1; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
-				printf "%-8s\n" "$result"
+				printf "%-8s\\n" "$result"
 				printf "%-35s | " "Write Permission"
 				if [ -w "$skynetloc" ]; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
-				printf "%-8s\n" "$result"
+				printf "%-8s\\n" "$result"
 				printf "%-35s | " "Firewall-Start Entry"
 				if grep -E "start.* # Skynet" /jffs/scripts/firewall-start | grep -qvE "^#"; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
-				printf "%-8s\n" "$result"
+				printf "%-8s\\n" "$result"
 				printf "%-35s | " "Services-Stop Entry"
 				if grep -F "# Skynet" /jffs/scripts/services-stop | grep -qvE "^#"; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
-				printf "%-8s\n" "$result"
+				printf "%-8s\\n" "$result"
 				printf "%-35s | " "SWAP"
 				if Check_Swap; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
-				printf "%-8s\n" "$result"
+				printf "%-8s\\n" "$result"
 				printf "%-35s | " "Cron Jobs"
 				if [ "$(cru l | grep -c "Skynet")" -ge "2" ]; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
-				printf "%-8s\n" "$result"
+				printf "%-8s\\n" "$result"
 				printf "%-35s | " "IPSet Comment Support"
 				if [ -f /lib/modules/"$(uname -r)"/kernel/net/netfilter/ipset/ip_set_hash_ipmac.ko ]; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
-				printf "%-8s\n" "$result"
+				printf "%-8s\\n" "$result"
 				printf "%-35s | " "Log Level $(nvram get message_loglevel) Settings"
 				if [ "$(nvram get message_loglevel)" -le "$(nvram get log_level)" ]; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
-				printf "%-8s\n" "$result"
+				printf "%-8s\\n" "$result"
 				printf "%-35s | " "Duplicate Rules In RAW"
 				if [ "$(iptables-save -t raw | sort | uniq -d | grep -c " ")" = "0" ]; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
-				printf "%-8s\n" "$result"
+				printf "%-8s\\n" "$result"
 				printf "%-35s | " "Inbound Filter Rules"
 				if iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j DROP 2>/dev/null; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); elif [ "$filtertraffic" = "outbound" ]; then result="$(Ylow "[Disabled]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
-				printf "%-8s\n" "$result"
+				printf "%-8s\\n" "$result"
 				printf "%-35s | " "Inbound Debug Rules"
 				if iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); elif [ "$debugmode" = "disabled" ] || [ "$filtertraffic" = "outbound" ]; then result="$(Ylow "[Disabled]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
-				printf "%-8s\n" "$result"
+				printf "%-8s\\n" "$result"
 				printf "%-35s | " "Outbound Filter Rules"
 				if iptables -t raw -C PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null && \
 				iptables -t raw -C OUTPUT -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); elif [ "$filtertraffic" = "inbound" ]; then result="$(Ylow "[Disabled]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
-				printf "%-8s\n" "$result"
+				printf "%-8s\\n" "$result"
 				printf "%-35s | " "Outbound Debug Rules"
 				if iptables -t raw -C PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null && \
 				iptables -t raw -C OUTPUT -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); elif [ "$debugmode" = "disabled" ] || [ "$filtertraffic" = "inbound" ]; then result="$(Ylow "[Disabled]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
-				printf "%-8s\n" "$result"
+				printf "%-8s\\n" "$result"
 				printf "%-35s | " "Whitelist IPSet"
 				if ipset -L -n Skynet-Whitelist >/dev/null 2>&1; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
-				printf "%-8s\n" "$result"
+				printf "%-8s\\n" "$result"
 				printf "%-35s | " "BlockedRanges IPSet"
 				if ipset -L -n Skynet-BlockedRanges >/dev/null 2>&1; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
-				printf "%-8s\n" "$result"
+				printf "%-8s\\n" "$result"
 				printf "%-35s | " "Blacklist IPSet"
 				if ipset -L -n Skynet-Blacklist >/dev/null 2>&1; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
-				printf "%-8s\n" "$result"
+				printf "%-8s\\n" "$result"
 				printf "%-35s | " "Skynet IPSet"
 				if ipset -L -n Skynet-Master >/dev/null 2>&1; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
-				printf "%-8s\n" "$result"
+				printf "%-8s\\n" "$result"
 				if [ -f /opt/share/diversion/.conf/diversion.conf ]; then
 					printf "%-35s | " "Diversion Plus Content"
 					divlocation="/opt/share/diversion"
@@ -3519,21 +3519,21 @@ case "$1" in
 					else
 						result="$(Red "[Failed]")"
 					fi
-					printf "%-8s\n" "$result"
+					printf "%-8s\\n" "$result"
 				else
 					totaltests=$((totaltests-1))
 				fi
 				Display_Header "8"
-				printf "%-35s | %-8s\n" "Autoupdate" "$(if [ "$autoupdate" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
-				printf "%-35s | %-8s\n" "Auto-Banmalware Update" "$(if [ "$banmalwareupdate" = "daily" ] || [ "$banmalwareupdate" = "weekly" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
-				printf "%-35s | %-8s\n" "Debug Mode" "$(if [ "$debugmode" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
-				printf "%-35s | %-8s\n" "Filter Traffic" "$(if [ "$filtertraffic" = "all" ]; then Grn "[Enabled]"; else Ylow "[Selective]"; fi)"
-				printf "%-35s | %-8s\n" "Unban PrivateIP" "$(if [ "$unbanprivateip" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
-				printf "%-35s | %-8s\n" "Log Invalid" "$(if [ "$loginvalid" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
-				printf "%-35s | %-8s\n" "Ban AiProtect" "$(if [ "$banaiprotect" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
-				printf "%-35s | %-8s\n" "Secure Mode" "$(if [ "$securemode" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
-				printf "%-35s | %-8s\n\n" "Fast Switch" "$(if [ "$fastswitch" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
-				printf "%-35s\n" "${passedtests}/${totaltests} Tests Sucessful"
+				printf "%-35s | %-8s\\n" "Autoupdate" "$(if [ "$autoupdate" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
+				printf "%-35s | %-8s\\n" "Auto-Banmalware Update" "$(if [ "$banmalwareupdate" = "daily" ] || [ "$banmalwareupdate" = "weekly" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
+				printf "%-35s | %-8s\\n" "Debug Mode" "$(if [ "$debugmode" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
+				printf "%-35s | %-8s\\n" "Filter Traffic" "$(if [ "$filtertraffic" = "all" ]; then Grn "[Enabled]"; else Ylow "[Selective]"; fi)"
+				printf "%-35s | %-8s\\n" "Unban PrivateIP" "$(if [ "$unbanprivateip" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
+				printf "%-35s | %-8s\\n" "Log Invalid" "$(if [ "$loginvalid" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
+				printf "%-35s | %-8s\\n" "Ban AiProtect" "$(if [ "$banaiprotect" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
+				printf "%-35s | %-8s\\n" "Secure Mode" "$(if [ "$securemode" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
+				printf "%-35s | %-8s\\n\\n" "Fast Switch" "$(if [ "$fastswitch" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
+				printf "%-35s\\n" "${passedtests}/${totaltests} Tests Sucessful"
 				if [ "$3" = "extended" ]; then echo; echo; cat "$skynetcfg"; fi
 				nocfg="1"
 			;;
@@ -3685,11 +3685,11 @@ case "$1" in
 			run)
 				Check_Lock
 				if grep -qE "^${3}()" "$0"; then
-					printf "[i] Running Function %s()\n\n" "$3"
+					printf "[i] Running Function %s()\\n\\n" "$3"
 					"$3"
-					printf "\n[i] Complete\n"
+					printf "\\n[i] Complete\\n"
 				else
-					printf "%s() Doesn't Exist\n" "$3"
+					printf "%s() Doesn't Exist\\n" "$3"
 				fi
 			;;
 			*)
@@ -3838,13 +3838,13 @@ case "$1" in
 						Red "Exact Matches;"
 						Display_Header "5"
 						grep -HE "^$ip$" /tmp/skynet/lists/* | cut -d '/' -f5- | while IFS= read -r "list" && [ -n "$list" ]; do
-							printf "%-20s | %-40s\n" "$(echo "$list" | cut -d ':' -f2-)" "$(grep -F "$(echo "$list" | cut -d ':' -f1)" /jffs/shared-Skynet-whitelist)"
+							printf "%-20s | %-40s\\n" "$(echo "$list" | cut -d ':' -f2-)" "$(grep -F "$(echo "$list" | cut -d ':' -f1)" /jffs/shared-Skynet-whitelist)"
 						done
-						printf "   \b\b\b\n\n"
+						printf "   \b\b\b\\n\\n"
 						Red "Possible CIDR Matches;"
 						Display_Header "5"
 						grep -HE "^$(echo "$ip" | cut -d '.' -f1-3)..*/" /tmp/skynet/lists/* | cut -d '/' -f5- | while IFS= read -r "list"; do
-							printf "%-20s | %-40s\n" "$(echo "$list" | cut -d ':' -f2-)" "$(grep -F "$(echo "$list" | cut -d ':' -f1)" /jffs/shared-Skynet-whitelist)"
+							printf "%-20s | %-40s\\n" "$(echo "$list" | cut -d ':' -f2-)" "$(grep -F "$(echo "$list" | cut -d ':' -f1)" /jffs/shared-Skynet-whitelist)"
 						done
 						printf "   \b\b\b"
 						Clean_Temp
@@ -4057,7 +4057,7 @@ case "$1" in
 					elif [ -z "$localname" ]; then
 						localname="Unknown"
 					fi
-					printf "%-10s | %-16s | %-60s\n" "${hits}x" "${ipaddr}" "$localname"
+					printf "%-10s | %-16s | %-60s\\n" "${hits}x" "${ipaddr}" "$localname"
 				done
 				rm -rf /tmp/skynet/skynetstats.txt
 			;;
