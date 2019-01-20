@@ -500,12 +500,12 @@ Domain_Lookup () {
 Extended_DNSStats () {
 		case "$1" in
 			1)
-				printf "%-16s | %-56s | %-60s \n" "$statdata" "https://otx.alienvault.com/indicator/ip/${statdata}" "$(grep -F "$statdata" /tmp/skynet/skynetstats.txt | awk '{print $1}' | xargs)"
+				printf "%-16s | %-56s | %-60s \\n" "$statdata" "https://otx.alienvault.com/indicator/ip/${statdata}" "$(grep -F "$statdata" /tmp/skynet/skynetstats.txt | awk '{print $1}' | xargs)"
 			;;
 			2)
 				hits="$(echo "$statdata" | awk '{print $1}')"
 				ipaddr="$(echo "$statdata" | awk '{print $2}')"
-				printf "%-10s | %-16s | %-55s | %-60s\n" "${hits}x" "${ipaddr}" "https://otx.alienvault.com/indicator/ip/${ipaddr}" "$(grep -F "$ipaddr" /tmp/skynet/skynetstats.txt | awk '{print $1}' | xargs)"
+				printf "%-10s | %-16s | %-55s | %-60s\\n" "${hits}x" "${ipaddr}" "https://otx.alienvault.com/indicator/ip/${ipaddr}" "$(grep -F "$ipaddr" /tmp/skynet/skynetstats.txt | awk '{print $1}' | xargs)"
 			;;
 			*)
 				echo "[*] Error - No Stats Specified To Load"
@@ -516,55 +516,55 @@ Extended_DNSStats () {
 Display_Header () {
 		case "$1" in
 			1)
-				printf "\n\n%-16s | %-56s | %-60s\n" "--------------" "--------------" "----------------------"
-				printf "%-16s | %-56s | %-60s\n" "| IP Address |" "| AlienVault |" "| Associated Domains |"
-				printf "%-16s | %-56s | %-60s\n\n" "--------------" "--------------"  "----------------------"
+				printf "\\n\\n%-16s | %-56s | %-60s\\n" "--------------" "--------------" "----------------------"
+				printf "%-16s | %-56s | %-60s\\n" "| IP Address |" "| AlienVault |" "| Associated Domains |"
+				printf "%-16s | %-56s | %-60s\\n\\n" "--------------" "--------------"  "----------------------"
 			;;
 			2)
-				printf "\n\n%-10s | %-16s | %-55s | %-60s\n" "--------" "--------------" "--------------" "----------------------"
-				printf "%-10s | %-16s | %-55s | %-60s\n" "| Hits |" "| IP Address |" "| AlienVault |" "| Associated Domains |"
-				printf "%-10s | %-16s | %-55s | %-60s\n\n" "--------" "--------------" "--------------" "----------------------"
+				printf "\\n\\n%-10s | %-16s | %-55s | %-60s\\n" "--------" "--------------" "--------------" "----------------------"
+				printf "%-10s | %-16s | %-55s | %-60s\\n" "| Hits |" "| IP Address |" "| AlienVault |" "| Associated Domains |"
+				printf "%-10s | %-16s | %-55s | %-60s\\n\\n" "--------" "--------------" "--------------" "----------------------"
 			;;
 			3)
-				printf "\n\n%-10s | %-10s | %-60s\n" "--------" "--------" "--------------"
-				printf "%-10s | %-10s | %-60s\n" "| Hits |" "| Port |" "| SpeedGuide |"
-				printf "%-10s | %-10s | %-60s\n\n" "--------" "--------" "--------------"
+				printf "\\n\\n%-10s | %-10s | %-60s\\n" "--------" "--------" "--------------"
+				printf "%-10s | %-10s | %-60s\\n" "| Hits |" "| Port |" "| SpeedGuide |"
+				printf "%-10s | %-10s | %-60s\\n\\n" "--------" "--------" "--------------"
 			;;
 			4)
-				printf "\n\n%-10s | %-16s | %-60s\n" "--------" "------------" "---------------"
-				printf "%-10s | %-16s | %-60s\n" "| Hits |" "| Local IP |" "| Device Name |"
-				printf "%-10s | %-16s | %-60s\n\n" "--------" "------------" "---------------"
+				printf "\\n\\n%-10s | %-16s | %-60s\\n" "--------" "------------" "---------------"
+				printf "%-10s | %-16s | %-60s\\n" "| Hits |" "| Local IP |" "| Device Name |"
+				printf "%-10s | %-16s | %-60s\\n\\n" "--------" "------------" "---------------"
 			;;
 			5)
-				printf "\n\n%-20s | %-40s\n" "--------------" "---------"
-				printf "%-20s | %-40s\n" "| IP Address |" "| List |"
-				printf "%-20s | %-40s\n\n" "--------------" "---------"
+				printf "\\n\\n%-20s | %-40s\\n" "--------------" "---------"
+				printf "%-20s | %-40s\\n" "| IP Address |" "| List |"
+				printf "%-20s | %-40s\\n\\n" "--------------" "---------"
 			;;
 			6)
-				printf "\n\n%-40s | %-16s | %-20s | %-15s\n" "---------------" "------------" "---------------" "----------"
-				printf "%-40s | %-16s | %-20s | %-15s\n" "| Device Name |" "| Local IP |" "| MAC Address |" "| Status |"
-				printf "%-40s | %-16s | %-20s | %-15s\n\n" "---------------" "------------" "---------------" "----------"
+				printf "\\n\\n%-40s | %-16s | %-20s | %-15s\\n" "---------------" "------------" "---------------" "----------"
+				printf "%-40s | %-16s | %-20s | %-15s\\n" "| Device Name |" "| Local IP |" "| MAC Address |" "| Status |"
+				printf "%-40s | %-16s | %-20s | %-15s\\n\\n" "---------------" "------------" "---------------" "----------"
 			;;
 			7)
-				printf "\n\n%-35s | %-8s\n" "--------------------" "----------"
-				printf "%-35s | %-8s\n" "| Test Description |" "| Result |"
-				printf "%-35s | %-8s\n\n" "--------------------" "----------"
+				printf "\\n\\n%-35s | %-8s\\n" "--------------------" "----------"
+				printf "%-35s | %-8s\\n" "| Test Description |" "| Result |"
+				printf "%-35s | %-8s\\n\\n" "--------------------" "----------"
 			;;
 			8)
-				printf "\n\n%-35s | %-8s\n" "-----------" "----------"
-				printf "%-35s | %-8s\n" "| Setting |" "| Status |"
-				printf "%-35s | %-8s\n\n" "----------" "----------"
+				printf "\\n\\n%-35s | %-8s\\n" "-----------" "----------"
+				printf "%-35s | %-8s\\n" "| Setting |" "| Status |"
+				printf "%-35s | %-8s\\n\\n" "----------" "----------"
 			;;
 			9)
-				printf "\n\n=============================================================================================================\n\n\n"
+				printf "\\n\\n=============================================================================================================\\n\\n\\n"
 			;;
 			10)
-				printf "\n=============================================================================================================\n\n\n"
+				printf "\\n=============================================================================================================\\n\\n\\n"
 			;;
 			11)
-				printf "%-10s | %-18s | %-10s | %-18s | %-10s | %-20s\n" "---------" "-------------" "---------" "------------------" "---------" "------------------"
-				printf "%-10s | %-18s | %-10s | %-18s | %-10s | %-20s\n" "| Proto |" "| Source IP |" "| SPort |" "| Destination IP |" "| DPort |" "| Identification |"
-				printf "%-10s | %-18s | %-10s | %-18s | %-10s | %-20s\n\n" "---------" "-------------" "---------" "------------------" "---------" "------------------"
+				printf "%-10s | %-18s | %-10s | %-18s | %-10s | %-20s\\n" "---------" "-------------" "---------" "------------------" "---------" "------------------"
+				printf "%-10s | %-18s | %-10s | %-18s | %-10s | %-20s\\n" "| Proto |" "| Source IP |" "| SPort |" "| Destination IP |" "| DPort |" "| Identification |"
+				printf "%-10s | %-18s | %-10s | %-18s | %-10s | %-20s\\n\\n" "---------" "-------------" "---------" "------------------" "---------" "------------------"
 			;;
 			*)
 				echo "[*] Error - No Header Specified To Load"
@@ -574,7 +574,7 @@ Display_Header () {
 
 Display_Result () {
 		result="$(Grn "[$(($(date +%s) - btime))s]")"
-		printf "%-8s\n" "$result"
+		printf "%-8s\\n" "$result"
 }
 
 Filter_Version () {
@@ -903,34 +903,34 @@ Print_Log () {
 }
 
 Write_Config () {
-		{ printf "%s\n" "################################################"
-		printf "%s\n" "## Generated By Skynet - Do Not Manually Edit ##"
-		printf "%-45s %s\n\n" "## $(date +"%b %d %T")" "##"
-		printf "%s\n" "## Installer ##"
-		printf "%s=\"%s\"\n" "model" "$model"
-		printf "%s=\"%s\"\n" "localver" "$localver"
-		printf "%s=\"%s\"\n" "autoupdate" "$autoupdate"
-		printf "%s=\"%s\"\n" "banmalwareupdate" "$banmalwareupdate"
-		printf "%s=\"%s\"\n" "forcebanmalwareupdate" "$forcebanmalwareupdate"
-		printf "%s=\"%s\"\n" "debugmode" "$debugmode"
-		printf "%s=\"%s\"\n" "filtertraffic" "$filtertraffic"
-		printf "%s=\"%s\"\n" "swaplocation" "$swaplocation"
-		printf "%s=\"%s\"\n" "swappartition" "$swappartition"
-		printf "\n%s\n" "## Counters / Lists ##"
-		printf "%s=\"%s\"\n" "blacklist1count" "$blacklist1count"
-		printf "%s=\"%s\"\n" "blacklist2count" "$blacklist2count"
-		printf "%s=\"%s\"\n" "customlisturl" "$customlisturl"
-		printf "%s=\"%s\"\n" "customlist2url" "$customlist2url"
-		printf "%s=\"%s\"\n" "countrylist" "$countrylist"
-		printf "%s=\"%s\"\n" "excludelists" "$excludelists"
-		printf "\n%s\n" "## Settings ##"
-		printf "%s=\"%s\"\n" "unbanprivateip" "$unbanprivateip"
-		printf "%s=\"%s\"\n" "loginvalid" "$loginvalid"
-		printf "%s=\"%s\"\n" "banaiprotect" "$banaiprotect"
-		printf "%s=\"%s\"\n" "securemode" "$securemode"
-		printf "%s=\"%s\"\n" "extendedstats" "$extendedstats"
-		printf "%s=\"%s\"\n" "fastswitch" "$fastswitch"
-		printf "\n%s\n" "################################################"; } > "$skynetcfg"
+		{ printf "%s\\n" "################################################"
+		printf "%s\\n" "## Generated By Skynet - Do Not Manually Edit ##"
+		printf "%-45s %s\\n\\n" "## $(date +"%b %d %T")" "##"
+		printf "%s\\n" "## Installer ##"
+		printf "%s=\"%s\"\\n" "model" "$model"
+		printf "%s=\"%s\"\\n" "localver" "$localver"
+		printf "%s=\"%s\"\\n" "autoupdate" "$autoupdate"
+		printf "%s=\"%s\"\\n" "banmalwareupdate" "$banmalwareupdate"
+		printf "%s=\"%s\"\\n" "forcebanmalwareupdate" "$forcebanmalwareupdate"
+		printf "%s=\"%s\"\\n" "debugmode" "$debugmode"
+		printf "%s=\"%s\"\\n" "filtertraffic" "$filtertraffic"
+		printf "%s=\"%s\"\\n" "swaplocation" "$swaplocation"
+		printf "%s=\"%s\"\\n" "swappartition" "$swappartition"
+		printf "\\n%s\\n" "## Counters / Lists ##"
+		printf "%s=\"%s\"\\n" "blacklist1count" "$blacklist1count"
+		printf "%s=\"%s\"\\n" "blacklist2count" "$blacklist2count"
+		printf "%s=\"%s\"\\n" "customlisturl" "$customlisturl"
+		printf "%s=\"%s\"\\n" "customlist2url" "$customlist2url"
+		printf "%s=\"%s\"\\n" "countrylist" "$countrylist"
+		printf "%s=\"%s\"\\n" "excludelists" "$excludelists"
+		printf "\\n%s\\n" "## Settings ##"
+		printf "%s=\"%s\"\\n" "unbanprivateip" "$unbanprivateip"
+		printf "%s=\"%s\"\\n" "loginvalid" "$loginvalid"
+		printf "%s=\"%s\"\\n" "banaiprotect" "$banaiprotect"
+		printf "%s=\"%s\"\\n" "securemode" "$securemode"
+		printf "%s=\"%s\"\\n" "extendedstats" "$extendedstats"
+		printf "%s=\"%s\"\\n" "fastswitch" "$fastswitch"
+		printf "\\n%s\\n" "################################################"; } > "$skynetcfg"
 }
 
 
