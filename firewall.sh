@@ -621,7 +621,7 @@ Spinner_Start () {
 				printf '\033[1;32m%s\033[0m\b\b\b' "$c"
 				usleep 250000
 			done
-			printf "   \b\b\b"
+			printf '   \b\b\b'
 		done; } &
 		echo "$!" > /tmp/skynet/spinstart
 }
@@ -2628,7 +2628,7 @@ case "$1" in
 		else
 			curl -fsL --retry 3 "$listurl" | dos2unix > /jffs/shared-Skynet-whitelist && Display_Result
 		fi
-		sed -i "\\~^http[s]*://\|^www.~!d;" /jffs/shared-Skynet-whitelist
+		sed -i "\\~^http[s]*://\\|^www.~!d;" /jffs/shared-Skynet-whitelist
 		echo >> /jffs/shared-Skynet-whitelist
 		btime="$(date +%s)"
 		printf "%-35s | " "[i] Refreshing Whitelists"
@@ -3833,20 +3833,20 @@ case "$1" in
 						Spinner_End; wait; Spinner_Start
 						dos2unix /tmp/skynet/lists/*
 						cd "$cwd" || exit 1
-						printf "   \b\b\b"
+						printf '   \b\b\b'
 						Display_Header "10"
 						Red "Exact Matches;"
 						Display_Header "5"
 						grep -HE "^$ip$" /tmp/skynet/lists/* | cut -d '/' -f5- | while IFS= read -r "list" && [ -n "$list" ]; do
 							printf "%-20s | %-40s\\n" "$(echo "$list" | cut -d ':' -f2-)" "$(grep -F "$(echo "$list" | cut -d ':' -f1)" /jffs/shared-Skynet-whitelist)"
 						done
-						printf "   \b\b\b\\n\\n"
+						printf '   \b\b\b\n\n'
 						Red "Possible CIDR Matches;"
 						Display_Header "5"
 						grep -HE "^$(echo "$ip" | cut -d '.' -f1-3)..*/" /tmp/skynet/lists/* | cut -d '/' -f5- | while IFS= read -r "list"; do
 							printf "%-20s | %-40s\\n" "$(echo "$list" | cut -d ':' -f2-)" "$(grep -F "$(echo "$list" | cut -d ':' -f1)" /jffs/shared-Skynet-whitelist)"
 						done
-						printf "   \b\b\b"
+						printf '   \b\b\b'
 						Clean_Temp
 					;;
 					manualbans)
@@ -3913,12 +3913,12 @@ case "$1" in
 							Display_Header "11"
 							while IFS= read -r "logs"; do
 								mark="$(echo "$logs" | awk '{printf $8}' | sed 's~mark=~~g')"
-								mark="$(printf "%d\n" "0x${mark}")"
+								mark="$(printf "%d\\n" "0x${mark}")"
 								mark2="$(printf '%X\n' "$((mark & 0x3F0000))")"
 								mark2="0x${mark2}"
 								id="$(awk -v mark="$mark2" 'BEGIN {printf "%.3f\n", mark / 65535}' | sed 's~\..*~~g')"
 								hex="$(printf '%X\n' "$((mark & 0xFFFF))")"
-								cat="$(printf "%d\n" "0x${hex}")"
+								cat="$(printf "%d\\n" "0x${hex}")"
 
 								proto="$(echo "$logs" | awk '{print $2}')"
 								sourceip="$(echo "$logs" | awk '{print $3}' | cut -d '=' -f2)"
@@ -3941,7 +3941,7 @@ case "$1" in
 								elif [ "$4" = "id" ] && [ -n "$5" ] && [ "$5" != "$reason" ]; then
 									true
 								else
-									printf "%-10s | %-18s | %-10s | %-18s | %-10s | %-18s\n" "$proto" "$sourceip" "$sport" "$destip" "$dport" "$reason"
+									printf "%-10s | %-18s | %-10s | %-18s | %-10s | %-18s\\n" "$proto" "$sourceip" "$sport" "$destip" "$dport" "$reason"
 								fi
 							done < /proc/bw_cte_dump
 						else
@@ -3975,7 +3975,7 @@ case "$1" in
 				esac
 				if [ "$extendedstats" = "enabled" ]; then
 					grep -hE 'reply.* is ([0-9]{1,3}\.){3}[0-9]{1,3}$' /opt/var/log/dnsmasq* | awk '{printf "%s %s\n", $6, $8}' | Strip_Domain > /tmp/skynet/skynetstats.txt
-					printf "   \b\b\b"
+					printf '   \b\b\b'
 				else
 					touch "/tmp/skynet/skynetstats.txt"
 				fi
