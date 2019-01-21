@@ -706,9 +706,10 @@ Whitelist_Extra () {
 		echo "astrill.com"
 		echo "strongpath.net"
 		echo "snbforums.com"
-		nvram get ntp_server0
-		nvram get ntp_server1
-		nvram get firmware_server; } > /jffs/shared-Skynet2-whitelist
+		echo "bin.entware.net"
+		nvram get "ntp_server0"
+		nvram get "ntp_server1"
+		nvram get "firmware_server"; } > /jffs/shared-Skynet2-whitelist
 }
 
 Whitelist_CDN () {
