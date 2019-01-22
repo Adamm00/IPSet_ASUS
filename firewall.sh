@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 13/01/2019 -		   Asus Firewall Addition By Adamm v6.6.6				    #
+## - 23/01/2019 -		   Asus Firewall Addition By Adamm v6.6.6				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -115,6 +115,9 @@ Check_Settings () {
 			logger -st Skynet "[*] Configuration File Not Detected - Please Use ( sh $0 install ) To Continue"
 			echo; exit 1
 		fi
+
+		if [ -z "$syslogloc" ]; then syslogloc="/tmp/syslog.log"; fi
+		if [ -z "$syslog1loc" ]; then syslog1loc="/tmp/syslog.log-1"; fi
 
 		conflicting_scripts="(IPSet_Block.sh|malware-filter|privacy-filter|ipBLOCKer.sh|ya-malware-block.sh|iblocklist-loader.sh|firewall-reinstate.sh)$"
 		if find /jffs /tmp/mnt | grep -qE "$conflicting_scripts"; then
@@ -634,15 +637,15 @@ Save_IPSets () {
 
 Unban_PrivateIP () {
 		if [ "$unbanprivateip" = "enabled" ] && [ "$debugmode" = "enabled" ]; then
-			grep -F "INBOUND" /tmp/syslog.log | Filter_PrivateSRC | grep -oE 'SRC=[0-9,\.]*' | cut -c 5- | awk '!x[$0]++' | while IFS= read -r "ip"; do
+			grep -F "INBOUND" "$syslogloc" | Filter_PrivateSRC | grep -oE 'SRC=[0-9,\.]*' | cut -c 5- | awk '!x[$0]++' | while IFS= read -r "ip"; do
 				ipset -q -A Skynet-Whitelist "$ip" comment "PrivateIP"
 				ipset -q -D Skynet-Blacklist "$ip"
-				sed -i "\\~SRC=${ip} ~d" "/tmp/syslog.log" "$skynetevents"
+				sed -i "\\~SRC=${ip} ~d" "$syslogloc" "$skynetevents"
 			done
-			grep -F "OUTBOUND" /tmp/syslog.log | Filter_PrivateDST | grep -oE 'DST=[0-9,\.]*' | cut -c 5- | awk '!x[$0]++' | while IFS= read -r "ip"; do
+			grep -F "OUTBOUND" "$syslogloc" | Filter_PrivateDST | grep -oE 'DST=[0-9,\.]*' | cut -c 5- | awk '!x[$0]++' | while IFS= read -r "ip"; do
 				ipset -q -A Skynet-Whitelist "$ip" comment "PrivateIP"
 				ipset -q -D Skynet-Blacklist "$ip"
-				sed -i "\\~DST=${ip} ~d" /tmp/syslog.log
+				sed -i "\\~DST=${ip} ~d" "$syslogloc"
 				sed -i "\\~SRC=${ip} ~d" "$skynetevents"
 			done
 		fi
@@ -860,8 +863,8 @@ Create_Swap () {
 }
 
 Purge_Logs () {
-		sed '\~BLOCKED -~!d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null >> "$skynetlog"
-		sed -i '\~BLOCKED -~d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null
+		sed '\~BLOCKED -~!d' "$syslog1loc" "$syslogloc" 2>/dev/null >> "$skynetlog"
+		sed -i '\~BLOCKED -~d' "$syslog1loc" "$syslogloc" 2>/dev/null
 		if [ "$(du "$skynetlog" | awk '{print $1}')" -ge "10240" ]; then
 			sed -i '\~BLOCKED -~d' "$skynetlog"
 			sed -i '\~Skynet: \[#\] ~d' "$skynetevents"
@@ -869,9 +872,9 @@ Purge_Logs () {
 				true > "$skynetlog"
 			fi
 		fi
-		if [ "$1" = "all" ] || [ "$(grep -cE "Skynet: [#] " "/tmp/syslog.log" 2>/dev/null)" -gt "24" ] 2>/dev/null; then
-			sed '\~Skynet: \[#\] ~!d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null >> "$skynetevents"
-			sed -i '\~Skynet: \[#\] ~d;\~Skynet: \[i\] ~d;\~Skynet: \[\*\] Lock ~d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null
+		if [ "$1" = "all" ] || [ "$(grep -cE "Skynet: [#] " "$syslogloc" 2>/dev/null)" -gt "24" ] 2>/dev/null; then
+			sed '\~Skynet: \[#\] ~!d' "$syslog1loc" "$syslogloc" 2>/dev/null >> "$skynetevents"
+			sed -i '\~Skynet: \[#\] ~d;\~Skynet: \[i\] ~d;\~Skynet: \[\*\] Lock ~d' "$syslog1loc" "$syslogloc" 2>/dev/null
 		fi
 }
 
@@ -931,6 +934,8 @@ Write_Config () {
 		printf "%s=\"%s\"\\n" "securemode" "$securemode"
 		printf "%s=\"%s\"\\n" "extendedstats" "$extendedstats"
 		printf "%s=\"%s\"\\n" "fastswitch" "$fastswitch"
+		printf "%s=\"%s\"\\n" "syslogloc" "$syslogloc"
+		printf "%s=\"%s\"\\n" "syslog1loc" "$syslog1loc"
 		printf "\\n%s\\n" "################################################"; } > "$skynetcfg"
 }
 
@@ -1547,8 +1552,9 @@ Load_Menu () {
 					printf "%-30s | %-40s\\n" "[7]  --> Ban AiProtect" "$(if [ "$banaiprotect" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
 					printf "%-30s | %-40s\\n" "[8]  --> Secure Mode" "$(if [ "$securemode" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
 					printf "%-30s | %-40s\\n" "[9]  --> Fast Switch" "$(if [ "$fastswitch" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
+					printf "%-30s | %-40s\\n" "[10] --> Syslog Location" "$(if [ "$syslogloc" = "/tmp/syslog.log" ] && [ "$syslog1loc" = "/tmp/syslog.log-1" ]; then Grn "[Default]"; else Ylow "[Custom]"; fi)"
 					echo
-					printf "[1-9]: "
+					printf "[1-10]: "
 					read -r "menu2"
 					echo
 					case "$menu2" in
@@ -1857,6 +1863,109 @@ Load_Menu () {
 									;;
 									2)
 										option2="disable"
+										break
+									;;
+									e|exit|back|menu)
+										unset "option1" "option2" "option3" "option4" "option5"
+										clear
+										Load_Menu
+										break
+									;;
+									*)
+										echo "[*] $menu3 Isn't An Option!"
+										echo
+									;;
+								esac
+							done
+							break
+						;;
+						10)
+							if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
+							while true; do
+								echo "Select Syslog To Configure:"
+								echo "[1]  --> syslog.log"
+								echo "[2]  --> syslog.log-1"
+								echo
+								printf "[1-2]: "
+								read -r "menu3"
+								echo
+								case "$menu3" in
+									1)
+										option2="syslog"
+										while true; do
+											echo "Select Syslog Location:"
+											echo "[1]  --> Default"
+											echo "[2]  --> Custom"
+											echo
+											printf "[1-2]: "
+											read -r "menu3"
+											echo
+											case "$menu3" in
+												1)
+													option3="/tmp/syslog.log"
+													break
+												;;
+												2)
+													echo "Input Custom Syslog Location:"
+													echo
+													printf "[File]: "
+													read -r "option3"
+													echo
+													if [ -z "$option3" ]; then echo "[*] File Field Can't Be Empty - Please Try Again"; echo; unset "option1" "option2" "option3"; continue; fi
+													break
+												;;
+												e|exit|back|menu)
+													unset "option1" "option2" "option3" "option4" "option5"
+													clear
+													Load_Menu
+													break
+												;;
+												*)
+													echo "[*] $menu3 Isn't An Option!"
+													echo
+												;;
+											esac
+										done
+										break
+										break
+									;;
+									2)
+										option2="syslog1"
+										while true; do
+											echo "Select Syslog Location:"
+											echo "[1]  --> Default"
+											echo "[2]  --> Custom"
+											echo
+											printf "[1-2]: "
+											read -r "menu3"
+											echo
+											case "$menu3" in
+												1)
+													option3="/tmp/syslog.log-1"
+													break
+												;;
+												2)
+													echo "Input Custom Syslog-1 Location:"
+													echo
+													printf "[File]: "
+													read -r "option3"
+													echo
+													if [ -z "$option3" ]; then echo "[*] File Field Can't Be Empty - Please Try Again"; echo; unset "option1" "option2" "option3"; continue; fi
+													break
+												;;
+												e|exit|back|menu)
+													unset "option1" "option2" "option3" "option4" "option5"
+													clear
+													Load_Menu
+													break
+												;;
+												*)
+													echo "[*] $menu3 Isn't An Option!"
+													echo
+												;;
+											esac
+										done
+										break
 										break
 									;;
 									e|exit|back|menu)
@@ -2955,7 +3064,7 @@ case "$1" in
 			Save_IPSets
 			Check_Security
 		fi
-		sed -i "\\~USER $(nvram get http_username) pid .*/jffs/scripts/firewall ~d" /tmp/syslog.log
+		sed -i "\\~USER $(nvram get http_username) pid .*/jffs/scripts/firewall ~d" "$syslogloc"
 	;;
 
 	start)
@@ -2993,7 +3102,7 @@ case "$1" in
 		Unload_DebugIPTables
 		Load_IPTables
 		Load_DebugIPTables
-		sed -i '\~DROP IN=~d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null
+		sed -i '\~DROP IN=~d' "$syslog1loc" "$syslogloc" 2>/dev/null
 		if [ "$forcebanmalwareupdate" = "true" ]; then Write_Config; rm -rf "/tmp/skynet.lock"; exec "$0" banmalware; fi
 	;;
 
@@ -3308,6 +3417,34 @@ case "$1" in
 					;;
 				esac
 			;;
+			syslog)
+				Check_Lock "$@"
+				if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
+				if [ -z "$3" ]; then echo "[*] Sysloc Location Not Specified - Exiting"; echo; exit 1; fi
+				case "$3" in
+					default)
+						syslogloc="/tmp/syslog.log"
+					;;
+					*)
+						syslogloc="$3"
+					;;
+				esac
+				echo "[i] Syslog Location Set To $syslogloc"
+			;;
+			syslog1)
+				Check_Lock "$@"
+				if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
+				if [ -z "$3" ]; then echo "[*] Syslog-1 Location Not Specified - Exiting"; echo; exit 1; fi
+				case "$3" in
+					default)
+						syslog1loc="/tmp/syslog.log-1"
+					;;
+					*)
+						syslog1loc="$3"
+					;;
+				esac
+				echo "[i] Syslog-1 Location Set To $syslog1loc"
+			;;
 			*)
 				echo "Command Not Recognized, Please Try Again"
 				echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
@@ -3332,7 +3469,7 @@ case "$1" in
 						if ! echo "$4" | Is_IP; then echo "[*] $4 Is Not A Valid IP"; echo; exit 2; fi
 						echo "[i] Filtering Entries Involving IP $4"
 						echo
-						tail -F /tmp/syslog.log | while read -r logoutput; do
+						tail -F "$syslogloc" | while read -r logoutput; do
 							if echo "$logoutput" | grep -qE "INVALID.*=$4 "; then
 								Blue "$logoutput"
 								if [ "$extendedstats" = "enabled" ]; then
@@ -3358,7 +3495,7 @@ case "$1" in
 						if ! echo "$4" | Is_Port || [ "$4" -gt "65535" ]; then echo "[*] $4 Is Not A Valid Port"; echo; exit 2; fi
 						echo "[i] Filtering Entries Involving Port $4"
 						echo
-						tail -F /tmp/syslog.log | while read -r logoutput; do
+						tail -F "$syslogloc" | while read -r logoutput; do
 							if echo "$logoutput" | grep -qE "INAVLID.*PT=$4 "; then
 								Blue "$logoutput"
 								if [ "$extendedstats" = "enabled" ]; then
@@ -3381,7 +3518,7 @@ case "$1" in
 						done
 					;;
 					*)
-						tail -F /tmp/syslog.log | while read -r logoutput; do
+						tail -F "$syslogloc" | while read -r logoutput; do
 							if echo "$logoutput" | grep -q "INVALID"; then
 								Blue "$logoutput"
 								if [ "$extendedstats" = "enabled" ]; then
@@ -3541,7 +3678,7 @@ case "$1" in
 			clean)
 				echo "[i] Cleaning Syslog Entries"
 				Purge_Logs "all"
-				sed -i '\~Skynet: \[%\] ~d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null
+				sed -i '\~Skynet: \[%\] ~d' "$syslog1loc" "$syslogloc" 2>/dev/null
 				echo "[i] Complete!"
 				echo
 				nolog="2"
@@ -3727,7 +3864,7 @@ case "$1" in
 		case "$2" in
 			reset)
 				sed -i '\~BLOCKED -~d' "$skynetlog"
-				sed -i '\~Skynet: \[#\] ~d' "$skynetevents" "/tmp/syslog.log-1" "/tmp/syslog.log" 2>/dev/null
+				sed -i '\~Skynet: \[#\] ~d' "$skynetevents" "$syslog1loc" "$syslogloc" 2>/dev/null
 				iptables -Z PREROUTING -t raw
 				echo "[i] Stat Data Reset"
 			;;
@@ -3887,8 +4024,8 @@ case "$1" in
 					;;
 					reports)
 						if [ "$4" -eq "$4" ] 2>/dev/null; then counter="$4"; fi
-						sed '\~Skynet: \[#\] ~!d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null >> "$skynetevents"
-						sed -i '\~Skynet: \[#\] ~d' /tmp/syslog.log-1 /tmp/syslog.log 2>/dev/null
+						sed '\~Skynet: \[#\] ~!d' "$syslog1loc" "$syslogloc" 2>/dev/null >> "$skynetevents"
+						sed -i '\~Skynet: \[#\] ~d' "$syslog1loc" "$syslogloc" 2>/dev/null
 						echo "[i] First Report Issued On $(grep -m1 -F "Skynet: [#] " "$skynetevents" | awk '{printf "%s %s %s\n", $1, $2, $3}')"
 						echo "[i] Last Report Issued On $(grep -F "Skynet: [#] " "$skynetevents" | tail -1 | awk '{printf "%s %s %s\n", $1, $2, $3}')"
 						echo
@@ -4259,6 +4396,8 @@ case "$1" in
 		if [ -z "$banaiprotect" ] && [ -f /opt/bin/opkg ]; then banaiprotect="enabled"; fi
 		if [ -z "$securemode" ]; then securemode="enabled"; fi
 		if [ -z "$fastswitch" ]; then fastswitch="disabled"; fi
+		if [ -z "$syslogloc" ]; then syslogloc="/tmp/syslog.log"; fi
+		if [ -z "$syslog1loc" ]; then syslog1loc="/tmp/syslog.log-1"; fi
 		Write_Config
 		cmdline="sh /jffs/scripts/firewall start skynetloc=${device}/skynet # Skynet Firewall Addition"
 		if grep -qE "^sh /jffs/scripts/firewall .* # Skynet" /jffs/scripts/firewall-start; then
