@@ -1,3 +1,4 @@
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/1a648048593d4b7abe1aac01bca13528)](https://app.codacy.com/app/Adamm00/IPSet_ASUS?utm_source=github.com&utm_medium=referral&utm_content=Adamm00/IPSet_ASUS&utm_campaign=Badge_Grade_Settings)
 # Skynet - Asus Firewall Addition   [![Build Status](https://travis-ci.com/Adamm00/IPSet_ASUS.svg?branch=master)](https://travis-ci.com/Adamm00/IPSet_ASUS)
 Lightweight firewall addition for ARM/HND based ASUS Routers using IPSet as seen on [SmallNetBuilder](https://www.snbforums.com/threads/skynet-asus-firewall-addition.16798/)
 
