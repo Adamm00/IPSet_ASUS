@@ -3670,7 +3670,8 @@ case "$1" in
 				printf "%-35s | %-8s\\n" "Log Invalid" "$(if [ "$loginvalid" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
 				printf "%-35s | %-8s\\n" "Ban AiProtect" "$(if [ "$banaiprotect" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
 				printf "%-35s | %-8s\\n" "Secure Mode" "$(if [ "$securemode" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
-				printf "%-35s | %-8s\\n\\n" "Fast Switch" "$(if [ "$fastswitch" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
+				printf "%-35s | %-8s\\n" "Fast Switch" "$(if [ "$fastswitch" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
+				printf "%-35s | %-8s\\n\\n" "Syslog Location" "$(if [ "$syslogloc" = "/tmp/syslog.log" ] && [ "$syslog1loc" = "/tmp/syslog.log-1" ]; then Grn "[Default]"; else Ylow "[Custom]"; fi)"
 				printf "%-35s\\n" "${passedtests}/${totaltests} Tests Sucessful"
 				if [ "$3" = "extended" ]; then echo; echo; cat "$skynetcfg"; fi
 				nocfg="1"
