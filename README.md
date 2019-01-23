@@ -89,7 +89,7 @@ Here Are Some Example Settings Commands;
 ( sh /jffs/scripts/firewall settings filter all|inbound|outbound ) Select What Traffic To Filter
 ( sh /jffs/scripts/firewall settings unbanprivate enable|disable ) Enable/Disable Unban_PrivateIP Function
 ( sh /jffs/scripts/firewall settings loginvalid enable|disable ) Enable/Disable Invalid Packet Logging
-( sh /jffs/scripts/firewall settings banaiprotect enable|disable ) Enable/Disable Banning IP's Flagged By AiProtect
+( sh /jffs/scripts/firewall settings banaiprotect enable|disable ) Enable/Disable Banning IPs Flagged By AiProtect
 ( sh /jffs/scripts/firewall settings securemode enable|disable ) Enable/Disable Insecure Settings Being Applied In WebUI
 ( sh /jffs/scripts/firewall settings fs google.com/filter.list|disable ) Configure/Disable Fast Banmalware List Switching
 ( sh /jffs/scripts/firewall settings syslog|syslog1 /tmp/syslog.log|default ) Configure Custom Syslog/Syslog-1 Location
