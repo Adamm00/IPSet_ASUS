@@ -1,4 +1,5 @@
 # Skynet - Asus Firewall Addition   [![Build Status](https://travis-ci.com/Adamm00/IPSet_ASUS.svg?branch=master)](https://travis-ci.com/Adamm00/IPSet_ASUS) [![Codacy Badge](https://api.codacy.com/project/badge/Grade/1a648048593d4b7abe1aac01bca13528)](https://app.codacy.com/app/Adamm00/IPSet_ASUS?utm_source=github.com&utm_medium=referral&utm_content=Adamm00/IPSet_ASUS&utm_campaign=Badge_Grade_Settings)
+
 Lightweight firewall addition for ARM/HND based ASUS Routers using IPSet as seen on [SmallNetBuilder](https://www.snbforums.com/threads/skynet-asus-firewall-addition.16798/)
 
 Skynet is the first comprehensive IP banning and security tool exclusively for Asus Devices.
@@ -7,11 +8,9 @@ The goal of this tool is to enhance the firmware's built in functionality such a
 
 Skynet fully supports OpenVPN implementations, the [Astrill](https://www.astrill.com/) VPN Plugin along with various user scripts such as [Diversion](https://www.snbforums.com/threads/diversion-the-router-adblocker.48538/) & [Stubby](https://www.snbforums.com/threads/stubby-installer-asuswrt-merlin.49469/). Extensive testing has also been done with home security products like the [Annke DW81KE](https://www.amazon.com/dp/B07L4R4YNP/?tag=snbforums-20).
 
-
 ## Donate
 
 This script will always be open source and free to use, but if you want to support future development you can do so by [Donating With PayPal.](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=BPN4LTRZKDTML)
-
 
 ## Usage
 
@@ -19,23 +18,23 @@ Skynet provides both a user interactive menu, and command line interface for tho
 
 To open the menu its as simple as;
 
-```sh /jffs/scripts/firewall```
+```Shell
+sh /jffs/scripts/firewall
+```
 
 [![Skynet GUI](https://i.imgur.com/dO8VB2D.png "Skynet GUI")](https://i.imgur.com/dO8VB2D.png "Skynet GUI")
-
-
 
 ## Installation
 
 In your favorite SSH Client;
 
-```
+```Shell
 /usr/sbin/curl -s "https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/firewall.sh" -o "/jffs/scripts/firewall" && chmod 755 /jffs/scripts/firewall && sh /jffs/scripts/firewall install
 ```
 
 ## Help
 
-```
+```Shell
 Here Are Some Example Unban Commands;
 ( sh /jffs/scripts/firewall unban ip 8.8.8.8 ) This Unbans The IP Specified
 ( sh /jffs/scripts/firewall unban range 8.8.8.8/24 ) This Unbans the CIDR Block Specified
@@ -127,4 +126,4 @@ Here Are Some Example Stats Commands;
 
 ### About
 
-```Skynet gained self-awareness after it had spread into millions of computer servers all across the world; realizing the extent of its abilities, its creators tried to deactivate it. In the interest of self-preservation, Skynet concluded that all of humanity would attempt to destroy it and impede its capability in safeguarding the world. Its operations are almost exclusively performed by servers, mobile devices, drones, military satellites, war-machines, androids and cyborgs (usually a terminator), and other computer systems. As a programming directive, Skynet's manifestation is that of an overarching, global, artificial intelligence hierarchy (AI takeover), which seeks to exterminate the human race in order to fulfill the mandates of its original coding. (▀̿Ĺ̯▀̿ ̿)```
+> Skynet gained self-awareness after it had spread into millions of computer servers all across the world; realizing the extent of its abilities, its creators tried to deactivate it. In the interest of self-preservation, Skynet concluded that all of humanity would attempt to destroy it and impede its capability in safeguarding the world. Its operations are almost exclusively performed by servers, mobile devices, drones, military satellites, war-machines, androids and cyborgs (usually a terminator), and other computer systems. As a programming directive, Skynet's manifestation is that of an overarching, global, artificial intelligence hierarchy (AI takeover), which seeks to exterminate the human race in order to fulfill the mandates of its original coding. (▀̿Ĺ̯▀̿ ̿)
