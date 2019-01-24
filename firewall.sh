@@ -1575,8 +1575,9 @@ Load_Menu () {
 					printf "%-30s | %-40s\\n" "[8]  --> Secure Mode" "$(if [ "$securemode" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
 					printf "%-30s | %-40s\\n" "[9]  --> Fast Switch" "$(if [ "$fastswitch" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
 					printf "%-30s | %-40s\\n" "[10] --> Syslog Location" "$(if [ "$syslogloc" = "/tmp/syslog.log" ] && [ "$syslog1loc" = "/tmp/syslog.log-1" ]; then Grn "[Default]"; else Ylow "[Custom]"; fi)"
+					printf "%-30s | %-40s\\n" "[11] --> IOT Blocking" "$(if [ -z "$iotblocked" ]; then Grn "[Disabled]"; else Ylow "[Custom]"; fi)"
 					echo
-					printf "[1-10]: "
+					printf "[1-11]: "
 					read -r "menu2"
 					echo
 					case "$menu2" in
@@ -1988,6 +1989,53 @@ Load_Menu () {
 											esac
 										done
 										break
+										break
+									;;
+									e|exit|back|menu)
+										unset "option1" "option2" "option3" "option4" "option5"
+										clear
+										Load_Menu
+										break
+									;;
+									*)
+										echo "[*] $menu3 Isn't An Option!"
+										echo
+									;;
+								esac
+							done
+							break
+						;;
+						11)
+							if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
+							while true; do
+								option2="iot"
+								echo "Select IOT Option:"
+								echo "[1]  --> Unblock All Devices"
+								echo "[2]  --> Block Devices"
+								echo
+								printf "[1-2]: "
+								read -r "menu3"
+								echo
+								case "$menu3" in
+									1)
+										option3="unban"
+										break
+									;;
+									2)
+										option3="ban"
+										echo "Input Local IP(s) To Ban:"
+										echo "Seperate Multiple Addresses With A Comma"
+										echo
+										printf "[IP]: "
+										read -r "option4"
+										echo
+										if echo "$option4" | grep -q ","; then
+											for ip in $(echo "$option4" | sed 's~,~ ~g'); do
+													if ! echo "$ip" | Is_IP; then echo "[*] $ip Is Not A Valid IP"; echo; unset "option3" "option4"; continue 2; fi
+											done
+										else
+											if ! echo "$option4" | Is_IP; then echo "[*] $option4 Is Not A Valid IP"; echo; unset "option3" "option4"; continue; fi
+										fi
 										break
 									;;
 									e|exit|back|menu)
@@ -3483,7 +3531,14 @@ case "$1" in
 				if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 				if [ -z "$3" ]; then echo "[*] Option Not Specified - Exiting"; echo; exit 1; fi
 				case "$3" in
-					block)
+					unban)
+						Unload_IOTTables
+						Unload_DebugIPTables
+						iotblocked=""
+						Load_IOTTables
+						Load_DebugIPTables
+					;;
+					ban)
 						if [ -z "$4" ]; then echo "[*] Device(s) Not Specified - Exiting"; echo; exit 1; fi
 						if echo "$4" | grep -q ","; then
 							for ip in $(echo "$4" | sed 's~,~ ~g'); do
@@ -3493,13 +3548,6 @@ case "$1" in
 						Unload_IOTTables
 						Unload_DebugIPTables
 						iotblocked="$4"
-						Load_IOTTables
-						Load_DebugIPTables
-					;;
-					unblock)
-						Unload_IOTTables
-						Unload_DebugIPTables
-						iotblocked=""
 						Load_IOTTables
 						Load_DebugIPTables
 					;;
