@@ -373,6 +373,20 @@ Load_DebugIPTables () {
 		fi
 }
 
+Unload_IOTTables () {
+		iptables -D FORWARD -i br0 -s "$iotblocked" ! -o tun+ -j DROP 2>/dev/null
+		iptables -D FORWARD -i br0 -s "$iotblocked" ! -o tun+ -j LOG --log-prefix "[BLOCKED - IOT] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
+		iptables -D FORWARD -i br0 -s "$iotblocked" -p udp -m udp --dport 123 -j ACCEPT 2>/dev/null
+}
+
+Load_IOTTables () {
+		if [ -n "$iotblocked" ]; then
+			iptables -I FORWARD -i br0 -s "$iotblocked" ! -o tun+ -j DROP 2>/dev/null
+			iptables -I FORWARD -i br0 -s "$iotblocked" ! -o tun+ -j LOG --log-prefix "[BLOCKED - IOT] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
+			iptables -I FORWARD -i br0 -s "$iotblocked" -p udp -m udp --dport 123 -j ACCEPT 2>/dev/null
+		fi
+}
+
 Check_IPSets () {
 		ipset -L -n Skynet-Whitelist >/dev/null 2>&1 || { fail="1"; return 1; }
 		ipset -L -n Skynet-Blacklist >/dev/null 2>&1 || { fail="2"; return 1; }
@@ -936,6 +950,7 @@ Write_Config () {
 		printf "%s=\"%s\"\\n" "fastswitch" "$fastswitch"
 		printf "%s=\"%s\"\\n" "syslogloc" "$syslogloc"
 		printf "%s=\"%s\"\\n" "syslog1loc" "$syslog1loc"
+		printf "%s=\"%s\"\\n" "iotblocked" "$iotblocked"
 		printf "\\n%s\\n" "################################################"; } > "$skynetcfg"
 }
 
@@ -3100,8 +3115,10 @@ case "$1" in
 		done
 		Unload_IPTables
 		Unload_DebugIPTables
+		Unload_IOTTables
 		Load_IPTables
 		Load_DebugIPTables
+		Load_IOTTables
 		sed -i '\~DROP IN=~d' "$syslog1loc" "$syslogloc" 2>/dev/null
 		if [ "$forcebanmalwareupdate" = "true" ]; then Write_Config; rm -rf "/tmp/skynet.lock"; exec "$0" banmalware; fi
 	;;
@@ -3115,6 +3132,7 @@ case "$1" in
 		Unload_Cron "all"
 		Unload_IPTables
 		Unload_DebugIPTables
+		Unload_IOTTables
 		Unload_IPSets
 		iptables -t raw -F
 		logger -t Skynet "[%] Restarting Firewall Service"; echo "[%] Restarting Firewall Service"
@@ -3130,6 +3148,7 @@ case "$1" in
 		Unload_Cron "all"
 		Unload_IPTables
 		Unload_DebugIPTables
+		Unload_IOTTables
 		Unload_IPSets
 		logger -t Skynet "[%] Skynet Disabled"; echo "[%] Skynet Disabled"
 		Purge_Logs "all"
@@ -3161,6 +3180,7 @@ case "$1" in
 			Unload_Cron "all"
 			Unload_IPTables
 			Unload_DebugIPTables
+			Unload_IOTTables
 			Unload_IPSets
 			iptables -t raw -F
 			curl -fsL --retry 3 "$remoteurl" -o "$0" || { logger -st Skynet "[*] Update Failed - Exiting"; echo; exit 1; }
@@ -3274,8 +3294,10 @@ case "$1" in
 						filtertraffic="all"
 						Unload_IPTables
 						Unload_DebugIPTables
+						Unload_IOTTables
 						Load_IPTables
 						Load_DebugIPTables
+						Load_IOTTables
 						echo "[i] Inbound & Outbound Filtering Enabled"
 
 					;;
@@ -3286,8 +3308,10 @@ case "$1" in
 						filtertraffic="inbound"
 						Unload_IPTables
 						Unload_DebugIPTables
+						Unload_IOTTables
 						Load_IPTables
 						Load_DebugIPTables
+						Load_IOTTables
 						echo "[i] Inbound Filtering Enabled"
 					;;
 					outbound)
@@ -3297,8 +3321,10 @@ case "$1" in
 						filtertraffic="outbound"
 						Unload_IPTables
 						Unload_DebugIPTables
+						Unload_IOTTables
 						Load_IPTables
 						Load_DebugIPTables
+						Load_IOTTables
 						echo "[i] Outbound Filtering Enabled"
 					;;
 					*)
@@ -3444,6 +3470,39 @@ case "$1" in
 					;;
 				esac
 				echo "[i] Syslog-1 Location Set To $syslog1loc"
+			;;
+			iot)
+				Check_Lock "$@"
+				if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
+				if [ -z "$3" ]; then echo "[*] Option Not Specified - Exiting"; echo; exit 1; fi
+				case "$3" in
+					block)
+						if [ -z "$4" ]; then echo "[*] Device(s) Not Specified - Exiting"; echo; exit 1; fi
+						if echo "$4" | grep -q ","; then
+							for ip in $(echo $4 | sed 's~,~ ~g'); do
+									if ! echo "$ip" | Is_IP; then echo "[*] $ip Is Not A Valid IP"; echo; exit 2; fi
+							done
+						fi
+						iotblocked="$4"
+						restartfirewall="1"
+					;;
+					unblock)
+						iotblocked=""
+						restartfirewall="1"
+					;;
+					*)
+						echo "Command Not Recognized, Please Try Again"
+						echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
+						echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
+						echo; exit 2
+					;;
+				esac
+				if [ -n "$iotblocked" ]; then
+					echo "[i] IOT Blocking List Updated - $(echo "$iotblocked" | sed 's~,~ ~g')"
+				else
+					echo "[i] IOT Blocking List Cleared - Restarting Firewall"
+				fi
+				logger -t Skynet "[%] Restarting Firewall Service"; echo "[%] Restarting Firewall Service"
 			;;
 			*)
 				echo "Command Not Recognized, Please Try Again"
@@ -3704,6 +3763,7 @@ case "$1" in
 							Unload_Cron "all"
 							Unload_IPTables
 							Unload_DebugIPTables
+							Unload_IOTTables
 							Unload_IPSets
 							logger -t Skynet "[%] Restarting Firewall Service"; echo "[%] Restarting Firewall Service"
 							restartfirewall="1"
@@ -3721,6 +3781,7 @@ case "$1" in
 							Unload_Cron "all"
 							Unload_IPTables
 							Unload_DebugIPTables
+							Unload_IOTTables
 							Unload_IPSets
 							logger -t Skynet "[%] Restarting Firewall Service"; echo "[%] Restarting Firewall Service"
 							restartfirewall="1"
@@ -3758,6 +3819,7 @@ case "$1" in
 						Unload_Cron "all"
 						Unload_IPTables
 						Unload_DebugIPTables
+						Unload_IOTTables
 						Unload_IPSets
 						echo "[i] Removing SWAP File ($swaplocation)"
 						if [ -f "$swaplocation" ]; then
@@ -3813,6 +3875,7 @@ case "$1" in
 				Purge_Logs
 				Unload_IPTables
 				Unload_DebugIPTables
+				Unload_IOTTables
 				Unload_IPSets
 				tar -xzvf "$backuplocation" -C "$skynetloc"
 				echo
@@ -4425,6 +4488,7 @@ case "$1" in
 		Unload_Cron "all"
 		Unload_IPTables
 		Unload_DebugIPTables
+		Unload_IOTTables
 		Unload_IPSets
 		iptables -t raw -F
 		echo "[%] Restarting Firewall Service To Complete Installation"
@@ -4487,6 +4551,7 @@ case "$1" in
 					Kill_Lock
 					Unload_IPTables
 					Unload_DebugIPTables
+					Unload_IOTTables
 					Unload_IPSets
 					nvram set fw_log_x=none
 					echo "[i] Deleting Skynet Files"
