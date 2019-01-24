@@ -2306,8 +2306,9 @@ Load_Menu () {
 								echo "[6]  --> Hourly Reports"
 								echo "[7]  --> Invalid Packets"
 								echo "[8]  --> Active Connections"
+								echo "[9]  --> IOT Packets"
 								echo
-								printf "[1-8]: "
+								printf "[1-9]: "
 								read -r "menu4"
 								echo
 								case "$menu4" in
@@ -2415,6 +2416,10 @@ Load_Menu () {
 												;;
 											esac
 										done
+										break
+									;;
+									9)
+										option3="iot"
 										break
 									;;
 									e|exit|back|menu)

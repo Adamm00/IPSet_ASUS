@@ -93,6 +93,9 @@ Here Are Some Example Settings Commands;
 ( sh /jffs/scripts/firewall settings securemode enable|disable ) Enable/Disable Insecure Settings Being Applied In WebUI
 ( sh /jffs/scripts/firewall settings fs google.com/filter.list|disable ) Configure/Disable Fast Banmalware List Switching
 ( sh /jffs/scripts/firewall settings syslog|syslog1 /tmp/syslog.log|default ) Configure Custom Syslog/Syslog-1 Location
+( sh /jffs/scripts/firewall settings iot unban ) Clear IOT Ban List
+( sh /jffs/scripts/firewall settings iot ban 8.8.8.8 ) Ban Single IOT Device From Accessing WAN (Allow NTP / Remote Access Via OpenVPN Only)
+( sh /jffs/scripts/firewall settings iot ban 8.8.8.8,9.9.9.9 ) Ban Multiple IOT Device(s) From Accessing WAN (Allow NTP / Remote Access Via OpenVPN Only) (Use Comma As Separator)
 
 Here Are Some Example Debug Commands;
 ( sh /jffs/scripts/firewall debug watch ) Show Debug Entries As They Appear
@@ -117,6 +120,7 @@ Here Are Some Example Stats Commands;
 ( sh /jffs/scripts/firewall stats search device 192.168.1.134 ) Search For All Outbound Entries From Local Device 192.168.1.134
 ( sh /jffs/scripts/firewall stats search device reports ) Search Previous Hourly Report History
 ( sh /jffs/scripts/firewall stats search invalid ) Search For Invalid Packets
+( sh /jffs/scripts/firewall stats search iot ) Search For IOT Packets
 ( sh /jffs/scripts/firewall stats search connections ip|port|proto|id xxxxxxxxxx) Search Active Connections
 ( sh /jffs/scripts/firewall stats remove ip 8.8.8.8 ) Remove Log Entries Containing IP 8.8.8.8
 ( sh /jffs/scripts/firewall stats remove port 23 ) Remove Log Entries Containing Port 23
