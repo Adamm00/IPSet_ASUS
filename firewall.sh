@@ -370,6 +370,10 @@ Load_DebugIPTables () {
 			if [ "$(nvram get fw_log_x)" = "drop" ] || [ "$(nvram get fw_log_x)" = "both" ] && [ "$loginvalid" = "enabled" ]; then
 				iptables -I logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - INVALID] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 			fi
+			if [ -n "$iotblocked" ]; then
+				pos5="$(iptables --line -nL FORWARD | grep -F "$(echo $iotblocked | awk -F ',' '{print $NF}')" | grep -F "DROP" | awk '{print $1}')"
+				iptables -I FORWARD "$pos5" -i br0 -s "$iotblocked" ! -o tun+ -j LOG --log-prefix "[BLOCKED - IOT] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
+			fi
 		fi
 }
 
@@ -382,7 +386,6 @@ Unload_IOTTables () {
 Load_IOTTables () {
 		if [ -n "$iotblocked" ]; then
 			iptables -I FORWARD -i br0 -s "$iotblocked" ! -o tun+ -j DROP 2>/dev/null
-			iptables -I FORWARD -i br0 -s "$iotblocked" ! -o tun+ -j LOG --log-prefix "[BLOCKED - IOT] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 			iptables -I FORWARD -i br0 -s "$iotblocked" -o "$iface" -p udp -m udp --dport 123 -j ACCEPT 2>/dev/null
 		fi
 }
@@ -3114,11 +3117,11 @@ case "$1" in
 			sleep 1
 		done
 		Unload_IPTables
-		Unload_DebugIPTables
 		Unload_IOTTables
+		Unload_DebugIPTables
 		Load_IPTables
-		Load_DebugIPTables
 		Load_IOTTables
+		Load_DebugIPTables
 		sed -i '\~DROP IN=~d' "$syslog1loc" "$syslogloc" 2>/dev/null
 		if [ "$forcebanmalwareupdate" = "true" ]; then Write_Config; rm -rf "/tmp/skynet.lock"; exec "$0" banmalware; fi
 	;;
@@ -3131,8 +3134,8 @@ case "$1" in
 		echo "[i] Unloading Skynet Components"
 		Unload_Cron "all"
 		Unload_IPTables
-		Unload_DebugIPTables
 		Unload_IOTTables
+		Unload_DebugIPTables
 		Unload_IPSets
 		iptables -t raw -F
 		logger -t Skynet "[%] Restarting Firewall Service"; echo "[%] Restarting Firewall Service"
@@ -3147,8 +3150,8 @@ case "$1" in
 		echo "[i] Unloading Skynet Components"
 		Unload_Cron "all"
 		Unload_IPTables
-		Unload_DebugIPTables
 		Unload_IOTTables
+		Unload_DebugIPTables
 		Unload_IPSets
 		logger -t Skynet "[%] Skynet Disabled"; echo "[%] Skynet Disabled"
 		Purge_Logs "all"
@@ -3179,8 +3182,8 @@ case "$1" in
 			echo "[i] Unloading Skynet Components"
 			Unload_Cron "all"
 			Unload_IPTables
-			Unload_DebugIPTables
 			Unload_IOTTables
+			Unload_DebugIPTables
 			Unload_IPSets
 			iptables -t raw -F
 			curl -fsL --retry 3 "$remoteurl" -o "$0" || { logger -st Skynet "[*] Update Failed - Exiting"; echo; exit 1; }
@@ -3293,11 +3296,11 @@ case "$1" in
 						Purge_Logs
 						filtertraffic="all"
 						Unload_IPTables
-						Unload_DebugIPTables
 						Unload_IOTTables
+						Unload_DebugIPTables
 						Load_IPTables
-						Load_DebugIPTables
 						Load_IOTTables
+						Load_DebugIPTables
 						echo "[i] Inbound & Outbound Filtering Enabled"
 
 					;;
@@ -3307,11 +3310,11 @@ case "$1" in
 						Purge_Logs
 						filtertraffic="inbound"
 						Unload_IPTables
-						Unload_DebugIPTables
 						Unload_IOTTables
+						Unload_DebugIPTables
 						Load_IPTables
-						Load_DebugIPTables
 						Load_IOTTables
+						Load_DebugIPTables
 						echo "[i] Inbound Filtering Enabled"
 					;;
 					outbound)
@@ -3320,11 +3323,11 @@ case "$1" in
 						Purge_Logs
 						filtertraffic="outbound"
 						Unload_IPTables
-						Unload_DebugIPTables
 						Unload_IOTTables
+						Unload_DebugIPTables
 						Load_IPTables
-						Load_DebugIPTables
 						Load_IOTTables
+						Load_DebugIPTables
 						echo "[i] Outbound Filtering Enabled"
 					;;
 					*)
@@ -3762,8 +3765,8 @@ case "$1" in
 							echo "[i] Unloading Skynet Components"
 							Unload_Cron "all"
 							Unload_IPTables
-							Unload_DebugIPTables
 							Unload_IOTTables
+							Unload_DebugIPTables
 							Unload_IPSets
 							logger -t Skynet "[%] Restarting Firewall Service"; echo "[%] Restarting Firewall Service"
 							restartfirewall="1"
@@ -3780,8 +3783,8 @@ case "$1" in
 							echo "[i] Unloading Skynet Components"
 							Unload_Cron "all"
 							Unload_IPTables
-							Unload_DebugIPTables
 							Unload_IOTTables
+							Unload_DebugIPTables
 							Unload_IPSets
 							logger -t Skynet "[%] Restarting Firewall Service"; echo "[%] Restarting Firewall Service"
 							restartfirewall="1"
@@ -3818,8 +3821,8 @@ case "$1" in
 						echo "[i] Unloading Skynet Components"
 						Unload_Cron "all"
 						Unload_IPTables
-						Unload_DebugIPTables
 						Unload_IOTTables
+						Unload_DebugIPTables
 						Unload_IPSets
 						echo "[i] Removing SWAP File ($swaplocation)"
 						if [ -f "$swaplocation" ]; then
@@ -3874,8 +3877,8 @@ case "$1" in
 				echo
 				Purge_Logs
 				Unload_IPTables
-				Unload_DebugIPTables
 				Unload_IOTTables
+				Unload_DebugIPTables
 				Unload_IPSets
 				tar -xzvf "$backuplocation" -C "$skynetloc"
 				echo
@@ -4506,8 +4509,8 @@ case "$1" in
 		fi
 		Unload_Cron "all"
 		Unload_IPTables
-		Unload_DebugIPTables
 		Unload_IOTTables
+		Unload_DebugIPTables
 		Unload_IPSets
 		iptables -t raw -F
 		echo "[%] Restarting Firewall Service To Complete Installation"
@@ -4569,8 +4572,8 @@ case "$1" in
 					Unload_Cron "all"
 					Kill_Lock
 					Unload_IPTables
-					Unload_DebugIPTables
 					Unload_IOTTables
+					Unload_DebugIPTables
 					Unload_IPSets
 					nvram set fw_log_x=none
 					echo "[i] Deleting Skynet Files"
