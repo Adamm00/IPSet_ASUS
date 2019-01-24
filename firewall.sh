@@ -376,14 +376,14 @@ Load_DebugIPTables () {
 Unload_IOTTables () {
 		iptables -D FORWARD -i br0 -s "$iotblocked" ! -o tun+ -j DROP 2>/dev/null
 		iptables -D FORWARD -i br0 -s "$iotblocked" ! -o tun+ -j LOG --log-prefix "[BLOCKED - IOT] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
-		iptables -D FORWARD -i br0 -s "$iotblocked" -p udp -m udp --dport 123 -j ACCEPT 2>/dev/null
+		iptables -D FORWARD -i br0 -s "$iotblocked" -o "$iface" -p udp -m udp --dport 123 -j ACCEPT 2>/dev/null
 }
 
 Load_IOTTables () {
 		if [ -n "$iotblocked" ]; then
 			iptables -I FORWARD -i br0 -s "$iotblocked" ! -o tun+ -j DROP 2>/dev/null
 			iptables -I FORWARD -i br0 -s "$iotblocked" ! -o tun+ -j LOG --log-prefix "[BLOCKED - IOT] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
-			iptables -I FORWARD -i br0 -s "$iotblocked" -p udp -m udp --dport 123 -j ACCEPT 2>/dev/null
+			iptables -I FORWARD -i br0 -s "$iotblocked" -o "$iface" -p udp -m udp --dport 123 -j ACCEPT 2>/dev/null
 		fi
 }
 
@@ -4150,6 +4150,17 @@ case "$1" in
 							echo "Please Enable AiProtect To Use This Feature"
 						fi
 					;;
+					iot)
+						if [ "$4" -eq "$4" ] 2>/dev/null; then counter="$4"; fi
+						echo "[i] First Invalid Block Issued On $(grep -m1 -F "BLOCKED - IOT" "$skynetlog" | awk '{printf "%s %s %s\n", $1, $2, $3}')"
+						echo "[i] Last Invalid Block Issued On $(grep -F "BLOCKED - IOT" "$skynetlog" | tail -1 | awk '{printf "%s %s %s\n", $1, $2, $3}')"
+						echo
+						Red "First Report Issued;"
+						grep -m1 -F "BLOCKED - IOT" "$skynetlog"
+						echo
+						Red "$counter Most Recent Reports;"
+						grep -F "BLOCKED - IOT" "$skynetlog" | tail -"$counter"
+					;;
 					*)
 						echo "Command Not Recognized, Please Try Again"
 						echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
@@ -4243,9 +4254,17 @@ case "$1" in
 					Display_Header "9"
 					Red "Top $counter Blocks (Invalid);"
 					Display_Header "2"
-						grep -E "INVALID.*$proto" "$skynetlog" | grep -oE ' SRC=[0-9,\.]*' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | while IFS= read -r "statdata"; do
-							Extended_DNSStats "2"
-						done
+					grep -E "INVALID.*$proto" "$skynetlog" | grep -oE ' SRC=[0-9,\.]*' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | while IFS= read -r "statdata"; do
+						Extended_DNSStats "2"
+					done
+				fi
+				if [ -n "$iotblocked" ]; then
+					Display_Header "9"
+					Red "Top $counter IOT Blocks (Outbound);"
+					Display_Header "2"
+					grep -E "IOT.*$proto" "$skynetlog" | grep -oE ' DST=[0-9,\.]*' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | while IFS= read -r "statdata"; do
+						Extended_DNSStats "2"
+					done
 				fi
 				Display_Header "9"
 				Red "Top $counter Blocked Devices (Outbound);"
