@@ -353,6 +353,9 @@ Unload_DebugIPTables () {
 		iptables -t raw -D PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 		iptables -t raw -D OUTPUT -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 		iptables -D logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - INVALID] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
+		for ip in $(echo "$iotblocked" | sed 's~,~ ~g'); do
+			iptables -D FORWARD -i br0 -s "$ip" ! -o tun+ -j LOG --log-prefix "[BLOCKED - IOT] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
+		done
 }
 
 Load_DebugIPTables () {
@@ -371,16 +374,17 @@ Load_DebugIPTables () {
 				iptables -I logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - INVALID] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 			fi
 			if [ -n "$iotblocked" ]; then
-				pos5="$(iptables --line -nL FORWARD | grep -F "$(echo $iotblocked | awk -F ',' '{print $NF}')" | grep -F "DROP" | awk '{print $1}')"
+				pos5="$(iptables --line -nL FORWARD | grep -F "$(echo "$iotblocked" | awk -F ',' '{print $NF}')" | grep -F "DROP" | awk '{print $1}')"
 				iptables -I FORWARD "$pos5" -i br0 -s "$iotblocked" ! -o tun+ -j LOG --log-prefix "[BLOCKED - IOT] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 			fi
 		fi
 }
 
 Unload_IOTTables () {
-		iptables -D FORWARD -i br0 -s "$iotblocked" ! -o tun+ -j DROP 2>/dev/null
-		iptables -D FORWARD -i br0 -s "$iotblocked" ! -o tun+ -j LOG --log-prefix "[BLOCKED - IOT] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
-		iptables -D FORWARD -i br0 -s "$iotblocked" -o "$iface" -p udp -m udp --dport 123 -j ACCEPT 2>/dev/null
+		for ip in $(echo "$iotblocked" | sed 's~,~ ~g'); do
+			iptables -D FORWARD -i br0 -s "$ip" ! -o tun+ -j DROP 2>/dev/null
+			iptables -D FORWARD -i br0 -s "$ip" -o "$iface" -p udp -m udp --dport 123 -j ACCEPT 2>/dev/null
+		done
 }
 
 Load_IOTTables () {
@@ -3482,16 +3486,22 @@ case "$1" in
 					block)
 						if [ -z "$4" ]; then echo "[*] Device(s) Not Specified - Exiting"; echo; exit 1; fi
 						if echo "$4" | grep -q ","; then
-							for ip in $(echo $4 | sed 's~,~ ~g'); do
+							for ip in $(echo "$4" | sed 's~,~ ~g'); do
 									if ! echo "$ip" | Is_IP; then echo "[*] $ip Is Not A Valid IP"; echo; exit 2; fi
 							done
 						fi
+						Unload_IOTTables
+						Unload_DebugIPTables
 						iotblocked="$4"
-						restartfirewall="1"
+						Load_IOTTables
+						Load_DebugIPTables
 					;;
 					unblock)
+						Unload_IOTTables
+						Unload_DebugIPTables
 						iotblocked=""
-						restartfirewall="1"
+						Load_IOTTables
+						Load_DebugIPTables
 					;;
 					*)
 						echo "Command Not Recognized, Please Try Again"
@@ -3503,9 +3513,8 @@ case "$1" in
 				if [ -n "$iotblocked" ]; then
 					echo "[i] IOT Blocking List Updated - $(echo "$iotblocked" | sed 's~,~ ~g')"
 				else
-					echo "[i] IOT Blocking List Cleared - Restarting Firewall"
+					echo "[i] IOT Blocking List Cleared"
 				fi
-				logger -t Skynet "[%] Restarting Firewall Service"; echo "[%] Restarting Firewall Service"
 			;;
 			*)
 				echo "Command Not Recognized, Please Try Again"
