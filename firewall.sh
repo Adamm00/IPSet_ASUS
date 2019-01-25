@@ -2031,10 +2031,10 @@ Load_Menu () {
 										echo
 										if echo "$option4" | grep -q ","; then
 											for ip in $(echo "$option4" | sed 's~,~ ~g'); do
-													if ! echo "$ip" | Is_IP; then echo "[*] $ip Is Not A Valid IP"; echo; unset "option3" "option4"; continue 2; fi
+													if ! echo "$ip" | Is_IPRange; then echo "[*] $ip Is Not A Valid IP/Range"; echo; unset "option3" "option4"; continue 2; fi
 											done
 										else
-											if ! echo "$option4" | Is_IP; then echo "[*] $option4 Is Not A Valid IP"; echo; unset "option3" "option4"; continue; fi
+											if ! echo "$option4" | Is_IPRange; then echo "[*] $option4 Is Not A Valid IP/Range"; echo; unset "option3" "option4"; continue; fi
 										fi
 										break
 									;;
@@ -3547,7 +3547,7 @@ case "$1" in
 						if [ -z "$4" ]; then echo "[*] Device(s) Not Specified - Exiting"; echo; exit 1; fi
 						if echo "$4" | grep -q ","; then
 							for ip in $(echo "$4" | sed 's~,~ ~g'); do
-									if ! echo "$ip" | Is_IP; then echo "[*] $ip Is Not A Valid IP"; echo; exit 2; fi
+									if ! echo "$ip" | Is_IPRange; then echo "[*] $ip Is Not A Valid IP/Range"; echo; exit 2; fi
 							done
 						fi
 						Unload_IOTTables
