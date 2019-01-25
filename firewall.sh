@@ -3618,6 +3618,8 @@ case "$1" in
 					else
 						echo "[i] IOT Blocking List Cleared"
 					fi
+					echo "[i] Saving Changes"
+					Save_IPSets
 				fi
 			;;
 			*)
