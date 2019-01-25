@@ -353,9 +353,7 @@ Unload_DebugIPTables () {
 		iptables -t raw -D PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 		iptables -t raw -D OUTPUT -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 		iptables -D logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - INVALID] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
-		for ip in $(echo "$iotblocked" | sed 's~,~ ~g'); do
-			iptables -D FORWARD -i br0 -s "$ip" ! -o tun+ -j LOG --log-prefix "[BLOCKED - IOT] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
-		done
+		iptables -D FORWARD -i br0 -m set --match-set Skynet-IOT src ! -o tun+ -j LOG --log-prefix "[BLOCKED - IOT] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 }
 
 Load_DebugIPTables () {
@@ -373,25 +371,19 @@ Load_DebugIPTables () {
 			if [ "$(nvram get fw_log_x)" = "drop" ] || [ "$(nvram get fw_log_x)" = "both" ] && [ "$loginvalid" = "enabled" ]; then
 				iptables -I logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - INVALID] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 			fi
-			if [ -n "$iotblocked" ]; then
-				pos5="$(iptables --line -nL FORWARD | grep -F "$(echo "$iotblocked" | awk -F ',' '{print $NF}')" | grep -F "DROP" | awk '{print $1}')"
-				iptables -I FORWARD "$pos5" -i br0 -s "$iotblocked" ! -o tun+ -j LOG --log-prefix "[BLOCKED - IOT] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
-			fi
+			pos5="$(iptables --line -nL FORWARD | grep -F "Skynet-IOT" | grep -F "DROP" | awk '{print $1}')"
+			iptables -I FORWARD "$pos5" -i br0 -m set --match-set Skynet-IOT src ! -o tun+ -j LOG --log-prefix "[BLOCKED - IOT] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 		fi
 }
 
 Unload_IOTTables () {
-		for ip in $(echo "$iotblocked" | sed 's~,~ ~g'); do
-			iptables -D FORWARD -i br0 -s "$ip" ! -o tun+ -j DROP 2>/dev/null
-			iptables -D FORWARD -i br0 -s "$ip" -o "$iface" -p udp -m udp --dport 123 -j ACCEPT 2>/dev/null
-		done
+			iptables -D FORWARD -i br0 -m set --match-set Skynet-IOT src ! -o tun+ -j DROP 2>/dev/null
+			iptables -D FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp --dport 123 -j ACCEPT 2>/dev/null
 }
 
 Load_IOTTables () {
-		if [ -n "$iotblocked" ]; then
-			iptables -I FORWARD -i br0 -s "$iotblocked" ! -o tun+ -j DROP 2>/dev/null
-			iptables -I FORWARD -i br0 -s "$iotblocked" -o "$iface" -p udp -m udp --dport 123 -j ACCEPT 2>/dev/null
-		fi
+			iptables -I FORWARD -i br0 -m set --match-set Skynet-IOT src ! -o tun+ -j DROP 2>/dev/null
+			iptables -I FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp --dport 123 -j ACCEPT 2>/dev/null
 }
 
 Check_IPSets () {
@@ -399,6 +391,7 @@ Check_IPSets () {
 		ipset -L -n Skynet-Blacklist >/dev/null 2>&1 || { fail="2"; return 1; }
 		ipset -L -n Skynet-BlockedRanges >/dev/null 2>&1 || { fail="3"; return 1; }
 		ipset -L -n Skynet-Master >/dev/null 2>&1 || { fail="4"; return 1; }
+		ipset -L -n Skynet-IOT >/dev/null 2>&1 || { fail="5"; return 1; }
 }
 
 Check_IPTables () {
@@ -413,6 +406,8 @@ Check_IPTables () {
 			iptables -C SSHBFP -m recent --update --seconds 60 --hitcount 4 --name SSH --rsource -j SET --add-set Skynet-Master src 2>/dev/null || { fail="8"; return 1; }
 			iptables -C SSHBFP -m recent --update --seconds 60 --hitcount 4 --name SSH --rsource -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || { fail="9"; return 1; }
 		fi
+		iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src ! -o tun+ -j DROP 2>/dev/null || { fail="14"; return 1; }
+		iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp --dport 123 -j ACCEPT 2>/dev/null || { fail="15"; return 1; }
 		if [ "$debugmode" = "enabled" ]; then
 			if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "inbound" ]; then
 				iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || { fail="10"; return 1; }
@@ -424,6 +419,7 @@ Check_IPTables () {
 			if [ "$(nvram get fw_log_x)" = "drop" ] || [ "$(nvram get fw_log_x)" = "both" ] && [ "$loginvalid" = "enabled" ]; then
 				iptables -C logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - INVALID] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || { fail="13"; return 1; }
 			fi
+			iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src ! -o tun+ -j LOG --log-prefix "[BLOCKED - IOT] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || { fail="16"; return 1; }
 		fi
 }
 
@@ -432,6 +428,7 @@ Unload_IPSets () {
 		ipset -q destroy Skynet-Blacklist
 		ipset -q destroy Skynet-BlockedRanges
 		ipset -q destroy Skynet-Whitelist
+		ipset -q destroy Skynet-IOT
 }
 
 Unload_Cron () {
@@ -1575,7 +1572,7 @@ Load_Menu () {
 					printf "%-30s | %-40s\\n" "[8]  --> Secure Mode" "$(if [ "$securemode" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
 					printf "%-30s | %-40s\\n" "[9]  --> Fast Switch" "$(if [ "$fastswitch" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
 					printf "%-30s | %-40s\\n" "[10] --> Syslog Location" "$(if [ "$syslogloc" = "/tmp/syslog.log" ] && [ "$syslog1loc" = "/tmp/syslog.log-1" ]; then Grn "[Default]"; else Ylow "[Custom]"; fi)"
-					printf "%-30s | %-40s\\n" "[11] --> IOT Blocking" "$(if [ -z "$iotblocked" ]; then Grn "[Disabled]"; else Ylow "[Custom]"; fi)"
+					printf "%-30s | %-40s\\n" "[11] --> IOT Blocking" "$(if [ "$iotblocked" != "enabled" ]; then Grn "[Disabled]"; else Ylow "[Custom]"; fi)"
 					echo
 					printf "[1-11]: "
 					read -r "menu2"
@@ -3157,6 +3154,7 @@ case "$1" in
 		if ! ipset -L -n Skynet-Blacklist >/dev/null 2>&1; then ipset -q create Skynet-Blacklist hash:ip --maxelem 500000 comment; fi
 		if ! ipset -L -n Skynet-BlockedRanges >/dev/null 2>&1; then ipset -q create Skynet-BlockedRanges hash:net --maxelem 200000 comment; fi
 		if ! ipset -L -n Skynet-Master >/dev/null 2>&1; then ipset -q create Skynet-Master list:set; ipset -q -A Skynet-Master Skynet-Blacklist; ipset -q -A Skynet-Master Skynet-BlockedRanges; fi
+		if ! ipset -L -n Skynet-IOT >/dev/null 2>&1; then ipset -q create Skynet-IOT hash:net comment; fi
 		Unban_PrivateIP
 		Purge_Logs "all"
 		Whitelist_Extra
@@ -3537,24 +3535,75 @@ case "$1" in
 				if [ -z "$3" ]; then echo "[*] Option Not Specified - Exiting"; echo; exit 1; fi
 				case "$3" in
 					unban)
-						Unload_IOTTables
-						Unload_DebugIPTables
-						iotblocked=""
-						Load_IOTTables
-						Load_DebugIPTables
-					;;
-					ban)
 						if [ -z "$4" ]; then echo "[*] Device(s) Not Specified - Exiting"; echo; exit 1; fi
 						if echo "$4" | grep -q ","; then
 							for ip in $(echo "$4" | sed 's~,~ ~g'); do
-									if ! echo "$ip" | Is_IPRange; then echo "[*] $ip Is Not A Valid IP/Range"; echo; exit 2; fi
+									if ! echo "$ip" | Is_IPRange; then
+										echo "[*] $ip Is Not A Valid IP/Range"
+										echo
+									else
+										ipset -D Skynet-IOT "$ip"
+									fi
 							done
+						else
+							if ! echo "$4" | Is_IPRange; then
+								echo "[*] $4 Is Not A Valid IP/Range"
+								echo
+							else
+								ipset -D Skynet-IOT "$4"
+							fi
 						fi
-						Unload_IOTTables
-						Unload_DebugIPTables
-						iotblocked="$4"
-						Load_IOTTables
-						Load_DebugIPTables
+						if [ "$(ipset -L -t Skynet-IOT | tail -1 | awk '{print $4}')" -gt "0" ]; then
+							iotblocked="enabled"
+						else
+							iotblocked="disabled"
+						fi
+					;;
+					ban)
+						if [ -z "$4" ]; then echo "[*] Device(s) Not Specified - Exiting"; echo; exit 1; fi
+						desc="$(date +"%b %d %T")"
+						if echo "$4" | grep -q ","; then
+							for ip in $(echo "$4" | sed 's~,~ ~g'); do
+									if ! echo "$ip" | Is_IPRange; then
+										echo "[*] $ip Is Not A Valid IP/Range"
+										echo
+									else
+										ipset -A Skynet-IOT "$ip" comment "IOTBan: $desc"
+									fi
+							done
+						else
+							if ! echo "$4" | Is_IPRange; then
+								echo "[*] $4 Is Not A Valid IP/Range"
+								echo
+							else
+								ipset -A Skynet-IOT "$4" comment "IOTBan: $desc"
+							fi
+						fi
+						if [ "$(ipset -L -t Skynet-IOT | tail -1 | awk '{print $4}')" -gt "0" ]; then
+							iotblocked="enabled"
+						else
+							iotblocked="disabled"
+						fi
+					;;
+					list)
+					Display_Header "6"
+					ip neigh | while IFS= read -r "ip"; do
+						ipaddr="$(echo "$ip" | awk '{print $1}' | Filter_IP)"
+						macaddr="$(echo "$ip" | awk '{print $5}')"
+						localname="$(grep -F " $ipaddr " /var/lib/misc/dnsmasq.leases | awk '{print $4}')"
+						[ -z "$localname" ] && localname="Unknown"
+						state="$(echo "$ip" | awk '{print $6}')"
+						if ! echo "$macaddr" | Is_MAC; then
+							macaddr="Unknown"
+							state="$(Red Offline)"
+						fi
+						if ipset test Skynet-IOT "$ipaddr" >/dev/null 2>&1; then
+							state="$(Ylow Blocked)"
+						else
+							state="$(Grn Unblocked)"
+						fi
+						printf "%-40s | %-16s | %-20s | %-15s\\n" "$localname" "$ipaddr" "$macaddr" "$state"
+					done
 					;;
 					*)
 						echo "Command Not Recognized, Please Try Again"
@@ -3563,10 +3612,12 @@ case "$1" in
 						echo; exit 2
 					;;
 				esac
-				if [ -n "$iotblocked" ]; then
-					echo "[i] IOT Blocking List Updated - $(echo "$iotblocked" | sed 's~,~ ~g')"
-				else
-					echo "[i] IOT Blocking List Cleared"
+				if [ "$3" != "list" ]; then
+					if [ "$iotblocked" = "enabled" ]; then
+						echo "[i] IOT Blocking List Updated"
+					else
+						echo "[i] IOT Blocking List Cleared"
+					fi
 				fi
 			;;
 			*)
@@ -3796,7 +3847,7 @@ case "$1" in
 				printf "%-35s | %-8s\\n" "Secure Mode" "$(if [ "$securemode" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
 				printf "%-35s | %-8s\\n" "Fast Switch" "$(if [ "$fastswitch" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
 				printf "%-35s | %-8s\\n" "Syslog Location" "$(if [ "$syslogloc" = "/tmp/syslog.log" ] && [ "$syslog1loc" = "/tmp/syslog.log-1" ]; then Grn "[Default]"; else Ylow "[Custom]"; fi)"
-				printf "%-35s | %-8s\\n" "IOT Blocking" "$(if [ -z "$iotblocked" ]; then Grn "[Disabled]"; else Ylow "[Custom]"; fi)"
+				printf "%-35s | %-8s\\n" "IOT Blocking" "$(if [ "$iotblocked" != "enabled" ]; then Grn "[Disabled]"; else Ylow "[Custom]"; fi)"
 				printf "\\n%-35s\\n" "${passedtests}/${totaltests} Tests Sucessful"
 				if [ "$3" = "extended" ]; then echo; echo; cat "$skynetcfg"; fi
 				nocfg="1"
@@ -4324,7 +4375,7 @@ case "$1" in
 						Extended_DNSStats "2"
 					done
 				fi
-				if [ -n "$iotblocked" ]; then
+				if [ "$iotblocked" = "enabled" ]; then
 					Display_Header "9"
 					Red "Top $counter IOT Blocks (Outbound);"
 					Display_Header "2"
