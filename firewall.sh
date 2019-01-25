@@ -649,7 +649,7 @@ Spinner_Start () {
 
 Save_IPSets () {
 		if Check_IPSets && Check_IPTables; then
-			{ ipset save Skynet-Whitelist; ipset save Skynet-Blacklist; ipset save Skynet-BlockedRanges; ipset save Skynet-Master; } > "$skynetipset" 2>/dev/null
+			{ ipset save Skynet-Whitelist; ipset save Skynet-Blacklist; ipset save Skynet-BlockedRanges; ipset save Skynet-Master; ipset save Skynet-IOT; } > "$skynetipset" 2>/dev/null
 		fi
 }
 
