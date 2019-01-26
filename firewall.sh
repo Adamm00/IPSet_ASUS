@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 26/01/2019 -		   Asus Firewall Addition By Adamm v6.7.0				    #
+## - 27/01/2019 -		   Asus Firewall Addition By Adamm v6.7.0				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -2008,15 +2008,29 @@ Load_Menu () {
 							while true; do
 								option2="iot"
 								echo "Select IOT Option:"
-								echo "[1]  --> Unblock All Devices"
-								echo "[2]  --> Block Devices"
+								echo "[1]  --> Unban Devices"
+								echo "[2]  --> Ban Devices"
+								echo "[3]  --> List Blocked Devices"
 								echo
-								printf "[1-2]: "
+								printf "[1-3]: "
 								read -r "menu3"
 								echo
 								case "$menu3" in
 									1)
 										option3="unban"
+										echo "Input Local IP(s) To Unban:"
+										echo "Seperate Multiple Addresses With A Comma"
+										echo
+										printf "[IP]: "
+										read -r "option4"
+										echo
+										if echo "$option4" | grep -q ","; then
+											for ip in $(echo "$option4" | sed 's~,~ ~g'); do
+													if ! echo "$ip" | Is_IPRange; then echo "[*] $ip Is Not A Valid IP/Range"; echo; unset "option3" "option4"; continue 2; fi
+											done
+										else
+											if ! echo "$option4" | Is_IPRange; then echo "[*] $option4 Is Not A Valid IP/Range"; echo; unset "option3" "option4"; continue; fi
+										fi
 										break
 									;;
 									2)
@@ -2034,6 +2048,10 @@ Load_Menu () {
 										else
 											if ! echo "$option4" | Is_IPRange; then echo "[*] $option4 Is Not A Valid IP/Range"; echo; unset "option3" "option4"; continue; fi
 										fi
+										break
+									;;
+									3)
+										option3="list"
 										break
 									;;
 									e|exit|back|menu)
