@@ -4290,8 +4290,8 @@ case "$1" in
 					;;
 					iot)
 						if [ "$4" -eq "$4" ] 2>/dev/null; then counter="$4"; fi
-						echo "[i] First Invalid Block Issued On $(grep -m1 -F "BLOCKED - IOT" "$skynetlog" | awk '{printf "%s %s %s\n", $1, $2, $3}')"
-						echo "[i] Last Invalid Block Issued On $(grep -F "BLOCKED - IOT" "$skynetlog" | tail -1 | awk '{printf "%s %s %s\n", $1, $2, $3}')"
+						echo "[i] First IOT Block Issued On $(grep -m1 -F "BLOCKED - IOT" "$skynetlog" | awk '{printf "%s %s %s\n", $1, $2, $3}')"
+						echo "[i] Last IOT Block Issued On $(grep -F "BLOCKED - IOT" "$skynetlog" | tail -1 | awk '{printf "%s %s %s\n", $1, $2, $3}')"
 						echo
 						Red "First Report Issued;"
 						grep -m1 -F "BLOCKED - IOT" "$skynetlog"
