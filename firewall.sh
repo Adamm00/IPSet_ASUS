@@ -884,7 +884,7 @@ Create_Swap () {
 		if [ "$(wc -l < /jffs/scripts/post-mount)" -lt "2" ]; then echo >> /jffs/scripts/post-mount; fi
 		sed -i "2i swapon $swaplocation # Skynet Firewall Addition" /jffs/scripts/post-mount
 		if [ -f "/jffs/scripts/unmount" ] && ! grep -qF "&& swapoff" /jffs/scripts/unmount; then
-		    echo '[ "$(/usr/bin/find "$1/myswap.swp" 2> /dev/null)" ] && swapoff "$1/myswap.swp" # Skynet Firewall Addition' >> /jffs/scripts/unmount
+		    echo "[ \"\$(/usr/bin/find \"\$1/myswap.swp\" 2> /dev/null)\" ] && swapoff \"\$1/myswap.swp\" # Skynet Firewall Addition" >> /jffs/scripts/unmount
 		fi
 		echo "[i] SWAP File Located At $swaplocation"
 		echo
