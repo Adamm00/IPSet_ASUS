@@ -268,6 +268,12 @@ Check_Files () {
 		elif [ -f "/jffs/scripts/post-mount" ] && ! head -1 /jffs/scripts/post-mount | grep -qE "^#!/bin/sh"; then
 			sed -i '1s~^~#!/bin/sh\n~' /jffs/scripts/post-mount
 		fi
+		if [ ! -f "/jffs/scripts/unmount" ]; then
+			echo "#!/bin/sh" > /jffs/scripts/unmount
+			echo >> /jffs/scripts/unmount
+		elif [ -f "/jffs/scripts/unmount" ] && ! head -1 /jffs/scripts/unmount | grep -qE "^#!/bin/sh"; then
+			sed -i '1s~^~#!/bin/sh\n~' /jffs/scripts/unmount
+		fi
 		if [ ! -f "/jffs/configs/fstab" ]; then
 			touch "/jffs/configs/fstab"
 		fi
@@ -275,7 +281,7 @@ Check_Files () {
 			echo "sh /jffs/scripts/firewall save # Skynet Firewall Addition" >> /jffs/scripts/services-stop
 		fi
 		if [ "$(wc -l < /jffs/scripts/post-mount)" -lt "2" ]; then echo >> /jffs/scripts/post-mount; fi
-		chmod 755 "/jffs/scripts/firewall" "/jffs/scripts/firewall-start" "/jffs/scripts/services-stop" "/jffs/scripts/post-mount" "/jffs/configs/fstab"
+		chmod 755 "/jffs/scripts/firewall" "/jffs/scripts/firewall-start" "/jffs/scripts/services-stop" "/jffs/scripts/post-mount" "/jffs/scripts/unmount" "/jffs/configs/fstab"
 }
 
 Check_Security () {
@@ -877,6 +883,9 @@ Create_Swap () {
 		sed -i '\~swapon ~d' /jffs/scripts/post-mount
 		if [ "$(wc -l < /jffs/scripts/post-mount)" -lt "2" ]; then echo >> /jffs/scripts/post-mount; fi
 		sed -i "2i swapon $swaplocation # Skynet Firewall Addition" /jffs/scripts/post-mount
+		if [ -f "/jffs/scripts/unmount" ] && ! grep -qF "&& swapoff" /jffs/scripts/unmount; then
+		    echo '[ "$(/usr/bin/find "$1/myswap.swp" 2> /dev/null)" ] && swapoff "$1/myswap.swp" # Skynet Firewall Addition' >> /jffs/scripts/unmount
+		fi
 		echo "[i] SWAP File Located At $swaplocation"
 		echo
 }
@@ -3968,6 +3977,7 @@ case "$1" in
 							sed -i '\~swapon ~d' /jffs/scripts/post-mount
 							echo "[*] SWAP File Partially Removed - Please Inspect Manually"
 						fi
+						sed -i '\~swapoff ~d' /jffs/scripts/unmount
 						logger -t Skynet "[%] Restarting Firewall Service"; echo "[%] Restarting Firewall Service"
 						restartfirewall="1"
 						nolog="2"
@@ -4685,6 +4695,7 @@ case "$1" in
 								1)
 									echo "[i] Removing Skynet Generated SWAP File"
 									sed -i '\~ Skynet ~d' /jffs/scripts/post-mount
+									sed -i '\~ Skynet ~d' /jffs/scripts/unmount
 									swapoff "$swaplocation"
 									rm -rf "$swaplocation"
 									break
