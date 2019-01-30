@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 29/01/2019 -		   Asus Firewall Addition By Adamm v6.7.0				    #
+## - 30/01/2019 -		   Asus Firewall Addition By Adamm v6.7.1				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -385,12 +385,20 @@ Load_DebugIPTables () {
 
 Unload_IOTTables () {
 			iptables -D FORWARD -i br0 -m set --match-set Skynet-IOT src ! -o tun+ -j DROP 2>/dev/null
-			iptables -D FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp --dport 123 -j ACCEPT 2>/dev/null
+			if [ -n "$iotports" ]; then
+				iptables -D FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp -m multiport --dports "$iotports" -j ACCEPT 2>/dev/null
+			else
+				iptables -D FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp --dport 123 -j ACCEPT 2>/dev/null
+			fi
 }
 
 Load_IOTTables () {
 			iptables -I FORWARD -i br0 -m set --match-set Skynet-IOT src ! -o tun+ -j DROP 2>/dev/null
-			iptables -I FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp --dport 123 -j ACCEPT 2>/dev/null
+			if [ -n "$iotports" ]; then
+				iptables -I FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp -m multiport --dports "$iotports" -j ACCEPT 2>/dev/null
+			else
+				iptables -I FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp --dport 123 -j ACCEPT 2>/dev/null
+			fi
 }
 
 Check_IPSets () {
@@ -414,7 +422,11 @@ Check_IPTables () {
 			iptables -C SSHBFP -m recent --update --seconds 60 --hitcount 4 --name SSH --rsource -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || { fail="10"; return 1; }
 		fi
 		iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src ! -o tun+ -j DROP 2>/dev/null || { fail="11"; return 1; }
-		iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp --dport 123 -j ACCEPT 2>/dev/null || { fail="12"; return 1; }
+		if [ -n "$iotports" ]; then
+			iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp -m multiport --dports "$iotports" -j ACCEPT 2>/dev/null || { fail="12"; return 1; }
+		else
+			iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp --dport 123 -j ACCEPT 2>/dev/null || { fail="12"; return 1; }
+		fi
 		if [ "$debugmode" = "enabled" ]; then
 			if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "inbound" ]; then
 				iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || { fail="13"; return 1; }
@@ -965,14 +977,13 @@ Write_Config () {
 		printf "%s=\"%s\"\\n" "syslogloc" "$syslogloc"
 		printf "%s=\"%s\"\\n" "syslog1loc" "$syslog1loc"
 		printf "%s=\"%s\"\\n" "iotblocked" "$iotblocked"
+		printf "%s=\"%s\"\\n" "iotports" "$iotports"
 		printf "\\n%s\\n" "################################################"; } > "$skynetcfg"
 }
-
 
 ##########
 #- Menu -#
 ##########
-
 
 Load_Menu () {
 	. "$skynetcfg"
@@ -2020,8 +2031,10 @@ Load_Menu () {
 								echo "[1]  --> Unban Devices"
 								echo "[2]  --> Ban Devices"
 								echo "[3]  --> List Blocked Devices"
+								echo "[4]  --> Add Custom Allowed Ports"
+								echo "[5]  --> Reset Custom Port List"
 								echo
-								printf "[1-3]: "
+								printf "[1-5]: "
 								read -r "menu3"
 								echo
 								case "$menu3" in
@@ -2062,6 +2075,28 @@ Load_Menu () {
 									3)
 										option3="list"
 										break
+									;;
+									4)
+										option3="ports"
+										echo "Input Custom Ports(s) To Allow:"
+										echo "Seperate Multiple Ports With A Comma"
+										echo
+										printf "[Ports]: "
+										read -r "option4"
+										echo
+										if echo "$option4" | grep -q ","; then
+											for port in $(echo "$option4" | sed 's~,~ ~g'); do
+													if ! echo "$port" | Is_Port; then echo "[*] $port Is Not A Valid Port"; echo; unset "option3" "option4"; continue 2; fi
+											done
+										else
+											if ! echo "$option4" | Is_Port; then echo "[*] $port Is Not A Valid Port"; echo; unset "option3" "option4"; continue; fi
+										fi
+										break
+									;;
+									5)
+										option3="ports"
+										option4="reset"
+									break
 									;;
 									e|exit|back|menu)
 										unset "option1" "option2" "option3" "option4" "option5"
@@ -3614,24 +3649,53 @@ case "$1" in
 						fi
 					;;
 					list)
-					Display_Header "6"
-					ip neigh | while IFS= read -r "ip"; do
-						ipaddr="$(echo "$ip" | awk '{print $1}' | Filter_IP)"
-						macaddr="$(echo "$ip" | awk '{print $5}')"
-						localname="$(grep -F " $ipaddr " /var/lib/misc/dnsmasq.leases | awk '{print $4}')"
-						[ -z "$localname" ] && localname="Unknown"
-						state="$(echo "$ip" | awk '{print $6}')"
-						if ! echo "$macaddr" | Is_MAC; then
-							macaddr="Unknown"
-							state="$(Red Offline)"
+						Display_Header "6"
+						ip neigh | while IFS= read -r "ip"; do
+							ipaddr="$(echo "$ip" | awk '{print $1}' | Filter_IP)"
+							macaddr="$(echo "$ip" | awk '{print $5}')"
+							localname="$(grep -F " $ipaddr " /var/lib/misc/dnsmasq.leases | awk '{print $4}')"
+							[ -z "$localname" ] && localname="Unknown"
+							state="$(echo "$ip" | awk '{print $6}')"
+							if ! echo "$macaddr" | Is_MAC; then
+								macaddr="Unknown"
+								state="$(Red Offline)"
+							fi
+							if ipset test Skynet-IOT "$ipaddr" >/dev/null 2>&1; then
+								state="$(Ylow Blocked)"
+							else
+								state="$(Grn Unblocked)"
+							fi
+							printf "%-40s | %-16s | %-20s | %-15s\\n" "$localname" "$ipaddr" "$macaddr" "$state"
+						done
+					;;
+					ports)
+						if [ -z "$4" ]; then echo "[*] Ports(s) Not Specified - Exiting"; echo; exit 1; fi
+						if [ "$4" != "reset" ]; then
+							if echo "$4" | grep -q ","; then
+								for port in $(echo "$4" | sed 's~,~ ~g'); do
+										if ! echo "$port" | Is_Port; then
+											echo "[*] $port Is Not A Valid Port - Exiting"
+											echo
+											exit 1
+										fi
+								done
+							else
+								if ! echo "$4" | Is_Port; then
+									echo "[*] $4 Is Not A Valid Port"
+									echo
+									exit 1
+								fi
+							fi
 						fi
-						if ipset test Skynet-IOT "$ipaddr" >/dev/null 2>&1; then
-							state="$(Ylow Blocked)"
+						Unload_IOTTables
+						Unload_DebugIPTables
+						if [ "$4" != "reset" ]; then
+							iotports="$4"
 						else
-							state="$(Grn Unblocked)"
+							iotports=""
 						fi
-						printf "%-40s | %-16s | %-20s | %-15s\\n" "$localname" "$ipaddr" "$macaddr" "$state"
-					done
+						Load_IOTTables
+						Load_DebugIPTables
 					;;
 					*)
 						echo "Command Not Recognized, Please Try Again"

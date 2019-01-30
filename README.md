@@ -93,9 +93,10 @@ Here Are Some Example Settings Commands;
 ( sh /jffs/scripts/firewall settings securemode enable|disable ) Enable/Disable Insecure Settings Being Applied In WebUI
 ( sh /jffs/scripts/firewall settings fs google.com/filter.list|disable ) Configure/Disable Fast Banmalware List Switching
 ( sh /jffs/scripts/firewall settings syslog|syslog1 /tmp/syslog.log|default ) Configure Custom Syslog/Syslog-1 Location
-( sh /jffs/scripts/firewall settings iot unban|ban 8.8.8.8 ) Unban|Ban Single IOT Device (or CIDR) From Accessing WAN (Allow NTP / Remote Access Via OpenVPN Only)
-( sh /jffs/scripts/firewall settings iot unban|ban 8.8.8.8,9.9.9.9 ) Unban|Ban Multiple IOT Device(s) (or CIDR) From Accessing WAN (Allow NTP / Remote Access Via OpenVPN Only) (Use Comma As Separator)
+( sh /jffs/scripts/firewall settings iot unban|ban 8.8.8.8,9.9.9.9 ) Unban|Ban IOT Device(s) (or CIDR) From Accessing WAN (Allow NTP / Remote Access Via OpenVPN Only) (Use Comma As Separator)
 ( sh /jffs/scripts/firewall settings iot list ) List Currently Banned IOT Devices
+( sh /jffs/scripts/firewall settings iot ports 123,124,125 ) Allow Port(s) To Access WAN (Use Comma As Separator)
+( sh /jffs/scripts/firewall settings iot ports reset ) Reset Allowed Port List To Default
 
 Here Are Some Example Debug Commands;
 ( sh /jffs/scripts/firewall debug watch ) Show Debug Entries As They Appear
