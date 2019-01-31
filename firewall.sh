@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 31/01/2019 -		   Asus Firewall Addition By Adamm v6.7.2				    #
+## - 01/02/2019 -		   Asus Firewall Addition By Adamm v6.7.2				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -483,59 +483,59 @@ Unload_IPSets () {
 
 Unload_Cron () {
 		if [ -z "$1" ]; then set "all"; fi
-    for cron in "$@"; do
-      case "$cron" in
-        save)
-        	cru d Skynet_save
-        ;;
-        banmalware)
-        	cru d Skynet_banmalware
-        ;;
-        autoupdate)
-        	cru d Skynet_autoupdate
-        ;;
-        checkupdate)
-        	cru d Skynet_checkupdate
-        ;;
-        all)
-        	cru d Skynet_save
-        	cru d Skynet_banmalware
-        	cru d Skynet_autoupdate
-        	cru d Skynet_checkupdate
-        ;;
-        *)
-        	echo "[*] Error - No Cron Specified To Unload"
-        ;;
-      esac
-    done
+		for cron in "$@"; do
+		 case "$cron" in
+		   save)
+		   	cru d Skynet_save
+		   ;;
+		   banmalware)
+		   	cru d Skynet_banmalware
+		   ;;
+		   autoupdate)
+		   	cru d Skynet_autoupdate
+		   ;;
+		   checkupdate)
+		   	cru d Skynet_checkupdate
+		   ;;
+		   all)
+		   	cru d Skynet_save
+		   	cru d Skynet_banmalware
+		   	cru d Skynet_autoupdate
+		   	cru d Skynet_checkupdate
+		   ;;
+		   *)
+		   	echo "[*] Error - No Cron Specified To Unload"
+		   ;;
+		 esac
+		done
 }
 
 Load_Cron () {
 		if [ -z "$1" ]; then set "all"; fi
-    for cron in "$@"; do
-      case "$cron" in
-        save)
-          cru a Skynet_save "0 * * * * sh /jffs/scripts/firewall save"
-        ;;
-        banmalwaredaily)
-          hour="$(date +%s | tail -c 2)"
-          cru a Skynet_banmalware "25 $hour * * * sh /jffs/scripts/firewall banmalware"
-        ;;
-        banmalwareweekly)
-          hour="$(date +%s | tail -c 2)"
-          cru a Skynet_banmalware "25 $hour * * Mon sh /jffs/scripts/firewall banmalware"
-        ;;
-        autoupdate)
-          cru a Skynet_autoupdate "25 1 * * Mon sh /jffs/scripts/firewall update"
-        ;;
-        checkupdate)
-          cru a Skynet_checkupdate "25 1 * * Mon sh /jffs/scripts/firewall update check"
-        ;;
-        *)
-          echo "[*] Error - No Cron Specified To Load"
-        ;;
-      esac
-    done
+		for cron in "$@"; do
+			case "$cron" in
+			  save)
+			    cru a Skynet_save "0 * * * * sh /jffs/scripts/firewall save"
+			  ;;
+			  banmalwaredaily)
+			    hour="$(date +%s | tail -c 2)"
+			    cru a Skynet_banmalware "25 $hour * * * sh /jffs/scripts/firewall banmalware"
+			  ;;
+			  banmalwareweekly)
+			    hour="$(date +%s | tail -c 2)"
+			    cru a Skynet_banmalware "25 $hour * * Mon sh /jffs/scripts/firewall banmalware"
+			  ;;
+			  autoupdate)
+			    cru a Skynet_autoupdate "25 1 * * Mon sh /jffs/scripts/firewall update"
+			  ;;
+			  checkupdate)
+			    cru a Skynet_checkupdate "25 1 * * Mon sh /jffs/scripts/firewall update check"
+			  ;;
+			  *)
+			    echo "[*] Error - No Cron Specified To Load"
+			  ;;
+			esac
+		 done
 }
 
 Is_IP () {
