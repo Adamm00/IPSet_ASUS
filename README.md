@@ -97,6 +97,7 @@ Here Are Some Example Settings Commands;
 ( sh /jffs/scripts/firewall settings iot list ) List Currently Banned IOT Devices
 ( sh /jffs/scripts/firewall settings iot ports 123,124,125 ) Allow Port(s) To Access WAN (Use Comma As Separator)
 ( sh /jffs/scripts/firewall settings iot ports reset ) Reset Allowed Port List To Default
+( sh /jffs/scripts/firewall settings iot proto udp|tcp|all ) Select IOT Allowed Port Protocol
 
 Here Are Some Example Debug Commands;
 ( sh /jffs/scripts/firewall debug watch ) Show Debug Entries As They Appear

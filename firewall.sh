@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 30/01/2019 -		   Asus Firewall Addition By Adamm v6.7.1				    #
+## - 31/01/2019 -		   Asus Firewall Addition By Adamm v6.7.2				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -119,6 +119,7 @@ Check_Settings () {
 		if [ -z "$syslogloc" ]; then syslogloc="/tmp/syslog.log"; fi
 		if [ -z "$syslog1loc" ]; then syslog1loc="/tmp/syslog.log-1"; fi
 		if [ -z "$iotblocked" ]; then iotblocked="disabled"; fi
+		if [ -z "$iotproto" ]; then iotproto="udp"; fi
 
 		conflicting_scripts="(IPSet_Block.sh|malware-filter|privacy-filter|ipBLOCKer.sh|ya-malware-block.sh|iblocklist-loader.sh|firewall-reinstate.sh)$"
 		if find /jffs /tmp/mnt | grep -qE "$conflicting_scripts"; then
@@ -386,18 +387,38 @@ Load_DebugIPTables () {
 Unload_IOTTables () {
 			iptables -D FORWARD -i br0 -m set --match-set Skynet-IOT src ! -o tun+ -j DROP 2>/dev/null
 			if [ -n "$iotports" ]; then
-				iptables -D FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp -m multiport --dports "$iotports" -j ACCEPT 2>/dev/null
+				if [ "$iotproto" = "all" ] || [ "$iotproto" = "udp" ]; then
+					iptables -D FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp -m multiport --dports "$iotports" -j ACCEPT 2>/dev/null
+				fi
+				if [ "$iotproto" = "all" ] || [ "$iotproto" = "tcp" ]; then
+					iptables -D FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p tcp -m tcp -m multiport --dports "$iotports" -j ACCEPT 2>/dev/null
+				fi
 			else
-				iptables -D FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp --dport 123 -j ACCEPT 2>/dev/null
+				if [ "$iotproto" = "all" ] || [ "$iotproto" = "udp" ]; then
+					iptables -D FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp --dport 123 -j ACCEPT 2>/dev/null
+				fi
+				if [ "$iotproto" = "all" ] || [ "$iotproto" = "tcp" ]; then
+					iptables -D FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p tcp -m tcp --dport 123 -j ACCEPT 2>/dev/null
+				fi
 			fi
 }
 
 Load_IOTTables () {
 			iptables -I FORWARD -i br0 -m set --match-set Skynet-IOT src ! -o tun+ -j DROP 2>/dev/null
 			if [ -n "$iotports" ]; then
-				iptables -I FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp -m multiport --dports "$iotports" -j ACCEPT 2>/dev/null
+				if [ "$iotproto" = "all" ] || [ "$iotproto" = "udp" ]; then
+					iptables -I FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp -m multiport --dports "$iotports" -j ACCEPT 2>/dev/null
+				fi
+				if [ "$iotproto" = "all" ] || [ "$iotproto" = "tcp" ]; then
+					iptables -I FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p tcp -m tcp -m multiport --dports "$iotports" -j ACCEPT 2>/dev/null
+				fi
 			else
-				iptables -I FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp --dport 123 -j ACCEPT 2>/dev/null
+				if [ "$iotproto" = "all" ] || [ "$iotproto" = "udp" ]; then
+					iptables -I FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp --dport 123 -j ACCEPT 2>/dev/null
+				fi
+				if [ "$iotproto" = "all" ] || [ "$iotproto" = "tcp" ]; then
+					iptables -I FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p tcp -m tcp --dport 123 -j ACCEPT 2>/dev/null
+				fi
 			fi
 }
 
@@ -423,22 +444,32 @@ Check_IPTables () {
 		fi
 		iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src ! -o tun+ -j DROP 2>/dev/null || { fail="11"; return 1; }
 		if [ -n "$iotports" ]; then
-			iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp -m multiport --dports "$iotports" -j ACCEPT 2>/dev/null || { fail="12"; return 1; }
+			if [ "$iotproto" = "all" ] || [ "$iotproto" = "udp" ]; then
+				iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp -m multiport --dports "$iotports" -j ACCEPT 2>/dev/null || { fail="12"; return 1; }
+			fi
+			if [ "$iotproto" = "all" ] || [ "$iotproto" = "tcp" ]; then
+				iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p tcp -m tcp -m multiport --dports "$iotports" -j ACCEPT 2>/dev/null || { fail="13"; return 1; }
+			fi
 		else
-			iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp --dport 123 -j ACCEPT 2>/dev/null || { fail="12"; return 1; }
+			if [ "$iotproto" = "all" ] || [ "$iotproto" = "udp" ]; then
+				iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp --dport 123 -j ACCEPT 2>/dev/null || { fail="14"; return 1; }
+			fi
+			if [ "$iotproto" = "all" ] || [ "$iotproto" = "tcp" ]; then
+				iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p tcp -m tcp --dport 123 -j ACCEPT 2>/dev/null || { fail="15"; return 1; }
+			fi
 		fi
 		if [ "$debugmode" = "enabled" ]; then
 			if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "inbound" ]; then
-				iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || { fail="13"; return 1; }
+				iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || { fail="16"; return 1; }
 			fi
 			if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "outbound" ]; then
-				iptables -t raw -C PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || { fail="14"; return 1; }
-				iptables -t raw -C OUTPUT -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || { fail="15"; return 1; }
+				iptables -t raw -C PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || { fail="17"; return 1; }
+				iptables -t raw -C OUTPUT -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || { fail="18"; return 1; }
 			fi
 			if [ "$(nvram get fw_log_x)" = "drop" ] || [ "$(nvram get fw_log_x)" = "both" ] && [ "$loginvalid" = "enabled" ]; then
-				iptables -C logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - INVALID] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || { fail="16"; return 1; }
+				iptables -C logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - INVALID] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || { fail="19"; return 1; }
 			fi
-			iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src ! -o tun+ -j LOG --log-prefix "[BLOCKED - IOT] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || { fail="17"; return 1; }
+			iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src ! -o tun+ -j LOG --log-prefix "[BLOCKED - IOT] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || { fail="20"; return 1; }
 		fi
 }
 
@@ -452,61 +483,59 @@ Unload_IPSets () {
 
 Unload_Cron () {
 		if [ -z "$1" ]; then set "all"; fi
-        for cron in "$@"; do
-                case "$cron" in
-                        save)
-                                cru d Skynet_save
-						;;
-                        banmalware)
-                                cru d Skynet_banmalware
-
-						;;
-                        autoupdate)
-                                cru d Skynet_autoupdate
-
-						;;
-                        checkupdate)
-                                cru d Skynet_checkupdate
-
-						;;
-                        all)
-                                cru d Skynet_save
-                                cru d Skynet_banmalware
-                                cru d Skynet_autoupdate
-                                cru d Skynet_checkupdate
-						;;
-                        *)
-								echo "[*] Error - No Cron Specified To Unload"
-						;;
-                esac
-        done
+    for cron in "$@"; do
+      case "$cron" in
+        save)
+        	cru d Skynet_save
+        ;;
+        banmalware)
+        	cru d Skynet_banmalware
+        ;;
+        autoupdate)
+        	cru d Skynet_autoupdate
+        ;;
+        checkupdate)
+        	cru d Skynet_checkupdate
+        ;;
+        all)
+        	cru d Skynet_save
+        	cru d Skynet_banmalware
+        	cru d Skynet_autoupdate
+        	cru d Skynet_checkupdate
+        ;;
+        *)
+        	echo "[*] Error - No Cron Specified To Unload"
+        ;;
+      esac
+    done
 }
 
 Load_Cron () {
 		if [ -z "$1" ]; then set "all"; fi
-        for cron in "$@"; do
-                case "$cron" in
-                        save)
-                                cru a Skynet_save "0 * * * * sh /jffs/scripts/firewall save"
-                        ;;
-                        banmalwaredaily)
-                                cru a Skynet_banmalware "25 2 * * * sh /jffs/scripts/firewall banmalware"
-                        ;;
-                        banmalwareweekly)
-                                cru a Skynet_banmalware "25 2 * * Mon sh /jffs/scripts/firewall banmalware"
-                        ;;
-                        autoupdate)
-                                cru a Skynet_autoupdate "25 1 * * Mon sh /jffs/scripts/firewall update"
-                        ;;
-                        checkupdate)
-                                cru a Skynet_checkupdate "25 1 * * Mon sh /jffs/scripts/firewall update check"
-
-                        ;;
-                        *)
-								echo "[*] Error - No Cron Specified To Load"
-						;;
-                esac
-        done
+    for cron in "$@"; do
+      case "$cron" in
+        save)
+          cru a Skynet_save "0 * * * * sh /jffs/scripts/firewall save"
+        ;;
+        banmalwaredaily)
+          hour="$(date +%s | tail -c 2)"
+          cru a Skynet_banmalware "25 $hour * * * sh /jffs/scripts/firewall banmalware"
+        ;;
+        banmalwareweekly)
+          hour="$(date +%s | tail -c 2)"
+          cru a Skynet_banmalware "25 $hour * * Mon sh /jffs/scripts/firewall banmalware"
+        ;;
+        autoupdate)
+          cru a Skynet_autoupdate "25 1 * * Mon sh /jffs/scripts/firewall update"
+        ;;
+        checkupdate)
+          cru a Skynet_checkupdate "25 1 * * Mon sh /jffs/scripts/firewall update check"
+        ;;
+        *)
+          echo "[*] Error - No Cron Specified To Load"
+        ;;
+      esac
+    done
 }
 
 Is_IP () {
@@ -978,6 +1007,7 @@ Write_Config () {
 		printf "%s=\"%s\"\\n" "syslog1loc" "$syslog1loc"
 		printf "%s=\"%s\"\\n" "iotblocked" "$iotblocked"
 		printf "%s=\"%s\"\\n" "iotports" "$iotports"
+		printf "%s=\"%s\"\\n" "iotproto" "$iotproto"
 		printf "\\n%s\\n" "################################################"; } > "$skynetcfg"
 }
 
@@ -2033,8 +2063,9 @@ Load_Menu () {
 								echo "[3]  --> List Blocked Devices"
 								echo "[4]  --> Add Custom Allowed Ports"
 								echo "[5]  --> Reset Custom Port List"
+								echo "[6]  --> Select Allowed Protocols"
 								echo
-								printf "[1-5]: "
+								printf "[1-6]: "
 								read -r "menu3"
 								echo
 								case "$menu3" in
@@ -2097,6 +2128,45 @@ Load_Menu () {
 										option3="ports"
 										option4="reset"
 									break
+									;;
+									6)
+										while true; do
+											option3="proto"
+											echo "Select Port Protocol To Allow:"
+											echo
+											echo "[1]  --> UDP"
+											echo "[2]  --> TCP"
+											echo "[3]  --> Both"
+											echo
+											printf "[1-3]: "
+											read -r "menu4"
+											echo
+											case "$menu4" in
+												1)
+													option4="udp"
+													break
+												;;
+												2)
+													option4="tcp"
+													break
+												;;
+												3)
+													option4="all"
+													break
+												;;
+												e|exit|back|menu)
+													unset "option1" "option2" "option3" "option4" "option5"
+													clear
+													Load_Menu
+													break
+												;;
+												*)
+													echo "[*] $menu4 Isn't An Option!"
+													echo
+												;;
+											esac
+										done
+										break
 									;;
 									e|exit|back|menu)
 										unset "option1" "option2" "option3" "option4" "option5"
@@ -3697,6 +3767,44 @@ case "$1" in
 						Load_IOTTables
 						Load_DebugIPTables
 					;;
+					proto)
+					if [ -z "$4" ]; then echo "[*] Proto Not Specified - Exiting"; echo; exit 1; fi
+					case "$4" in
+						udp)
+							Check_Lock "$@"
+							if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
+							Purge_Logs
+							Unload_IOTTables
+							iotproto="udp"
+							Load_IOTTables
+							echo "[i] Allowing UDP Proto"
+						;;
+						tcp)
+							Check_Lock "$@"
+							if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
+							Purge_Logs
+							Unload_IOTTables
+							iotproto="tcp"
+							Load_IOTTables
+							echo "[i] Allowing TCP Proto"
+						;;
+						all)
+							Check_Lock "$@"
+							if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
+							Purge_Logs
+							Unload_IOTTables
+							iotproto="all"
+							Load_IOTTables
+							echo "[i] Allowing UDP & TCP Proto"
+						;;
+						*)
+							echo "Command Not Recognized, Please Try Again"
+							echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
+							echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
+							echo; exit 2
+						;;
+					esac
+					;;
 					*)
 						echo "Command Not Recognized, Please Try Again"
 						echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
@@ -4612,13 +4720,13 @@ case "$1" in
 			echo
 			case "$mode4" in
 				1)
-					echo "[i] Malware List Updating Enabled & Scheduled For 2.25am Every Day"
+					echo "[i] Malware List Updating Enabled & Scheduled Every Day"
 					banmalwareupdate="daily"
 					forcebanmalwareupdate="true"
 					break
 				;;
 				2)
-					echo "[i] Malware List Updating Enabled & Scheduled For 2.25am Every Monday"
+					echo "[i] Malware List Updating Enabled & Scheduled For Every Monday"
 					banmalwareupdate="weekly"
 					forcebanmalwareupdate="true"
 					break
@@ -4694,6 +4802,7 @@ case "$1" in
 		if [ -z "$syslogloc" ]; then syslogloc="/tmp/syslog.log"; fi
 		if [ -z "$syslog1loc" ]; then syslog1loc="/tmp/syslog.log-1"; fi
 		if [ -z "$iotblocked" ]; then iotblocked="disabled"; fi
+		if [ -z "$iotproto" ]; then iotproto="udp"; fi
 		Write_Config
 		cmdline="sh /jffs/scripts/firewall start skynetloc=${device}/skynet # Skynet Firewall Addition"
 		if grep -qE "^sh /jffs/scripts/firewall .* # Skynet" /jffs/scripts/firewall-start; then
