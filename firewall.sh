@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 06/02/2019 -		   Asus Firewall Addition By Adamm v6.7.2				    #
+## - 11/02/2019 -		   Asus Firewall Addition By Adamm v6.7.3				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -730,6 +730,7 @@ Refresh_AiProtect () {
 						ipset -q -A Skynet-Blacklist "$ip" comment "BanAiProtect: $domain"
 					done &
 				done
+				wait
 			fi
 		fi
 }
@@ -784,9 +785,15 @@ Whitelist_Extra () {
 
 Whitelist_CDN () {
 		sed '\~add Skynet-Whitelist ~!d;\~CDN-Whitelist~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
-		curl -fsL --retry 3 "https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/cdn.list" | dos2unix | grep -E '^([0-9]{1,3}\.){3}[0-9]{1,3}(/[0-9]{1,2})?$' | awk '!x[$0]++' > /tmp/skynet/cdn.list
-		awk '{printf "add Skynet-Whitelist %s comment \"CDN-Whitelist\"\n", $1 }' /tmp/skynet/cdn.list | ipset restore -!
-		rm -rf /tmp/skynet/cdn.list
+		{
+		# Apple AS714 | Akamai AS12222 AS16625 | HighWinds AS33438 | Fastly AS54113
+		for asn in AS714 AS12222 AS16625 AS33438 AS54113; do
+			curl -fsL --retry 3 "https://ipinfo.io/$asn" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}' | awk -v asn="$asn" '{printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: %s \"\n", $1, asn }'
+		done &
+		wait
+		curl -fsL --retry 3 https://www.cloudflare.com/ips-v4 | grep -E '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}' | awk '{printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: CloudFlare \"\n", $1 }'
+		curl -fsL --retry 3 https://ip-ranges.amazonaws.com/ip-ranges.json | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}' | awk '{printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: Amazon \"\n", $1 }';
+	} | awk '!x[$0]++' | ipset restore -!
 }
 
 Whitelist_VPN () {
@@ -2949,9 +2956,9 @@ case "$1" in
 		btime="$(date +%s)"
 		printf "%-35s | " "[i] Refreshing Whitelists"
 		Whitelist_Extra
-		Whitelist_CDN
 		Whitelist_VPN
 		Spinner_End
+		Whitelist_CDN
 		Whitelist_Shared
 		Refresh_MWhitelist
 		Spinner_Start
@@ -2993,7 +3000,9 @@ case "$1" in
 			Display_Result
 			btime="$(date +%s)"
 			printf "%-35s | " "[i] Refreshing AiProtect Bans"
+			Spinner_End
 			Refresh_AiProtect
+			Spinner_Start
 			Display_Result
 			btime="$(date +%s)"
 			printf "%-35s | " "[i] Saving Changes"
