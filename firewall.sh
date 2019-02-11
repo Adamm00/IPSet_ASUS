@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 11/02/2019 -		   Asus Firewall Addition By Adamm v6.7.3				    #
+## - 12/02/2019 -		   Asus Firewall Addition By Adamm v6.7.4				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -82,7 +82,6 @@ Check_Lock () {
 		date +%s >> /tmp/skynet.lock
 		lockskynet="true"
 }
-
 
 if [ ! -d "$skynetloc" ] && ! echo "$@" | grep -wqE "(install|uninstall|disable|update|restart|info)"; then
 	Check_Lock "$@"
@@ -767,20 +766,20 @@ Refresh_MWhitelist () {
 }
 
 Whitelist_Extra () {
-		{ echo "ipdeny.com"
-		echo "ipapi.co"
-		echo "speedguide.net"
-		echo "otx.alienvault.com"
-		echo "raw.githubusercontent.com"
-		echo "iplists.firehol.org"
-		echo "astrill.com"
-		echo "strongpath.net"
-		echo "snbforums.com"
-		echo "bin.entware.net"
-		echo "nwsrv-ns1.asus.com"
-		nvram get "ntp_server0"
-		nvram get "ntp_server1"
-		nvram get "firmware_server"; } > /jffs/shared-Skynet2-whitelist
+		echo "ipdeny.com
+		ipapi.co
+		speedguide.net
+		otx.alienvault.com
+		raw.githubusercontent.com
+		iplists.firehol.org
+		astrill.com
+		strongpath.net
+		snbforums.com
+		bin.entware.net
+		nwsrv-ns1.asus.com
+		$(nvram get "ntp_server0")
+		$(nvram get "ntp_server1")
+		$(nvram get "firmware_server")" > /jffs/shared-Skynet2-whitelist
 }
 
 Whitelist_CDN () {
@@ -788,43 +787,43 @@ Whitelist_CDN () {
 		{
 		# Apple AS714 | Akamai AS12222 AS16625 | HighWinds AS33438 | Fastly AS54113
 		for asn in AS714 AS12222 AS16625 AS33438 AS54113; do
-			curl -fsL --retry 3 "https://ipinfo.io/$asn" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}' | awk -v asn="$asn" '{printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: %s \"\n", $1, asn }'
-		done &
+			curl -fsL --retry 3 "https://ipinfo.io/$asn" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}' | awk -v asn="$asn" '{printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: %s \"\n", $1, asn }' &
+		done
 		wait
 		curl -fsL --retry 3 https://www.cloudflare.com/ips-v4 | grep -E '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}' | awk '{printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: CloudFlare \"\n", $1 }'
 		curl -fsL --retry 3 https://ip-ranges.amazonaws.com/ip-ranges.json | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}' | awk '{printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: Amazon \"\n", $1 }';
-	} | awk '!x[$0]++' | ipset restore -!
+		} | awk '!x[$0]++' | ipset restore -!
 }
 
 Whitelist_VPN () {
-		ipset -q -A Skynet-Whitelist "$(nvram get vpn_server1_sn)/24" comment "nvram: vpn_server1_sn"
-		ipset -q -A Skynet-Whitelist "$(nvram get vpn_server2_sn)/24" comment "nvram: vpn_server2_sn"
-		ipset -q -A Skynet-Whitelist "$(nvram get vpn_server_sn)/24" comment "nvram: vpn_server_sn"
-		ipset -q -A Skynet-Whitelist "$(nvram get vpn_client1_addr)/24" comment "nvram: vpn_client1_addr"
-		ipset -q -A Skynet-Whitelist "$(nvram get vpn_client2_addr)/24" comment "nvram: vpn_client2_addr"
-		ipset -q -A Skynet-Whitelist "$(nvram get vpn_client3_addr)/24" comment "nvram: vpn_client3_addr"
-		ipset -q -A Skynet-Whitelist "$(nvram get vpn_client4_addr)/24" comment "nvram: vpn_client4_addr"
-		ipset -q -A Skynet-Whitelist "$(nvram get vpn_client5_addr)/24" comment "nvram: vpn_client5_addr"
+		echo "add Skynet-Whitelist $(nvram get vpn_server1_sn)/24 comment \"nvram: vpn_server1_sn\"
+		add Skynet-Whitelist $(nvram get vpn_server2_sn)/24 comment \"nvram: vpn_server2_sn\"
+		add Skynet-Whitelist $(nvram get vpn_server_sn)/24 comment \"nvram: vpn_server_sn\"
+		add Skynet-Whitelist $(nvram get vpn_client1_addr)/24 comment \"nvram: vpn_client1_addr\"
+		add Skynet-Whitelist $(nvram get vpn_client2_addr)/24 comment \"nvram: vpn_client2_addr\"
+		add Skynet-Whitelist $(nvram get vpn_client3_addr)/24 comment \"nvram: vpn_client3_addr\"
+		add Skynet-Whitelist $(nvram get vpn_client4_addr)/24 comment \"nvram: vpn_client4_addr\"
+		add Skynet-Whitelist $(nvram get vpn_client5_addr)/24 comment \"nvram: vpn_client5_addr\"" | ipset restore -! 2>/dev/null
 		if [ -f "/dev/astrill/openvpn.conf" ]; then ipset -q -A Skynet-Whitelist "$(sed '\~remote ~!d;s~remote ~~' "/dev/astrill/openvpn.conf")/24" comment "nvram: Astrill_VPN"; fi
 }
 
 Whitelist_Shared () {
-		ipset -q -A Skynet-Whitelist "$(nvram get wan0_ipaddr)/32" comment "nvram: wan0_ipaddr"
-		ipset -q -A Skynet-Whitelist "$(nvram get lan_ipaddr)/24" comment "nvram: lan_ipaddr"
-		ipset -q -A Skynet-Whitelist "$(nvram get lan_netmask)/24" comment "nvram: lan_netmask"
-		ipset -q -A Skynet-Whitelist "$(nvram get wan_dns1_x)/32" comment "nvram: wan_dns1_x"
-		ipset -q -A Skynet-Whitelist "$(nvram get wan_dns2_x)/32" comment "nvram: wan_dns2_x"
-		ipset -q -A Skynet-Whitelist "$(nvram get wan0_dns1_x)/32" comment "nvram: wan0_dns1_x"
-		ipset -q -A Skynet-Whitelist "$(nvram get wan0_dns2_x)/32" comment "nvram: wan0_dns2_x"
-		ipset -q -A Skynet-Whitelist "$(nvram get wan_dns | awk '{print $1}')/32" comment "nvram: wan_dns"
-		ipset -q -A Skynet-Whitelist "$(nvram get wan_dns | awk '{print $2}')/32" comment "nvram: wan_dns"
-		ipset -q -A Skynet-Whitelist "$(nvram get wan0_dns | awk '{print $1}')/32" comment "nvram: wan0_dns"
-		ipset -q -A Skynet-Whitelist "$(nvram get wan0_dns | awk '{print $2}')/32" comment "nvram: wan0_dns"
-		ipset -q -A Skynet-Whitelist "$(nvram get wan0_xdns | awk '{print $1}')/32" comment "nvram: wan0_xdns"
-		ipset -q -A Skynet-Whitelist "$(nvram get wan0_xdns | awk '{print $2}')/32" comment "nvram: wan0_xdns"
-		ipset -q -A Skynet-Whitelist "192.30.252.0/22" comment "nvram: Github Content Server"
-		ipset -q -A Skynet-Whitelist "192.168.1.0/24" comment "nvram: LAN Subnet"
-		ipset -q -A Skynet-Whitelist "127.0.0.1" comment "nvram: Localhost"
+		echo "add Skynet-Whitelist $(nvram get wan0_ipaddr)/32 comment \"nvram: wan0_ipaddr\"
+		add Skynet-Whitelist $(nvram get lan_ipaddr)/24 comment \"nvram: lan_ipaddr\"
+		add Skynet-Whitelist $(nvram get lan_netmask)/24 comment \"nvram: lan_netmask\"
+		add Skynet-Whitelist $(nvram get wan_dns1_x)/32 comment \"nvram: wan_dns1_x\"
+		add Skynet-Whitelist $(nvram get wan_dns2_x)/32 comment \"nvram: wan_dns2_x\"
+		add Skynet-Whitelist $(nvram get wan0_dns1_x)/32 comment \"nvram: wan0_dns1_x\"
+		add Skynet-Whitelist $(nvram get wan0_dns2_x)/32 comment \"nvram: wan0_dns2_x\"
+		add Skynet-Whitelist $(nvram get wan_dns | awk '{print $1}')/32 comment \"nvram: wan_dns\"
+		add Skynet-Whitelist $(nvram get wan_dns | awk '{print $2}')/32 comment \"nvram: wan_dns\"
+		add Skynet-Whitelist $(nvram get wan0_dns | awk '{print $1}')/32 comment \"nvram: wan0_dns\"
+		add Skynet-Whitelist $(nvram get wan0_dns | awk '{print $2}')/32 comment \"nvram: wan0_dns\"
+		add Skynet-Whitelist $(nvram get wan0_xdns | awk '{print $1}')/32 comment \"nvram: wan0_xdns\"
+		add Skynet-Whitelist $(nvram get wan0_xdns | awk '{print $2}')/32 comment \"nvram: wan0_xdns\"
+		add Skynet-Whitelist 192.30.252.0/22 comment \"nvram: Github Content Server\"
+		add Skynet-Whitelist 192.168.1.0/24 comment \"nvram: LAN Subnet\"
+		add Skynet-Whitelist 127.0.0.1/32 comment \"nvram: Localhost\"" | ipset restore -! 2>/dev/null
 		if [ -n "$(find /jffs -name 'shared-*-whitelist')" ]; then
 			sed '\~add Skynet-Whitelist ~!d;\~Shared-Whitelist~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
 			grep -hvF "#" /jffs/shared-*-whitelist | Strip_Domain | while IFS= read -r "domain"; do
@@ -3942,6 +3941,9 @@ case "$1" in
 				elif [ -n "$swappartition" ]; then
 					partitionsize="$((($(sed -n '2p' /proc/swaps | awk '{print $3}') + (1024 + 1)) / 1024))"
 					echo "SWAP Partition; $swappartition (${partitionsize}M)"
+				fi
+				if [ "$syslogloc" != "/tmp/syslog.log" ] || [ "$syslog1loc" != "/tmp/syslog.log-1" ]; then
+					echo "Syslog Location; ($syslogloc) ($syslog1loc)"
 				fi
 				echo "Boot Args; $(grep -E "start.* # Skynet" /jffs/scripts/firewall-start | grep -vE "^#" | cut -c 4- | cut -d '#' -f1)"
 				if [ -n "$countrylist" ]; then echo "Banned Countries; $countrylist"; fi
