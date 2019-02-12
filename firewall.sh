@@ -3010,7 +3010,7 @@ case "$1" in
 			unset "forcebanmalwareupdate"
 			echo
 			echo "[i] For Whitelisting Assistance -"
-			echo "[i] https://www.snbforums.com/threads/skynet-asus-firewall-addition.16798/#post-115872"
+			echo "[i] https://www.snbforums.com/threads/release-skynet-router-firewall-security-enhancements.16798/#post-115872"
 		fi
 		Clean_Temp
 	;;
