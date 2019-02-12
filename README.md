@@ -1,6 +1,6 @@
 # Skynet - Firewall & Security Enhancements   [![Build Status](https://travis-ci.com/Adamm00/IPSet_ASUS.svg?branch=master)](https://travis-ci.com/Adamm00/IPSet_ASUS) [![Codacy Badge](https://api.codacy.com/project/badge/Grade/2c1c2833807a499a9927741043e8de18)](https://www.codacy.com/app/Adamm00/IPSet_ASUS?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=Adamm00/IPSet_ASUS&amp;utm_campaign=Badge_Grade)
 
-Lightweight firewall addition for ARM/HND based ASUS Routers using IPSet as seen on [SmallNetBuilder](https://www.snbforums.com/threads/skynet-asus-firewall-addition.16798/)
+Lightweight firewall addition for ARM/HND based ASUS Routers using IPSet as seen on [SmallNetBuilder](https://www.snbforums.com/threads/release-skynet-router-firewall-security-enhancements.16798/)
 
 Skynet is the first comprehensive IP banning and security tool exclusively for Asus Devices.
 
