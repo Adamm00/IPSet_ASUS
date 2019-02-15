@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 12/02/2019 -		   Asus Firewall Addition By Adamm v6.7.4				    #
+## - 15/02/2019 -		   Asus Firewall Addition By Adamm v6.7.5				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -568,12 +568,14 @@ Domain_Lookup () {
 Extended_DNSStats () {
 		case "$1" in
 			1)
-				printf "%-16s | %-56s | %-60s \\n" "$statdata" "https://otx.alienvault.com/indicator/ip/${statdata}" "$(grep -F "$statdata" /tmp/skynet/skynetstats.txt | awk '{print $1}' | xargs)"
+				country="$(curl -fs https://ipapi.co/$statdata/country/)"
+				printf "%-15s %-4s | %-56s | %-60s \\n" "$statdata" "($country)" "https://otx.alienvault.com/indicator/ip/${statdata}" "$(grep -F "$statdata" /tmp/skynet/skynetstats.txt | awk '{print $1}' | xargs)"
 			;;
 			2)
 				hits="$(echo "$statdata" | awk '{print $1}')"
 				ipaddr="$(echo "$statdata" | awk '{print $2}')"
-				printf "%-10s | %-16s | %-55s | %-60s\\n" "${hits}x" "${ipaddr}" "https://otx.alienvault.com/indicator/ip/${ipaddr}" "$(grep -F "$ipaddr" /tmp/skynet/skynetstats.txt | awk '{print $1}' | xargs)"
+				country="$(curl -fs https://ipapi.co/$ipaddr/country/)"
+				printf "%-10s | %-15s %-4s | %-55s | %-60s\\n" "${hits}x" "${ipaddr}" "(${country})" "https://otx.alienvault.com/indicator/ip/${ipaddr}" "$(grep -F "$ipaddr" /tmp/skynet/skynetstats.txt | awk '{print $1}' | xargs)"
 			;;
 			*)
 				echo "[*] Error - No Stats Specified To Load"
@@ -584,14 +586,14 @@ Extended_DNSStats () {
 Display_Header () {
 		case "$1" in
 			1)
-				printf "\\n\\n%-16s | %-56s | %-60s\\n" "--------------" "--------------" "----------------------"
-				printf "%-16s | %-56s | %-60s\\n" "| IP Address |" "| AlienVault |" "| Associated Domains |"
-				printf "%-16s | %-56s | %-60s\\n\\n" "--------------" "--------------"  "----------------------"
+				printf "\\n\\n%-20s | %-56s | %-60s\\n" "--------------" "--------------" "----------------------"
+				printf "%-20s | %-56s | %-60s\\n" "| IP Address |" "| AlienVault |" "| Associated Domains |"
+				printf "%-20s | %-56s | %-60s\\n\\n" "--------------" "--------------"  "----------------------"
 			;;
 			2)
-				printf "\\n\\n%-10s | %-16s | %-55s | %-60s\\n" "--------" "--------------" "--------------" "----------------------"
-				printf "%-10s | %-16s | %-55s | %-60s\\n" "| Hits |" "| IP Address |" "| AlienVault |" "| Associated Domains |"
-				printf "%-10s | %-16s | %-55s | %-60s\\n\\n" "--------" "--------------" "--------------" "----------------------"
+				printf "\\n\\n%-10s | %-20s | %-55s | %-60s\\n" "--------" "--------------" "--------------" "----------------------"
+				printf "%-10s | %-20s | %-55s | %-60s\\n" "| Hits |" "| IP Address |" "| AlienVault |" "| Associated Domains |"
+				printf "%-10s | %-20s | %-55s | %-60s\\n\\n" "--------" "--------------" "--------------" "----------------------"
 			;;
 			3)
 				printf "\\n\\n%-10s | %-10s | %-60s\\n" "--------" "--------" "--------------"
