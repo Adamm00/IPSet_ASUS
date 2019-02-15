@@ -568,13 +568,13 @@ Domain_Lookup () {
 Extended_DNSStats () {
 		case "$1" in
 			1)
-				country="$(curl -fs https://ipapi.co/$statdata/country/)"
+				country="$(curl -fsL --retry 3 "https://ipapi.co/$statdata/country/")"
 				printf "%-15s %-4s | %-56s | %-60s \\n" "$statdata" "($country)" "https://otx.alienvault.com/indicator/ip/${statdata}" "$(grep -F "$statdata" /tmp/skynet/skynetstats.txt | awk '{print $1}' | xargs)"
 			;;
 			2)
 				hits="$(echo "$statdata" | awk '{print $1}')"
 				ipaddr="$(echo "$statdata" | awk '{print $2}')"
-				country="$(curl -fs https://ipapi.co/$ipaddr/country/)"
+				country="$(curl -fsL --retry 3 "https://ipapi.co/$ipaddr/country/")"
 				printf "%-10s | %-15s %-4s | %-55s | %-60s\\n" "${hits}x" "${ipaddr}" "(${country})" "https://otx.alienvault.com/indicator/ip/${ipaddr}" "$(grep -F "$ipaddr" /tmp/skynet/skynetstats.txt | awk '{print $1}' | xargs)"
 			;;
 			*)
