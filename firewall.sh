@@ -4406,7 +4406,7 @@ case "$1" in
 							Red "Associated Domain(s);"
 							assdomains="$(grep -E "reply.* is $4" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | Filter_OutIP)"
 							for domain in $assdomains; do
-								if grep -qF "$domain" /opt/share/diversion/list/blockinglist 2>/dev/null; then
+								if grep -qE " (www.)?${domain}$" /opt/share/diversion/list/blockinglist /opt/share/diversion/list/blacklist 2>/dev/null; then
 									echo "$domain (Flagged By Diversion)"
 								else
 									echo "$domain"
@@ -4448,7 +4448,7 @@ case "$1" in
 							Red "Associated Domain(s);"
 							assdomains="$(grep -E "reply.* is $4" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | Filter_OutIP)"
 							for domain in $assdomains; do
-								if grep -qF "$domain" /opt/share/diversion/list/blockinglist 2>/dev/null; then
+								if grep -qE " (www.)?${domain}$" /opt/share/diversion/list/blockinglist /opt/share/diversion/list/blacklist 2>/dev/null; then
 									echo "$domain (Flagged By Diversion)"
 								else
 									echo "$domain"
