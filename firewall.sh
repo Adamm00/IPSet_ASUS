@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 15/02/2019 -		   Asus Firewall Addition By Adamm v6.7.5				    #
+## - 18/02/2019 -		   Asus Firewall Addition By Adamm v6.7.6				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -119,6 +119,7 @@ Check_Settings () {
 		if [ -z "$syslog1loc" ]; then syslog1loc="/tmp/syslog.log-1"; fi
 		if [ -z "$iotblocked" ]; then iotblocked="disabled"; fi
 		if [ -z "$iotproto" ]; then iotproto="udp"; fi
+		if [ -z "$lookupcountry" ]; then lookupcountry="enabled"; fi
 
 		conflicting_scripts="(IPSet_Block.sh|malware-filter|privacy-filter|ipBLOCKer.sh|ya-malware-block.sh|iblocklist-loader.sh|firewall-reinstate.sh)$"
 		if find /jffs /tmp/mnt | grep -qE "$conflicting_scripts"; then
@@ -568,14 +569,18 @@ Domain_Lookup () {
 Extended_DNSStats () {
 		case "$1" in
 			1)
-				country="$(curl -fsL --retry 3 "https://ipapi.co/$statdata/country/")"
-				printf "%-15s %-4s | %-56s | %-60s \\n" "$statdata" "($country)" "https://otx.alienvault.com/indicator/ip/${statdata}" "$(grep -F "$statdata" /tmp/skynet/skynetstats.txt | awk '{print $1}' | xargs)"
+			if [ "$lookupcountry" = "enabled" ]; then
+				country="($(curl -fsL --retry 3 "https://ipapi.co/$statdata/country/"))"
+			fi
+				printf "%-15s %-4s | %-56s | %-60s \\n" "$statdata" "$country" "https://otx.alienvault.com/indicator/ip/${statdata}" "$(grep -F "$statdata" /tmp/skynet/skynetstats.txt | awk '{print $1}' | xargs)"
 			;;
 			2)
 				hits="$(echo "$statdata" | awk '{print $1}')"
 				ipaddr="$(echo "$statdata" | awk '{print $2}')"
-				country="$(curl -fsL --retry 3 "https://ipapi.co/$ipaddr/country/")"
-				printf "%-10s | %-15s %-4s | %-55s | %-60s\\n" "${hits}x" "${ipaddr}" "(${country})" "https://otx.alienvault.com/indicator/ip/${ipaddr}" "$(grep -F "$ipaddr" /tmp/skynet/skynetstats.txt | awk '{print $1}' | xargs)"
+				if [ "$lookupcountry" = "enabled" ]; then
+					country="($(curl -fsL --retry 3 "https://ipapi.co/$ipaddr/country/"))"
+				fi
+				printf "%-10s | %-15s %-4s | %-55s | %-60s\\n" "${hits}x" "${ipaddr}" "${country}" "https://otx.alienvault.com/indicator/ip/${ipaddr}" "$(grep -F "$ipaddr" /tmp/skynet/skynetstats.txt | awk '{print $1}' | xargs)"
 			;;
 			*)
 				echo "[*] Error - No Stats Specified To Load"
@@ -1017,6 +1022,7 @@ Write_Config () {
 		printf "%s=\"%s\"\\n" "iotblocked" "$iotblocked"
 		printf "%s=\"%s\"\\n" "iotports" "$iotports"
 		printf "%s=\"%s\"\\n" "iotproto" "$iotproto"
+		printf "%s=\"%s\"\\n" "lookupcountry" "$lookupcountry"
 		printf "\\n%s\\n" "################################################"; } > "$skynetcfg"
 }
 
@@ -1633,8 +1639,9 @@ Load_Menu () {
 					printf "%-30s | %-40s\\n" "[9]  --> Fast Switch" "$(if [ "$fastswitch" = "enabled" ]; then Ylow "[Enabled]"; else Grn "[Disabled]"; fi)"
 					printf "%-30s | %-40s\\n" "[10] --> Syslog Location" "$(if [ "$syslogloc" = "/tmp/syslog.log" ] && [ "$syslog1loc" = "/tmp/syslog.log-1" ]; then Grn "[Default]"; else Ylow "[Custom]"; fi)"
 					printf "%-30s | %-40s\\n" "[11] --> IOT Blocking" "$(if [ "$iotblocked" != "enabled" ]; then Grn "[Disabled]"; else Ylow "[Enabled]"; fi)"
+					printf "%-30s | %-40s\\n" "[11] --> Country Lookup For Stats" "$(if [ "$lookupcountry" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
 					echo
-					printf "[1-11]: "
+					printf "[1-12]: "
 					read -r "menu2"
 					echo
 					case "$menu2" in
@@ -2175,6 +2182,40 @@ Load_Menu () {
 												;;
 											esac
 										done
+										break
+									;;
+									e|exit|back|menu)
+										unset "option1" "option2" "option3" "option4" "option5"
+										clear
+										Load_Menu
+										break
+									;;
+									*)
+										echo "[*] $menu3 Isn't An Option!"
+										echo
+									;;
+								esac
+							done
+							break
+						;;
+						12)
+							if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
+							option2="lookupcountry"
+							while true; do
+								echo "Select Country Lookup For Stats Option:"
+								echo "[1]  --> Enable"
+								echo "[2]  --> Disable"
+								echo
+								printf "[1-2]: "
+								read -r "menu3"
+								echo
+								case "$menu3" in
+									1)
+										option3="enable"
+										break
+									;;
+									2)
+										option3="disable"
 										break
 									;;
 									e|exit|back|menu)
@@ -3695,6 +3736,7 @@ case "$1" in
 								echo
 							else
 								ipset -D Skynet-IOT "$4"
+								sed -i "\\~BLOCKED - IOT.*=$4 ~d" "$skynetlog"
 							fi
 						fi
 						if [ "$(ipset -L -t Skynet-IOT | tail -1 | awk '{print $4}')" -gt "0" ]; then
@@ -3833,6 +3875,30 @@ case "$1" in
 					Save_IPSets
 				fi
 			;;
+			lookupcountry)
+				case "$3" in
+					enable)
+						Check_Lock "$@"
+						if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
+						Purge_Logs
+						lookupcountry="enabled"
+						echo "[i] Country Lookups For Stat Data Enabled"
+					;;
+					disable)
+						Check_Lock "$@"
+						if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
+						Purge_Logs
+						lookupcountry="disabled"
+						echo "[i] Country Lookups For Stat Data Disabled"
+					;;
+					*)
+						echo "Command Not Recognized, Please Try Again"
+						echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
+						echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
+						echo; exit 2
+					;;
+				esac
+			;;
 			*)
 				echo "Command Not Recognized, Please Try Again"
 				echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
@@ -3876,6 +3942,12 @@ case "$1" in
 									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | Filter_OutIP | xargs)"
 									[ -n "$domainlist" ] && Red "Associated Domain(s) - [$domainlist]"
 								fi
+							elif echo "$logoutput" | grep -qE "IOT.*=$4 "; then
+								Red "$logoutput"
+								if [ "$extendedstats" = "enabled" ]; then
+									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | Filter_OutIP | xargs)"
+									[ -n "$domainlist" ] && Red "Associated Domain(s) - [$domainlist]"
+								fi
 							fi
 						done
 					;;
@@ -3902,6 +3974,12 @@ case "$1" in
 									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | Filter_OutIP | xargs)"
 									[ -n "$domainlist" ] && Red "Associated Domain(s) - [$domainlist]"
 								fi
+							elif echo "$logoutput" | grep -qE "IOT.*PT=$4 "; then
+								Red "$logoutput"
+								if [ "$extendedstats" = "enabled" ]; then
+									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | Filter_OutIP | xargs)"
+									[ -n "$domainlist" ] && Red "Associated Domain(s) - [$domainlist]"
+								fi
 							fi
 						done
 					;;
@@ -3920,6 +3998,12 @@ case "$1" in
 									[ -n "$domainlist" ] && Red "Associated Domain(s) - [$domainlist]"
 								fi
 							elif echo "$logoutput" | grep -q "OUTBOUND"; then
+								Red "$logoutput"
+								if [ "$extendedstats" = "enabled" ]; then
+									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | Filter_OutIP | xargs)"
+									[ -n "$domainlist" ] && Red "Associated Domain(s) - [$domainlist]"
+								fi
+							elif echo "$logoutput" | grep -q "IOT"; then
 								Red "$logoutput"
 								if [ "$extendedstats" = "enabled" ]; then
 									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | Filter_OutIP | xargs)"
@@ -4064,6 +4148,7 @@ case "$1" in
 				printf "%-35s | %-8s\\n" "Fast Switch" "$(if [ "$fastswitch" = "enabled" ]; then Ylow "[Enabled]"; else Grn "[Disabled]"; fi)"
 				printf "%-35s | %-8s\\n" "Syslog Location" "$(if [ "$syslogloc" = "/tmp/syslog.log" ] && [ "$syslog1loc" = "/tmp/syslog.log-1" ]; then Grn "[Default]"; else Ylow "[Custom]"; fi)"
 				printf "%-35s | %-8s\\n" "IOT Blocking" "$(if [ "$iotblocked" != "enabled" ]; then Grn "[Disabled]"; else Ylow "[Enabled]"; fi)"
+				printf "%-35s | %-8s\\n" "Country Lookup For Stats" "$(if [ "$lookupcountry" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
 				printf "\\n%-35s\\n" "${passedtests}/${totaltests} Tests Sucessful"
 				if [ "$3" = "extended" ]; then echo; echo; cat "$skynetcfg"; fi
 				nocfg="1"
@@ -4319,7 +4404,14 @@ case "$1" in
 						echo
 						if [ "$extendedstats" = "enabled" ] && grep -q "reply.* is $4" /opt/var/log/dnsmasq*; then
 							Red "Associated Domain(s);"
-							grep -E "reply.* is $4" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | Filter_OutIP
+							assdomains="$(grep -E "reply.* is $4" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | Filter_OutIP)"
+							for domain in $assdomains; do
+								if grep -qF "$domain" /opt/share/diversion/list/blockinglist 2>/dev/null; then
+									echo "$domain (Flagged By Diversion)"
+								else
+									echo "$domain"
+								fi
+							done
 							echo; echo
 						fi
 						echo "[i] IP Location - $(curl -fsL "https://ipapi.co/${4}/country_name/") ($(curl -fsL "https://ipapi.co/${4}/org/") / $(curl -fsL "https://ipapi.co/${4}/asn/"))"
@@ -4354,7 +4446,14 @@ case "$1" in
 						Clean_Temp
 						if [ "$extendedstats" = "enabled" ] && grep -q "reply.* is $4" /opt/var/log/dnsmasq*; then
 							Red "Associated Domain(s);"
-							grep -E "reply.* is $4" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | Filter_OutIP
+							assdomains="$(grep -E "reply.* is $4" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | Filter_OutIP)"
+							for domain in $assdomains; do
+								if grep -qF "$domain" /opt/share/diversion/list/blockinglist 2>/dev/null; then
+									echo "$domain (Flagged By Diversion)"
+								else
+									echo "$domain"
+								fi
+							done
 							echo; echo
 						fi
 						ip="$(echo "$4" | sed "s~\\.~\\\\.~g")"
