@@ -1639,7 +1639,7 @@ Load_Menu () {
 					printf "%-30s | %-40s\\n" "[9]  --> Fast Switch" "$(if [ "$fastswitch" = "enabled" ]; then Ylow "[Enabled]"; else Grn "[Disabled]"; fi)"
 					printf "%-30s | %-40s\\n" "[10] --> Syslog Location" "$(if [ "$syslogloc" = "/tmp/syslog.log" ] && [ "$syslog1loc" = "/tmp/syslog.log-1" ]; then Grn "[Default]"; else Ylow "[Custom]"; fi)"
 					printf "%-30s | %-40s\\n" "[11] --> IOT Blocking" "$(if [ "$iotblocked" != "enabled" ]; then Grn "[Disabled]"; else Ylow "[Enabled]"; fi)"
-					printf "%-30s | %-40s\\n" "[11] --> Country Lookup For Stats" "$(if [ "$lookupcountry" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
+					printf "%-30s | %-40s\\n" "[12] --> Country Lookup For Stats" "$(if [ "$lookupcountry" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
 					echo
 					printf "[1-12]: "
 					read -r "menu2"
