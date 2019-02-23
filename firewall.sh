@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 20/02/2019 -		   Asus Firewall Addition By Adamm v6.7.6				    #
+## - 23/02/2019 -		   Asus Firewall Addition By Adamm v6.7.7				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -361,7 +361,7 @@ Unload_DebugIPTables () {
 		iptables -t raw -D PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 		iptables -t raw -D OUTPUT -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 		iptables -D logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - INVALID] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
-		iptables -D FORWARD -i br0 -m set --match-set Skynet-IOT src ! -o tun+ -j LOG --log-prefix "[BLOCKED - IOT] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
+		iptables -D FORWARD -i br0 -m set --match-set Skynet-IOT src ! -o tun2+ -j LOG --log-prefix "[BLOCKED - IOT] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 }
 
 Load_DebugIPTables () {
@@ -380,12 +380,12 @@ Load_DebugIPTables () {
 				iptables -I logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - INVALID] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 			fi
 			pos5="$(iptables --line -nL FORWARD | grep -F "Skynet-IOT" | grep -F "DROP" | awk '{print $1}')"
-			iptables -I FORWARD "$pos5" -i br0 -m set --match-set Skynet-IOT src ! -o tun+ -j LOG --log-prefix "[BLOCKED - IOT] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
+			iptables -I FORWARD "$pos5" -i br0 -m set --match-set Skynet-IOT src ! -o tun2+ -j LOG --log-prefix "[BLOCKED - IOT] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 		fi
 }
 
 Unload_IOTTables () {
-			iptables -D FORWARD -i br0 -m set --match-set Skynet-IOT src ! -o tun+ -j DROP 2>/dev/null
+			iptables -D FORWARD -i br0 -m set --match-set Skynet-IOT src ! -o tun2+ -j DROP 2>/dev/null
 			if [ -n "$iotports" ]; then
 				if [ "$iotproto" = "all" ] || [ "$iotproto" = "udp" ]; then
 					iptables -D FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp -m multiport --dports "$iotports" -j ACCEPT 2>/dev/null
@@ -404,7 +404,7 @@ Unload_IOTTables () {
 }
 
 Load_IOTTables () {
-			iptables -I FORWARD -i br0 -m set --match-set Skynet-IOT src ! -o tun+ -j DROP 2>/dev/null
+			iptables -I FORWARD -i br0 -m set --match-set Skynet-IOT src ! -o tun2+ -j DROP 2>/dev/null
 			if [ -n "$iotports" ]; then
 				if [ "$iotproto" = "all" ] || [ "$iotproto" = "udp" ]; then
 					iptables -I FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp -m multiport --dports "$iotports" -j ACCEPT 2>/dev/null
@@ -442,7 +442,7 @@ Check_IPTables () {
 			iptables -C SSHBFP -m recent --update --seconds 60 --hitcount 4 --name SSH --rsource -j SET --add-set Skynet-Master src 2>/dev/null || { fail="9"; return 1; }
 			iptables -C SSHBFP -m recent --update --seconds 60 --hitcount 4 --name SSH --rsource -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || { fail="10"; return 1; }
 		fi
-		iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src ! -o tun+ -j DROP 2>/dev/null || { fail="11"; return 1; }
+		iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src ! -o tun2+ -j DROP 2>/dev/null || { fail="11"; return 1; }
 		if [ -n "$iotports" ]; then
 			if [ "$iotproto" = "all" ] || [ "$iotproto" = "udp" ]; then
 				iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp -m multiport --dports "$iotports" -j ACCEPT 2>/dev/null || { fail="12"; return 1; }
@@ -469,7 +469,7 @@ Check_IPTables () {
 			if [ "$(nvram get fw_log_x)" = "drop" ] || [ "$(nvram get fw_log_x)" = "both" ] && [ "$loginvalid" = "enabled" ]; then
 				iptables -C logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - INVALID] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || { fail="19"; return 1; }
 			fi
-			iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src ! -o tun+ -j LOG --log-prefix "[BLOCKED - IOT] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || { fail="20"; return 1; }
+			iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src ! -o tun2+ -j LOG --log-prefix "[BLOCKED - IOT] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || { fail="20"; return 1; }
 		fi
 }
 
