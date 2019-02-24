@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 23/02/2019 -		   Asus Firewall Addition By Adamm v6.7.7				    #
+## - 25/02/2019 -		   Asus Firewall Addition By Adamm v6.7.8				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -4374,6 +4374,12 @@ case "$1" in
 				esac
 			;;
 			search)
+				if [ "$extendedstats" = "enabled" ]; then
+					grep -hE 'reply.* is ([0-9]{1,3}\.){3}[0-9]{1,3}$' /opt/var/log/dnsmasq* | awk '{printf "%s %s\n", $6, $8}' | Strip_Domain > /tmp/skynet/skynetstats.txt
+					printf '   \b\b\b'
+				else
+					touch "/tmp/skynet/skynetstats.txt"
+				fi
 				case "$3" in
 					port)
 						if ! echo "$4" | Is_Port || [ "$4" -gt "65535" ]; then echo "[*] $4 Is Not A Valid Port"; echo; exit 2; fi
@@ -4428,12 +4434,11 @@ case "$1" in
 						echo
 						Red "$counter Most Recent Blocks From $4;"
 						grep -F "=$4 " "$skynetlog" | tail -"$counter"
-						echo
+						echo; echo
 						Red "Top $counter Targeted Ports From $4 (Inbound);"
 						Display_Header "3"
 						grep -E "INBOUND.*SRC=$4 " "$skynetlog" | grep -oE 'DPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{printf "%-10s | %-10s | %-60s\n", $1 "x", $2, "https://www.speedguide.net/port.php?port=" $2 }'
-						echo
-						echo
+						echo; echo
 						Red "Top $counter Sourced Ports From $4 (Inbound);"
 						Display_Header "3"
 						grep -E "INBOUND.*SRC=$4 " "$skynetlog" | grep -oE 'SPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{printf "%-10s | %-10s | %-60s\n", $1 "x", $2, "https://www.speedguide.net/port.php?port=" $2 }'
@@ -4498,14 +4503,6 @@ case "$1" in
 					device)
 						if ! echo "$4" | Is_IP; then echo "[*] $4 Is Not A Valid IP"; echo; exit 2; fi
 						if [ "$5" -eq "$5" ] 2>/dev/null; then counter="$5"; fi
-						ipset test Skynet-Whitelist "$4" && found1=true
-						ipset test Skynet-Blacklist "$4" && found2=true
-						ipset test Skynet-BlockedRanges "$4" && found3=true
-						echo
-						if [ -n "$found1" ]; then Red "Whitelist Reason;"; grep -F "add Skynet-Whitelist $4 " "$skynetipset" | awk '{$1=$2=$3=$4=""; print $0}' | tr -s " "; echo; fi
-						if [ -n "$found2" ]; then Red "Blacklist Reason;"; grep -F "add Skynet-Blacklist $4 " "$skynetipset" | awk '{$1=$2=$3=$4=""; print $0}' | tr -s " "; echo; fi
-						if [ -n "$found3" ]; then Red "BlockedRanges Reason;"; grep -F "add Skynet-BlockedRanges $(echo "$4" | cut -d '.' -f1-3)." "$skynetipset" | awk '{$1=$2=$4=""; print $0}' | tr -s " "; fi
-						echo
 						echo "[i] $4 First Tracked On $(grep -m1 -E "OUTBOUND.* SRC=$4 " "$skynetlog" | awk '{printf "%s %s %s\n", $1, $2, $3}')"
 						echo "[i] $4 Last Tracked On $(grep -E "OUTBOUND.* SRC=$4 " "$skynetlog" | tail -1 | awk '{printf "%s %s %s\n", $1, $2, $3}')"
 						echo "[i] $(grep -Eoc -E "OUTBOUND.* SRC=$4 " "$skynetlog") Blocks Total"
@@ -4518,15 +4515,27 @@ case "$1" in
 						echo
 						Red "$counter Most Recent Blocks From $4;"
 						grep -E "OUTBOUND.* SRC=$4 " "$skynetlog" | tail -"$counter"
+						echo; echo
+						Red "Top $counter HTTP(s) Blocks (Outbound);"
+						Display_Header "2"
+						grep -E 'DPT=80 |DPT=443 ' "$skynetlog" | grep -E "OUTBOUND.*$proto" | grep -F "SRC=${4} " | grep -oE ' DST=[0-9,\.]*' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | while IFS= read -r "statdata"; do
+							Extended_DNSStats "2"
+						done
+						echo; echo
+						Red "Top $counter Blocks From (Outbound);"
+						Display_Header "2"
+						grep -E "OUTBOUND.*$proto" "$skynetlog" | grep -vE 'DPT=80 |DPT=443 ' | grep -F "SRC=${4} " | grep -oE ' DST=[0-9,\.]*' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | while IFS= read -r "statdata"; do
+							Extended_DNSStats "2"
+						done
 					;;
 					reports)
 						if [ "$4" -eq "$4" ] 2>/dev/null; then counter="$4"; fi
 						sed '\~Skynet: \[#\] ~!d' "$syslog1loc" "$syslogloc" 2>/dev/null >> "$skynetevents"
 						sed -i '\~Skynet: \[#\] ~d' "$syslog1loc" "$syslogloc" 2>/dev/null
-						echo "[i] First Report Issued On $(grep -m1 -F "Skynet: [#] " "$skynetevents" | awk '{printf "%s %s %s\n", $1, $2, $3}')"
-						echo "[i] Last Report Issued On $(grep -F "Skynet: [#] " "$skynetevents" | tail -1 | awk '{printf "%s %s %s\n", $1, $2, $3}')"
+						echo "[i] First Report Tracked On $(grep -m1 -F "Skynet: [#] " "$skynetevents" | awk '{printf "%s %s %s\n", $1, $2, $3}')"
+						echo "[i] Last Report Tracked On $(grep -F "Skynet: [#] " "$skynetevents" | tail -1 | awk '{printf "%s %s %s\n", $1, $2, $3}')"
 						echo
-						Red "First Report Issued;"
+						Red "First Report Tracked;"
 						grep -m1 -F "Skynet: [#] " "$skynetevents"
 						echo
 						Red "$counter Most Recent Reports;"
@@ -4534,10 +4543,10 @@ case "$1" in
 					;;
 					invalid)
 						if [ "$4" -eq "$4" ] 2>/dev/null; then counter="$4"; fi
-						echo "[i] First Invalid Block Issued On $(grep -m1 -F "BLOCKED - INVALID" "$skynetlog" | awk '{printf "%s %s %s\n", $1, $2, $3}')"
-						echo "[i] Last Invalid Block Issued On $(grep -F "BLOCKED - INVALID" "$skynetlog" | tail -1 | awk '{printf "%s %s %s\n", $1, $2, $3}')"
+						echo "[i] First Invalid Block Tracked On $(grep -m1 -F "BLOCKED - INVALID" "$skynetlog" | awk '{printf "%s %s %s\n", $1, $2, $3}')"
+						echo "[i] Last Invalid Block Tracked On $(grep -F "BLOCKED - INVALID" "$skynetlog" | tail -1 | awk '{printf "%s %s %s\n", $1, $2, $3}')"
 						echo
-						Red "First Report Issued;"
+						Red "First Report Tracked;"
 						grep -m1 -F "BLOCKED - INVALID" "$skynetlog"
 						echo
 						Red "$counter Most Recent Reports;"
@@ -4585,14 +4594,20 @@ case "$1" in
 					;;
 					iot)
 						if [ "$4" -eq "$4" ] 2>/dev/null; then counter="$4"; fi
-						echo "[i] First IOT Block Issued On $(grep -m1 -F "BLOCKED - IOT" "$skynetlog" | awk '{printf "%s %s %s\n", $1, $2, $3}')"
-						echo "[i] Last IOT Block Issued On $(grep -F "BLOCKED - IOT" "$skynetlog" | tail -1 | awk '{printf "%s %s %s\n", $1, $2, $3}')"
+						echo "[i] First IOT Block Tracked On $(grep -m1 -F "BLOCKED - IOT" "$skynetlog" | awk '{printf "%s %s %s\n", $1, $2, $3}')"
+						echo "[i] Last IOT Block Tracked On $(grep -F "BLOCKED - IOT" "$skynetlog" | tail -1 | awk '{printf "%s %s %s\n", $1, $2, $3}')"
 						echo
-						Red "First Report Issued;"
+						Red "First IOT Block Tracked;"
 						grep -m1 -F "BLOCKED - IOT" "$skynetlog"
 						echo
-						Red "$counter Most Recent Reports;"
+						Red "$counter Most Recent IOT Blocks;"
 						grep -F "BLOCKED - IOT" "$skynetlog" | tail -"$counter"
+						echo;echo
+						Red "Top $counter IOT Blocks (Outbound);"
+						Display_Header "2"
+						grep -E "IOT.*$proto" "$skynetlog" | grep -oE ' DST=[0-9,\.]*' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | while IFS= read -r "statdata"; do
+							Extended_DNSStats "2"
+						done
 					;;
 					*)
 						echo "Command Not Recognized, Please Try Again"
@@ -4713,9 +4728,9 @@ case "$1" in
 					fi
 					printf "%-10s | %-16s | %-60s\\n" "${hits}x" "${ipaddr}" "$localname"
 				done
-				rm -rf /tmp/skynet/skynetstats.txt
 			;;
 		esac
+		rm -rf /tmp/skynet/skynetstats.txt
 	;;
 
 	install)
