@@ -4720,7 +4720,7 @@ case "$1" in
 				grep -E "OUTBOUND.*$proto" "$skynetlog" | grep -oE ' SRC=[0-9,\.]*' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | while IFS= read -r "statdata"; do
 					hits="$(echo "$statdata" | awk '{print $1}')"
 					ipaddr="$(echo "$statdata" | awk '{print $2}')"
-					localname="$(grep -F "$ipaddr" /var/lib/misc/dnsmasq.leases | awk '{print $4}')"
+					localname="$(grep -F "$ipaddr " /var/lib/misc/dnsmasq.leases | awk '{print $4}')"
 					if [ -z "$localname" ] && [ "$ipaddr" = "$(nvram get wan0_ipaddr)" ]; then
 						localname="$model"
 					elif [ -z "$localname" ]; then
