@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 25/02/2019 -		   Asus Firewall Addition By Adamm v6.7.8				    #
+## - 15/03/2019 -		   Asus Firewall Addition By Adamm v6.8.0				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -572,7 +572,7 @@ Extended_DNSStats () {
 			if [ "$lookupcountry" = "enabled" ]; then
 				country="($(curl -fsL --retry 3 "https://ipapi.co/$statdata/country/"))"
 			fi
-				printf "%-15s %-4s | %-56s | %-60s \\n" "$statdata" "$country" "https://otx.alienvault.com/indicator/ip/${statdata}" "$(grep -F "$statdata" /tmp/skynet/skynetstats.txt | awk '{print $1}' | xargs)"
+				printf "%-15s %-4s | %-55s | %-45s | %-60s \\n" "$statdata" "$country" "https://otx.alienvault.com/indicator/ip/${statdata}" "$(grep -F " ${statdata} " "$skynetipset" | awk -F "\"" '{print $2}')" "$(grep -F "$statdata" /tmp/skynet/skynetstats.txt | awk '{print $1}' | xargs)"
 			;;
 			2)
 				hits="$(echo "$statdata" | awk '{print $1}')"
@@ -580,7 +580,7 @@ Extended_DNSStats () {
 				if [ "$lookupcountry" = "enabled" ]; then
 					country="($(curl -fsL --retry 3 "https://ipapi.co/$ipaddr/country/"))"
 				fi
-				printf "%-10s | %-15s %-4s | %-55s | %-60s\\n" "${hits}x" "${ipaddr}" "${country}" "https://otx.alienvault.com/indicator/ip/${ipaddr}" "$(grep -F "$ipaddr" /tmp/skynet/skynetstats.txt | awk '{print $1}' | xargs)"
+				printf "%-10s | %-15s %-4s | %-55s | %-45s | %-60s\\n" "${hits}x" "${ipaddr}" "${country}" "https://otx.alienvault.com/indicator/ip/${ipaddr}" "$(grep -F " ${ipaddr} " "$skynetipset" | awk -F "\"" '{print $2}')" "$(grep -F "$ipaddr" /tmp/skynet/skynetstats.txt | awk '{print $1}' | xargs)"
 			;;
 			*)
 				echo "[*] Error - No Stats Specified To Load"
@@ -591,14 +591,14 @@ Extended_DNSStats () {
 Display_Header () {
 		case "$1" in
 			1)
-				printf "\\n\\n%-20s | %-56s | %-60s\\n" "--------------" "--------------" "----------------------"
-				printf "%-20s | %-56s | %-60s\\n" "| IP Address |" "| AlienVault |" "| Associated Domains |"
-				printf "%-20s | %-56s | %-60s\\n\\n" "--------------" "--------------"  "----------------------"
+				printf "\\n\\n%-20s | %-55s | %-45s | %-60s\\n" "--------------" "--------------" "--------------" "----------------------"
+				printf "%-20s | %-55s | %-45s | %-60s\\n" "| IP Address |" "| AlienVault |" "| Ban Reason |" "| Associated Domains |"
+				printf "%-20s | %-55s | %-45s | %-60s\\n\\n" "--------------" "--------------" "--------------" "----------------------"
 			;;
 			2)
-				printf "\\n\\n%-10s | %-20s | %-55s | %-60s\\n" "--------" "--------------" "--------------" "----------------------"
-				printf "%-10s | %-20s | %-55s | %-60s\\n" "| Hits |" "| IP Address |" "| AlienVault |" "| Associated Domains |"
-				printf "%-10s | %-20s | %-55s | %-60s\\n\\n" "--------" "--------------" "--------------" "----------------------"
+				printf "\\n\\n%-10s | %-20s | %-55s | %-45s | %-60s\\n" "--------" "--------------" "--------------" "--------------" "----------------------"
+				printf "%-10s | %-20s | %-55s | %-45s | %-60s\\n" "| Hits |" "| IP Address |" "| AlienVault |" "| Ban Reason |" "| Associated Domains |"
+				printf "%-10s | %-20s | %-55s | %-45s | %-60s\\n\\n" "--------" "--------------" "--------------" "--------------" "----------------------"
 			;;
 			3)
 				printf "\\n\\n%-10s | %-10s | %-60s\\n" "--------" "--------" "--------------"
@@ -3014,7 +3014,6 @@ case "$1" in
 			curl -fsL --retry 3 "$domain" -O &
 		done < /jffs/shared-Skynet-whitelist
 		Spinner_End; wait; Spinner_Start
-		cd "$cwd" || exit 1
 		dos2unix /tmp/skynet/lists/* 2>/dev/null
 		if ! grep -qE '^([0-9]{1,3}\.){3}[0-9]{1,3}(/[0-9]{1,2})?$' /tmp/skynet/lists/* 2>/dev/null; then
 			result="$(Red "[$(($(date +%s) - btime))s]")"
@@ -3024,16 +3023,21 @@ case "$1" in
 			result="1"
 		fi
 		if [ "$result" != "1" ]; then
-			cat /tmp/skynet/lists/* | grep -E '^([0-9]{1,3}\.){3}[0-9]{1,3}(/[0-9]{1,2})?$' | awk '!x[$0]++' | Filter_PrivateIP > /tmp/skynet/malwarelist.txt
+			cd /tmp/skynet/lists || exit 1
+		for listname in * ; do
+		   sed -i "s/$/ $listname/" "$listname"
+		 done
+			cd "$cwd" || exit 1
+			cat /tmp/skynet/lists/* | grep -E '^([0-9]{1,3}\.){3}[0-9]{1,3}(/[0-9]{1,2})? .*' | awk '!x[$0]++' | Filter_PrivateIP > /tmp/skynet/malwarelist.txt
 			Display_Result
 			btime="$(date +%s)"
 			printf "%-35s | " "[i] Filtering IPv4 Addresses"
 			sed -i '\~comment \"BanMalware\"~d' "$skynetipset"
-			grep -vF "/" /tmp/skynet/malwarelist.txt | awk '{printf "add Skynet-Blacklist %s comment \"BanMalware\"\n", $1 }' >> "$skynetipset"
+			grep -vF "/" /tmp/skynet/malwarelist.txt | awk '{printf "add Skynet-Blacklist %s comment \"BanMalware: %s\"\n", $1, $2 }' >> "$skynetipset"
 			Display_Result
 			btime="$(date +%s)"
 			printf "%-35s | " "[i] Filtering IPv4 Ranges"
-			grep -F "/" /tmp/skynet/malwarelist.txt | awk '{printf "add Skynet-BlockedRanges %s comment \"BanMalware\"\n", $1 }' >> "$skynetipset"
+			grep -F "/" /tmp/skynet/malwarelist.txt | awk '{printf "add Skynet-BlockedRanges %s comment \"BanMalware: %s\"\n", $1, $2 }' >> "$skynetipset"
 			Display_Result
 			btime="$(date +%s)"
 			printf "%-35s | " "[i] Applying New Blacklist"
