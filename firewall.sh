@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 15/03/2019 -		   Asus Firewall Addition By Adamm v6.8.0				    #
+## - 15/03/2019 -		   Asus Firewall Addition By Adamm v6.8.1				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -569,10 +569,14 @@ Domain_Lookup () {
 Extended_DNSStats () {
 		case "$1" in
 			1)
-			if [ "$lookupcountry" = "enabled" ]; then
-				country="($(curl -fsL --retry 3 "https://ipapi.co/$statdata/country/"))"
-			fi
-				printf "%-15s %-4s | %-55s | %-45s | %-60s \\n" "$statdata" "$country" "https://otx.alienvault.com/indicator/ip/${statdata}" "$(grep -F " ${statdata} " "$skynetipset" | awk -F "\"" '{print $2}')" "$(grep -F "$statdata" /tmp/skynet/skynetstats.txt | awk '{print $1}' | xargs)"
+				if [ "$lookupcountry" = "enabled" ]; then
+					country="($(curl -fsL --retry 3 "https://ipapi.co/$statdata/country/"))"
+				fi
+				banreason="$(grep -F " ${statdata} " "$skynetipset" | awk -F "\"" '{print $2}')"
+				if [ -z "$banreason" ]; then
+					banreason="$(grep -m1 -E "$(echo "$statdata" | cut -d '.' -f1-3)..*/" "$skynetipset" | awk -F "\"" '{print $2}')*"
+				fi
+				printf "%-15s %-4s | %-55s | %-45s | %-60s \\n" "$statdata" "$country" "https://otx.alienvault.com/indicator/ip/${statdata}" "$banreason" "$(grep -F "$statdata" /tmp/skynet/skynetstats.txt | awk '{print $1}' | xargs)"
 			;;
 			2)
 				hits="$(echo "$statdata" | awk '{print $1}')"
@@ -580,7 +584,11 @@ Extended_DNSStats () {
 				if [ "$lookupcountry" = "enabled" ]; then
 					country="($(curl -fsL --retry 3 "https://ipapi.co/$ipaddr/country/"))"
 				fi
-				printf "%-10s | %-15s %-4s | %-55s | %-45s | %-60s\\n" "${hits}x" "${ipaddr}" "${country}" "https://otx.alienvault.com/indicator/ip/${ipaddr}" "$(grep -F " ${ipaddr} " "$skynetipset" | awk -F "\"" '{print $2}')" "$(grep -F "$ipaddr" /tmp/skynet/skynetstats.txt | awk '{print $1}' | xargs)"
+				banreason="$(grep -F " ${ipaddr} " "$skynetipset" | awk -F "\"" '{print $2}')"
+				if [ -z "$banreason" ]; then
+					banreason="$(grep -m1 -E "$(echo "$ipaddr" | cut -d '.' -f1-3)..*/" "$skynetipset" | awk -F "\"" '{print $2}')*"
+				fi
+				printf "%-10s | %-15s %-4s | %-55s | %-45s | %-60s\\n" "${hits}x" "${ipaddr}" "${country}" "https://otx.alienvault.com/indicator/ip/${ipaddr}" "$banreason" "$(grep -F "$ipaddr" /tmp/skynet/skynetstats.txt | awk '{print $1}' | xargs)"
 			;;
 			*)
 				echo "[*] Error - No Stats Specified To Load"
