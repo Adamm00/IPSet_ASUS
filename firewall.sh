@@ -3024,9 +3024,9 @@ case "$1" in
 		fi
 		if [ "$result" != "1" ]; then
 			cd /tmp/skynet/lists || exit 1
-		for listname in * ; do
-		   sed -i "s/$/ $listname/" "$listname"
-		 done
+			for listname in * ; do
+			   sed -i "s/$/ $listname/" "$listname"
+			done
 			cd "$cwd" || exit 1
 			cat /tmp/skynet/lists/* | grep -E '^([0-9]{1,3}\.){3}[0-9]{1,3}(/[0-9]{1,2})? .*' | awk '!x[$0]++' | Filter_PrivateIP > /tmp/skynet/malwarelist.txt
 			Display_Result
