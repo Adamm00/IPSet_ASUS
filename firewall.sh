@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 15/03/2019 -		   Asus Firewall Addition By Adamm v6.8.1				    #
+## - 17/03/2019 -		   Asus Firewall Addition By Adamm v6.8.2				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -576,6 +576,7 @@ Extended_DNSStats () {
 				if [ -z "$banreason" ]; then
 					banreason="$(grep -m1 -E "$(echo "$statdata" | cut -d '.' -f1-3)..*/" "$skynetipset" | awk -F "\"" '{print $2}')*"
 				fi
+				if [ "${#banreason}" -gt "45" ]; then banreason="$(echo "$banreason" | cut -c 1-45)"; fi
 				printf "%-15s %-4s | %-55s | %-45s | %-60s \\n" "$statdata" "$country" "https://otx.alienvault.com/indicator/ip/${statdata}" "$banreason" "$(grep -F "$statdata" /tmp/skynet/skynetstats.txt | awk '{print $1}' | xargs)"
 			;;
 			2)
@@ -588,6 +589,7 @@ Extended_DNSStats () {
 				if [ -z "$banreason" ]; then
 					banreason="$(grep -m1 -E "$(echo "$ipaddr" | cut -d '.' -f1-3)..*/" "$skynetipset" | awk -F "\"" '{print $2}')*"
 				fi
+				if [ "${#banreason}" -gt "45" ]; then banreason="$(echo "$banreason" | cut -c 1-45)"; fi
 				printf "%-10s | %-15s %-4s | %-55s | %-45s | %-60s\\n" "${hits}x" "${ipaddr}" "${country}" "https://otx.alienvault.com/indicator/ip/${ipaddr}" "$banreason" "$(grep -F "$ipaddr" /tmp/skynet/skynetstats.txt | awk '{print $1}' | xargs)"
 			;;
 			*)
