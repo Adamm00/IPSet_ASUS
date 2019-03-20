@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 17/03/2019 -		   Asus Firewall Addition By Adamm v6.8.2				    #
+## - 21/03/2019 -		   Asus Firewall Addition By Adamm v6.8.3				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -3787,11 +3787,15 @@ case "$1" in
 					;;
 					list)
 						Display_Header "6"
-						ip neigh | while IFS= read -r "ip"; do
-							ipaddr="$(echo "$ip" | awk '{print $1}' | Filter_IP)"
+						ip neigh | grep -E '^([0-9]{1,3}\.){3}[0-9]{1,3} ' | while IFS= read -r "ip"; do
+							ipaddr="$(echo "$ip" | awk '{print $1}')"
 							macaddr="$(echo "$ip" | awk '{print $5}')"
 							localname="$(grep -F " $ipaddr " /var/lib/misc/dnsmasq.leases | awk '{print $4}')"
-							[ -z "$localname" ] && localname="Unknown"
+							if [ -z "$localname" ]; then
+								 localname="Unknown"
+							elif [ "${#localname}" -gt "40" ]; then
+								localname="$(echo "$localname" | cut -c 1-40)"
+							fi
 							state="$(echo "$ip" | awk '{print $6}')"
 							if ! echo "$macaddr" | Is_MAC; then
 								macaddr="Unknown"
@@ -4062,11 +4066,15 @@ case "$1" in
 				passedtests="0"
 				totaltests="18"
 				Display_Header "6"
-				ip neigh | while IFS= read -r "ip"; do
-					ipaddr="$(echo "$ip" | awk '{print $1}' | Filter_IP)"
+				ip neigh | grep -E '^([0-9]{1,3}\.){3}[0-9]{1,3} ' | while IFS= read -r "ip"; do
+					ipaddr="$(echo "$ip" | awk '{print $1}')"
 					macaddr="$(echo "$ip" | awk '{print $5}')"
 					localname="$(grep -F " $ipaddr " /var/lib/misc/dnsmasq.leases | awk '{print $4}')"
-					[ -z "$localname" ] && localname="Unknown"
+					if [ -z "$localname" ]; then
+						 localname="Unknown"
+					elif [ "${#localname}" -gt "40" ]; then
+						localname="$(echo "$localname" | cut -c 1-40)"
+					fi
 					state="$(echo "$ip" | awk '{print $6}')"
 					if ! echo "$macaddr" | Is_MAC; then
 						macaddr="Unknown"
