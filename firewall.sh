@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 21/03/2019 -		   Asus Firewall Addition By Adamm v6.8.3				    #
+## - 23/03/2019 -		   Asus Firewall Addition By Adamm v6.8.4				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -3042,7 +3042,7 @@ case "$1" in
 			Display_Result
 			btime="$(date +%s)"
 			printf "%-35s | " "[i] Filtering IPv4 Addresses"
-			sed -i '\~comment \"BanMalware\"~d' "$skynetipset"
+			sed -i '\~comment \"BanMalware: ~d' "$skynetipset"
 			grep -vF "/" /tmp/skynet/malwarelist.txt | awk '{printf "add Skynet-Blacklist %s comment \"BanMalware: %s\"\n", $1, $2 }' >> "$skynetipset"
 			Display_Result
 			btime="$(date +%s)"
