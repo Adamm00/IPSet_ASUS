@@ -1047,7 +1047,7 @@ Load_Menu () {
 	echo "Skynet Version; $localver ($(Filter_Date < "$0")) ($(md5sum "$0" | awk '{print $1}'))"
 	echo "$(iptables --version) - ($iface @ $(nvram get lan_ipaddr))"
 	ipset -v
-	echo "IP Address; ($(nvram get wan0_ipaddr)) $(if [ "$(nvram get ipv6_service)" != "disabled" ]; then echo "- ($(nvram get ipv6_prefix)/$(nvram get ipv6_prefix_length))"; fi)"
+	echo "IP Address; ($(nvram get wan0_ipaddr))$(if [ "$(nvram get ipv6_service)" != "disabled" ]; then echo " - ($(nvram get ipv6_prefix)/$(nvram get ipv6_prefix_length))"; fi)"
 	echo "FW Version; $(nvram get buildno)_$(nvram get extendno) ($(uname -v | awk '{printf "%s %s %s\n", $5, $6, $9}')) ($(uname -r))"
 	echo "Install Dir; $skynetloc ($(df -h "$skynetloc" | xargs | awk '{printf "%s / %s\n", $11, $9}') Space Available)"
 	if [ -n "$swaplocation" ]; then
@@ -4038,7 +4038,7 @@ case "$1" in
 				echo "Skynet Version; $localver ($(Filter_Date < "$0")) ($(md5sum "$0" | awk '{print $1}'))"
 				echo "$(iptables --version) - ($iface @ $(nvram get lan_ipaddr))"
 				ipset -v
-				echo "IP Address; ($(nvram get wan0_ipaddr)) $(if [ "$(nvram get ipv6_service)" != "disabled" ]; then echo "- ($(nvram get ipv6_prefix)/$(nvram get ipv6_prefix_length))"; fi)"
+				echo "IP Address; ($(nvram get wan0_ipaddr))$(if [ "$(nvram get ipv6_service)" != "disabled" ]; then echo " - ($(nvram get ipv6_prefix)/$(nvram get ipv6_prefix_length))"; fi)"
 				echo "FW Version; $(nvram get buildno)_$(nvram get extendno) ($(uname -v | awk '{printf "%s %s %s\n", $5, $6, $9}')) ($(uname -r))"
 				echo "Install Dir; $skynetloc ($(df -h "$skynetloc" | xargs | awk '{printf "%s / %s\n", $11, $9}') Space Available)"
 				if [ -n "$swaplocation" ]; then
