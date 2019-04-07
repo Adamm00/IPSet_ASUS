@@ -1,0 +1,4 @@
+---
+engines:
+  shellcheck:
+    enabled: true
