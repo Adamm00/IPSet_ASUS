@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 27/03/2019 -		   Asus Firewall Addition By Adamm v6.8.4				    #
+## - 17/05/2019 -		   Asus Firewall Addition By Adamm v6.8.5				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -24,6 +24,7 @@ mkdir -p /tmp/skynet/lists
 ntptimer=0
 while [ "$(nvram get ntp_ready)" = "0" ] && [ "$ntptimer" -lt "300" ]; do
 	ntptimer=$((ntptimer+1))
+	if [ "$ntptimer" = "60" ]; then echo; logger -st Skynet "[*] Waiting For NTP To Sync"; fi
 	sleep 1
 done
 if [ "$ntptimer" -ge "300" ]; then logger -st Skynet "[*] NTP Failed To Start After 5 Minutes - Please Fix Immediately!"; echo; exit 1; fi
