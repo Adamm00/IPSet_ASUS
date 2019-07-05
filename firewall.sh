@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 24/05/2019 -		   Asus Firewall Addition By Adamm v6.8.5				    #
+## - 05/07/2019 -		   Asus Firewall Addition By Adamm v6.8.5				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -1057,7 +1057,6 @@ Load_Menu () {
 		partitionsize="$((($(sed -n '2p' /proc/swaps | awk '{print $3}') + (1024 + 1)) / 1024))"
 		echo "SWAP Partition; $swappartition (${partitionsize}M)"
 	fi
-	echo "Boot Args; $(grep -E "start.* # Skynet" /jffs/scripts/firewall-start 2>/dev/null | grep -vE "^#" | cut -c 4- | cut -d '#' -f1)"
 	if [ -n "$countrylist" ]; then echo "Banned Countries; $countrylist"; fi
 	if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(sed -n '2p' /tmp/skynet.lock)" ]; then
 		echo
@@ -4051,7 +4050,6 @@ case "$1" in
 				if [ "$syslogloc" != "/tmp/syslog.log" ] || [ "$syslog1loc" != "/tmp/syslog.log-1" ]; then
 					echo "Syslog Location; ($syslogloc) ($syslog1loc)"
 				fi
-				echo "Boot Args; $(grep -E "start.* # Skynet" /jffs/scripts/firewall-start | grep -vE "^#" | cut -c 4- | cut -d '#' -f1)"
 				if [ -n "$countrylist" ]; then echo "Banned Countries; $countrylist"; fi
 				echo "Uptime; $(uptime | awk -F'( |,|:)+' '{if ($7=="min") m=$6; else {if ($7~/^day/) {d=$6;h=$8;m=$9} else {h=$6;m=$7}}} {print d+0,"days,",h+0,"hours,",m+0,"minutes."}')"
 				if grep -qF "MemAvailable" /proc/meminfo; then
