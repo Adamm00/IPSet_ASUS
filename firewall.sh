@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 05/07/2019 -		   Asus Firewall Addition By Adamm v6.8.5				    #
+## - 11/08/2019 -		   Asus Firewall Addition By Adamm v6.8.6				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -121,6 +121,7 @@ Check_Settings () {
 		if [ -z "$iotblocked" ]; then iotblocked="disabled"; fi
 		if [ -z "$iotproto" ]; then iotproto="udp"; fi
 		if [ -z "$lookupcountry" ]; then lookupcountry="enabled"; fi
+		if [ -z "$cdnwhitelist" ]; then cdnwhitelist="enabled"; fi
 
 		conflicting_scripts="(IPSet_Block.sh|malware-filter|privacy-filter|ipBLOCKer.sh|ya-malware-block.sh|iblocklist-loader.sh|firewall-reinstate.sh)$"
 		if find /jffs /tmp/mnt | grep -qE "$conflicting_scripts"; then
@@ -802,15 +803,17 @@ Whitelist_Extra () {
 
 Whitelist_CDN () {
 		sed '\~add Skynet-Whitelist ~!d;\~CDN-Whitelist~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
-		{
-		# Apple AS714 | Akamai AS12222 AS16625 | HighWinds AS33438 | Fastly AS54113
-		for asn in AS714 AS12222 AS16625 AS33438 AS54113; do
-			curl -fsL --retry 3 "https://ipinfo.io/$asn" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}' | awk -v asn="$asn" '{printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: %s \"\n", $1, asn }' &
-		done
-		wait
-		curl -fsL --retry 3 https://www.cloudflare.com/ips-v4 | grep -E '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}' | awk '{printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: CloudFlare \"\n", $1 }'
-		curl -fsL --retry 3 https://ip-ranges.amazonaws.com/ip-ranges.json | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}' | awk '{printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: Amazon \"\n", $1 }';
-		} | awk '!x[$0]++' | ipset restore -!
+		if [ "$cdnwhitelist" = "enabled" ]; then
+			{
+			# Apple AS714 | Akamai AS12222 AS16625 | HighWinds AS33438 | Fastly AS54113
+			for asn in AS714 AS12222 AS16625 AS33438 AS54113; do
+				curl -fsL --retry 3 "https://ipinfo.io/$asn" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}' | awk -v asn="$asn" '{printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: %s \"\n", $1, asn }' &
+			done
+			wait
+			curl -fsL --retry 3 https://www.cloudflare.com/ips-v4 | grep -E '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}' | awk '{printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: CloudFlare \"\n", $1 }'
+			curl -fsL --retry 3 https://ip-ranges.amazonaws.com/ip-ranges.json | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}' | awk '{printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: Amazon \"\n", $1 }';
+			} | awk '!x[$0]++' | ipset restore -!
+		fi
 }
 
 Whitelist_VPN () {
@@ -1034,6 +1037,7 @@ Write_Config () {
 		printf "%s=\"%s\"\\n" "iotports" "$iotports"
 		printf "%s=\"%s\"\\n" "iotproto" "$iotproto"
 		printf "%s=\"%s\"\\n" "lookupcountry" "$lookupcountry"
+		printf "%s=\"%s\"\\n" "cdnwhitelist" "$cdnwhitelist"
 		printf "\\n%s\\n" "################################################"; } > "$skynetcfg"
 }
 
@@ -1651,8 +1655,9 @@ Load_Menu () {
 					printf "%-30s | %-40s\\n" "[10] --> Syslog Location" "$(if [ "$syslogloc" = "/tmp/syslog.log" ] && [ "$syslog1loc" = "/tmp/syslog.log-1" ]; then Grn "[Default]"; else Ylow "[Custom]"; fi)"
 					printf "%-30s | %-40s\\n" "[11] --> IOT Blocking" "$(if [ "$iotblocked" != "enabled" ]; then Grn "[Disabled]"; else Ylow "[Enabled]"; fi)"
 					printf "%-30s | %-40s\\n" "[12] --> Stats Country Lookup" "$(if [ "$lookupcountry" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
+					printf "%-30s | %-40s\\n" "[13] --> CDN Whitelisting" "$(if [ "$cdnwhitelist" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
 					echo
-					printf "[1-12]: "
+					printf "[1-13]: "
 					read -r "menu2"
 					echo
 					case "$menu2" in
@@ -2214,6 +2219,40 @@ Load_Menu () {
 							option2="lookupcountry"
 							while true; do
 								echo "Select Country Lookup For Stats Option:"
+								echo "[1]  --> Enable"
+								echo "[2]  --> Disable"
+								echo
+								printf "[1-2]: "
+								read -r "menu3"
+								echo
+								case "$menu3" in
+									1)
+										option3="enable"
+										break
+									;;
+									2)
+										option3="disable"
+										break
+									;;
+									e|exit|back|menu)
+										unset "option1" "option2" "option3" "option4" "option5"
+										clear
+										Load_Menu
+										break
+									;;
+									*)
+										echo "[*] $menu3 Isn't An Option!"
+										echo
+									;;
+								esac
+							done
+							break
+						;;
+						13)
+							if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
+							option2="cdnwhitelist"
+							while true; do
+								echo "Select CDN Whitelisting Option:"
 								echo "[1]  --> Enable"
 								echo "[2]  --> Disable"
 								echo
@@ -3917,6 +3956,32 @@ case "$1" in
 					;;
 				esac
 			;;
+			cdnwhitelist)
+				case "$3" in
+					enable)
+						Check_Lock "$@"
+						if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
+						Purge_Logs
+						cdnwhitelist="enabled"
+						Whitelist_CDN
+						echo "[i] CDN Whitelisting Enabled"
+					;;
+					disable)
+						Check_Lock "$@"
+						if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
+						Purge_Logs
+						cdnwhitelist="disabled"
+						Whitelist_CDN
+						echo "[i] CDN Whitelisting Disabled"
+					;;
+					*)
+						echo "Command Not Recognized, Please Try Again"
+						echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
+						echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
+						echo; exit 2
+					;;
+				esac
+			;;
 			*)
 				echo "Command Not Recognized, Please Try Again"
 				echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
@@ -4171,6 +4236,7 @@ case "$1" in
 				printf "%-35s | %-8s\\n" "Syslog Location" "$(if [ "$syslogloc" = "/tmp/syslog.log" ] && [ "$syslog1loc" = "/tmp/syslog.log-1" ]; then Grn "[Default]"; else Ylow "[Custom]"; fi)"
 				printf "%-35s | %-8s\\n" "IOT Blocking" "$(if [ "$iotblocked" != "enabled" ]; then Grn "[Disabled]"; else Ylow "[Enabled]"; fi)"
 				printf "%-35s | %-8s\\n" "Country Lookup For Stats" "$(if [ "$lookupcountry" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
+				printf "%-35s | %-8s\\n" "CDN Whitelisting" "$(if [ "$cdnwhitelist" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
 				printf "\\n%-35s\\n" "${passedtests}/${totaltests} Tests Sucessful"
 				if [ "$3" = "extended" ]; then echo; echo; cat "$skynetcfg"; fi
 				nocfg="1"
@@ -4953,6 +5019,7 @@ case "$1" in
 		if [ -z "$syslog1loc" ]; then syslog1loc="/tmp/syslog.log-1"; fi
 		if [ -z "$iotblocked" ]; then iotblocked="disabled"; fi
 		if [ -z "$iotproto" ]; then iotproto="udp"; fi
+		if [ -z "$cdnwhitelist" ]; then cdnwhitelist="enabled"; fi
 		Write_Config
 		cmdline="sh /jffs/scripts/firewall start skynetloc=${device}/skynet # Skynet Firewall Addition"
 		if grep -qE "^sh /jffs/scripts/firewall .* # Skynet" /jffs/scripts/firewall-start; then
