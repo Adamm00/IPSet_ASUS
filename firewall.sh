@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 11/08/2019 -		   Asus Firewall Addition By Adamm v6.8.6				    #
+## - 13/09/2019 -		   Asus Firewall Addition By Adamm v6.8.6				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -805,8 +805,8 @@ Whitelist_CDN () {
 		sed '\~add Skynet-Whitelist ~!d;\~CDN-Whitelist~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
 		if [ "$cdnwhitelist" = "enabled" ]; then
 			{
-			# Apple AS714 | Akamai AS12222 AS16625 | HighWinds AS33438 | Fastly AS54113
-			for asn in AS714 AS12222 AS16625 AS33438 AS54113; do
+			# Apple AS714 | Akamai AS12222 AS16625 | HighWinds AS33438 AS20446 | Fastly AS54113
+			for asn in AS714 AS12222 AS16625 AS33438 AS20446 AS54113; do
 				curl -fsL --retry 3 "https://ipinfo.io/$asn" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}' | awk -v asn="$asn" '{printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: %s \"\n", $1, asn }' &
 			done
 			wait
