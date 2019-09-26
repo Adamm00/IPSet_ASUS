@@ -22,7 +22,7 @@ To open the menu its as simple as;
 sh /jffs/scripts/firewall
 ```
 
-[![Skynet GUI](https://i.imgur.com/dO8VB2D.png "Skynet GUI")](https://i.imgur.com/dO8VB2D.png "Skynet GUI")
+[![Skynet GUI](https://i.imgur.com/FxGfRS8.png "Skynet GUI")](https://i.imgur.com/FxGfRS8.png "Skynet GUI")
 
 ## Installation
 
