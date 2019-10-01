@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 13/09/2019 -		   Asus Firewall Addition By Adamm v6.8.6				    #
+## - 01/10/2019 -		   Asus Firewall Addition By Adamm v6.8.7				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -122,6 +122,7 @@ Check_Settings () {
 		if [ -z "$iotproto" ]; then iotproto="udp"; fi
 		if [ -z "$lookupcountry" ]; then lookupcountry="enabled"; fi
 		if [ -z "$cdnwhitelist" ]; then cdnwhitelist="enabled"; fi
+		if [ -z "$logmode" ]; then logmode="${debugmode:?}"; fi
 
 		conflicting_scripts="(IPSet_Block.sh|malware-filter|privacy-filter|ipBLOCKer.sh|ya-malware-block.sh|iblocklist-loader.sh|firewall-reinstate.sh)$"
 		if find /jffs /tmp/mnt | grep -qE "$conflicting_scripts"; then
@@ -358,7 +359,7 @@ Load_IPTables () {
 		fi
 }
 
-Unload_DebugIPTables () {
+Unload_LogIPTables () {
 		iptables -t raw -D PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 		iptables -t raw -D PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 		iptables -t raw -D OUTPUT -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
@@ -366,8 +367,8 @@ Unload_DebugIPTables () {
 		iptables -D FORWARD -i br0 -m set --match-set Skynet-IOT src ! -o tun2+ -j LOG --log-prefix "[BLOCKED - IOT] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 }
 
-Load_DebugIPTables () {
-		if [ "$debugmode" = "enabled" ]; then
+Load_LogIPTables () {
+		if [ "$logmode" = "enabled" ]; then
 			if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "inbound" ]; then
 				pos2="$(iptables --line -nL PREROUTING -t raw | grep -F "Skynet-Master src" | grep -F "DROP" | awk '{print $1}')"
 				iptables -t raw -I PREROUTING "$pos2" -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
@@ -460,7 +461,7 @@ Check_IPTables () {
 				iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p tcp -m tcp --dport 123 -j ACCEPT 2>/dev/null || { fail="15"; return 1; }
 			fi
 		fi
-		if [ "$debugmode" = "enabled" ]; then
+		if [ "$logmode" = "enabled" ]; then
 			if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "inbound" ]; then
 				iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || { fail="16"; return 1; }
 			fi
@@ -720,7 +721,7 @@ Save_IPSets () {
 }
 
 Unban_PrivateIP () {
-		if [ "$unbanprivateip" = "enabled" ] && [ "$debugmode" = "enabled" ]; then
+		if [ "$unbanprivateip" = "enabled" ] && [ "$logmode" = "enabled" ]; then
 			grep -F "INBOUND" "$syslogloc" | Filter_PrivateSRC | grep -oE 'SRC=[0-9,\.]*' | cut -c 5- | awk '!x[$0]++' | while IFS= read -r "ip"; do
 				ipset -q -A Skynet-Whitelist "$ip" comment "PrivateIP"
 				ipset -q -D Skynet-Blacklist "$ip"
@@ -1013,7 +1014,7 @@ Write_Config () {
 		printf "%s=\"%s\"\\n" "autoupdate" "$autoupdate"
 		printf "%s=\"%s\"\\n" "banmalwareupdate" "$banmalwareupdate"
 		printf "%s=\"%s\"\\n" "forcebanmalwareupdate" "$forcebanmalwareupdate"
-		printf "%s=\"%s\"\\n" "debugmode" "$debugmode"
+		printf "%s=\"%s\"\\n" "logmode" "$logmode"
 		printf "%s=\"%s\"\\n" "filtertraffic" "$filtertraffic"
 		printf "%s=\"%s\"\\n" "swaplocation" "$swaplocation"
 		printf "%s=\"%s\"\\n" "swappartition" "$swappartition"
@@ -1645,7 +1646,7 @@ Load_Menu () {
 					echo "Select Setting To Toggle:"
 					printf "%-30s | %-40s\\n" "[1]  --> Autoupdate" "$(if [ "$autoupdate" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
 					printf "%-30s | %-40s\\n" "[2]  --> Banmalware" "$(if [ "$banmalwareupdate" = "daily" ] || [ "$banmalwareupdate" = "weekly" ]; then Grn "[$banmalwareupdate]"; else Red "[Disabled]"; fi)"
-					printf "%-30s | %-40s\\n" "[3]  --> Debug Mode" "$(if [ "$debugmode" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
+					printf "%-30s | %-40s\\n" "[3]  --> Logging" "$(if [ "$logmode" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
 					printf "%-30s | %-40s\\n" "[4]  --> Filter Traffic" "$(Grn "[$filtertraffic]")"
 					printf "%-30s | %-40s\\n" "[5]  --> Unban PrivateIP" "$(if [ "$unbanprivateip" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
 					printf "%-30s | %-40s\\n" "[6]  --> Log Invalid Packets" "$(if [ "$loginvalid" = "enabled" ]; then Grn "[Enabled]";else Ylow "[Disabled]"; fi)"
@@ -1736,9 +1737,9 @@ Load_Menu () {
 						;;
 						3)
 							if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
-							option2="debugmode"
+							option2="logmode"
 							while true; do
-								echo "Select Debug Mode Option:"
+								echo "Select Logging Option:"
 								echo "[1]  --> Enable"
 								echo "[2]  --> Disable"
 								echo
@@ -2304,7 +2305,7 @@ Load_Menu () {
 				option1="debug"
 				while true; do
 					echo "Select Debug Option:"
-					echo "[1]  --> Show Debug Entries As They Appear"
+					echo "[1]  --> Show Log Entries As They Appear"
 					echo "[2]  --> Print Debug Info"
 					echo "[3]  --> Cleanup Syslog Entries"
 					echo "[4]  --> SWAP File Management"
@@ -3411,10 +3412,10 @@ case "$1" in
 		done
 		Unload_IPTables
 		Unload_IOTTables
-		Unload_DebugIPTables
+		Unload_LogIPTables
 		Load_IPTables
 		Load_IOTTables
-		Load_DebugIPTables
+		Load_LogIPTables
 		sed -i '\~DROP IN=~d' "$syslog1loc" "$syslogloc" 2>/dev/null
 		if [ "$forcebanmalwareupdate" = "true" ]; then Write_Config; rm -rf "/tmp/skynet.lock"; exec "$0" banmalware; fi
 	;;
@@ -3428,7 +3429,7 @@ case "$1" in
 		Unload_Cron "all"
 		Unload_IPTables
 		Unload_IOTTables
-		Unload_DebugIPTables
+		Unload_LogIPTables
 		Unload_IPSets
 		iptables -t raw -F
 		logger -t Skynet "[%] Restarting Firewall Service"; echo "[%] Restarting Firewall Service"
@@ -3444,7 +3445,7 @@ case "$1" in
 		Unload_Cron "all"
 		Unload_IPTables
 		Unload_IOTTables
-		Unload_DebugIPTables
+		Unload_LogIPTables
 		Unload_IPSets
 		logger -t Skynet "[%] Skynet Disabled"; echo "[%] Skynet Disabled"
 		Purge_Logs "all"
@@ -3476,7 +3477,7 @@ case "$1" in
 			Unload_Cron "all"
 			Unload_IPTables
 			Unload_IOTTables
-			Unload_DebugIPTables
+			Unload_LogIPTables
 			Unload_IPSets
 			iptables -t raw -F
 			curl -fsL --retry 3 "$remoteurl" -o "$0" || { logger -st Skynet "[*] Update Failed - Exiting"; echo; exit 1; }
@@ -3554,24 +3555,24 @@ case "$1" in
 					;;
 				esac
 			;;
-			debugmode)
+			logmode)
 				case "$3" in
 					enable)
 						Check_Lock "$@"
 						if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 						Purge_Logs
-						debugmode="enabled"
-						Unload_DebugIPTables
-						Load_DebugIPTables
-						echo "[i] Debug Mode Enabled"
+						logmode="enabled"
+						Unload_LogIPTables
+						Load_LogIPTables
+						echo "[i] Logging Enabled"
 					;;
 					disable)
 						Check_Lock "$@"
 						if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 						Purge_Logs
-						debugmode="disabled"
-						Unload_DebugIPTables
-						echo "[i] Debug Mode Disabled"
+						logmode="disabled"
+						Unload_LogIPTables
+						echo "[i] Logging Disabled"
 					;;
 					*)
 						echo "Command Not Recognized, Please Try Again"
@@ -3590,10 +3591,10 @@ case "$1" in
 						filtertraffic="all"
 						Unload_IPTables
 						Unload_IOTTables
-						Unload_DebugIPTables
+						Unload_LogIPTables
 						Load_IPTables
 						Load_IOTTables
-						Load_DebugIPTables
+						Load_LogIPTables
 						echo "[i] Inbound & Outbound Filtering Enabled"
 
 					;;
@@ -3604,10 +3605,10 @@ case "$1" in
 						filtertraffic="inbound"
 						Unload_IPTables
 						Unload_IOTTables
-						Unload_DebugIPTables
+						Unload_LogIPTables
 						Load_IPTables
 						Load_IOTTables
-						Load_DebugIPTables
+						Load_LogIPTables
 						echo "[i] Inbound Filtering Enabled"
 					;;
 					outbound)
@@ -3617,10 +3618,10 @@ case "$1" in
 						filtertraffic="outbound"
 						Unload_IPTables
 						Unload_IOTTables
-						Unload_DebugIPTables
+						Unload_LogIPTables
 						Load_IPTables
 						Load_IOTTables
-						Load_DebugIPTables
+						Load_LogIPTables
 						echo "[i] Outbound Filtering Enabled"
 					;;
 					*)
@@ -3663,8 +3664,8 @@ case "$1" in
 						if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 						Purge_Logs
 						loginvalid="enabled"
-						Unload_DebugIPTables
-						Load_DebugIPTables
+						Unload_LogIPTables
+						Load_LogIPTables
 						echo "[i] Invalid IP Logging Enabled"
 					;;
 					disable)
@@ -3672,8 +3673,8 @@ case "$1" in
 						if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 						Purge_Logs
 						loginvalid="disabled"
-						Unload_DebugIPTables
-						Load_DebugIPTables
+						Unload_LogIPTables
+						Load_LogIPTables
 						echo "[i] Invalid IP Logging Disabled"
 					;;
 					*)
@@ -3868,14 +3869,14 @@ case "$1" in
 							fi
 						fi
 						Unload_IOTTables
-						Unload_DebugIPTables
+						Unload_LogIPTables
 						if [ "$4" != "reset" ]; then
 							iotports="$4"
 						else
 							iotports=""
 						fi
 						Load_IOTTables
-						Load_DebugIPTables
+						Load_LogIPTables
 					;;
 					proto)
 					if [ -z "$4" ]; then echo "[*] Proto Not Specified - Exiting"; echo; exit 1; fi
@@ -3996,9 +3997,9 @@ case "$1" in
 			watch)
 				Spinner_Start
 				if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
-				if [ "$debugmode" = "disabled" ]; then echo "[*] Debug Mode Is Disabled - Exiting!"; echo; exit 2; fi
+				if [ "$logmode" = "disabled" ]; then echo "[*] Logging Is Disabled - Exiting!"; echo; exit 2; fi
 				trap 'echo;echo; echo "[*] Stopping Log Monitoring"; Purge_Logs; Spinner_End' 2
-				echo "[i] Watching Logs For Debug Entries (ctrl +c) To Stop"
+				echo "[i] Watching Syslog For Log Entries (ctrl +c) To Stop"
 				echo
 				Purge_Logs
 				case "$3" in
@@ -4184,16 +4185,16 @@ case "$1" in
 				printf "%-35s | " "Inbound Filter Rules"
 				if iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j DROP 2>/dev/null; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); elif [ "$filtertraffic" = "outbound" ]; then result="$(Ylow "[Disabled]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
 				printf "%-8s\\n" "$result"
-				printf "%-35s | " "Inbound Debug Rules"
-				if iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); elif [ "$debugmode" = "disabled" ] || [ "$filtertraffic" = "outbound" ]; then result="$(Ylow "[Disabled]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
+				printf "%-35s | " "Inbound Logging Rules"
+				if iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); elif [ "$logmode" = "disabled" ] || [ "$filtertraffic" = "outbound" ]; then result="$(Ylow "[Disabled]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
 				printf "%-8s\\n" "$result"
 				printf "%-35s | " "Outbound Filter Rules"
 				if iptables -t raw -C PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null && \
 				iptables -t raw -C OUTPUT -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); elif [ "$filtertraffic" = "inbound" ]; then result="$(Ylow "[Disabled]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
 				printf "%-8s\\n" "$result"
-				printf "%-35s | " "Outbound Debug Rules"
+				printf "%-35s | " "Outbound Logging Rules"
 				if iptables -t raw -C PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null && \
-				iptables -t raw -C OUTPUT -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); elif [ "$debugmode" = "disabled" ] || [ "$filtertraffic" = "inbound" ]; then result="$(Ylow "[Disabled]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
+				iptables -t raw -C OUTPUT -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); elif [ "$logmode" = "disabled" ] || [ "$filtertraffic" = "inbound" ]; then result="$(Ylow "[Disabled]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
 				printf "%-8s\\n" "$result"
 				printf "%-35s | " "Whitelist IPSet"
 				if ipset -L -n Skynet-Whitelist >/dev/null 2>&1; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
@@ -4226,7 +4227,7 @@ case "$1" in
 				Display_Header "8"
 				printf "%-35s | %-8s\\n" "Autoupdate" "$(if [ "$autoupdate" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
 				printf "%-35s | %-8s\\n" "Auto-Banmalware Update" "$(if [ "$banmalwareupdate" = "daily" ] || [ "$banmalwareupdate" = "weekly" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
-				printf "%-35s | %-8s\\n" "Debug Mode" "$(if [ "$debugmode" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
+				printf "%-35s | %-8s\\n" "Logging" "$(if [ "$logmode" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
 				printf "%-35s | %-8s\\n" "Filter Traffic" "$(if [ "$filtertraffic" = "all" ]; then Grn "[Enabled]"; else Ylow "[Selective]"; fi)"
 				printf "%-35s | %-8s\\n" "Unban PrivateIP" "$(if [ "$unbanprivateip" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
 				printf "%-35s | %-8s\\n" "Log Invalid" "$(if [ "$loginvalid" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
@@ -4269,7 +4270,7 @@ case "$1" in
 							Unload_Cron "all"
 							Unload_IPTables
 							Unload_IOTTables
-							Unload_DebugIPTables
+							Unload_LogIPTables
 							Unload_IPSets
 							logger -t Skynet "[%] Restarting Firewall Service"; echo "[%] Restarting Firewall Service"
 							restartfirewall="1"
@@ -4287,7 +4288,7 @@ case "$1" in
 							Unload_Cron "all"
 							Unload_IPTables
 							Unload_IOTTables
-							Unload_DebugIPTables
+							Unload_LogIPTables
 							Unload_IPSets
 							logger -t Skynet "[%] Restarting Firewall Service"; echo "[%] Restarting Firewall Service"
 							restartfirewall="1"
@@ -4325,7 +4326,7 @@ case "$1" in
 						Unload_Cron "all"
 						Unload_IPTables
 						Unload_IOTTables
-						Unload_DebugIPTables
+						Unload_LogIPTables
 						Unload_IPSets
 						echo "[i] Removing SWAP File ($swaplocation)"
 						if [ -f "$swaplocation" ]; then
@@ -4382,7 +4383,7 @@ case "$1" in
 				Purge_Logs
 				Unload_IPTables
 				Unload_IOTTables
-				Unload_DebugIPTables
+				Unload_LogIPTables
 				Unload_IPSets
 				tar -xzvf "$backuplocation" -C "$skynetloc"
 				echo
@@ -4414,17 +4415,17 @@ case "$1" in
 		Purge_Logs
 		Spinner_Start
 		nocfg="1"
-		if [ "$debugmode" = "disabled" ]; then
+		if [ "$logmode" = "disabled" ]; then
 			echo
-			Red "[*] !!! Debug Mode Is Disabled !!!"
-			Red "[*] To Enable Use ( sh $0 settings debugmode enable )"
+			Red "[*] !!! Logging Is Disabled !!!"
+			Red "[*] To Enable Use ( sh $0 settings logmode enable )"
 			echo
 		fi
 		if [ ! -s "$skynetlog" ] && [ ! -s "$skynetevents" ]; then
-			echo "[*] No Debug Data Detected - Give This Time To Generate"
+			echo "[*] No Logging Data Detected - Give This Time To Generate"
 			echo; exit 0
 		else
-			echo "[i] Debug Data Detected in $skynetlog - $(du -h "$skynetlog" | awk '{print $1}')"
+			echo "[i] Logging Data Detected in $skynetlog - $(du -h "$skynetlog" | awk '{print $1}')"
 		fi
 		echo "[i] Monitoring From $(grep -m1 -F "BLOCKED -" "$skynetlog" | awk '{printf "%s %s %s\n", $1, $2, $3}') To $(grep -F "BLOCKED -" "$skynetlog" | tail -1 | awk '{printf "%s %s %s\n", $1, $2, $3}')"
 		echo "[i] $(wc -l < "$skynetlog") Block Events Detected"
@@ -4888,8 +4889,8 @@ case "$1" in
 		echo
 		echo
 		while true; do
-			echo "Would You Like To Enable Debug Mode?"
-			echo "Debug Mode Is Used For Generating Stats And Monitoring Blocked IP's"
+			echo "Would You Like To Enable Logging?"
+			echo "Logging Is Used For Generating Stats And Monitoring Blocked IP's"
 			echo "[1]  --> Yes  - (Recommended)"
 			echo "[2]  --> No"
 			echo
@@ -4901,13 +4902,13 @@ case "$1" in
 			echo
 			case "$mode3" in
 				1)
-					echo "[i] Debug Mode Enabled"
-					debugmode="enabled"
+					echo "[i] Logging Enabled"
+					logmode="enabled"
 					break
 				;;
 				2)
-					echo "[i] Debug Mode Disabled"
-					debugmode="disabled"
+					echo "[i] Logging Disabled"
+					logmode="disabled"
 					break
 				;;
 				e|exit)
@@ -5046,7 +5047,7 @@ case "$1" in
 		Unload_Cron "all"
 		Unload_IPTables
 		Unload_IOTTables
-		Unload_DebugIPTables
+		Unload_LogIPTables
 		Unload_IPSets
 		iptables -t raw -F
 		echo "[%] Restarting Firewall Service To Complete Installation"
@@ -5110,7 +5111,7 @@ case "$1" in
 					Kill_Lock
 					Unload_IPTables
 					Unload_IOTTables
-					Unload_DebugIPTables
+					Unload_LogIPTables
 					Unload_IPSets
 					nvram set fw_log_x=none
 					echo "[i] Deleting Skynet Files"

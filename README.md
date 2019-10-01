@@ -85,7 +85,7 @@ Here Are Some Example Update Commands;
 Here Are Some Example Settings Commands;
 ( sh /jffs/scripts/firewall settings autoupdate enable|disable ) Enable/Disable Skynet Autoupdating
 ( sh /jffs/scripts/firewall settings banmalware daily|weekly|disable ) Enable/Disable Automatic Banmalware Updating
-( sh /jffs/scripts/firewall settings debugmode enable|disable ) Enable/Disable Debug Mode
+( sh /jffs/scripts/firewall settings logmode enable|disable ) Enable/Disable Logging
 ( sh /jffs/scripts/firewall settings filter all|inbound|outbound ) Select What Traffic To Filter
 ( sh /jffs/scripts/firewall settings unbanprivate enable|disable ) Enable/Disable Unban_PrivateIP Function
 ( sh /jffs/scripts/firewall settings loginvalid enable|disable ) Enable/Disable Invalid Packet Logging
@@ -115,10 +115,10 @@ Here Are Some Example Stats Commands;
 ( sh /jffs/scripts/firewall stats 20 ) Compile Stats With Customizable Top20 Output
 ( sh /jffs/scripts/firewall stats tcp ) Compile Stats Showing Only TCP Entries
 ( sh /jffs/scripts/firewall stats tcp 20 ) Compile Stats Showing Only TCP Entries With Customizable Top20 Output
-( sh /jffs/scripts/firewall stats search port 23 ) Search All Debug Data For Entries On Port 23
-( sh /jffs/scripts/firewall stats search port 23 20 ) Search All Debug Data For Entries On Port 23 With Customizable Top20 Output
-( sh /jffs/scripts/firewall stats search ip 8.8.8.8 ) Search All Debug Data For Entries On 8.8.8.8
-( sh /jffs/scripts/firewall stats search ip 8.8.8.8 20 ) Search All Debug Data For Entries On 8.8.8.8 With Customizable Top20 Output
+( sh /jffs/scripts/firewall stats search port 23 ) Search Logs For Entries On Port 23
+( sh /jffs/scripts/firewall stats search port 23 20 ) Search Logs For Entries On Port 23 With Customizable Top20 Output
+( sh /jffs/scripts/firewall stats search ip 8.8.8.8 ) Search Logs For Entries On 8.8.8.8
+( sh /jffs/scripts/firewall stats search ip 8.8.8.8 20 ) Search Logs For Entries On 8.8.8.8 With Customizable Top20 Output
 ( sh /jffs/scripts/firewall stats search malware 8.8.8.8 ) Search Malwarelists For Specified IP
 ( sh /jffs/scripts/firewall stats search manualbans ) Search For All Manual Bans
 ( sh /jffs/scripts/firewall stats search device 192.168.1.134 ) Search For All Outbound Entries From Local Device 192.168.1.134
@@ -128,7 +128,7 @@ Here Are Some Example Stats Commands;
 ( sh /jffs/scripts/firewall stats search connections ip|port|proto|id xxxxxxxxxx) Search Active Connections
 ( sh /jffs/scripts/firewall stats remove ip 8.8.8.8 ) Remove Log Entries Containing IP 8.8.8.8
 ( sh /jffs/scripts/firewall stats remove port 23 ) Remove Log Entries Containing Port 23
-( sh /jffs/scripts/firewall stats reset ) Reset All Collected Debug Data
+( sh /jffs/scripts/firewall stats reset ) Reset All Collected Logs
 ```
 
 ### About
