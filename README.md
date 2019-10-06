@@ -22,7 +22,7 @@ To open the menu its as simple as;
 sh /jffs/scripts/firewall
 ```
 
-[![Skynet GUI](https://i.imgur.com/FxGfRS8.png "Skynet GUI")](https://i.imgur.com/FxGfRS8.png "Skynet GUI")
+[![Skynet GUI](https://i.imgur.com/mEqf6gF.png "Skynet GUI")](https://i.imgur.com/mEqf6gF.png "Skynet GUI")
 
 ## Installation
 
@@ -53,7 +53,7 @@ Here Are Some Example Ban Commands;
 
 Here Are Some Example Banmalware Commands;
 ( sh /jffs/scripts/firewall banmalware ) This Bans IPs From The Predefined Filter List
-( sh /jffs/scripts/firewall banmalware google.com/filter.list ) This Uses The Fitler List From The Specified URL
+( sh /jffs/scripts/firewall banmalware google.com/filter.list ) This Uses The Filter List From The Specified URL
 ( sh /jffs/scripts/firewall banmalware reset ) This Will Reset Skynet Back To The Default Filter URL
 ( sh /jffs/scripts/firewall banmalware exclude "list1.ipset|list2.ipset" ) This Will Exclude Lists Matching The Names "list1.ipset list2.ipset" From The Current Filter (Quotes And Pipes Are Nessessary For Seperating Multiple Entries!)
 ( sh /jffs/scripts/firewall banmalware exclude reset ) This Will Reset The Exclusion List
@@ -67,7 +67,7 @@ Here Are Some Example Whitelist Commands;
 ( sh /jffs/scripts/firewall whitelist remove entry 8.8.8.8) This Removes IP/Range Specified
 ( sh /jffs/scripts/firewall whitelist remove comment "Apples" ) This Removes Entries With The Comment Apples
 ( sh /jffs/scripts/firewall whitelist refresh ) Regenerate Shared Whitelist Files
-( sh /jffs/scripts/firewall whitelist list ips|domains|imported ) List Whitelist Entries Based On Category (Leave Blank For All)
+( sh /jffs/scripts/firewall whitelist view ips|domains|imported ) View Whitelist Entries Based On Category (Leave Blank For All)
 
 Here Are Some Example Import Commands;
 ( sh /jffs/scripts/firewall import blacklist file.txt "Apples" ) This Bans All IPs From URL/Local File With The Comment Apples
@@ -84,17 +84,17 @@ Here Are Some Example Update Commands;
 
 Here Are Some Example Settings Commands;
 ( sh /jffs/scripts/firewall settings autoupdate enable|disable ) Enable/Disable Skynet Autoupdating
-( sh /jffs/scripts/firewall settings banmalware daily|weekly|disable ) Enable/Disable Automatic Banmalware Updating
+( sh /jffs/scripts/firewall settings banmalware daily|weekly|disable ) Enable/Disable Automatic Malware List Updating
 ( sh /jffs/scripts/firewall settings logmode enable|disable ) Enable/Disable Logging
 ( sh /jffs/scripts/firewall settings filter all|inbound|outbound ) Select What Traffic To Filter
 ( sh /jffs/scripts/firewall settings unbanprivate enable|disable ) Enable/Disable Unban_PrivateIP Function
 ( sh /jffs/scripts/firewall settings loginvalid enable|disable ) Enable/Disable Invalid Packet Logging
 ( sh /jffs/scripts/firewall settings banaiprotect enable|disable ) Enable/Disable Banning IPs Flagged By AiProtect
 ( sh /jffs/scripts/firewall settings securemode enable|disable ) Enable/Disable Insecure Settings Being Applied In WebUI
-( sh /jffs/scripts/firewall settings fs google.com/filter.list|disable ) Configure/Disable Fast Banmalware List Switching
+( sh /jffs/scripts/firewall settings fs google.com/filter.list|disable ) Configure/Disable Fast Malware List Switching
 ( sh /jffs/scripts/firewall settings syslog|syslog1 /tmp/syslog.log|default ) Configure Custom Syslog/Syslog-1 Location
 ( sh /jffs/scripts/firewall settings iot unban|ban 8.8.8.8,9.9.9.9 ) Unban|Ban IOT Device(s) (or CIDR) From Accessing WAN (Allow NTP / Remote Access Via OpenVPN Only) (Use Comma As Separator)
-( sh /jffs/scripts/firewall settings iot list ) List Currently Banned IOT Devices
+( sh /jffs/scripts/firewall settings iot view ) View Currently Banned IOT Devices
 ( sh /jffs/scripts/firewall settings iot ports 123,124,125 ) Allow Port(s) To Access WAN (Use Comma As Separator)
 ( sh /jffs/scripts/firewall settings iot ports reset ) Reset Allowed Port List To Default
 ( sh /jffs/scripts/firewall settings iot proto udp|tcp|all ) Select IOT Allowed Port Protocol

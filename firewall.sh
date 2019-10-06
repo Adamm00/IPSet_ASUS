@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 01/10/2019 -		   Asus Firewall Addition By Adamm v6.8.7				    #
+## - 06/10/2019 -		   Asus Firewall Addition By Adamm v6.8.8				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -1103,7 +1103,7 @@ Load_Menu () {
 		echo "Select Menu Option:"
 		echo "[1]  --> Unban"
 		echo "[2]  --> Ban"
-		echo "[3]  --> Banmalware"
+		echo "[3]  --> Malware Blacklist"
 		echo "[4]  --> Whitelist"
 		echo "[5]  --> Import IP List"
 		echo "[6]  --> Deport IP List"
@@ -1134,7 +1134,7 @@ Load_Menu () {
 					echo "[3]  --> Domain"
 					echo "[4]  --> Comment"
 					echo "[5]  --> Country"
-					echo "[6]  --> Malware"
+					echo "[6]  --> Malware Lists"
 					echo "[7]  --> Non Manual Bans"
 					echo "[8]  --> All"
 					echo
@@ -1364,7 +1364,7 @@ Load_Menu () {
 					echo "[3]  --> Refresh VPN Whitelist"
 					echo "[4]  --> Remove Entries"
 					echo "[5]  --> Refresh Entries"
-					echo "[6]  --> List Entries"
+					echo "[6]  --> View Entries"
 					echo
 					printf "[1-7]: "
 					read -r "menu2"
@@ -1455,9 +1455,9 @@ Load_Menu () {
 							break
 						;;
 						6)
-							option2="list"
+							option2="view"
 							while true; do
-								echo "Select Entries To List:"
+								echo "Select Entries To View:"
 								echo "[1]  --> All"
 								echo "[2]  --> Manually Added IPs"
 								echo "[3]  --> Manually Added Domains"
@@ -1644,8 +1644,8 @@ Load_Menu () {
 				option1="settings"
 				while true; do
 					echo "Select Setting To Toggle:"
-					printf "%-30s | %-40s\\n" "[1]  --> Autoupdate" "$(if [ "$autoupdate" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
-					printf "%-30s | %-40s\\n" "[2]  --> Banmalware" "$(if [ "$banmalwareupdate" = "daily" ] || [ "$banmalwareupdate" = "weekly" ]; then Grn "[$banmalwareupdate]"; else Red "[Disabled]"; fi)"
+					printf "%-30s | %-40s\\n" "[1]  --> Skynet Auto-Updates" "$(if [ "$autoupdate" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
+					printf "%-30s | %-40s\\n" "[2]  --> Malware List Auto-Updates" "$(if [ "$banmalwareupdate" = "daily" ] || [ "$banmalwareupdate" = "weekly" ]; then Grn "[$banmalwareupdate]"; else Red "[Disabled]"; fi)"
 					printf "%-30s | %-40s\\n" "[3]  --> Logging" "$(if [ "$logmode" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
 					printf "%-30s | %-40s\\n" "[4]  --> Filter Traffic" "$(Grn "[$filtertraffic]")"
 					printf "%-30s | %-40s\\n" "[5]  --> Unban PrivateIP" "$(if [ "$unbanprivateip" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
@@ -1666,7 +1666,7 @@ Load_Menu () {
 							if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 							option2="autoupdate"
 							while true; do
-								echo "Select Autoupdate Option:"
+								echo "Select Skynet Autoupdate Option:"
 								echo "[1]  --> Enable"
 								echo "[2]  --> Disable"
 								echo
@@ -1700,7 +1700,7 @@ Load_Menu () {
 							if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 							option2="banmalware"
 							while true; do
-								echo "Select Banmalware Option:"
+								echo "Select Malware Blacklist Updating Frequency:"
 								echo "[1]  --> Daily"
 								echo "[2]  --> Weekly"
 								echo "[3]  --> Disable"
@@ -2093,7 +2093,7 @@ Load_Menu () {
 								echo "Select IOT Option:"
 								echo "[1]  --> Unban Devices"
 								echo "[2]  --> Ban Devices"
-								echo "[3]  --> List Blocked Devices"
+								echo "[3]  --> View Blocked Devices"
 								echo "[4]  --> Add Custom Allowed Ports"
 								echo "[5]  --> Reset Custom Port List"
 								echo "[6]  --> Select Allowed Protocols"
@@ -2137,7 +2137,7 @@ Load_Menu () {
 										break
 									;;
 									3)
-										option3="list"
+										option3="view"
 										break
 									;;
 									4)
@@ -2882,7 +2882,7 @@ case "$1" in
 				unset "countrylist"
 			;;
 			malware)
-				echo "[i] Removing Previous Banmalware Entries"
+				echo "[i] Removing Previous Malware Blacklist Entries"
 				sed '\~add Skynet-Whitelist ~d;\~BanMalware~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
 			;;
 			nomanual)
@@ -3193,7 +3193,7 @@ case "$1" in
 				Whitelist_Shared
 				Refresh_MWhitelist
 			;;
-			list)
+			view)
 				case "$3" in
 					ips)
 						sed '\~add Skynet-Whitelist ~!d;\~ManualWlist:~!d;s~add Skynet-Whitelist ~~' "$skynetipset"
@@ -3498,7 +3498,7 @@ case "$1" in
 						autoupdate="enabled"
 						Unload_Cron "checkupdate"
 						Load_Cron "autoupdate"
-						echo "[i] Skynet Automatic Updates Enabled"
+						echo "[i] Skynet Auto-Updates Enabled"
 					;;
 					disable)
 						Check_Lock "$@"
@@ -3507,7 +3507,7 @@ case "$1" in
 						autoupdate="disabled"
 						Unload_Cron "autoupdate"
 						Load_Cron "checkupdate"
-						echo "[i] Skynet Automatic Updates Disabled"
+						echo "[i] Skynet Auto-Updates Disabled"
 					;;
 					*)
 						echo "Command Not Recognized, Please Try Again"
@@ -3527,7 +3527,7 @@ case "$1" in
 						forcebanmalwareupdate="true"
 						Unload_Cron "banmalware"
 						Load_Cron "banmalwaredaily"
-						echo "[i] Daily Banmalware Updates Enabled"
+						echo "[i] Daily Malware Blacklist Updates Enabled"
 					;;
 					weekly)
 						Check_Lock "$@"
@@ -3537,7 +3537,7 @@ case "$1" in
 						forcebanmalwareupdate="true"
 						Unload_Cron "banmalware"
 						Load_Cron "banmalwareweekly"
-						echo "[i] Weekly Banmalware Updates Enabled"
+						echo "[i] Weekly Malware Blacklist Updates Enabled"
 					;;
 					disable)
 						Check_Lock "$@"
@@ -3545,7 +3545,7 @@ case "$1" in
 						Purge_Logs
 						banmalwareupdate="disabled"
 						Unload_Cron "banmalware"
-						echo "[i] Banmalware Updates Disabled"
+						echo "[i] Malware Blacklist Updates Disabled"
 					;;
 					*)
 						echo "Command Not Recognized, Please Try Again"
@@ -3825,7 +3825,7 @@ case "$1" in
 							iotblocked="disabled"
 						fi
 					;;
-					list)
+					view)
 						Display_Header "6"
 						ip neigh | grep -E '^([0-9]{1,3}\.){3}[0-9]{1,3} ' | sort -n -t . -k 1,1 -k 2,2 -k 3,3 -k 4,4 | while IFS= read -r "ip"; do
 							ipaddr="$(echo "$ip" | awk '{print $1}')"
@@ -3923,7 +3923,7 @@ case "$1" in
 						echo; exit 2
 					;;
 				esac
-				if [ "$3" != "list" ]; then
+				if [ "$3" != "view" ]; then
 					if [ "$iotblocked" = "enabled" ]; then
 						echo "[i] IOT Blocking List Updated"
 					else
@@ -4225,8 +4225,8 @@ case "$1" in
 					totaltests=$((totaltests-1))
 				fi
 				Display_Header "8"
-				printf "%-35s | %-8s\\n" "Autoupdate" "$(if [ "$autoupdate" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
-				printf "%-35s | %-8s\\n" "Auto-Banmalware Update" "$(if [ "$banmalwareupdate" = "daily" ] || [ "$banmalwareupdate" = "weekly" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
+				printf "%-35s | %-8s\\n" "Skynet Auto-Updates" "$(if [ "$autoupdate" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
+				printf "%-35s | %-8s\\n" "Malware List Auto-Updates" "$(if [ "$banmalwareupdate" = "daily" ] || [ "$banmalwareupdate" = "weekly" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
 				printf "%-35s | %-8s\\n" "Logging" "$(if [ "$logmode" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
 				printf "%-35s | %-8s\\n" "Filter Traffic" "$(if [ "$filtertraffic" = "all" ]; then Grn "[Enabled]"; else Ylow "[Selective]"; fi)"
 				printf "%-35s | %-8s\\n" "Unban PrivateIP" "$(if [ "$unbanprivateip" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
@@ -4924,7 +4924,7 @@ case "$1" in
 		echo
 		echo
 		while true; do
-			echo "Would You Like To Enable Automatic Malware Blacklist Updating?"
+			echo "Would You Like To Enable Malware Blacklist Auto-Updates?"
 			echo "[1]  --> Yes (Daily)  - (Recommended)"
 			echo "[2]  --> Yes (Weekly)"
 			echo "[3]  --> No"
@@ -4937,19 +4937,19 @@ case "$1" in
 			echo
 			case "$mode4" in
 				1)
-					echo "[i] Malware List Updating Enabled & Scheduled Every Day"
+					echo "[i] Malware Blacklist Updating Enabled & Scheduled Every Day"
 					banmalwareupdate="daily"
 					forcebanmalwareupdate="true"
 					break
 				;;
 				2)
-					echo "[i] Malware List Updating Enabled & Scheduled For Every Monday"
+					echo "[i] Malware Blacklist Auto-Updates Enabled & Scheduled For Every Monday"
 					banmalwareupdate="weekly"
 					forcebanmalwareupdate="true"
 					break
 				;;
 				3)
-					echo "[i] Malware List Updating Disabled"
+					echo "[i] Malware Blacklist Auto-Updates Disabled"
 					banmalwareupdate="disabled"
 					break
 				;;
@@ -4978,12 +4978,12 @@ case "$1" in
 			echo
 			case "$mode5" in
 				1)
-					echo "[i] Skynet Updating Enabled & Scheduled For 1.25am Every Monday"
+					echo "[i] Skynet Auto-Updates Enabled & Scheduled For 1.25am Every Monday"
 					autoupdate="enabled"
 					break
 				;;
 				2)
-					echo "[i] Auto Updating Disabled"
+					echo "[i] Skynet Auto-Updates Disabled"
 					autoupdate="disabled"
 					break
 				;;
