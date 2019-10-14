@@ -100,7 +100,7 @@ if [ ! -d "$skynetloc" ] && ! echo "$@" | grep -wqE "(install|uninstall|disable|
 	fi
 fi
 
-if [ "$(nvram get wan0_proto)" = "pppoe" ] || [ "$(nvram get wan0_proto)" = "pptp" ] || [ "$(nvram get wan0_proto)" = "l2tp" ]; then
+if [ "$(nvram get wan0_proto)" = "pppoe" ]; then
 	iface="ppp0"
 else
 	iface="$(nvram get wan0_ifname)"
@@ -871,8 +871,9 @@ Whitelist_Shared () {
 				wait
 			fi
 		fi
-		for ip in $(nvram get dnspriv_rulelist | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}'); do
-			ipset -q -A Skynet-Whitelist "$ip" comment "nvram: dnspriv_rulelist"
+		if [ "$(uname -o)" = "ASUSWRT-Merlin" ]; then dotvar="dnspriv_rulelist"; else dotvar="stubby_dns"; fi
+		for ip in $(nvram get "$dotvar" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}'); do
+			ipset -q -A Skynet-Whitelist "$ip" comment "nvram: $dotvar"
 		done
 }
 
