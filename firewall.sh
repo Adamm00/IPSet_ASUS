@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 14/10/2019 -		   Asus Firewall Addition By Adamm v6.8.8				    #
+## - 14/10/2019 -		   Asus Firewall Addition By Adamm v6.9.0				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -848,13 +848,32 @@ Whitelist_Shared () {
 		add Skynet-Whitelist 127.0.0.1/32 comment \"nvram: Localhost\"" | ipset restore -! 2>/dev/null
 		if [ -n "$(find /jffs -name 'shared-*-whitelist')" ]; then
 			sed '\~add Skynet-Whitelist ~!d;\~Shared-Whitelist~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
-			grep -hvF "#" /jffs/shared-*-whitelist | Strip_Domain | while IFS= read -r "domain"; do
-				for ip in $(Domain_Lookup "$domain" 2> /dev/null); do
-					ipset -q -A Skynet-Whitelist "$ip" comment "Shared-Whitelist: $domain"
-				done &
-			done
-			wait
+			if [ "$(cat /jffs/shared-*-whitelist | wc -l)" -gt "150" ]; then
+				Clean_Temp
+				cwd="$(pwd)"
+				cd /tmp/skynet/lists || exit 1
+				grep -hvF "#" /jffs/shared-*-whitelist | Strip_Domain | split -l 150
+				for listname in *; do
+					while IFS= read -r "domain"; do
+						for ip in $(Domain_Lookup "$domain" 2> /dev/null); do
+							ipset -q -A Skynet-Whitelist "$ip" comment "Shared-Whitelist: $domain"
+						done &
+					done < "$listname"
+					wait
+				done
+				cd "$cwd" || exit 1
+			else
+				grep -hvF "#" /jffs/shared-*-whitelist | Strip_Domain | while IFS= read -r "domain"; do
+					for ip in $(Domain_Lookup "$domain" 2> /dev/null); do
+						ipset -q -A Skynet-Whitelist "$ip" comment "Shared-Whitelist: $domain"
+					done &
+				done
+				wait
+			fi
 		fi
+		for ip in $(nvram get dnspriv_rulelist | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}'); do
+			ipset -q -A Skynet-Whitelist "$ip" comment "nvram: dnspriv_rulelist"
+		done
 }
 
 Manage_Device () {
@@ -4127,7 +4146,7 @@ case "$1" in
 				if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(sed -n '2p' /tmp/skynet.lock)" ]; then
 					echo
 					Red "[*] Lock File Detected ($(sed -n '1p' /tmp/skynet.lock)) (pid=$(sed -n '2p' /tmp/skynet.lock))"
-					Ylow "[*] Locked Processes Generally Take 1-2 Minutes To Complete And May Result In Temporarily \"Failed\" Tests"
+					Ylow "[*] Locked Processes Generally Take A Few Minutes To Complete And May Result In Temporarily \"Failed\" Tests"
 				fi
 				passedtests="0"
 				totaltests="18"
