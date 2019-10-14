@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 06/10/2019 -		   Asus Firewall Addition By Adamm v6.8.8				    #
+## - 14/10/2019 -		   Asus Firewall Addition By Adamm v6.8.8				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -566,7 +566,7 @@ Strip_Domain () {
 }
 
 Domain_Lookup () {
-		nslookup "$(echo "$1" | Strip_Domain)" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' | awk 'NR>2'
+		nslookup "$1" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' | awk 'NR>2'
 }
 
 Extended_DNSStats () {
@@ -763,7 +763,7 @@ Refresh_MBans () {
 				for ip in $(Domain_Lookup "$domain" | Filter_PrivateIP); do
 					ipset -q -A Skynet-Blacklist "$ip" comment "ManualBanD: $domain" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$domain " >> "$skynetevents"
 				done &
-			done < /tmp/skynet/mbans.list
+			done < /tmp/skynet/mbans.list | Strip_Domain
 			wait
 			rm -rf /tmp/skynet/mbans.list
 		fi
@@ -778,7 +778,7 @@ Refresh_MWhitelist () {
 				for ip in $(Domain_Lookup "$domain"); do
 					ipset -q -A Skynet-Whitelist "$ip" comment "ManualWlistD: $domain" && echo "$(date +"%b %d %T") Skynet: [Manual Whitelist] TYPE=Domain SRC=$ip Host=$domain " >> "$skynetevents"
 				done &
-			done < /tmp/skynet/mwhitelist.list
+			done < /tmp/skynet/mwhitelist.list | Strip_Domain
 			wait
 			cat /tmp/skynet/mwhitelist.list >> /jffs/shared-Skynet2-whitelist
 			rm -rf /tmp/skynet/mwhitelist.list
