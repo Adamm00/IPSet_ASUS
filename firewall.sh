@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 14/10/2019 -		   Asus Firewall Addition By Adamm v6.9.0				    #
+## - 25/10/2019 -		   Asus Firewall Addition By Adamm v6.9.1				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -3083,6 +3083,7 @@ case "$1" in
 		cwd="$(pwd)"
 		Clean_Temp
 		cd /tmp/skynet/lists || exit 1
+		if [ "$(nvram get dns_local_cache)" = "1" ] && [ "$(cat /jffs/shared-*-whitelist | wc -l)" -gt "150" ]; then sleep 10; fi
 		while IFS= read -r "domain" && [ -n "$domain" ]; do
 			curl -fsL --retry 3 "$domain" -O &
 		done < /jffs/shared-Skynet-whitelist
