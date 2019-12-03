@@ -35,30 +35,32 @@ In your favorite SSH Client;
 ## Help
 
 ```Shell
-Here Are Some Example Unban Commands;
+Example Unban Commands;
 ( sh /jffs/scripts/firewall unban ip 8.8.8.8 ) This Unbans The IP Specified
 ( sh /jffs/scripts/firewall unban range 8.8.8.8/24 ) This Unbans the CIDR Block Specified
 ( sh /jffs/scripts/firewall unban domain google.com ) This Unbans the URL Specified
 ( sh /jffs/scripts/firewall unban comment "Apples" ) This Unbans Entries With The Comment Apples
 ( sh /jffs/scripts/firewall unban country ) This Unbans Entries Added By The "Ban Country" Feature
+( sh /jffs/scripts/firewall unban asn AS123456 ) This Unbans the ASN Specified
 ( sh /jffs/scripts/firewall unban malware ) This Unbans Entries Added By The "Ban Malware" Feature
 ( sh /jffs/scripts/firewall unban nomanual ) This Unbans Everything But Manual Bans
 ( sh /jffs/scripts/firewall unban all ) This Unbans All Entries From Both Blacklists
 
-Here Are Some Example Ban Commands;
+Example Ban Commands;
 ( sh /jffs/scripts/firewall ban ip 8.8.8.8 "Apples" ) This Bans The IP Specified With The Comment Apples
 ( sh /jffs/scripts/firewall ban range 8.8.8.8/24 "Apples" ) This Bans the CIDR Block Specified With The Comment Apples
 ( sh /jffs/scripts/firewall ban domain google.com ) This Bans the URL Specified
 ( sh /jffs/scripts/firewall ban country "pk cn sa" ) This Bans The Known IPs For The Specified Countries (Accepts Single/Multiple Inputs If Quoted) http://www.ipdeny.com/ipblocks/data/countries/
+( sh /jffs/scripts/firewall ban asn AS123456 ) This Bans the ASN Specified
 
-Here Are Some Example Banmalware Commands;
+Example Banmalware Commands;
 ( sh /jffs/scripts/firewall banmalware ) This Bans IPs From The Predefined Filter List
 ( sh /jffs/scripts/firewall banmalware google.com/filter.list ) This Uses The Filter List From The Specified URL
 ( sh /jffs/scripts/firewall banmalware reset ) This Will Reset Skynet Back To The Default Filter URL
 ( sh /jffs/scripts/firewall banmalware exclude "list1.ipset|list2.ipset" ) This Will Exclude Lists Matching The Names "list1.ipset list2.ipset" From The Current Filter (Quotes And Pipes Are Nessessary For Seperating Multiple Entries!)
 ( sh /jffs/scripts/firewall banmalware exclude reset ) This Will Reset The Exclusion List
 
-Here Are Some Example Whitelist Commands;
+Example Whitelist Commands;
 ( sh /jffs/scripts/firewall whitelist ip 8.8.8.8 "Apples" ) This Whitelists The IP Specified With The Comment Apples
 ( sh /jffs/scripts/firewall whitelist range 8.8.8.8/24 "Apples" ) This Whitelists The Range Specified With The Comment Apples
 ( sh /jffs/scripts/firewall whitelist domain google.com) This Whitelists the URL Specified
@@ -69,20 +71,20 @@ Here Are Some Example Whitelist Commands;
 ( sh /jffs/scripts/firewall whitelist refresh ) Regenerate Shared Whitelist Files
 ( sh /jffs/scripts/firewall whitelist view ips|domains|imported ) View Whitelist Entries Based On Category (Leave Blank For All)
 
-Here Are Some Example Import Commands;
+Example Import Commands;
 ( sh /jffs/scripts/firewall import blacklist file.txt "Apples" ) This Bans All IPs From URL/Local File With The Comment Apples
 ( sh /jffs/scripts/firewall import whitelist file.txt "Apples" ) This Whitelists All IPs From URL/Local File With The Comment Apples
 
-Here Are Some Example Deport Commands;
+Example Deport Commands;
 ( sh /jffs/scripts/firewall deport blacklist file.txt ) This Unbans All IPs From URL/Local File
 ( sh /jffs/scripts/firewall deport whitelist file.txt ) This Unwhitelists All IPs From URL/Local File
 
-Here Are Some Example Update Commands;
+Example Update Commands;
 ( sh /jffs/scripts/firewall update ) Standard Update Check - If Nothing Detected Exit
 ( sh /jffs/scripts/firewall update check ) Check For Updates Only - Wont Update If Detected
 ( sh /jffs/scripts/firewall update -f ) Force Update Even If No Changes Detected
 
-Here Are Some Example Settings Commands;
+Example Settings Commands;
 ( sh /jffs/scripts/firewall settings autoupdate enable|disable ) Enable/Disable Skynet Autoupdating
 ( sh /jffs/scripts/firewall settings banmalware daily|weekly|disable ) Enable/Disable Automatic Malware List Updating
 ( sh /jffs/scripts/firewall settings logmode enable|disable ) Enable/Disable Logging
@@ -101,7 +103,7 @@ Here Are Some Example Settings Commands;
 ( sh /jffs/scripts/firewall settings lookupcountry enable|disable ) Enable/Disable Country Lookup For Stat Data
 ( sh /jffs/scripts/firewall settings cdnwhitelist enable|disable ) Enable/Disable CDN Whitelisting
 
-Here Are Some Example Debug Commands;
+Example Debug Commands;
 ( sh /jffs/scripts/firewall debug watch ) Show Debug Entries As They Appear
 ( sh /jffs/scripts/firewall debug info ) Print Useful Debug Info
 ( sh /jffs/scripts/firewall debug info extended ) Debug Info + Config
@@ -110,7 +112,7 @@ Here Are Some Example Debug Commands;
 ( sh /jffs/scripts/firewall debug backup ) Backup Skynet Files To Skynets Install Directory With The Name "Skynet-Backup.tar.gz"
 ( sh /jffs/scripts/firewall debug restore ) Restore Backup Files From Skynets Install Directory With The Name "Skynet-Backup.tar.gz"
 
-Here Are Some Example Stats Commands;
+Example Stats Commands;
 ( sh /jffs/scripts/firewall stats ) Compile Stats With Default Top10 Output
 ( sh /jffs/scripts/firewall stats 20 ) Compile Stats With Customizable Top20 Output
 ( sh /jffs/scripts/firewall stats tcp ) Compile Stats Showing Only TCP Entries

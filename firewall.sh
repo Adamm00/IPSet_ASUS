@@ -9,7 +9,7 @@
 #			                     __/ |                             				    #
 #			                    |___/                              				    #
 #                                                     							    #
-## - 25/10/2019 -		   Asus Firewall Addition By Adamm v6.9.1				    #
+## - 04/12/2019 -		   Asus Firewall Addition By Adamm v6.9.2				    #
 ##				   https://github.com/Adamm00/IPSet_ASUS		                    #
 #############################################################################################################
 
@@ -563,6 +563,10 @@ Is_Port () {
 		grep -qE '^[0-9]{1,5}$'
 }
 
+Is_ASN () {
+		grep -qiE '^AS[0-9]{1,6}$'
+}
+
 Strip_Domain () {
 		sed 's~http[s]*://~~;s~/.*~~;s~www\.~~g' | awk '!x[$0]++'
 }
@@ -877,6 +881,16 @@ Whitelist_Shared () {
 		for ip in $(nvram get "$dotvar" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}'); do
 			ipset -q -A Skynet-Whitelist "$ip" comment "nvram: $dotvar"
 		done
+		if [ -f "/jffs/dnscrypt/public-resolvers.md" ] && [ -f "/jffs/dnscrypt/relays.md" ]; then
+			if [ -f /opt/bin/opkg ] && [ ! -f /opt/bin/base64 ]; then
+				opkg update && opkg install coreutils-base64
+			fi
+			if [ -f /opt/bin/opkg ] && [ -f /opt/bin/base64 ]; then
+				grep -hoE '^sdns:.*' /jffs/dnscrypt/public-resolvers.md /jffs/dnscrypt/relays.md | sed "s~'~~g;s~sdns://~~g" | while read -r stamp; do
+					echo "$stamp" | base64 -d 2>/dev/null
+				done | grep -aoE '([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{printf "add Skynet-Whitelist %s comment \"nvram: DNSCrypt Stamp\"\n", $1 }' | ipset restore -!
+			fi
+		fi
 }
 
 Manage_Device () {
@@ -967,7 +981,7 @@ Create_Swap () {
 		done
 		swaplocation="${device}/myswap.swp"
 		if [ -f "$swaplocation" ]; then swapoff "$swaplocation" 2>/dev/null; rm -rf "$swaplocation"; fi
-		if [ "$(df $device | xargs | awk '{print $11}')" -le "$swapsize" ]; then echo "[*] Not Enough Free Space Available On $device"; Create_Swap; fi
+		if [ "$(df "$device" | xargs | awk '{print $11}')" -le "$swapsize" ]; then echo "[*] Not Enough Free Space Available On $device"; Create_Swap; fi
 		echo "[i] Creating SWAP File"
 		dd if=/dev/zero of="$swaplocation" bs=1k count="$swapsize"
 		mkswap "$swaplocation"
@@ -996,6 +1010,7 @@ Purge_Logs () {
 			sed '\~Skynet: \[#\] ~!d' "$syslog1loc" "$syslogloc" 2>/dev/null >> "$skynetevents"
 			sed -i '\~Skynet: \[#\] ~d;\~Skynet: \[i\] ~d;\~Skynet: \[\*\] Lock ~d' "$syslog1loc" "$syslogloc" 2>/dev/null
 		fi
+		if [ -f "/opt/etc/syslog-ng.d/skynet" ]; then /usr/bin/killall -HUP syslog-ng; fi
 }
 
 Print_Log () {
@@ -1156,11 +1171,12 @@ Load_Menu () {
 					echo "[3]  --> Domain"
 					echo "[4]  --> Comment"
 					echo "[5]  --> Country"
-					echo "[6]  --> Malware Lists"
-					echo "[7]  --> Non Manual Bans"
-					echo "[8]  --> All"
+					echo "[6]  --> ASN"
+					echo "[7]  --> Malware Lists"
+					echo "[8]  --> Non Manual Bans"
+					echo "[9]  --> All"
 					echo
-					printf "[1-8]: "
+					printf "[1-9]: "
 					read -r "menu2"
 					echo
 					case "$menu2" in
@@ -1209,14 +1225,24 @@ Load_Menu () {
 							break
 						;;
 						6)
-							option2="malware"
+							option2="asn"
+							echo "Input ASN To Unban:"
+							echo
+							printf "[ASN]: "
+							read -r "option3"
+							echo
+							if ! echo "$option3" | Is_ASN; then echo "[*] $option3 Is Not A Valid ASN"; echo; unset "option2" "option3"; continue; fi
 							break
 						;;
 						7)
-							option2="nomanual"
+							option2="malware"
 							break
 						;;
 						8)
+							option2="nomanual"
+							break
+						;;
+						9)
 							option2="all"
 							break
 						;;
@@ -1243,8 +1269,9 @@ Load_Menu () {
 					echo "[2]  --> Range"
 					echo "[3]  --> Domain"
 					echo "[4]  --> Country"
+					echo "[5]  --> ASN"
 					echo
-					printf "[1-4]: "
+					printf "[1-5]: "
 					read -r "menu2"
 					echo
 					case "$menu2" in
@@ -1300,6 +1327,16 @@ Load_Menu () {
 							echo
 							if [ -z "$option3" ]; then echo "[*] Country Field Can't Be Empty - Please Try Again"; echo; unset "option2" "option3"; continue; fi
 							if echo "$option3" | grep -qF "\""; then echo "[*] Country Field Can't Include Quotes - Please Try Again"; echo; unset "option2" "option3"; continue; fi
+							break
+						;;
+						5)
+							option2="asn"
+							echo "Input ASN To Ban:"
+							echo
+							printf "[ASN]: "
+							read -r "option3"
+							echo
+							if ! echo "$option3" | Is_ASN; then echo "[*] $option3 Is Not A Valid ASN"; echo; unset "option2" "option3"; continue; fi
 							break
 						;;
 						e|exit|back|menu)
@@ -2903,6 +2940,13 @@ case "$1" in
 				sed '\~add Skynet-Whitelist ~d;\~Country: ~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
 				unset "countrylist"
 			;;
+			asn)
+				if [ -z "$3" ]; then echo "[*] ASN Field Can't Be Empty - Please Try Again"; echo; exit 2; fi
+				if ! echo "$3" | Is_ASN; then echo "[*] $3 Is Not A Valid ASN"; echo; exit 2; fi
+				asnlist="$(echo "$3" | awk '{print toupper($0)}')"
+				echo "[i] Removing Previous $asnlist Bans"
+				sed "\~add Skynet-Whitelist ~d;\~$asnlist ~!d;s~ comment.*~~;s~add~del~g" "$skynetipset" | ipset restore -!
+			;;
 			malware)
 				echo "[i] Removing Previous Malware Blacklist Entries"
 				sed '\~add Skynet-Whitelist ~d;\~BanMalware~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
@@ -2987,6 +3031,13 @@ case "$1" in
 				echo "[i] Filtering IPv4 Ranges & Applying Blacklists"
 				grep -F "/" /tmp/skynet/countrylist.txt | sed -n "/^[0-9,\\.,\\/]*$/s/^/add Skynet-BlockedRanges /;s/$/& comment \"Country: $countrylist\"/p" | ipset restore -!
 				rm -rf "/tmp/skynet/countrylist.txt"
+			;;
+			asn)
+				if [ -z "$3" ]; then echo "[*] ASN Field Can't Be Empty - Please Try Again"; echo; exit 2; fi
+				if ! echo "$3" | Is_ASN; then echo "[*] $3 Is Not A Valid ASN"; echo; exit 2; fi
+				asnlist="$(echo "$3" | awk '{print toupper($0)}')"
+				echo "[i] Adding $asnlist To Blacklist"
+				curl -fsL --retry 3 "https://ipinfo.io/$asnlist" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}' | awk -v asn="$asnlist" '{printf "add Skynet-BlockedRanges %s comment \"ASN: %s \"\n", $1, asn }' | awk '!x[$0]++' | ipset restore -!
 			;;
 			*)
 				echo "Command Not Recognized, Please Try Again"
