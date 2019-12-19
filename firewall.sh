@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            19/12/2019 - v7.0.0                                            #
+#                                            20/12/2019 - v7.0.0                                            #
 #############################################################################################################
 
 
@@ -683,6 +683,10 @@ Filter_IP () {
 		grep -E '^([0-9]{1,3}\.){3}[0-9]{1,3}$'
 }
 
+Filter_IPLine () {
+		grep -E '([0-9]{1,3}\.){3}[0-9]{1,3}'
+}
+
 Filter_OutIP () {
 		grep -vE '^([0-9]{1,3}\.){3}[0-9]{1,3}$'
 }
@@ -803,9 +807,9 @@ Whitelist_Extra () {
 		snbforums.com
 		bin.entware.net
 		nwsrv-ns1.asus.com
+		$(nvram get "firmware_server")
 		$(nvram get "ntp_server0")
-		$(nvram get "ntp_server1")
-		$(nvram get "firmware_server")" > /jffs/shared-Skynet2-whitelist
+		$(nvram get "ntp_server1")" | tr -d "\t" > /jffs/shared-Skynet2-whitelist
 }
 
 Whitelist_CDN () {
@@ -814,11 +818,11 @@ Whitelist_CDN () {
 			{
 			# Apple AS714 | Akamai AS12222 AS16625 | HighWinds AS33438 AS20446 | Fastly AS54113
 			for asn in AS714 AS12222 AS16625 AS33438 AS20446 AS54113; do
-				curl -fsL --retry 3 "https://ipinfo.io/$asn" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}' | awk -v asn="$asn" '{printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: %s \"\n", $1, asn }' &
+				curl -fsL --retry 3 "https://ipinfo.io/$asn" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}' | awk -v asn="$asn" '{printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: %s\"\n", $1, asn }' &
 			done
 			wait
-			curl -fsL --retry 3 https://www.cloudflare.com/ips-v4 | grep -E '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}' | awk '{printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: CloudFlare \"\n", $1 }'
-			curl -fsL --retry 3 https://ip-ranges.amazonaws.com/ip-ranges.json | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}' | awk '{printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: Amazon \"\n", $1 }';
+			curl -fsL --retry 3 https://www.cloudflare.com/ips-v4 | grep -E '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}' | awk '{printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: CloudFlare\"\n", $1 }'
+			curl -fsL --retry 3 https://ip-ranges.amazonaws.com/ip-ranges.json | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}' | awk '{printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: Amazon\"\n", $1 }';
 			} | awk '!x[$0]++' | ipset restore -!
 		fi
 }
@@ -831,7 +835,7 @@ Whitelist_VPN () {
 		add Skynet-Whitelist $(nvram get vpn_client2_addr)/24 comment \"nvram: vpn_client2_addr\"
 		add Skynet-Whitelist $(nvram get vpn_client3_addr)/24 comment \"nvram: vpn_client3_addr\"
 		add Skynet-Whitelist $(nvram get vpn_client4_addr)/24 comment \"nvram: vpn_client4_addr\"
-		add Skynet-Whitelist $(nvram get vpn_client5_addr)/24 comment \"nvram: vpn_client5_addr\"" | ipset restore -! 2>/dev/null
+		add Skynet-Whitelist $(nvram get vpn_client5_addr)/24 comment \"nvram: vpn_client5_addr\"" | Filter_IPLine | ipset restore -! 2>/dev/null
 		if [ -f "/dev/astrill/openvpn.conf" ]; then ipset -q -A Skynet-Whitelist "$(sed '\~remote ~!d;s~remote ~~' "/dev/astrill/openvpn.conf")/24" comment "nvram: Astrill_VPN"; fi
 }
 
@@ -851,7 +855,7 @@ Whitelist_Shared () {
 		add Skynet-Whitelist $(nvram get wan0_xdns | awk '{print $2}')/32 comment \"nvram: wan0_xdns\"
 		add Skynet-Whitelist 192.30.252.0/22 comment \"nvram: Github Content Server\"
 		add Skynet-Whitelist 192.168.1.0/24 comment \"nvram: LAN Subnet\"
-		add Skynet-Whitelist 127.0.0.1/32 comment \"nvram: Localhost\"" | ipset restore -! 2>/dev/null
+		add Skynet-Whitelist 127.0.0.1/32 comment \"nvram: Localhost\"" | Filter_IPLine | ipset restore -! 2>/dev/null
 		if [ -n "$(find /jffs -name 'shared-*-whitelist')" ]; then
 			sed '\~add Skynet-Whitelist ~!d;\~Shared-Whitelist~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
 			if [ "$(cat /jffs/shared-*-whitelist | wc -l)" -gt "150" ]; then
