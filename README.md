@@ -22,7 +22,7 @@ To open the menu its as simple as;
 sh /jffs/scripts/firewall
 ```
 
-[![Skynet GUI](https://i.imgur.com/mEqf6gF.png "Skynet GUI")](https://i.imgur.com/mEqf6gF.png "Skynet GUI")
+[![Skynet GUI](https://i.imgur.com/Je85FKh.png "Skynet GUI")](https://i.imgur.com/Je85FKh.png "Skynet GUI")
 
 ## Installation
 
@@ -64,6 +64,7 @@ Example Whitelist Commands;
 ( sh /jffs/scripts/firewall whitelist ip 8.8.8.8 "Apples" ) This Whitelists The IP Specified With The Comment Apples
 ( sh /jffs/scripts/firewall whitelist range 8.8.8.8/24 "Apples" ) This Whitelists The Range Specified With The Comment Apples
 ( sh /jffs/scripts/firewall whitelist domain google.com) This Whitelists the URL Specified
+( sh /jffs/scripts/firewall whitelist asn AS123456 ) This Whitelists the ASN Specified
 ( sh /jffs/scripts/firewall whitelist vpn) Refresh VPN Whitelist
 ( sh /jffs/scripts/firewall whitelist remove all) This Removes All Non-Default Entries
 ( sh /jffs/scripts/firewall whitelist remove entry 8.8.8.8) This Removes IP/Range Specified

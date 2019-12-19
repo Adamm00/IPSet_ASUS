@@ -1,16 +1,16 @@
 #!/bin/sh
 #############################################################################################################
-#			         _____ _                     _             __  				    #
-#			        / ____| |                   | |           / /  				    #
-#			       | (___ | | ___   _ _ __   ___| |_  __   __/ /_  				    #
-#			        \___ \| |/ / | | | '_ \ / _ \ __| \ \ / / '_ \ 				    #
-#			        ____) |   <| |_| | | | |  __/ |_   \ V /| (_) |				    #
-#			       |_____/|_|\_\\__, |_| |_|\___|\__|   \_/  \___/ 				    #
-#			                     __/ |                             				    #
-#			                    |___/                              				    #
-#                                                     							    #
-## - 04/12/2019 -		   Asus Firewall Addition By Adamm v6.9.2				    #
-##				   https://github.com/Adamm00/IPSet_ASUS		                    #
+#                                                                                                           #
+#                  ███████╗██╗  ██╗██╗   ██╗███╗   ██╗███████╗████████╗    ██╗   ██╗███████╗                #
+#                  ██╔════╝██║ ██╔╝╚██╗ ██╔╝████╗  ██║██╔════╝╚══██╔══╝    ██║   ██║╚════██║                #
+#                  ███████╗█████╔╝  ╚████╔╝ ██╔██╗ ██║█████╗     ██║       ██║   ██║    ██╔╝                #
+#                  ╚════██║██╔═██╗   ╚██╔╝  ██║╚██╗██║██╔══╝     ██║       ╚██╗ ██╔╝   ██╔╝                 #
+#                  ███████║██║  ██╗   ██║   ██║ ╚████║███████╗   ██║        ╚████╔╝    ██║                  #
+#                  ╚══════╝╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═══╝╚══════╝   ╚═╝         ╚═══╝     ╚═╝                  #
+#                                                                                                           #
+#                                 Router Firewall And Security Enhancements                                 #
+#                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
+#                                            19/12/2019 - v7.0.0                                            #
 #############################################################################################################
 
 
@@ -490,27 +490,27 @@ Unload_Cron () {
 		if [ -z "$1" ]; then set "all"; fi
 		for cron in "$@"; do
 		 case "$cron" in
-		   save)
-		   	cru d Skynet_save
-		   ;;
-		   banmalware)
-		   	cru d Skynet_banmalware
-		   ;;
-		   autoupdate)
-		   	cru d Skynet_autoupdate
-		   ;;
-		   checkupdate)
-		   	cru d Skynet_checkupdate
-		   ;;
-		   all)
-		   	cru d Skynet_save
-		   	cru d Skynet_banmalware
-		   	cru d Skynet_autoupdate
-		   	cru d Skynet_checkupdate
-		   ;;
-		   *)
-		   	echo "[*] Error - No Cron Specified To Unload"
-		   ;;
+			 save)
+				cru d Skynet_save
+			 ;;
+			 banmalware)
+				cru d Skynet_banmalware
+			 ;;
+			 autoupdate)
+				cru d Skynet_autoupdate
+			 ;;
+			 checkupdate)
+				cru d Skynet_checkupdate
+			 ;;
+			 all)
+				cru d Skynet_save
+				cru d Skynet_banmalware
+				cru d Skynet_autoupdate
+				cru d Skynet_checkupdate
+			 ;;
+			 *)
+				echo "[*] Error - No Cron Specified To Unload"
+			 ;;
 		 esac
 		done
 }
@@ -519,26 +519,26 @@ Load_Cron () {
 		if [ -z "$1" ]; then set "all"; fi
 		for cron in "$@"; do
 			case "$cron" in
-			  save)
-			    cru a Skynet_save "0 * * * * sh /jffs/scripts/firewall save"
-			  ;;
-			  banmalwaredaily)
-			    hour="$(date +%s | tail -c 2)"
-			    cru a Skynet_banmalware "25 $hour * * * sh /jffs/scripts/firewall banmalware"
-			  ;;
-			  banmalwareweekly)
-			    hour="$(date +%s | tail -c 2)"
-			    cru a Skynet_banmalware "25 $hour * * Mon sh /jffs/scripts/firewall banmalware"
-			  ;;
-			  autoupdate)
-			    cru a Skynet_autoupdate "25 1 * * Mon sh /jffs/scripts/firewall update"
-			  ;;
-			  checkupdate)
-			    cru a Skynet_checkupdate "25 1 * * Mon sh /jffs/scripts/firewall update check"
-			  ;;
-			  *)
-			    echo "[*] Error - No Cron Specified To Load"
-			  ;;
+				save)
+					cru a Skynet_save "0 * * * * sh /jffs/scripts/firewall save"
+				;;
+				banmalwaredaily)
+					hour="$(date +%s | tail -c 2)"
+					cru a Skynet_banmalware "25 $hour * * * sh /jffs/scripts/firewall banmalware"
+				;;
+				banmalwareweekly)
+					hour="$(date +%s | tail -c 2)"
+					cru a Skynet_banmalware "25 $hour * * Mon sh /jffs/scripts/firewall banmalware"
+				;;
+				autoupdate)
+					cru a Skynet_autoupdate "25 1 * * Mon sh /jffs/scripts/firewall update"
+				;;
+				checkupdate)
+					cru a Skynet_checkupdate "25 1 * * Mon sh /jffs/scripts/firewall update check"
+				;;
+				*)
+					echo "[*] Error - No Cron Specified To Load"
+				;;
 			esac
 		 done
 }
@@ -990,7 +990,7 @@ Create_Swap () {
 		if [ "$(wc -l < /jffs/scripts/post-mount)" -lt "2" ]; then echo >> /jffs/scripts/post-mount; fi
 		sed -i "2i swapon $swaplocation # Skynet Firewall Addition" /jffs/scripts/post-mount
 		if [ -f "/jffs/scripts/unmount" ] && ! grep -qF "&& swapoff" /jffs/scripts/unmount; then
-		    echo "[ \"\$(/usr/bin/find \"\$1/myswap.swp\" 2> /dev/null)\" ] && swapoff \"\$1/myswap.swp\" # Skynet Firewall Addition" >> /jffs/scripts/unmount
+				echo "[ \"\$(/usr/bin/find \"\$1/myswap.swp\" 2> /dev/null)\" ] && swapoff \"\$1/myswap.swp\" # Skynet Firewall Addition" >> /jffs/scripts/unmount
 		fi
 		echo "[i] SWAP File Located At $swaplocation"
 		echo
@@ -1420,10 +1420,11 @@ Load_Menu () {
 					echo "Select Whitelist Option:"
 					echo "[1]  --> IP/Range"
 					echo "[2]  --> Domain"
-					echo "[3]  --> Refresh VPN Whitelist"
-					echo "[4]  --> Remove Entries"
-					echo "[5]  --> Refresh Entries"
-					echo "[6]  --> View Entries"
+					echo "[3]  --> ASN"
+					echo "[4]  --> Refresh VPN Whitelist"
+					echo "[5]  --> Remove Entries"
+					echo "[6]  --> Refresh Entries"
+					echo "[7]  --> View Entries"
 					echo
 					printf "[1-7]: "
 					read -r "menu2"
@@ -1456,10 +1457,20 @@ Load_Menu () {
 							break
 						;;
 						3)
-							option2="vpn"
+							option2="asn"
+							echo "Input ASN To Whitelist:"
+							echo
+							printf "[ASN]: "
+							read -r "option3"
+							echo
+							if ! echo "$option3" | Is_ASN; then echo "[*] $option3 Is Not A Valid ASN"; echo; unset "option2" "option3"; continue; fi
 							break
 						;;
 						4)
+							option2="vpn"
+							break
+						;;
+						5)
 							option2="remove"
 							while true; do
 								echo "Remove From Whitelist:"
@@ -1509,11 +1520,11 @@ Load_Menu () {
 							done
 							break
 						;;
-						5)
+						6)
 							option2="refresh"
 							break
 						;;
-						6)
+						7)
 							option2="view"
 							while true; do
 								echo "Select Entries To View:"
@@ -3118,7 +3129,6 @@ case "$1" in
 			curl -fsL --retry 3 "$listurl" | dos2unix > /jffs/shared-Skynet-whitelist && Display_Result
 		fi
 		sed -i "\\~^http[s]*://\\|^www.~!d;" /jffs/shared-Skynet-whitelist
-		echo >> /jffs/shared-Skynet-whitelist
 		btime="$(date +%s)"
 		printf "%-35s | " "[i] Refreshing Whitelists"
 		Whitelist_Extra
@@ -3131,16 +3141,24 @@ case "$1" in
 		Display_Result
 		btime="$(date +%s)"
 		printf "%-35s | " "[i] Consolidating Blacklist"
+		mkdir -p "${skynetloc}/lists"
 		cwd="$(pwd)"
-		Clean_Temp
-		cd /tmp/skynet/lists || exit 1
+		cd "${skynetloc}/lists" || exit 1
 		if [ "$(nvram get dns_local_cache)" = "1" ] && [ "$(cat /jffs/shared-*-whitelist | wc -l)" -gt "150" ]; then sleep 10; fi
-		while IFS= read -r "domain" && [ -n "$domain" ]; do
-			curl -fsL --retry 3 "$domain" -O &
-		done < /jffs/shared-Skynet-whitelist
-		Spinner_End; wait; Spinner_Start
-		dos2unix /tmp/skynet/lists/* 2>/dev/null
-		if ! grep -qE '^([0-9]{1,3}\.){3}[0-9]{1,3}(/[0-9]{1,2})?$' /tmp/skynet/lists/* 2>/dev/null; then
+		awk -F / '{print $NF}' /jffs/shared-Skynet-whitelist > /tmp/skynet/skynet.manifest
+		while IFS= read -r "list"; do
+			if [ ! -f "$list" ]; then
+				rm -rf "${skynetloc}"/lists/*
+				break
+			fi
+		done < /tmp/skynet/skynet.manifest
+		command="curl -fsLZ $(awk -F / '{print $0 " -Oz " $5 " "}' /jffs/shared-Skynet-whitelist | xargs)"
+		eval "$command"
+		dos2unix "${skynetloc}"/lists/* 2>/dev/null
+		for file in *; do
+			grep -qF "$file" /tmp/skynet/skynet.manifest ||  rm -rf "$file"
+		done
+		if ! grep -qE '^([0-9]{1,3}\.){3}[0-9]{1,3}(/[0-9]{1,2})?$' "${skynetloc}"/lists/* 2>/dev/null; then
 			result="$(Red "[$(($(date +%s) - btime))s]")"
 			printf "%-8s\\n" "$result"
 			printf "%-35s\\n" "[*] List Content Error Detected - Stopping Banmalware"
@@ -3148,12 +3166,8 @@ case "$1" in
 			result="1"
 		fi
 		if [ "$result" != "1" ]; then
-			cd /tmp/skynet/lists || exit 1
-			for listname in * ; do
-			   sed -i "s/$/ $listname/" "$listname"
-			done
+			awk '{print $1 " " FILENAME}' -- * | grep -E '^([0-9]{1,3}\.){3}[0-9]{1,3}(/[0-9]{1,2})? .*' | awk '!x[$0]++' | Filter_PrivateIP > /tmp/skynet/malwarelist.txt
 			cd "$cwd" || exit 1
-			cat /tmp/skynet/lists/* | grep -E '^([0-9]{1,3}\.){3}[0-9]{1,3}(/[0-9]{1,2})? .*' | awk '!x[$0]++' | Filter_PrivateIP > /tmp/skynet/malwarelist.txt
 			Display_Result
 			btime="$(date +%s)"
 			printf "%-35s | " "[i] Filtering IPv4 Addresses"
@@ -3220,6 +3234,13 @@ case "$1" in
 				echo "[i] Updating VPN Whitelist"
 				Whitelist_VPN
 			;;
+			asn)
+				if [ -z "$3" ]; then echo "[*] ASN Field Can't Be Empty - Please Try Again"; echo; exit 2; fi
+				if ! echo "$3" | Is_ASN; then echo "[*] $3 Is Not A Valid ASN"; echo; exit 2; fi
+				asnlist="$(echo "$3" | awk '{print toupper($0)}')"
+				echo "[i] Adding $asnlist To Whitelist"
+				curl -fsL --retry 3 "https://ipinfo.io/$asnlist" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}' | awk -v asn="$asnlist" '{printf "add Skynet-Whitelist %s comment \"ASN: %s \"\n", $1, asn }' | awk '!x[$0]++' | ipset restore -!
+			;;
 			remove)
 				case "$3" in
 					entry)
@@ -3232,11 +3253,11 @@ case "$1" in
 						if [ -z "$4" ]; then echo "[*] Comment Field Can't Be Empty - Please Try Again"; echo; exit 2; fi
 						echo "[i] Removing All Entries With Comment Matching \"$4\" From Whitelist"
 						sed "\\~add Skynet-Whitelist ~!d;\\~$4~!d;s~ comment.*~~;s~add~del~g" "$skynetipset" | ipset restore -!
-						sed "\\~add Skynet-Whitelist ~!d;\\~$4~!d" "$skynetipset" | awk '{print $3}' > /tmp/skynet/ip.list
-						while read -r ip; do
+						echo "[i] Removing Old Logs - This May Take Awhile (To Skip Type ctrl+c)"
+						trap 'break; echo' 2
+						sed "\\~add Skynet-Whitelist ~!d;\\~$4~!d" "$skynetipset" | cut -d' ' -f3 | while IFS= read -r "ip"; do
 							sed -i "\\~=$ip ~d" "$skynetlog" "$skynetevents"
-						done < /tmp/skynet/ip.list
-						rm -rf /tmp/skynet/ip.list
+						done
 					;;
 					all)
 						if ! Check_Connection; then echo "[*] Connection Error Detected - Exiting"; echo; exit 1; fi
@@ -4611,7 +4632,6 @@ case "$1" in
 						Check_Lock "$@"
 						if ! Check_Connection; then echo "[*] Connection Error Detected - Exiting"; echo; exit 1; fi
 						if ! echo "$4" | Is_IPRange; then echo "[*] $4 Is Not A Valid IP/Range"; echo; exit 2; fi
-						Clean_Temp
 						if [ "$extendedstats" = "enabled" ] && grep -q "reply.* is $4" /opt/var/log/dnsmasq*; then
 							Red "Associated Domain(s);"
 							assdomains="$(grep -E "reply.* is $4" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | Filter_OutIP)"
@@ -4625,32 +4645,23 @@ case "$1" in
 							echo; echo
 						fi
 						ip="$(echo "$4" | sed "s~\\.~\\\\.~g")"
-						if [ -n "$customlisturl" ]; then listurl="$customlisturl"; else listurl="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/filter.list"; fi
-						curl -fsL --retry 3 "$listurl" -o /jffs/shared-Skynet-whitelist
-						echo >> /jffs/shared-Skynet-whitelist
-						cwd="$(pwd)"
-						cd /tmp/skynet/lists || exit 1
-						while IFS= read -r "domain" && [ -n "$domain" ]; do
-							curl -fsL --retry 3 "$domain" -O &
-						done < /jffs/shared-Skynet-whitelist
-						Spinner_End; wait; Spinner_Start
-						dos2unix /tmp/skynet/lists/*
-						cd "$cwd" || exit 1
 						printf '   \b\b\b'
 						Display_Header "10"
 						Red "Exact Matches;"
 						Display_Header "5"
-						grep -HE "^$ip$" /tmp/skynet/lists/* | cut -d '/' -f5- | while IFS= read -r "list" && [ -n "$list" ]; do
+						cwd="$(pwd)"
+						cd "${skynetloc}/lists" || exit 1
+						grep -HE "^$ip$" -- * | while IFS= read -r "list" && [ -n "$list" ]; do
 							printf "%-20s | %-40s\\n" "$(echo "$list" | cut -d ':' -f2-)" "$(grep -F "$(echo "$list" | cut -d ':' -f1)" /jffs/shared-Skynet-whitelist)"
 						done
 						printf '   \b\b\b\n\n'
 						Red "Possible CIDR Matches;"
 						Display_Header "5"
-						grep -HE "^$(echo "$ip" | cut -d '.' -f1-3)..*/" /tmp/skynet/lists/* | cut -d '/' -f5- | while IFS= read -r "list"; do
+						grep -HE "^$(echo "$ip" | cut -d '.' -f1-3)..*/" -- * | while IFS= read -r "list"; do
 							printf "%-20s | %-40s\\n" "$(echo "$list" | cut -d ':' -f2-)" "$(grep -F "$(echo "$list" | cut -d ':' -f1)" /jffs/shared-Skynet-whitelist)"
 						done
 						printf '   \b\b\b'
-						Clean_Temp
+						cd "$cwd" || exit 1
 					;;
 					manualbans)
 						if [ "$4" -eq "$4" ] 2>/dev/null; then counter="$4"; fi
