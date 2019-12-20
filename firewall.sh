@@ -10,12 +10,12 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            20/12/2019 - v7.0.1                                            #
+#                                            21/12/2019 - v7.0.1                                            #
 #############################################################################################################
 
 
 [ -z "$(nvram get odmpid)" ] && model="$(nvram get productid)" || model="$(nvram get odmpid)"
-if [ "$model" = "RT-AC87U" ] || [ "$model" = "RT-AC3200" ]; then
+if [ "$model" = "RT-AC87U" ] || [ "$model" = "RT-AC3200" ] || [ "$(uname -o)" = "ASUSWRT-Merlin-LTS" ]; then
 	if [ -f /opt/bin/opkg ] && [ ! -f /opt/bin/curl ]; then
 		opkg update
 		opkg install curl
