@@ -21,7 +21,7 @@ if [ "$model" = "RT-AC87U" ] || [ "$model" = "RT-AC3200" ] || [ "$(uname -o)" = 
 		opkg install curl
 	fi
 else
-	export PATH=/sbin:/bin:/usr/sbin:/usr/bin$PATH
+	export PATH=/sbin:/bin:/usr/sbin:/usr/bin:$PATH
 fi
 printf '\033[?7l'
 clear
