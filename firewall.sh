@@ -14,8 +14,7 @@
 #############################################################################################################
 
 
-[ -z "$(nvram get odmpid)" ] && model="$(nvram get productid)" || model="$(nvram get odmpid)"
-if [ "$model" = "RT-AC87U" ] || [ "$model" = "RT-AC3200" ] || [ "$(uname -o)" = "ASUSWRT-Merlin-LTS" ]; then
+if [ "$(curl --version | awk 'NR >= 1 && NR <= 1 {print $2}' | tr -d '.')" -lt "7660" ]; then
 	if [ -f /opt/bin/opkg ] && [ ! -f /opt/bin/curl ]; then
 		opkg update
 		opkg install curl
