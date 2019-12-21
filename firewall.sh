@@ -10,11 +10,11 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            21/12/2019 - v7.0.1                                            #
+#                                            22/12/2019 - v7.0.2                                            #
 #############################################################################################################
 
 
-if [ "$(curl --version | awk 'NR >= 1 && NR <= 1 {print $2}' | tr -d '.')" -lt "7660" ]; then
+if [ "$(/usr/sbin/curl --version | awk 'NR >= 1 && NR <= 1 {print $2}' | tr -d '.')" -lt "7660" ]; then
 	if [ -f "/opt/bin/opkg" ] && [ ! -f "/opt/bin/curl" ]; then
 		opkg update
 		opkg install curl
