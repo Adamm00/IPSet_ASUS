@@ -18,6 +18,9 @@ if [ "$(/usr/sbin/curl --version | awk 'NR >= 1 && NR <= 1 {print $2}' | tr -d '
 	if [ -f "/opt/bin/opkg" ] && [ ! -f "/opt/bin/curl" ]; then
 		opkg update
 		opkg install curl
+	elif [ "$(/opt/bin/curl --version | awk 'NR >= 1 && NR <= 1 {print $2}' | tr -d '.')" -lt "7660" ]; then
+		opkg update
+		opkg upgrade curl
 	elif [ ! -f "/opt/bin/opkg" ]; then
 		logger -st Skynet "[!] curl Version Outdated - Please Update Firmware Or Install Entware"
 	fi
