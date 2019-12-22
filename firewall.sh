@@ -14,19 +14,7 @@
 #############################################################################################################
 
 
-if [ "$(/usr/sbin/curl --version | awk 'NR >= 1 && NR <= 1 {print $2}' | tr -d '.')" -lt "7660" ]; then
-	if [ -f "/opt/bin/opkg" ] && [ ! -f "/opt/bin/curl" ]; then
-		opkg update
-		opkg install curl
-	elif [ "$(/opt/bin/curl --version | awk 'NR >= 1 && NR <= 1 {print $2}' | tr -d '.')" -lt "7660" ]; then
-		opkg update
-		opkg upgrade curl
-	elif [ ! -f "/opt/bin/opkg" ]; then
-		logger -st Skynet "[!] curl Version Outdated - Please Update Firmware Or Install Entware"
-	fi
-else
-	export PATH=/sbin:/bin:/usr/sbin:/usr/bin:$PATH
-fi
+export PATH=/sbin:/bin:/usr/sbin:/usr/bin:$PATH
 printf '\033[?7l'
 clear
 sed -n '2,14p' "$0"
@@ -3168,7 +3156,22 @@ case "$1" in
 				break
 			fi
 		done < /tmp/skynet/skynet.manifest
-		command="curl -fsLZ $(awk -F / '{print $0 " -Oz " $5 " "}' /jffs/shared-Skynet-whitelist | xargs)"
+		if [ "$(/usr/sbin/curl --version | awk 'NR >= 1 && NR <= 1 {print $2}' | tr -d '.')" -lt "7660" ]; then
+			if [ -f "/opt/bin/opkg" ] && [ ! -f "/opt/bin/curl" ]; then
+				opkg update
+				opkg install curl
+				curlpath="/opt/bin/curl"
+			elif [ "$(/opt/bin/curl --version | awk 'NR >= 1 && NR <= 1 {print $2}' | tr -d '.')" -lt "7660" ]; then
+				opkg update
+				opkg upgrade curl
+				curlpath="/opt/bin/curl"
+			elif [ ! -f "/opt/bin/opkg" ]; then
+				logger -st Skynet "[!] curl Version Outdated - Please Update Firmware Or Install Entware"
+			fi
+		else
+			curlpath="/usr/sbin/curl"
+		fi
+		command="$curlpath -fsLZ $(awk -F / '{print $0 " -Oz " $5 " "}' /jffs/shared-Skynet-whitelist | xargs)"
 		eval "$command"
 		dos2unix "${skynetloc}"/lists/* 2>/dev/null
 		for file in *; do
