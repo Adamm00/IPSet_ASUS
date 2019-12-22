@@ -3173,7 +3173,7 @@ case "$1" in
 		else
 			curlpath="/usr/sbin/curl"
 		fi
-		command="$curlpath -fsLZ $(awk -F / '{print $0 " -Oz " $5 " "}' /jffs/shared-Skynet-whitelist | xargs)"
+		command="$curlpath -fsLZ $(awk -F / '{print $0 " -Oz " $NF " "}' /jffs/shared-Skynet-whitelist | xargs)"
 		eval "$command"
 		dos2unix "${skynetloc}"/lists/* 2>/dev/null
 		for file in *; do
