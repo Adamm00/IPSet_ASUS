@@ -3157,7 +3157,9 @@ case "$1" in
 			fi
 		done < /tmp/skynet/skynet.manifest
 		if [ "$(/usr/sbin/curl --version | awk 'NR >= 1 && NR <= 1 {print $2}' | tr -d '.')" -lt "7660" ]; then
-			if [ -f "/opt/bin/opkg" ] && [ ! -f "/opt/bin/curl" ]; then
+			if [ "$(/opt/bin/curl --version | awk 'NR >= 1 && NR <= 1 {print $2}' | tr -d '.')" -ge "7660" ]; then
+					curlpath="/opt/bin/curl"
+			elif [ -f "/opt/bin/opkg" ] && [ ! -f "/opt/bin/curl" ]; then
 				opkg update
 				opkg install curl
 				curlpath="/opt/bin/curl"
