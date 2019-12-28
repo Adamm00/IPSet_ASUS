@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            27/12/2019 - v7.0.2                                            #
+#                                            29/12/2019 - v7.0.2                                            #
 #############################################################################################################
 
 
@@ -1062,6 +1062,8 @@ Write_Config () {
 		printf "\\n%s\\n" "## Counters / Lists ##"
 		printf "%s=\"%s\"\\n" "blacklist1count" "$blacklist1count"
 		printf "%s=\"%s\"\\n" "blacklist2count" "$blacklist2count"
+		printf "%s=\"%s\"\\n" "hits1" "$hits1"
+		printf "%s=\"%s\"\\n" "hits2" "$hits2"
 		printf "%s=\"%s\"\\n" "customlisturl" "$customlisturl"
 		printf "%s=\"%s\"\\n" "customlist2url" "$customlist2url"
 		printf "%s=\"%s\"\\n" "countrylist" "$countrylist"
