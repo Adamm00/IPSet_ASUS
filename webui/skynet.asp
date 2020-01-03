@@ -246,8 +246,8 @@ function GetCookie(cookiename) {
 }
 
 function SetCurrentPage(){
-	$("#next_page").val(window.location.href.substring(window.location.href.lastIndexOf('/')+1));
-	$("#current_page").val(window.location.href.substring(window.location.href.lastIndexOf('/')+1));
+    $("#next_page").val(window.location.pathname.substring(1));
+    $("#current_page").val(window.location.pathname.substring(1));
 }
 
 function initial(){

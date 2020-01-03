@@ -51,7 +51,7 @@ skynetlog="${skynetloc}/skynet.log"
 skynetevents="${skynetloc}/events.log"
 skynetipset="${skynetloc}/skynet.ipset"
 
-if [ -z "$skynetloc" ] && tty >/dev/null 2>&1; then
+if [ -z "${skynetloc}" ] && tty >/dev/null 2>&1; then
 	set "install"
 fi
 
@@ -84,16 +84,16 @@ Check_Lock () {
 		lockskynet="true"
 }
 
-if [ ! -d "$skynetloc" ] && ! echo "$@" | grep -wqE "(install|uninstall|disable|update|restart|info)"; then
+if [ ! -d "${skynetloc}" ] && ! echo "$@" | grep -wqE "(install|uninstall|disable|update|restart|info)"; then
 	Check_Lock "$@"
 	usbtest="0"
-	if [ -z "$skynetloc" ]; then usbtest="10"; fi
-	while [ ! -d "$skynetloc" ] && [ "$usbtest" -le "10" ]; do
+	if [ -z "${skynetloc}" ]; then usbtest="10"; fi
+	while [ ! -d "${skynetloc}" ] && [ "$usbtest" -le "10" ]; do
 		usbtest=$((usbtest+1))
 		logger -st Skynet "[*] USB Not Found - Sleeping For 10 Seconds ( Attempt $usbtest Of 10 )"
 		sleep 10
 	done
-	if [ ! -d "$skynetloc" ] || [ ! -w "$skynetloc" ]; then
+	if [ ! -d "${skynetloc}" ] || [ ! -w "${skynetloc}" ]; then
 		logger -st Skynet "[*] Problem With USB Install Location - Please Fix Immediately!"
 		logger -st Skynet "[*] When Fixed Run ( sh $0 restart )"
 		echo; exit 1
@@ -934,9 +934,9 @@ WriteData_ToJS (){
 
 Generate_Stats () {
 	if [ "$(nvram get buildno | tr -d '.')" -ge "38415" ] && [ "$displaywebui" = "enabled" ]; then
-		mkdir -p "$skynetloc/webui/stats"
-		true > "$skynetloc/webui/stats.js"
-		grep -hE 'reply.* is ([0-9]{1,3}\.){3}[0-9]{1,3}$' /opt/var/log/dnsmasq* | awk '{printf "%s %s\n", $6, $8}' | Strip_Domain > "$skynetloc/webui/stats/skynetstats.txt"
+		mkdir -p "${skynetloc}/webui/stats"
+		true > "${skynetloc}/webui/stats.js"
+		grep -hE 'reply.* is ([0-9]{1,3}\.){3}[0-9]{1,3}$' /opt/var/log/dnsmasq* | awk '{printf "%s %s\n", $6, $8}' | Strip_Domain > "${skynetloc}/webui/stats/skynetstats.txt"
 
 		if [ "$filtertraffic" != "outbound" ]; then
 			hits1="$(iptables -xnvL PREROUTING -t raw | grep -Fv "LOG" | grep -F "Skynet-Master src" | awk '{print $1}')"
@@ -949,19 +949,19 @@ Generate_Stats () {
 			hits2="0"
 		fi
 
-		WriteStats_ToJS "$blacklist1count" "$skynetloc/webui/stats.js" "SetBLCount1" "blcount1"
-		WriteStats_ToJS "$blacklist2count" "$skynetloc/webui/stats.js" "SetBLCount2" "blcount2"
-		WriteStats_ToJS "$hits1" "$skynetloc/webui/stats.js" "SetHits1" "hits1"
-		WriteStats_ToJS "$hits2" "$skynetloc/webui/stats.js" "SetHits2" "hits2"
-		WriteStats_ToJS "Last Updated - $(date +"%r")" "$skynetloc/webui/stats.js" "SetStatsDate" "statsdate"
+		WriteStats_ToJS "$blacklist1count" "${skynetloc}/webui/stats.js" "SetBLCount1" "blcount1"
+		WriteStats_ToJS "$blacklist2count" "${skynetloc}/webui/stats.js" "SetBLCount2" "blcount2"
+		WriteStats_ToJS "$hits1" "${skynetloc}/webui/stats.js" "SetHits1" "hits1"
+		WriteStats_ToJS "$hits2" "${skynetloc}/webui/stats.js" "SetHits2" "hits2"
+		WriteStats_ToJS "Last Updated - $(date +"%r")" "${skynetloc}/webui/stats.js" "SetStatsDate" "statsdate"
 		# Inbound Ports
-		grep -F "INBOUND" "$skynetlog" | grep -oE 'DPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -10 | sed "s~^[ \t]*~~;s~ ~\~~g" > "$skynetloc/webui/stats/iport.txt"
-		WriteData_ToJS "$skynetloc/webui/stats/iport.txt" "$skynetloc/webui/stats.js" "DataInPortHits" "LabelInPortHits"
+		grep -F "INBOUND" "$skynetlog" | grep -oE 'DPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -10 | sed "s~^[ \t]*~~;s~ ~\~~g" > "${skynetloc}/webui/stats/iport.txt"
+		WriteData_ToJS "${skynetloc}/webui/stats/iport.txt" "${skynetloc}/webui/stats.js" "DataInPortHits" "LabelInPortHits"
 		# Source Ports
-		grep -F "INBOUND" "$skynetlog" | grep -oE 'SPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -10 | sed "s~^[ \t]*~~;s~ ~\~~g" > "$skynetloc/webui/stats/sport.txt"
-		WriteData_ToJS "$skynetloc/webui/stats/sport.txt" "$skynetloc/webui/stats.js" "DataSPortHits" "LabelSPortHits"
+		grep -F "INBOUND" "$skynetlog" | grep -oE 'SPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -10 | sed "s~^[ \t]*~~;s~ ~\~~g" > "${skynetloc}/webui/stats/sport.txt"
+		WriteData_ToJS "${skynetloc}/webui/stats/sport.txt" "${skynetloc}/webui/stats.js" "DataSPortHits" "LabelSPortHits"
 		# last 10 Connections Blocked Inbound
-		true > "$skynetloc/webui/stats/liconn.txt"
+		true > "${skynetloc}/webui/stats/liconn.txt"
 		grep -F "INBOUND" "$skynetlog" | grep -oE ' SRC=[0-9,\.]*' | cut -c 6- | awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' | awk '!x[$0]++' | head -10 | while IFS= read -r "statdata"; do
 			banreason="$(grep -F " ${statdata} " "$skynetipset" | awk -F "\"" '{print $2}' | sed "s~BanMalware: ~~g")"
 			if [ -z "$banreason" ]; then
@@ -970,13 +970,13 @@ Generate_Stats () {
 			if [ "${#banreason}" -gt "45" ]; then banreason="$(echo "$banreason" | cut -c 1-45)"; fi
 			alienvault="https://otx.alienvault.com/indicator/ip/${statdata}"
 			country="$(curl -fsL --retry 3 "https://ipapi.co/${statdata}/country/")"
-			assdomains="$(grep -F "$statdata" "$skynetloc/webui/stats/skynetstats.txt" | awk '{print $1}' | xargs)"
+			assdomains="$(grep -F "$statdata" "${skynetloc}/webui/stats/skynetstats.txt" | awk '{print $1}' | xargs)"
 			if [ -z "$assdomains" ]; then assdomains="*"; fi
-			echo "$statdata~$banreason~$alienvault~$country~$assdomains" >> "$skynetloc/webui/stats/liconn.txt"
+			echo "$statdata~$banreason~$alienvault~$country~$assdomains" >> "${skynetloc}/webui/stats/liconn.txt"
 		done
-		WriteData_ToJS "$skynetloc/webui/stats/liconn.txt" "$skynetloc/webui/stats.js" "LabelInConn_IPs" "LabelInConn_BanReason" "LabelInConn_AlienVault" "LabelInConn_Country" "LabelInConn_AssDomains"
+		WriteData_ToJS "${skynetloc}/webui/stats/liconn.txt" "${skynetloc}/webui/stats.js" "LabelInConn_IPs" "LabelInConn_BanReason" "LabelInConn_AlienVault" "LabelInConn_Country" "LabelInConn_AssDomains"
 		# Last 10 Connections Blocked Outbound
-		true > "$skynetloc/webui/stats/loconn.txt"
+		true > "${skynetloc}/webui/stats/loconn.txt"
 		grep -F "OUTBOUND" "$skynetlog" | grep -vE 'DPT=80 |DPT=443 ' | grep -oE ' DST=[0-9,\.]*' | cut -c 6- | awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' | awk '!x[$0]++' | head -10 | while IFS= read -r "statdata"; do
 			banreason="$(grep -F " ${statdata} " "$skynetipset" | awk -F "\"" '{print $2}' | sed "s~BanMalware: ~~g")"
 			if [ -z "$banreason" ]; then
@@ -985,13 +985,13 @@ Generate_Stats () {
 			if [ "${#banreason}" -gt "45" ]; then banreason="$(echo "$banreason" | cut -c 1-45)"; fi
 			alienvault="https://otx.alienvault.com/indicator/ip/${statdata}"
 			country="$(curl -fsL --retry 3 "https://ipapi.co/${statdata}/country/")"
-			assdomains="$(grep -F "$statdata" "$skynetloc/webui/stats/skynetstats.txt" | awk '{print $1}' | xargs)"
+			assdomains="$(grep -F "$statdata" "${skynetloc}/webui/stats/skynetstats.txt" | awk '{print $1}' | xargs)"
 			if [ -z "$assdomains" ]; then assdomains="*"; fi
-			echo "$statdata~$banreason~$alienvault~$country~$assdomains" >> "$skynetloc/webui/stats/loconn.txt"
+			echo "$statdata~$banreason~$alienvault~$country~$assdomains" >> "${skynetloc}/webui/stats/loconn.txt"
 		done
-		WriteData_ToJS "$skynetloc/webui/stats/loconn.txt" "$skynetloc/webui/stats.js" "LabelOutConn_IPs" "LabelOutConn_BanReason" "LabelOutConn_AlienVault" "LabelOutConn_Country" "LabelOutConn_AssDomains"
+		WriteData_ToJS "${skynetloc}/webui/stats/loconn.txt" "${skynetloc}/webui/stats.js" "LabelOutConn_IPs" "LabelOutConn_BanReason" "LabelOutConn_AlienVault" "LabelOutConn_Country" "LabelOutConn_AssDomains"
 		# Last 10 HTTP Connections Blocked Outbound
-		true > "$skynetloc/webui/stats/lhconn.txt"
+		true > "${skynetloc}/webui/stats/lhconn.txt"
 		grep -E 'DPT=80 |DPT=443 ' "$skynetlog" | grep -F "OUTBOUND" | grep -oE ' DST=[0-9,\.]*' | cut -c 6- | awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' | awk '!x[$0]++' | head -10 | while IFS= read -r "statdata"; do
 			banreason="$(grep -F " ${statdata} " "$skynetipset" | awk -F "\"" '{print $2}' | sed "s~BanMalware: ~~g")"
 			if [ -z "$banreason" ]; then
@@ -1000,42 +1000,42 @@ Generate_Stats () {
 			if [ "${#banreason}" -gt "45" ]; then banreason="$(echo "$banreason" | cut -c 1-45)"; fi
 			alienvault="https://otx.alienvault.com/indicator/ip/${statdata}"
 			country="$(curl -fsL --retry 3 "https://ipapi.co/${statdata}/country/")"
-			assdomains="$(grep -F "$statdata" "$skynetloc/webui/stats/skynetstats.txt" | awk '{print $1}' | xargs)"
+			assdomains="$(grep -F "$statdata" "${skynetloc}/webui/stats/skynetstats.txt" | awk '{print $1}' | xargs)"
 			if [ -z "$assdomains" ]; then assdomains="*"; fi
-			echo "$statdata~$banreason~$alienvault~$country~$assdomains" >> "$skynetloc/webui/stats/lhconn.txt"
+			echo "$statdata~$banreason~$alienvault~$country~$assdomains" >> "${skynetloc}/webui/stats/lhconn.txt"
 		done
-		WriteData_ToJS "$skynetloc/webui/stats/lhconn.txt" "$skynetloc/webui/stats.js" "LabelHTTPConn_IPs" "LabelHTTPConn_BanReason" "LabelHTTPConn_AlienVault" "LabelHTTPConn_Country" "LabelHTTPConn_AssDomains"
+		WriteData_ToJS "${skynetloc}/webui/stats/lhconn.txt" "${skynetloc}/webui/stats.js" "LabelHTTPConn_IPs" "LabelHTTPConn_BanReason" "LabelHTTPConn_AlienVault" "LabelHTTPConn_Country" "LabelHTTPConn_AssDomains"
 		# Top 10 HTTP Connections Blocked Outbound
-		true > "$skynetloc/webui/stats/thconn.txt"
+		true > "${skynetloc}/webui/stats/thconn.txt"
 		grep -E 'DPT=80 |DPT=443 ' "$skynetlog" | grep -F "OUTBOUND" | grep -oE ' DST=[0-9,\.]*' | cut -c 6- | sort -n | uniq -c | sort -nr | head -10 | while IFS= read -r "statdata"; do
 			hits="$(echo "$statdata" | awk '{print $1}')"
 			ipaddr="$(echo "$statdata" | awk '{print $2}')"
 			country="$(curl -fsL --retry 3 "https://ipapi.co/$ipaddr/country/")"
-			echo "$hits~$ipaddr~$country" >> "$skynetloc/webui/stats/thconn.txt"
+			echo "$hits~$ipaddr~$country" >> "${skynetloc}/webui/stats/thconn.txt"
 		done
-		WriteData_ToJS "$skynetloc/webui/stats/thconn.txt" "$skynetloc/webui/stats.js" "DataTHConnHits" "LabelTHConnHits_IPs" "LabelTHConnHits_Country"
+		WriteData_ToJS "${skynetloc}/webui/stats/thconn.txt" "${skynetloc}/webui/stats.js" "DataTHConnHits" "LabelTHConnHits_IPs" "LabelTHConnHits_Country"
 		# Top 10 Inbound Connections Blocked
-		true > "$skynetloc/webui/stats/ticonn.txt"
+		true > "${skynetloc}/webui/stats/ticonn.txt"
 		grep -F "INBOUND" "$skynetlog" | grep -oE ' SRC=[0-9,\.]*' | cut -c 6- | sort -n | uniq -c | sort -nr | head -10 | while IFS= read -r "statdata"; do
 		hits="$(echo "$statdata" | awk '{print $1}')"
 		ipaddr="$(echo "$statdata" | awk '{print $2}')"
 		country="$(curl -fsL --retry 3 "https://ipapi.co/$ipaddr/country/")"
-		echo "$hits~$ipaddr~$country" >> "$skynetloc/webui/stats/ticonn.txt"
+		echo "$hits~$ipaddr~$country" >> "${skynetloc}/webui/stats/ticonn.txt"
 		done
-		WriteData_ToJS "$skynetloc/webui/stats/ticonn.txt" "$skynetloc/webui/stats.js" "DataTIConnHits" "LabelTIConnHits_IPs" "LabelTIConnHits_Country"
+		WriteData_ToJS "${skynetloc}/webui/stats/ticonn.txt" "${skynetloc}/webui/stats.js" "DataTIConnHits" "LabelTIConnHits_IPs" "LabelTIConnHits_Country"
 		# Top 10 Outbound Connections Blocked
-		true > "$skynetloc/webui/stats/toconn.txt"
+		true > "${skynetloc}/webui/stats/toconn.txt"
 		grep -F "OUTBOUND" "$skynetlog" | grep -vE 'DPT=80 |DPT=443 ' | grep -oE ' DST=[0-9,\.]*' | cut -c 6- | sort -n | uniq -c | sort -nr | head -10 | while IFS= read -r "statdata"; do
 			hits="$(echo "$statdata" | awk '{print $1}')"
 			ipaddr="$(echo "$statdata" | awk '{print $2}')"
 			country="$(curl -fsL --retry 3 "https://ipapi.co/$ipaddr/country/")"
-			echo "$hits~$ipaddr~$country" >> "$skynetloc/webui/stats/toconn.txt"
+			echo "$hits~$ipaddr~$country" >> "${skynetloc}/webui/stats/toconn.txt"
 		done
-		WriteData_ToJS "$skynetloc/webui/stats/toconn.txt" "$skynetloc/webui/stats.js" "DataTOConnHits" "LabelTOConnHits_IPs" "LabelTOConnHits_Country"
+		WriteData_ToJS "${skynetloc}/webui/stats/toconn.txt" "${skynetloc}/webui/stats.js" "DataTOConnHits" "LabelTOConnHits_IPs" "LabelTOConnHits_Country"
 		# Top 10 Clients Blocked
-		grep -F "OUTBOUND" "$skynetlog" | grep -oE ' SRC=[0-9,\.]*' | cut -c 6- | sort -n | uniq -c | sort -nr | head -10 | sed "s~^[ \t]*~~;s~ ~\~~g" > "$skynetloc/webui/stats/tcconn.txt"
-		WriteData_ToJS "$skynetloc/webui/stats/tcconn.txt" "$skynetloc/webui/stats.js" "DataTCConnHits" "LabelTCConnHits"
-		rm -rf "$skynetloc/webui/stats"
+		grep -F "OUTBOUND" "$skynetlog" | grep -oE ' SRC=[0-9,\.]*' | cut -c 6- | sort -n | uniq -c | sort -nr | head -10 | sed "s~^[ \t]*~~;s~ ~\~~g" > "${skynetloc}/webui/stats/tcconn.txt"
+		WriteData_ToJS "${skynetloc}/webui/stats/tcconn.txt" "${skynetloc}/webui/stats.js" "DataTCConnHits" "LabelTCConnHits"
+		rm -rf "${skynetloc}/webui/stats"
 	fi
 }
 
@@ -1054,12 +1054,12 @@ Get_WebUI_Page () {
 
 Install_WebUI_Page () {
 	if [ "$(nvram get buildno | tr -d '.')" -ge "38415" ] && [ "$displaywebui" = "enabled" ]; then
-		MyPage="$(Get_WebUI_Page "$skynetloc/webui/skynet.asp")"
+		MyPage="$(Get_WebUI_Page "${skynetloc}/webui/skynet.asp")"
 		if [ "$MyPage" = "none" ]; then
 			logger -t Skynet "[*] Unable To Mount Skynet Web Page - No Mount Points Avilable" && echo "[*] Unable To Mount Skynet Web Page - No Mount Points Avilable"
 		else
 			logger -t Skynet "[%] Mounting Skynet Web Page As $MyPage" && echo "[%] Mounting Skynet Web Page As $MyPage"
-			cp -f "$skynetloc/webui/skynet.asp" "/www/user/$MyPage"
+			cp -f "${skynetloc}/webui/skynet.asp" "/www/user/$MyPage"
 			if [ ! -f "/tmp/menuTree.js" ]; then
 				cp -f "/www/require/modules/menuTree.js" "/tmp/"
 			fi
@@ -1068,9 +1068,9 @@ Install_WebUI_Page () {
 			umount /www/require/modules/menuTree.js 2>/dev/null
 			mount -o bind /tmp/menuTree.js /www/require/modules/menuTree.js
 			mkdir -p "/www/ext/skynet"
-			ln -s "$skynetloc/webui/stats.js" "/www/ext/skynet/stats.js" 2>/dev/null
-			ln -s "$skynetloc/webui/chartjs-plugin-zoom.js" "/www/ext/skynet/chartjs-plugin-zoom.js" 2>/dev/null
-			ln -s "$skynetloc/webui/hammerjs.js" "/www/ext/skynet/hammerjs.js" 2>/dev/null
+			ln -s "${skynetloc}/webui/stats.js" "/www/ext/skynet/stats.js" 2>/dev/null
+			ln -s "${skynetloc}/webui/chartjs-plugin-zoom.js" "/www/ext/skynet/chartjs-plugin-zoom.js" 2>/dev/null
+			ln -s "${skynetloc}/webui/hammerjs.js" "/www/ext/skynet/hammerjs.js" 2>/dev/null
 			Unload_Cron "genstats"
 			Load_Cron "genstats"
 		fi
@@ -1080,7 +1080,7 @@ Install_WebUI_Page () {
 Uninstall_WebUI_Page () {
 	if [ -n "$MyPage" ] && [ "$MyPage" != "none" ] && [ -f "/tmp/menuTree.js" ]; then
 		sed -i "\\~$MyPage~d" /tmp/menuTree.js
-		umount /www/require/modules/menuTree.js 2>/dev/null
+		umount /www/require/modules/menuTree.js
 		mount -o bind /tmp/menuTree.js /www/require/modules/menuTree.js
 		rm -rf "/www/ext/$MyPage" "/www/ext/skynet"
 		Unload_Cron "genstats"
@@ -1287,7 +1287,7 @@ Load_Menu () {
 	ipset -v
 	echo "IP Address; ($(nvram get wan0_ipaddr))$(if [ "$(nvram get ipv6_service)" != "disabled" ]; then echo " - ($(nvram get ipv6_prefix)/$(nvram get ipv6_prefix_length))"; fi)"
 	echo "FW Version; $(nvram get buildno)_$(nvram get extendno) ($(uname -v | awk '{printf "%s %s %s\n", $5, $6, $9}')) ($(uname -r))"
-	echo "Install Dir; $skynetloc ($(df -h "$skynetloc" | xargs | awk '{printf "%s / %s\n", $11, $9}') Space Available)"
+	echo "Install Dir; ${skynetloc} ($(df -h "${skynetloc}" | xargs | awk '{printf "%s / %s\n", $11, $9}') Space Available)"
 	if [ -n "$swaplocation" ]; then
 		echo "SWAP File; $swaplocation ($(du -h "$swaplocation" | awk '{print $1}'))";
 	elif [ -n "$swappartition" ]; then
@@ -1307,7 +1307,7 @@ Load_Menu () {
 	if ! grep -E "start.* # Skynet" /jffs/scripts/firewall-start 2>/dev/null | grep -qvE "^#"; then
 		printf "%-35s | %-8s\\n" "Firewall-Start Entry" "$(Red "[Failed]")"
 	fi
-	if ! [ -w "$skynetloc" ]; then
+	if ! [ -w "${skynetloc}" ]; then
 		printf "%-35s | %-8s\\n" "Write Permission" "$(Red "[Failed]")"
 	fi
 	if ! Check_Swap; then
@@ -3801,10 +3801,10 @@ case "$1" in
 		Check_Lock "$@"
 		if ! Check_Connection; then echo "[*] Connection Error Detected - Exiting"; echo; exit 1; fi
 		remotedir="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master"
-		curl -fsL --retry 3 "$remotedir/firewall.sh" | grep -qF "Adamm" || { logger -st Skynet "[*] 404 Error Detected - Stopping Update"; echo; exit 1; }
-		remotever="$(curl -fsL --retry 3 "$remotedir/firewall.sh" | Filter_Version)"
+		curl -fsL --retry 3 "${remotedir}/firewall.sh" | grep -qF "Adamm" || { logger -st Skynet "[*] 404 Error Detected - Stopping Update"; echo; exit 1; }
+		remotever="$(curl -fsL --retry 3 "${remotedir}/firewall.sh" | Filter_Version)"
 		localmd5="$(md5sum "$0" | awk '{print $1}')"
-		remotemd5="$(curl -fsL --retry 3 "$remotedir/firewall.sh" | md5sum | awk '{print $1}')"
+		remotemd5="$(curl -fsL --retry 3 "${remotedir}/firewall.sh" | md5sum | awk '{print $1}')"
 		if [ "$localmd5" = "$remotemd5" ] && [ "$2" != "-f" ]; then
 			logger -t Skynet "[%] Skynet Up To Date - $localver (${localmd5})"; echo "[%] Skynet Up To Date - $localver (${localmd5})"
 			nolog="2"
@@ -3825,10 +3825,11 @@ case "$1" in
 			Unload_LogIPTables
 			Unload_IPSets
 			iptables -t raw -F
-			curl -fsL --retry 3 "$remotedir/webui/chartjs-plugin-zoom.js" -o "$skynetloc/webui/chartjs-plugin-zoom.js" || { logger -t Skynet "[*] Updating chartjs-plugin-zoom.js Failed"; echo "[*] Updating chartjs-plugin-zoom.js Failed"; }
-			curl -fsL --retry 3 "$remotedir/webui/hammerjs.js" -o "$skynetloc/webui/hammerjs.js" || { logger -t Skynet "[*] Updating hammerjs.js Failed"; echo "[*] Updating hammerjs.js Failed"; }
-			curl -fsL --retry 3 "$remotedir/webui/skynet.asp" -o "$skynetloc/webui/skynet.asp" || { logger -t Skynet "[*] Updating skynet.asp Failed"; echo "[*] Updating skynet.asp Failed"; }
-			curl -fsL --retry 3 "$remotedir/firewall.sh" -o "$0" || { logger -t Skynet "[*] Updating Skynet Failed"; echo "[*] Updating Skynet Failed"; }
+			mkdir -p "${skynetloc}/webui"
+			curl -fsL --retry 3 "${remotedir}/webui/chartjs-plugin-zoom.js" -o "${skynetloc}/webui/chartjs-plugin-zoom.js" || { logger -t Skynet "[*] Updating chartjs-plugin-zoom.js Failed"; echo "[*] Updating chartjs-plugin-zoom.js Failed"; }
+			curl -fsL --retry 3 "${remotedir}/webui/hammerjs.js" -o "${skynetloc}/webui/hammerjs.js" || { logger -t Skynet "[*] Updating hammerjs.js Failed"; echo "[*] Updating hammerjs.js Failed"; }
+			curl -fsL --retry 3 "${remotedir}/webui/skynet.asp" -o "${skynetloc}/webui/skynet.asp" || { logger -t Skynet "[*] Updating skynet.asp Failed"; echo "[*] Updating skynet.asp Failed"; }
+			curl -fsL --retry 3 "${remotedir}/firewall.sh" -o "$0" || { logger -t Skynet "[*] Updating Skynet Failed"; echo "[*] Updating Skynet Failed"; }
 			logger -t Skynet "[%] Restarting Firewall Service"; echo "[%] Restarting Firewall Service"
 			service restart_firewall
 			echo; exit 0
@@ -4338,7 +4339,7 @@ case "$1" in
 						if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 						Purge_Logs
 						displaywebui="enabled"
-						MyPage="$(Get_WebUI_Page "$skynetloc/webui/skynet.asp")"
+						MyPage="$(Get_WebUI_Page "${skynetloc}/webui/skynet.asp")"
 						Install_WebUI_Page
 						echo "[i] WebUI Enabled"
 						echo "[i] Generating Stats"
@@ -4348,7 +4349,7 @@ case "$1" in
 						Check_Lock "$@"
 						if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 						Purge_Logs
-						MyPage="$(Get_WebUI_Page "$skynetloc/webui/skynet.asp")"
+						MyPage="$(Get_WebUI_Page "${skynetloc}/webui/skynet.asp")"
 						Uninstall_WebUI_Page
 						displaywebui="disabled"
 						echo "[i] WebUI Disabled"
@@ -4484,7 +4485,7 @@ case "$1" in
 				ipset -v
 				echo "IP Address; ($(nvram get wan0_ipaddr))$(if [ "$(nvram get ipv6_service)" != "disabled" ]; then echo " - ($(nvram get ipv6_prefix)/$(nvram get ipv6_prefix_length))"; fi)"
 				echo "FW Version; $(nvram get buildno)_$(nvram get extendno) ($(uname -v | awk '{printf "%s %s %s\n", $5, $6, $9}')) ($(uname -r))"
-				echo "Install Dir; $skynetloc ($(df -h "$skynetloc" | xargs | awk '{printf "%s / %s\n", $11, $9}') Space Available)"
+				echo "Install Dir; ${skynetloc} ($(df -h "${skynetloc}" | xargs | awk '{printf "%s / %s\n", $11, $9}') Space Available)"
 				if [ -n "$swaplocation" ]; then
 					echo "SWAP File; $swaplocation ($(du -h "$swaplocation" | awk '{print $1}'))";
 				elif [ -n "$swappartition" ]; then
@@ -4537,7 +4538,7 @@ case "$1" in
 				if Check_Connection >/dev/null 2>&1; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
 				printf "%-8s\\n" "$result"
 				printf "%-35s | " "Write Permission"
-				if [ -w "$skynetloc" ]; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
+				if [ -w "${skynetloc}" ]; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
 				printf "%-8s\\n" "$result"
 				printf "%-35s | " "Firewall-Start Entry"
 				if grep -E "start.* # Skynet" /jffs/scripts/firewall-start | grep -qvE "^#"; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
@@ -4747,7 +4748,7 @@ case "$1" in
 				Save_IPSets
 				echo "[i] Backing Up Skynet Related Files"
 				echo
-				tar -czvf "${skynetloc}/Skynet-Backup.tar.gz" -C "$skynetloc" skynet.ipset skynet.log events.log skynet.cfg
+				tar -czvf "${skynetloc}/Skynet-Backup.tar.gz" -C "${skynetloc}" skynet.ipset skynet.log events.log skynet.cfg
 				echo
 				echo "[i] Backup Saved To ${skynetloc}/Skynet-Backup.tar.gz"
 				echo "[i] Copy This File To A Safe Location"
@@ -4774,7 +4775,7 @@ case "$1" in
 				Unload_IOTTables
 				Unload_LogIPTables
 				Unload_IPSets
-				tar -xzvf "$backuplocation" -C "$skynetloc"
+				tar -xzvf "$backuplocation" -C "${skynetloc}"
 				echo
 				echo "[i] Backup Restored"
 				logger -t Skynet "[%] Restarting Firewall Service"; echo "[%] Restarting Firewall Service"
@@ -5384,11 +5385,22 @@ case "$1" in
 		if [ -f "$skynetevents" ]; then mv "$skynetevents" "${device}/skynet/events.log"; fi
 		if [ -f "$skynetipset" ]; then mv "$skynetipset" "${device}/skynet/skynet.ipset"; fi
 		if [ -f "${skynetloc}/Skynet-Backup.tar.gz" ]; then mv "${skynetloc}/Skynet-Backup.tar.gz" "${device}/skynet/Skynet-Backup.tar.gz"; fi
-		if [ "$skynetloc" != "${device}/skynet" ]; then rm -rf "$skynetloc"; fi
+		if [ "${skynetloc}" != "${device}/skynet" ]; then rm -rf "${skynetloc}"; fi
 		skynetloc="${device}/skynet"
 		skynetcfg="${device}/skynet/skynet.cfg"
 		touch "${device}/skynet/events.log"
 		touch "${device}/skynet/skynet.log"
+		remotedir="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master"
+		mkdir -p "${skynetloc}/webui"
+		if [ ! -f "${skynetloc}/webui/chartjs-plugin-zoom.js" ]; then
+			curl -fsL --retry 3 "${remotedir}/webui/chartjs-plugin-zoom.js" -o "${skynetloc}/webui/chartjs-plugin-zoom.js" || { logger -t Skynet "[*] Updating chartjs-plugin-zoom.js Failed"; echo "[*] Updating chartjs-plugin-zoom.js Failed"; }
+		fi
+		if [ ! -f "${skynetloc}/webui/hammerjs.js" ]; then
+			curl -fsL --retry 3 "${remotedir}/webui/hammerjs.js" -o "${skynetloc}/webui/hammerjs.js" || { logger -t Skynet "[*] Updating hammerjs.js Failed"; echo "[*] Updating hammerjs.js Failed"; }
+		fi
+		if [ ! -f "${skynetloc}/webui/skynet.asp" ]; then
+			curl -fsL --retry 3 "${remotedir}/webui/skynet.asp" -o "${skynetloc}/webui/skynet.asp" || { logger -t Skynet "[*] Updating skynet.asp Failed"; echo "[*] Updating skynet.asp Failed"; }
+		fi
 		[ -z "$(nvram get odmpid)" ] && model="$(nvram get productid)" || model="$(nvram get odmpid)"
 		if [ -z "$loginvalid" ]; then loginvalid="disabled"; fi
 		if [ -z "$unbanprivateip" ]; then unbanprivateip="enabled"; fi
@@ -5493,12 +5505,12 @@ case "$1" in
 					Unload_IOTTables
 					Unload_LogIPTables
 					Unload_IPSets
-					MyPage="$(Get_WebUI_Page "$skynetloc/webui/skynet.asp")"
+					MyPage="$(Get_WebUI_Page "${skynetloc}/webui/skynet.asp")"
 					Uninstall_WebUI_Page
 					nvram set fw_log_x=none
 					echo "[i] Deleting Skynet Files"
 					sed -i '\~ Skynet ~d' /jffs/scripts/firewall-start /jffs/scripts/services-stop /jffs/scripts/service-event
-					rm -rf "/jffs/shared-Skynet-whitelist" "/jffs/shared-Skynet2-whitelist" "/opt/bin/firewall" "$skynetloc" "/jffs/scripts/firewall" "/tmp/skynet.lock" "/tmp/skynet"
+					rm -rf "/jffs/shared-Skynet-whitelist" "/jffs/shared-Skynet2-whitelist" "/opt/bin/firewall" "${skynetloc}" "/jffs/scripts/firewall" "/tmp/skynet.lock" "/tmp/skynet"
 					iptables -t raw -F
 					echo "[%] Restarting Firewall Service"
 					service restart_firewall
