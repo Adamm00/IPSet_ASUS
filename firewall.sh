@@ -939,7 +939,11 @@ Generate_Stats () {
 	if [ "$(nvram get buildno | tr -d '.')" -ge "38415" ] && [ "$displaywebui" = "enabled" ]; then
 		mkdir -p "${skynetloc}/webui/stats"
 		true > "${skynetloc}/webui/stats.js"
-		grep -hE 'reply.* is ([0-9]{1,3}\.){3}[0-9]{1,3}$' /opt/var/log/dnsmasq* | awk '{printf "%s %s\n", $6, $8}' | Strip_Domain > "${skynetloc}/webui/stats/skynetstats.txt"
+		if [ -f "/opt/var/log/dnsmasq.log" ]; then
+			grep -hE 'reply.* is ([0-9]{1,3}\.){3}[0-9]{1,3}$' /opt/var/log/dnsmasq* | awk '{printf "%s %s\n", $6, $8}' | Strip_Domain > "${skynetloc}/webui/stats/skynetstats.txt"
+		else
+			touch "${skynetloc}/webui/stats/skynetstats.txt"
+		fi
 
 		if [ "$filtertraffic" != "outbound" ]; then
 			hits1="$(iptables -xnvL PREROUTING -t raw | grep -Fv "LOG" | grep -F "Skynet-Master src" | awk '{print $1}')"
