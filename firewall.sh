@@ -50,6 +50,7 @@ skynetcfg="${skynetloc}/skynet.cfg"
 skynetlog="${skynetloc}/skynet.log"
 skynetevents="${skynetloc}/events.log"
 skynetipset="${skynetloc}/skynet.ipset"
+webdir="$(readlink /www/ext)"
 
 if [ -z "${skynetloc}" ] && tty >/dev/null 2>&1; then
 	set "install"
@@ -1049,7 +1050,7 @@ Generate_Stats () {
 Get_WebUI_Page () {
 	if [ "$(nvram get buildno | tr -d '.')" -ge "38415" ] && [ "$displaywebui" = "enabled" ]; then
 		for i in 1 2 3 4 5 6 7 8 9 10; do
-			page="/www/user/user$i.asp"
+			page="${webdir}/user$i.asp"
 			if [ ! -f "$page" ] || [ "$(md5sum < "$1")" = "$(md5sum < "$page")" ]; then
 				echo "user$i.asp"
 				return
@@ -1066,7 +1067,7 @@ Install_WebUI_Page () {
 			logger -t Skynet "[*] Unable To Mount Skynet Web Page - No Mount Points Avilable" && echo "[*] Unable To Mount Skynet Web Page - No Mount Points Avilable"
 		else
 			logger -t Skynet "[%] Mounting Skynet Web Page As $MyPage" && echo "[%] Mounting Skynet Web Page As $MyPage"
-			cp -f "${skynetloc}/webui/skynet.asp" "/www/user/$MyPage"
+			cp -f "${skynetloc}/webui/skynet.asp" "${webdir}/$MyPage"
 			if [ ! -f "/tmp/menuTree.js" ]; then
 				cp -f "/www/require/modules/menuTree.js" "/tmp/"
 			fi
@@ -1074,10 +1075,10 @@ Install_WebUI_Page () {
 			sed -i "/url: \"Advanced_Firewall_Content.asp\", tabName:/a {url: \"$MyPage\", tabName: \"Skynet\"}," /tmp/menuTree.js
 			umount /www/require/modules/menuTree.js 2>/dev/null
 			mount -o bind /tmp/menuTree.js /www/require/modules/menuTree.js
-			mkdir -p "/www/user/skynet"
-			ln -s "${skynetloc}/webui/stats.js" "/www/user/skynet/stats.js" 2>/dev/null
-			ln -s "${skynetloc}/webui/chartjs-plugin-zoom.js" "/www/user/skynet/chartjs-plugin-zoom.js" 2>/dev/null
-			ln -s "${skynetloc}/webui/hammerjs.js" "/www/user/skynet/hammerjs.js" 2>/dev/null
+			mkdir -p "${webdir}/skynet"
+			ln -s "${skynetloc}/webui/stats.js" "${webdir}/skynet/stats.js" 2>/dev/null
+			ln -s "${skynetloc}/webui/chartjs-plugin-zoom.js" "${webdir}/skynet/chartjs-plugin-zoom.js" 2>/dev/null
+			ln -s "${skynetloc}/webui/hammerjs.js" "${webdir}/skynet/hammerjs.js" 2>/dev/null
 			Unload_Cron "genstats"
 			Load_Cron "genstats"
 		fi
@@ -1089,7 +1090,7 @@ Uninstall_WebUI_Page () {
 		sed -i "\\~$MyPage~d" /tmp/menuTree.js
 		umount /www/require/modules/menuTree.js
 		mount -o bind /tmp/menuTree.js /www/require/modules/menuTree.js
-		rm -rf "/www/user/$MyPage" "/www/user/skynet"
+		rm -rf "${webdir}/$MyPage" "${webdir}/skynet"
 		Unload_Cron "genstats"
 	fi
 }
