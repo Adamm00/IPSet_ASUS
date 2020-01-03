@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            03/01/2019 - v7.0.3                                            #
+#                                            04/01/2019 - v7.0.3                                            #
 #############################################################################################################
 
 
@@ -1049,7 +1049,7 @@ Generate_Stats () {
 Get_WebUI_Page () {
 	if [ "$(nvram get buildno | tr -d '.')" -ge "38415" ] && [ "$displaywebui" = "enabled" ]; then
 		for i in 1 2 3 4 5 6 7 8 9 10; do
-			page="/www/ext/user$i.asp"
+			page="/www/user/user$i.asp"
 			if [ ! -f "$page" ] || [ "$(md5sum < "$1")" = "$(md5sum < "$page")" ]; then
 				echo "user$i.asp"
 				return
@@ -1074,10 +1074,10 @@ Install_WebUI_Page () {
 			sed -i "/url: \"Advanced_Firewall_Content.asp\", tabName:/a {url: \"$MyPage\", tabName: \"Skynet\"}," /tmp/menuTree.js
 			umount /www/require/modules/menuTree.js 2>/dev/null
 			mount -o bind /tmp/menuTree.js /www/require/modules/menuTree.js
-			mkdir -p "/www/ext/skynet"
-			ln -s "${skynetloc}/webui/stats.js" "/www/ext/skynet/stats.js" 2>/dev/null
-			ln -s "${skynetloc}/webui/chartjs-plugin-zoom.js" "/www/ext/skynet/chartjs-plugin-zoom.js" 2>/dev/null
-			ln -s "${skynetloc}/webui/hammerjs.js" "/www/ext/skynet/hammerjs.js" 2>/dev/null
+			mkdir -p "/www/user/skynet"
+			ln -s "${skynetloc}/webui/stats.js" "/www/user/skynet/stats.js" 2>/dev/null
+			ln -s "${skynetloc}/webui/chartjs-plugin-zoom.js" "/www/user/skynet/chartjs-plugin-zoom.js" 2>/dev/null
+			ln -s "${skynetloc}/webui/hammerjs.js" "/www/user/skynet/hammerjs.js" 2>/dev/null
 			Unload_Cron "genstats"
 			Load_Cron "genstats"
 		fi
@@ -1089,7 +1089,7 @@ Uninstall_WebUI_Page () {
 		sed -i "\\~$MyPage~d" /tmp/menuTree.js
 		umount /www/require/modules/menuTree.js
 		mount -o bind /tmp/menuTree.js /www/require/modules/menuTree.js
-		rm -rf "/www/ext/$MyPage" "/www/ext/skynet"
+		rm -rf "/www/user/$MyPage" "/www/user/skynet"
 		Unload_Cron "genstats"
 	fi
 }
