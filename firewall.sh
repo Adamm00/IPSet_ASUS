@@ -50,7 +50,7 @@ skynetcfg="${skynetloc}/skynet.cfg"
 skynetlog="${skynetloc}/skynet.log"
 skynetevents="${skynetloc}/events.log"
 skynetipset="${skynetloc}/skynet.ipset"
-webdir="$(readlink /www/ext)"
+webdir="$(readlink /www/user)"
 
 if [ -z "${skynetloc}" ] && tty >/dev/null 2>&1; then
 	set "install"
