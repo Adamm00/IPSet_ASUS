@@ -1090,7 +1090,7 @@ Uninstall_WebUI_Page () {
 		sed -i "\\~$MyPage~d" /tmp/menuTree.js
 		umount /www/require/modules/menuTree.js
 		mount -o bind /tmp/menuTree.js /www/require/modules/menuTree.js
-		rm -rf "${webdir}/$MyPage" "${webdir}/skynet"
+		rm -rf "${webdir:?}/$MyPage" "${webdir}/skynet"
 		Unload_Cron "genstats"
 	fi
 }
