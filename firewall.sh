@@ -512,6 +512,9 @@ Unload_Cron () {
 			 checkupdate)
 				cru d Skynet_checkupdate
 			 ;;
+			genstats)
+				cru d Skynet_genstats
+			 ;;
 			 all)
 				cru d Skynet_save
 				cru d Skynet_banmalware
@@ -3825,6 +3828,8 @@ case "$1" in
 			Unload_LogIPTables
 			Unload_IPSets
 			iptables -t raw -F
+			MyPage="$(Get_WebUI_Page "${skynetloc}/webui/skynet.asp")"
+			Uninstall_WebUI_Page
 			mkdir -p "${skynetloc}/webui"
 			curl -fsL --retry 3 "${remotedir}/webui/chartjs-plugin-zoom.js" -o "${skynetloc}/webui/chartjs-plugin-zoom.js" || { logger -t Skynet "[*] Updating chartjs-plugin-zoom.js Failed"; echo "[*] Updating chartjs-plugin-zoom.js Failed"; }
 			curl -fsL --retry 3 "${remotedir}/webui/hammerjs.js" -o "${skynetloc}/webui/hammerjs.js" || { logger -t Skynet "[*] Updating hammerjs.js Failed"; echo "[*] Updating hammerjs.js Failed"; }
