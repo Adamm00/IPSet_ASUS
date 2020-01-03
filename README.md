@@ -24,6 +24,13 @@ sh /jffs/scripts/firewall
 
 [![Skynet GUI](https://i.imgur.com/Je85FKh.png "Skynet GUI")](https://i.imgur.com/Je85FKh.png "Skynet GUI")
 
+[![Skynet WebUI 1](https://i.imgur.com/OgWhLN5.png "Skynet WebUI 1")](https://i.imgur.com/OgWhLN5.png "Skynet WebUI 1")
+
+[![Skynet WebUI 2](https://i.imgur.com/zTncPFV.png "Skynet WebUI 2")](https://i.imgur.com/zTncPFV.png "Skynet WebUI 2")
+
+[![Skynet WebUI 3](https://i.imgur.com/v4BAIS3.png "Skynet WebUI 3")](https://i.imgur.com/v4BAIS3.png "Skynet WebUI 3")
+
+
 ## Installation
 
 In your favorite SSH Client;
@@ -103,11 +110,13 @@ Example Settings Commands;
 ( sh /jffs/scripts/firewall settings iot proto udp|tcp|all ) Select IOT Allowed Port Protocol
 ( sh /jffs/scripts/firewall settings lookupcountry enable|disable ) Enable/Disable Country Lookup For Stat Data
 ( sh /jffs/scripts/firewall settings cdnwhitelist enable|disable ) Enable/Disable CDN Whitelisting
+( sh /jffs/scripts/firewall settings webui enable|disable ) Enable/Disable WebUI
 
 Example Debug Commands;
 ( sh /jffs/scripts/firewall debug watch ) Show Debug Entries As They Appear
 ( sh /jffs/scripts/firewall debug info ) Print Useful Debug Info
 ( sh /jffs/scripts/firewall debug info extended ) Debug Info + Config
+( sh /jffs/scripts/firewall debug genstats ) Update WebUI Stats
 ( sh /jffs/scripts/firewall debug clean ) Cleanup Syslog Entries
 ( sh /jffs/scripts/firewall debug swap install|uninstall ) Install/Uninstall SWAP File
 ( sh /jffs/scripts/firewall debug backup ) Backup Skynet Files To Skynets Install Directory With The Name "Skynet-Backup.tar.gz"
