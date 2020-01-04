@@ -236,7 +236,7 @@ function Draw_Chart(txtchartname,multilabel){
 	window["Chart"+txtchartname]=objchartname;
 }
 
-function GetCookie(cookiename) {
+function GetDropdownCookie(cookiename) {
 	var s;
 	if ((s = cookie.get(cookiename)) != null) {
 			if (s.match(/^([0-2])$/)) {
@@ -245,30 +245,64 @@ function GetCookie(cookiename) {
 	}
 }
 
-function SetCurrentPage(){
-    $("#next_page").val(window.location.pathname.substring(1));
-    $("#current_page").val(window.location.pathname.substring(1));
+function GetExpandedCookie(cookiename) {
+	var s;
+	if ((s = cookie.get(cookiename)) != null) {
+		return cookie.get(cookiename);
+	}
+	else {
+		return ""
+	}
 }
 
-function initial(){
-	$("#table_keystats").after(BuildChartHtml("Top 10 Blocked Devices (Outbound)","TCConnHits","false"));
+function SetCookie(cookiename,cookievalue) {
+	cookie.set(cookiename, cookievalue, 31);
+}
 
-	$("#table_keystats").after(BuildChartHtml("Top 10 Blocks (Outbound)","TOConnHits","true"));
-	$("#table_keystats").after(BuildChartHtml("Top 10 Blocks (Inbound)","TIConnHits","true"));
-	$("#table_keystats").after(BuildChartHtml("Top 10 HTTP(s) Blocks (Outbound)","THConnHits","true"));
+function SetCurrentPage(){
+	$("#next_page").val(window.location.pathname.substring(1));
+	$("#current_page").val(window.location.pathname.substring(1));
+}
 
-	$("#table_keystats").after(BuildTableHtml("Last 10 Unique HTTP(s) Blocks (Outbound)","HTTPConn"));
-	$("#table_keystats").after(BuildTableHtml("Last 10 Unique Connections Blocked (Outbound)","OutConn"));
-	$("#table_keystats").after(BuildTableHtml("Last 10 Unique Connections Blocked (Inbound)","InConn"));
-
-	$("#table_keystats").after(BuildChartHtml("Top 10 Source Ports (Inbound)","SPortHits","false"));
-	$("#table_keystats").after(BuildChartHtml("Top 10 Targeted Ports (Inbound)","InPortHits","false"));
-
+function AddEventHandlers(){
 	$(".collapsible").click(function(){
+		if ($(this).hasClass("expanded")) {
+			$(this).removeClass("expanded").addClass("collapsed");
+			SetCookie($(this).attr("id"),"collapsed");
+		} else {
+			$(this).removeClass("collapsed").addClass("expanded");
+			SetCookie($(this).attr("id"),"expanded");
+		}
 		$(this).siblings().toggle("fast");
 	})
 
 	$(".default-collapsed").trigger("click");
+}
+
+function SetExpanded(){
+	var coll = $(".collapsible");
+	var i;
+
+	for (i = 0; i < coll.length; i++) {
+		if(GetExpandedCookie(coll[i].id) == "collapsed"){
+			$("#"+coll[i].id).trigger("click");
+		}
+	}
+}
+
+function initial(){
+	$("#skynet_table_keystats").after(BuildChartHtml("Top 10 Blocked Devices (Outbound)","TCConnHits","false"));
+
+	$("#skynet_table_keystats").after(BuildChartHtml("Top 10 Blocks (Outbound)","TOConnHits","true"));
+	$("#skynet_table_keystats").after(BuildChartHtml("Top 10 Blocks (Inbound)","TIConnHits","true"));
+	$("#skynet_table_keystats").after(BuildChartHtml("Top 10 HTTP(s) Blocks (Outbound)","THConnHits","true"));
+
+	$("#skynet_table_keystats").after(BuildTableHtml("Last 10 Unique HTTP(s) Blocks (Outbound)","HTTPConn"));
+	$("#skynet_table_keystats").after(BuildTableHtml("Last 10 Unique Connections Blocked (Outbound)","OutConn"));
+	$("#table_keystats").after(BuildTableHtml("Last 10 Unique Connections Blocked (Inbound)","InConn"));
+
+	$("#skynet_table_keystats").after(BuildChartHtml("Top 10 Source Ports (Inbound)","SPortHits","false"));
+	$("#skynet_table_keystats").after(BuildChartHtml("Top 10 Targeted Ports (Inbound)","InPortHits","false"));
 
 	var charts = ["InPortHits", "SPortHits", "TCConnHits"];
 	charts.forEach(ChartSetup,"false");
@@ -276,7 +310,17 @@ function initial(){
 	var multilabelcharts = ["THConnHits", "TIConnHits", "TOConnHits"];
 	multilabelcharts.forEach(ChartSetup,"true");
 
+	AddEventHandlers();
+	SetExpanded();
+
 	SetCurrentPage();
+
+	SetStatsDate();
+	SetBLCount1();
+	SetBLCount2();
+	SetHits1();
+	SetHits2();
+
 	show_menu();
 }
 
@@ -295,10 +339,10 @@ Array.prototype.getDuplicates = function () {
 };
 
 function ChartSetup(item, index){
-	//GetCookie(item+"_Colour");
-	GetCookie(item+"_Type");
+	//GetDropdownCookie(item+"_Colour");
+	GetDropdownCookie(item+"_Type");
 	if(this=="true") {
-		GetCookie(item+"_Group");
+		GetDropdownCookie(item+"_Group");
 
 		var GroupedArray = window["Label"+item+"_Country"].getDuplicates();
 		var SummedArray = [];
@@ -345,11 +389,11 @@ function reload() {
 }
 
 function applyRule() {
-    var action_script_tmp = "start_SkynetStats";
-    document.form.action_script.value = action_script_tmp;
-    var restart_time = document.form.action_wait.value*1;
-    parent.showLoading(restart_time, "waiting");
-    document.form.submit();
+	var action_script_tmp = "start_SkynetStats";
+	document.form.action_script.value = action_script_tmp;
+	var restart_time = document.form.action_wait.value*1;
+	parent.showLoading(restart_time, "waiting");
+	document.form.submit();
 }
 
 function getSDev(datasetname){
@@ -605,7 +649,7 @@ function changeChart(e,multilabel) {
 function BuildChartHtml(txttitle,txtbase,multilabel){
 	var charthtml='<div style="line-height:10px;">&nbsp;</div>';
 	charthtml+='<table width="100%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="FormTable">';
-	charthtml+='<thead class="collapsible">';
+	charthtml+='<thead class="collapsible expanded" id="skynet_chart_'+txtbase+'"';
 	charthtml+='<tr><td colspan="2">' + txttitle + ' (click to expand/collapse)</td></tr>';
 	charthtml+='</thead>';
 	/* Colour selector start ---
@@ -652,7 +696,7 @@ function BuildChartHtml(txttitle,txtbase,multilabel){
 function BuildTableHtml(txttitle,txtbase){
 	var tablehtml='<div style="line-height:10px;">&nbsp;</div>';
 	tablehtml+='<table width="100%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="FormTable">';
-	tablehtml+='<thead class="collapsible">';
+	tablehtml+='<thead class="collapsible expanded" id="skynet_table_'+txtbase+'">';
 	tablehtml+='<tr><td colspan="2">' + txttitle + ' (click to expand/collapse)</td></tr>';
 	tablehtml+='</thead>';
 	tablehtml+='<tr>';
@@ -717,7 +761,7 @@ function BuildTableHtml(txttitle,txtbase){
 <input type="hidden" name="next_page" id="next_page" value="">
 <input type="hidden" name="modified" value="0">
 <input type="hidden" name="action_mode" value="apply">
-<input type="hidden" name="action_wait" value="60">
+<input type="hidden" name="action_wait" value="45">
 <input type="hidden" name="first_time" value="">
 <input type="hidden" name="SystemCmd" value="">
 <input type="hidden" name="preferred_lang" id="preferred_lang" value="<% nvram_get("preferred_lang"); %>">
@@ -744,7 +788,7 @@ function BuildTableHtml(txttitle,txtbase){
 <div class="formfonttitle" style="margin-bottom:0px;text-align:center;" id="statsdate">Last Updated - N/A</div>
 <div style="line-height:5px;">&nbsp;</div>
 
-<table width="100%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="FormTable" style="border:0px;" id="table_buttons">
+<table width="100%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="FormTable" style="border:0px;" id="skynet_table_buttons">
 <tr class="apply_gen" valign="top" height="35px">
 <td style="background-color:rgb(77, 89, 93);border:0px;">
 <input type="button" onClick="applyRule();" value="Update Stats" class="button_gen" name="button">
@@ -755,8 +799,8 @@ function BuildTableHtml(txttitle,txtbase){
 <div style="line-height:10px;">&nbsp;</div>
 
 <!-- Key Stats starts here -->
-<table width="100%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3"  class="FormTable" id="table_keystats">
-<thead class="collapsible">
+<table width="100%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3"  class="FormTable" id="skynet_table_keystats">
+<thead class="collapsible expanded" id="skynet_keystats">
 <tr>
 <td colspan="4" id="keystats">Key Stats (click to expand/collapse)</td>
 </tr>
@@ -764,7 +808,7 @@ function BuildTableHtml(txttitle,txtbase){
 <tr>
 <td colspan="2" align="center" style="padding: 0px;">
 <div class="collapsiblecontent">
-<table border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3"  class="FormTable StatsTable" id="table_keystats">
+<table border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3"  class="FormTable StatsTable">
 <col style="width:25%;">
 <col style="width:25%;">
 <col style="width:25%;">
@@ -805,13 +849,6 @@ function BuildTableHtml(txttitle,txtbase){
 <td width="10" align="center" valign="top">&nbsp;</td>
 </tr>
 </table>
-<script>
-SetStatsDate();
-SetBLCount1();
-SetBLCount2();
-SetHits1();
-SetHits2();
-</script>
 <div id="footer">
 </div>
 </body>
