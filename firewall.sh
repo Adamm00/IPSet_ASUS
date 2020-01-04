@@ -590,7 +590,13 @@ Strip_Domain () {
 }
 
 Domain_Lookup () {
-		nslookup "$1" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' | awk 'NR>2'
+		nslookup "$1" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' | awk 'NR>2' | tr '\n' ' '
+}
+
+LAN_CIDR_Lookup () {
+		if [ "${1::8}" = "192.168." ];	then echo "192.168.0.0/16"
+		elif [ "${1::7}" = "172.16." ];	then echo "172.16.0.0/12"
+		elif [ "${1::3}" = "10." ];	then echo "10.0.0.0/8"; fi
 }
 
 Extended_DNSStats () {
@@ -853,27 +859,25 @@ Whitelist_VPN () {
 		add Skynet-Whitelist $(nvram get vpn_client2_addr)/24 comment \"nvram: vpn_client2_addr\"
 		add Skynet-Whitelist $(nvram get vpn_client3_addr)/24 comment \"nvram: vpn_client3_addr\"
 		add Skynet-Whitelist $(nvram get vpn_client4_addr)/24 comment \"nvram: vpn_client4_addr\"
-		add Skynet-Whitelist $(nvram get vpn_client5_addr)/24 comment \"nvram: vpn_client5_addr\"" | Filter_IPLine | ipset restore -! 2>/dev/null
+		add Skynet-Whitelist $(nvram get vpn_client5_addr)/24 comment \"nvram: vpn_client5_addr\"" | tr -d "\t" | Filter_IPLine | ipset restore -! 2>/dev/null
 		if [ -f "/dev/astrill/openvpn.conf" ]; then ipset -q -A Skynet-Whitelist "$(sed '\~remote ~!d;s~remote ~~' "/dev/astrill/openvpn.conf")/24" comment "nvram: Astrill_VPN"; fi
 }
 
 Whitelist_Shared () {
-		echo "add Skynet-Whitelist $(nvram get wan0_ipaddr)/32 comment \"nvram: wan0_ipaddr\"
-		add Skynet-Whitelist $(nvram get lan_ipaddr)/24 comment \"nvram: lan_ipaddr\"
-		add Skynet-Whitelist $(nvram get lan_netmask)/24 comment \"nvram: lan_netmask\"
-		add Skynet-Whitelist $(nvram get wan_dns1_x)/32 comment \"nvram: wan_dns1_x\"
-		add Skynet-Whitelist $(nvram get wan_dns2_x)/32 comment \"nvram: wan_dns2_x\"
-		add Skynet-Whitelist $(nvram get wan0_dns1_x)/32 comment \"nvram: wan0_dns1_x\"
-		add Skynet-Whitelist $(nvram get wan0_dns2_x)/32 comment \"nvram: wan0_dns2_x\"
-		add Skynet-Whitelist $(nvram get wan_dns | awk '{print $1}')/32 comment \"nvram: wan_dns\"
-		add Skynet-Whitelist $(nvram get wan_dns | awk '{print $2}')/32 comment \"nvram: wan_dns\"
-		add Skynet-Whitelist $(nvram get wan0_dns | awk '{print $1}')/32 comment \"nvram: wan0_dns\"
-		add Skynet-Whitelist $(nvram get wan0_dns | awk '{print $2}')/32 comment \"nvram: wan0_dns\"
-		add Skynet-Whitelist $(nvram get wan0_xdns | awk '{print $1}')/32 comment \"nvram: wan0_xdns\"
-		add Skynet-Whitelist $(nvram get wan0_xdns | awk '{print $2}')/32 comment \"nvram: wan0_xdns\"
+		echo "add Skynet-Whitelist $(nvram get wan0_ipaddr) comment \"nvram: wan0_ipaddr\"
+		add Skynet-Whitelist $(LAN_CIDR_Lookup $(nvram get 'lan_ipaddr')) comment \"nvram: lan_ipaddr\"
+		add Skynet-Whitelist $(nvram get wan_dns1_x) comment \"nvram: wan_dns1_x\"
+		add Skynet-Whitelist $(nvram get wan_dns2_x) comment \"nvram: wan_dns2_x\"
+		add Skynet-Whitelist $(nvram get wan0_dns1_x) comment \"nvram: wan0_dns1_x\"
+		add Skynet-Whitelist $(nvram get wan0_dns2_x) comment \"nvram: wan0_dns2_x\"
+		add Skynet-Whitelist $(nvram get wan_dns | awk '{print $1}') comment \"nvram: wan_dns\"
+		add Skynet-Whitelist $(nvram get wan_dns | awk '{print $2}') comment \"nvram: wan_dns\"
+		add Skynet-Whitelist $(nvram get wan0_dns | awk '{print $1}') comment \"nvram: wan0_dns\"
+		add Skynet-Whitelist $(nvram get wan0_dns | awk '{print $2}') comment \"nvram: wan0_dns\"
+		add Skynet-Whitelist $(nvram get wan0_xdns | awk '{print $1}') comment \"nvram: wan0_xdns\"
+		add Skynet-Whitelist $(nvram get wan0_xdns | awk '{print $2}') comment \"nvram: wan0_xdns\"
 		add Skynet-Whitelist 192.30.252.0/22 comment \"nvram: Github Content Server\"
-		add Skynet-Whitelist 192.168.1.0/24 comment \"nvram: LAN Subnet\"
-		add Skynet-Whitelist 127.0.0.1/32 comment \"nvram: Localhost\"" | Filter_IPLine | ipset restore -! 2>/dev/null
+		add Skynet-Whitelist 127.0.0.0/8 comment \"nvram: Localhost\"" | tr -d "\t" | Filter_IPLine | ipset restore -! 2>/dev/null
 		if [ -n "$(find /jffs -name 'shared-*-whitelist')" ]; then
 			sed '\~add Skynet-Whitelist ~!d;\~Shared-Whitelist~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
 			if [ "$(cat /jffs/shared-*-whitelist | wc -l)" -gt "150" ]; then
