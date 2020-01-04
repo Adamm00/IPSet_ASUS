@@ -345,9 +345,11 @@ function reload() {
 }
 
 function applyRule() {
-	var action_script_tmp = "start_SkynetStats";
-	document.form.action_script.value = action_script_tmp;
-	document.form.submit();
+    var action_script_tmp = "start_SkynetStats";
+    document.form.action_script.value = action_script_tmp;
+    var restart_time = document.form.action_wait.value*1;
+    parent.showLoading(restart_time, "waiting");
+    document.form.submit();
 }
 
 function getSDev(datasetname){
