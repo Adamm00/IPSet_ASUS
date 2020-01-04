@@ -590,13 +590,17 @@ Strip_Domain () {
 }
 
 Domain_Lookup () {
-		nslookup "$1" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' | awk 'NR>2' | tr '\n' ' '
+		nslookup "$1" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' | awk 'NR>2'
 }
 
 LAN_CIDR_Lookup () {
-		if [ "${1::8}" = "192.168." ];	then echo "192.168.0.0/16"
-		elif [ "${1::7}" = "172.16." ];	then echo "172.16.0.0/12"
-		elif [ "${1::3}" = "10." ];	then echo "10.0.0.0/8"; fi
+		if [ "$(echo "$1" | cut -c1-8)" = "192.168." ];	then 
+			echo "192.168.0.0/16"
+		elif [ "$(echo "$1" | cut -c1-7)" = "172.16." ];then 
+			echo "172.16.0.0/12"
+		elif [ "$(echo "$1" | cut -c1-3)" = "10." ]; then 
+			echo "10.0.0.0/8"; 
+		fi
 }
 
 Extended_DNSStats () {
@@ -865,7 +869,7 @@ Whitelist_VPN () {
 
 Whitelist_Shared () {
 		echo "add Skynet-Whitelist $(nvram get wan0_ipaddr) comment \"nvram: wan0_ipaddr\"
-		add Skynet-Whitelist $(LAN_CIDR_Lookup $(nvram get 'lan_ipaddr')) comment \"nvram: lan_ipaddr\"
+		add Skynet-Whitelist $(LAN_CIDR_Lookup "$(nvram get "lan_ipaddr")") comment \"nvram: lan_ipaddr\"
 		add Skynet-Whitelist $(nvram get wan_dns1_x) comment \"nvram: wan_dns1_x\"
 		add Skynet-Whitelist $(nvram get wan_dns2_x) comment \"nvram: wan_dns2_x\"
 		add Skynet-Whitelist $(nvram get wan0_dns1_x) comment \"nvram: wan0_dns1_x\"
