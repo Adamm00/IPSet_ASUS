@@ -299,7 +299,7 @@ function initial(){
 
 	$("#skynet_table_keystats").after(BuildTableHtml("Last 10 Unique HTTP(s) Blocks (Outbound)","HTTPConn"));
 	$("#skynet_table_keystats").after(BuildTableHtml("Last 10 Unique Connections Blocked (Outbound)","OutConn"));
-	$("#table_keystats").after(BuildTableHtml("Last 10 Unique Connections Blocked (Inbound)","InConn"));
+	$("#skynet_table_keystats").after(BuildTableHtml("Last 10 Unique Connections Blocked (Inbound)","InConn"));
 
 	$("#skynet_table_keystats").after(BuildChartHtml("Top 10 Source Ports (Inbound)","SPortHits","false"));
 	$("#skynet_table_keystats").after(BuildChartHtml("Top 10 Targeted Ports (Inbound)","InPortHits","false"));

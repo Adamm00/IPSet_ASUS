@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            04/01/2020 - v7.0.4                                            #
+#                                            05/01/2020 - v7.0.5                                            #
 #############################################################################################################
 
 
@@ -29,28 +29,13 @@ while [ "$(nvram get ntp_ready)" = "0" ] && [ "$ntptimer" -lt "300" ]; do
 done
 if [ "$ntptimer" -ge "300" ]; then logger -st Skynet "[*] NTP Failed To Start After 5 Minutes - Please Fix Immediately!"; echo; exit 1; fi
 
-
-Red () {
-	printf -- '\033[1;31m%s\033[0m\n' "$1"
-}
-Grn () {
-	printf -- '\033[1;32m%s\033[0m\n' "$1"
-}
-Blue () {
-	printf -- '\033[1;36m%s\033[0m\n' "$1"
-}
-Ylow () {
-	printf -- '\033[1;33m%s\033[0m\n' "$1"
-}
-
-stime="$(date +%s)"
-
 skynetloc="$(grep -ow "skynetloc=.* # Skynet" /jffs/scripts/firewall-start 2>/dev/null | grep -vE "^#" | awk '{print $1}' | cut -c 11-)"
 skynetcfg="${skynetloc}/skynet.cfg"
 skynetlog="${skynetloc}/skynet.log"
 skynetevents="${skynetloc}/events.log"
 skynetipset="${skynetloc}/skynet.ipset"
 webdir="$(readlink /www/user)"
+stime="$(date +%s)"
 
 if [ -z "${skynetloc}" ] && tty >/dev/null 2>&1; then
 	set "install"
@@ -106,6 +91,22 @@ if [ "$(nvram get wan0_proto)" = "pppoe" ]; then
 else
 	iface="$(nvram get wan0_ifname)"
 fi
+
+Red () {
+	printf -- '\033[1;31m%s\033[0m\n' "$1"
+}
+
+Grn () {
+	printf -- '\033[1;32m%s\033[0m\n' "$1"
+}
+
+Blue () {
+	printf -- '\033[1;36m%s\033[0m\n' "$1"
+}
+
+Ylow () {
+	printf -- '\033[1;33m%s\033[0m\n' "$1"
+}
 
 Check_Swap () {
 		[ "$(wc -l < /proc/swaps)" -ge "2" ]
@@ -1100,6 +1101,14 @@ Uninstall_WebUI_Page () {
 		mount -o bind /tmp/menuTree.js /www/require/modules/menuTree.js
 		rm -rf "${webdir:?}/$MyPage" "${webdir}/skynet"
 		Unload_Cron "genstats"
+	fi
+}
+
+Download_File () {
+	if curl -fsL --retry 3 "${remotedir}/${1}" -o "$2"; then
+		echo "[*] Updated $(echo "$1" | awk -F / '{print $NF}')"
+	else
+		logger -t Skynet "[*] Updating $(echo "$1" | awk -F / '{print $NF}') Failed"; echo "[*] Updating $(echo "$1" | awk -F / '{print $NF}') Failed"
 	fi
 }
 
@@ -3844,10 +3853,10 @@ case "$1" in
 			MyPage="$(Get_WebUI_Page "${skynetloc}/webui/skynet.asp")"
 			Uninstall_WebUI_Page
 			mkdir -p "${skynetloc}/webui"
-			curl -fsL --retry 3 "${remotedir}/webui/chartjs-plugin-zoom.js" -o "${skynetloc}/webui/chartjs-plugin-zoom.js" || { logger -t Skynet "[*] Updating chartjs-plugin-zoom.js Failed"; echo "[*] Updating chartjs-plugin-zoom.js Failed"; }
-			curl -fsL --retry 3 "${remotedir}/webui/hammerjs.js" -o "${skynetloc}/webui/hammerjs.js" || { logger -t Skynet "[*] Updating hammerjs.js Failed"; echo "[*] Updating hammerjs.js Failed"; }
-			curl -fsL --retry 3 "${remotedir}/webui/skynet.asp" -o "${skynetloc}/webui/skynet.asp" || { logger -t Skynet "[*] Updating skynet.asp Failed"; echo "[*] Updating skynet.asp Failed"; }
-			curl -fsL --retry 3 "${remotedir}/firewall.sh" -o "$0" || { logger -t Skynet "[*] Updating Skynet Failed"; echo "[*] Updating Skynet Failed"; }
+			Download_File "webui/chartjs-plugin-zoom.js" "${skynetloc}/webui/chartjs-plugin-zoom.js"
+			Download_File "webui/hammerjs.js" "${skynetloc}/webui/hammerjs.js"
+			Download_File "webui/skynet.asp" "${skynetloc}/webui/skynet.asp"
+			Download_File "firewall.sh" "$0"
 			logger -t Skynet "[%] Restarting Firewall Service"; echo "[%] Restarting Firewall Service"
 			service restart_firewall
 			echo; exit 0
@@ -5396,7 +5405,6 @@ case "$1" in
 			esac
 		done
 		echo
-		echo
 		touch "/jffs/configs/fstab"
 		if ! grep -qE "^swapon " /jffs/scripts/post-mount && ! grep -qF "swap" /jffs/configs/fstab; then Create_Swap; fi
 		if [ -f "$skynetlog" ]; then mv "$skynetlog" "${device}/skynet/skynet.log"; fi
@@ -5410,15 +5418,9 @@ case "$1" in
 		touch "${device}/skynet/skynet.log"
 		remotedir="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master"
 		mkdir -p "${skynetloc}/webui"
-		if [ ! -f "${skynetloc}/webui/chartjs-plugin-zoom.js" ]; then
-			curl -fsL --retry 3 "${remotedir}/webui/chartjs-plugin-zoom.js" -o "${skynetloc}/webui/chartjs-plugin-zoom.js" || { logger -t Skynet "[*] Updating chartjs-plugin-zoom.js Failed"; echo "[*] Updating chartjs-plugin-zoom.js Failed"; }
-		fi
-		if [ ! -f "${skynetloc}/webui/hammerjs.js" ]; then
-			curl -fsL --retry 3 "${remotedir}/webui/hammerjs.js" -o "${skynetloc}/webui/hammerjs.js" || { logger -t Skynet "[*] Updating hammerjs.js Failed"; echo "[*] Updating hammerjs.js Failed"; }
-		fi
-		if [ ! -f "${skynetloc}/webui/skynet.asp" ]; then
-			curl -fsL --retry 3 "${remotedir}/webui/skynet.asp" -o "${skynetloc}/webui/skynet.asp" || { logger -t Skynet "[*] Updating skynet.asp Failed"; echo "[*] Updating skynet.asp Failed"; }
-		fi
+		Download_File "webui/chartjs-plugin-zoom.js" "${skynetloc}/webui/chartjs-plugin-zoom.js"
+		Download_File "webui/hammerjs.js" "${skynetloc}/webui/hammerjs.js"
+		Download_File "webui/skynet.asp" "${skynetloc}/webui/skynet.asp"
 		[ -z "$(nvram get odmpid)" ] && model="$(nvram get productid)" || model="$(nvram get odmpid)"
 		if [ -z "$loginvalid" ]; then loginvalid="disabled"; fi
 		if [ -z "$unbanprivateip" ]; then unbanprivateip="enabled"; fi
