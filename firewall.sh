@@ -1106,7 +1106,7 @@ Uninstall_WebUI_Page () {
 
 Download_File () {
 	if curl -fsL --retry 3 "${remotedir}/${1}" -o "$2"; then
-		echo "[*] Updated $(echo "$1" | awk -F / '{print $NF}')"
+		echo "[%] Updated $(echo "$1" | awk -F / '{print $NF}')"
 	else
 		logger -t Skynet "[*] Updating $(echo "$1" | awk -F / '{print $NF}') Failed"; echo "[*] Updating $(echo "$1" | awk -F / '{print $NF}') Failed"
 	fi
