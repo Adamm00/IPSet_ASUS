@@ -34,7 +34,6 @@ skynetcfg="${skynetloc}/skynet.cfg"
 skynetlog="${skynetloc}/skynet.log"
 skynetevents="${skynetloc}/events.log"
 skynetipset="${skynetloc}/skynet.ipset"
-webdir="$(readlink /www/user)"
 stime="$(date +%s)"
 
 if [ -z "${skynetloc}" ] && tty >/dev/null 2>&1; then
@@ -1057,21 +1056,22 @@ Generate_Stats () {
 }
 
 Get_WebUI_Page () {
+	webdir="$(readlink /www/user)"
 	if [ "$(nvram get buildno | tr -d '.')" -ge "38415" ] && [ "$displaywebui" = "enabled" ]; then
 		for i in 1 2 3 4 5 6 7 8 9 10; do
 			page="${webdir}/user$i.asp"
 			if [ ! -f "$page" ] || [ "$(md5sum < "$1")" = "$(md5sum < "$page")" ]; then
-				echo "user$i.asp"
+				MyPage="user$i.asp"
 				return
 			fi
 		done
-		echo "none"
+		MyPage="none"
 	fi
 }
 
 Install_WebUI_Page () {
 	if [ "$(nvram get buildno | tr -d '.')" -ge "38415" ] && [ "$displaywebui" = "enabled" ]; then
-		MyPage="$(Get_WebUI_Page "${skynetloc}/webui/skynet.asp")"
+		Get_WebUI_Page "${skynetloc}/webui/skynet.asp"
 		if [ "$MyPage" = "none" ]; then
 			logger -t Skynet "[*] Unable To Mount Skynet Web Page - No Mount Points Avilable" && echo "[*] Unable To Mount Skynet Web Page - No Mount Points Avilable"
 		else
@@ -1095,6 +1095,7 @@ Install_WebUI_Page () {
 }
 
 Uninstall_WebUI_Page () {
+	Get_WebUI_Page "${skynetloc}/webui/skynet.asp"
 	if [ -n "$MyPage" ] && [ "$MyPage" != "none" ] && [ -f "/tmp/menuTree.js" ]; then
 		sed -i "\\~$MyPage~d" /tmp/menuTree.js
 		umount /www/require/modules/menuTree.js
@@ -3785,7 +3786,6 @@ case "$1" in
 		Load_LogIPTables
 		sed -i '\~DROP IN=~d' "$syslog1loc" "$syslogloc" 2>/dev/null
 		Generate_Stats
-		Get_WebUI_Page
 		Install_WebUI_Page
 		if [ "$forcebanmalwareupdate" = "true" ]; then Write_Config; rm -rf "/tmp/skynet.lock"; exec "$0" banmalware; fi
 	;;
@@ -3826,7 +3826,6 @@ case "$1" in
 		Check_Lock "$@"
 		if ! Check_Connection; then echo "[*] Connection Error Detected - Exiting"; echo; exit 1; fi
 		remotedir="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master"
-		curl -fsL --retry 3 "${remotedir}/firewall.sh" | grep -qF "Adamm" || { logger -st Skynet "[*] 404 Error Detected - Stopping Update"; echo; exit 1; }
 		remotever="$(curl -fsL --retry 3 "${remotedir}/firewall.sh" | Filter_Version)"
 		localmd5="$(md5sum "$0" | awk '{print $1}')"
 		remotemd5="$(curl -fsL --retry 3 "${remotedir}/firewall.sh" | md5sum | awk '{print $1}')"
@@ -3850,7 +3849,6 @@ case "$1" in
 			Unload_LogIPTables
 			Unload_IPSets
 			iptables -t raw -F
-			MyPage="$(Get_WebUI_Page "${skynetloc}/webui/skynet.asp")"
 			Uninstall_WebUI_Page
 			mkdir -p "${skynetloc}/webui"
 			Download_File "webui/chartjs-plugin-zoom.js" "${skynetloc}/webui/chartjs-plugin-zoom.js"
@@ -4366,7 +4364,6 @@ case "$1" in
 						if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 						Purge_Logs
 						displaywebui="enabled"
-						MyPage="$(Get_WebUI_Page "${skynetloc}/webui/skynet.asp")"
 						Install_WebUI_Page
 						echo "[i] WebUI Enabled"
 						echo "[i] Generating Stats"
@@ -4376,7 +4373,6 @@ case "$1" in
 						Check_Lock "$@"
 						if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 						Purge_Logs
-						MyPage="$(Get_WebUI_Page "${skynetloc}/webui/skynet.asp")"
 						Uninstall_WebUI_Page
 						displaywebui="disabled"
 						echo "[i] WebUI Disabled"
@@ -5418,9 +5414,15 @@ case "$1" in
 		touch "${device}/skynet/skynet.log"
 		remotedir="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master"
 		mkdir -p "${skynetloc}/webui"
-		Download_File "webui/chartjs-plugin-zoom.js" "${skynetloc}/webui/chartjs-plugin-zoom.js"
-		Download_File "webui/hammerjs.js" "${skynetloc}/webui/hammerjs.js"
-		Download_File "webui/skynet.asp" "${skynetloc}/webui/skynet.asp"
+		if [ ! -f "${skynetloc}/webui/chartjs-plugin-zoom.js" ]; then
+			Download_File "webui/chartjs-plugin-zoom.js" "${skynetloc}/webui/chartjs-plugin-zoom.js"
+		fi
+		if [ ! -f "${skynetloc}/webui/hammerjs.js" ]; then
+			Download_File "webui/hammerjs.js" "${skynetloc}/webui/hammerjs.js"
+		fi
+		if [ ! -f "${skynetloc}/webui/skynet.asp" ]; then
+			Download_File "webui/skynet.asp" "${skynetloc}/webui/skynet.asp"
+		fi
 		[ -z "$(nvram get odmpid)" ] && model="$(nvram get productid)" || model="$(nvram get odmpid)"
 		if [ -z "$loginvalid" ]; then loginvalid="disabled"; fi
 		if [ -z "$unbanprivateip" ]; then unbanprivateip="enabled"; fi
@@ -5525,7 +5527,6 @@ case "$1" in
 					Unload_IOTTables
 					Unload_LogIPTables
 					Unload_IPSets
-					MyPage="$(Get_WebUI_Page "${skynetloc}/webui/skynet.asp")"
 					Uninstall_WebUI_Page
 					nvram set fw_log_x=none
 					echo "[i] Deleting Skynet Files"
