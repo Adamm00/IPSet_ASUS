@@ -288,7 +288,7 @@
 
         function GetDropdownCookie(cookiename) {
             var s;
-            if ((s = cookie.get(cookiename)) !== null) {
+            if ((s = cookie.get(cookiename)) != null) {
                 if (s.match(/^([0-2])$/)) {
                     $("#" + cookiename).val(cookie.get(cookiename) * 1);
                 }
@@ -519,7 +519,7 @@
                         axislabel = "Port Number";
                     } else if (txtchartname == "TCConnHits") {
                         axislabel = "IP Address";
-                    } else if (value === 0) {
+                    } else if (value == 0) {
                         axislabel = "IP Address";
                     } else if (value == 1) {
                         axislabel = "Country Code";
@@ -532,7 +532,7 @@
                         axislabel = "Port Number";
                     } else if (txtchartname == "TCConnHits") {
                         axislabel = "IP Address";
-                    } else if (value === 0) {
+                    } else if (value == 0) {
                         axislabel = "IP Address";
                     } else if (value == 1) {
                         axislabel = "Country Code";
@@ -550,7 +550,7 @@
                 chartlegendtitlelabel = "Port Number";
             } else if (txtchartname == "TCConnHits") {
                 chartlegendtitlelabel = "IP Address";
-            } else if (value === 0) {
+            } else if (value == 0) {
                 chartlegendtitlelabel = "IP Address";
             } else if (value == 1) {
                 chartlegendtitlelabel = "Country Code";
