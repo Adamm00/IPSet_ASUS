@@ -972,10 +972,14 @@ Generate_Stats () {
 		WriteStats_ToJS "Last Updated - $(date +"%r")" "${skynetloc}/webui/stats.js" "SetStatsDate" "statsdate"
 		# Inbound Ports
 		grep -F "INBOUND" "$skynetlog" | grep -oE 'DPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -10 | sed "s~^[ \t]*~~;s~ ~\~~g" > "${skynetloc}/webui/stats/iport.txt"
-		WriteData_ToJS "${skynetloc}/webui/stats/iport.txt" "${skynetloc}/webui/stats.js" "DataInPortHits" "LabelInPortHits"
+		if [ -s "${skynetloc}/webui/stats/iport.txt" ]; then
+			WriteData_ToJS "${skynetloc}/webui/stats/iport.txt" "${skynetloc}/webui/stats.js" "DataInPortHits" "LabelInPortHits"
+		fi
 		# Source Ports
 		grep -F "INBOUND" "$skynetlog" | grep -oE 'SPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -10 | sed "s~^[ \t]*~~;s~ ~\~~g" > "${skynetloc}/webui/stats/sport.txt"
-		WriteData_ToJS "${skynetloc}/webui/stats/sport.txt" "${skynetloc}/webui/stats.js" "DataSPortHits" "LabelSPortHits"
+		if [ -s "${skynetloc}/webui/stats/sport.txt" ]; then
+			WriteData_ToJS "${skynetloc}/webui/stats/sport.txt" "${skynetloc}/webui/stats.js" "DataSPortHits" "LabelSPortHits"
+		fi
 		# last 10 Connections Blocked Inbound
 		true > "${skynetloc}/webui/stats/liconn.txt"
 		grep -F "INBOUND" "$skynetlog" | grep -oE ' SRC=[0-9,\.]*' | cut -c 6- | awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' | awk '!x[$0]++' | head -10 | while IFS= read -r "statdata"; do
@@ -1050,7 +1054,9 @@ Generate_Stats () {
 		WriteData_ToJS "${skynetloc}/webui/stats/toconn.txt" "${skynetloc}/webui/stats.js" "DataTOConnHits" "LabelTOConnHits_IPs" "LabelTOConnHits_Country"
 		# Top 10 Clients Blocked
 		grep -F "OUTBOUND" "$skynetlog" | grep -oE ' SRC=[0-9,\.]*' | cut -c 6- | sort -n | uniq -c | sort -nr | head -10 | sed "s~^[ \t]*~~;s~ ~\~~g" > "${skynetloc}/webui/stats/tcconn.txt"
-		WriteData_ToJS "${skynetloc}/webui/stats/tcconn.txt" "${skynetloc}/webui/stats.js" "DataTCConnHits" "LabelTCConnHits"
+		if [ -s "${skynetloc}/webui/stats/tcconn.txt" ]; then
+			WriteData_ToJS "${skynetloc}/webui/stats/tcconn.txt" "${skynetloc}/webui/stats.js" "DataTCConnHits" "LabelTCConnHits"
+		fi
 		rm -rf "${skynetloc}/webui/stats"
 	fi
 }
