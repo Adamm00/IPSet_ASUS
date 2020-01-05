@@ -1,16 +1,16 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
 
 <head>
     <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="-1">
-    <link rel="shortcut icon" href="images/favicon.png">
-    <link rel="icon" href="images/favicon.png">
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="-1" />
+    <link rel="shortcut icon" href="images/favicon.png" />
+    <link rel="icon" href="images/favicon.png" />
     <title>Skynet Statistics</title>
-    <link rel="stylesheet" type="text/css" href="index_style.css">
-    <link rel="stylesheet" type="text/css" href="form_style.css">
+    <link rel="stylesheet" type="text/css" href="index_style.css" />
+    <link rel="stylesheet" type="text/css" href="form_style.css" />
     <style>
         p {
             font-weight: bolder;
@@ -793,33 +793,33 @@
 </head>
 
 <body onload="initial();">
-    <div id="TopBanner"></div>
-    <div id="Loading" class="popup_bg"></div>
+    <div id="topbanner"></div>
+    <div id="loading" class="popup_bg"></div>
     <iframe name="hidden_frame" id="hidden_frame" src="about:blank" width="0" height="0" frameborder="0"></iframe>
-    <form method="post" name="form" id="ruleForm" action="/start_apply.htm" target="hidden_frame">
-        <input type="hidden" name="action_script" value="start_SkynetStats">
-        <input type="hidden" name="current_page" id="current_page" value="">
-        <input type="hidden" name="next_page" id="next_page" value="">
-        <input type="hidden" name="modified" value="0">
-        <input type="hidden" name="action_mode" value="apply">
-        <input type="hidden" name="action_wait" value="45">
-        <input type="hidden" name="first_time" value="">
-        <input type="hidden" name="SystemCmd" value="">
-        <input type="hidden" name="preferred_lang" id="preferred_lang" value="<% nvram_get( preferred_lang ); %>">
-        <input type="hidden" name="firmver" value="<% nvram_get( firmver ); %>">
+    <form method="post" name="form" id="ruleform" action="/start_apply.htm" target="hidden_frame">
+        <input type="hidden" name="action_script" value="start_SkynetStats" />
+        <input type="hidden" name="current_page" id="current_page" value="" />
+        <input type="hidden" name="next_page" id="next_page" value="" />
+        <input type="hidden" name="modified" value="0" />
+        <input type="hidden" name="action_mode" value="apply" />
+        <input type="hidden" name="action_wait" value="45" />
+        <input type="hidden" name="first_time" value="" />
+        <input type="hidden" name="SystemCmd" value="" />
+        <input type="hidden" name="preferred_lang" id="preferred_lang" value="<% nvram_get( preferred_lang ); %>" />
+        <input type="hidden" name="firmver" value="<% nvram_get( firmver ); %>" />
         <table class="content" align="center" cellpadding="0" cellspacing="0">
             <tr>
                 <td width="17">&nbsp;</td>
                 <td valign="top" width="202">
-                    <div id="mainMenu"></div>
-                    <div id="subMenu"></div>
+                    <div id="mainmenu"></div>
+                    <div id="submenu"></div>
                 </td>
                 <td valign="top">
-                    <div id="tabMenu" class="submenuBlock"></div>
+                    <div id="tabmenu" class="submenublock"></div>
                     <table width="98%" border="0" align="left" cellpadding="0" cellspacing="0">
                         <tr>
                             <td valign="top">
-                                <table width="760px" border="0" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="FormTitle" id="FormTitle">
+                                <table width="760px" border="0" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="formtitle" id="formtitle">
                                     <tbody>
                                         <tr bgcolor="#4D595D">
                                             <td valign="top">
@@ -830,10 +830,10 @@
                                                 <div class="formfonttitle" style="margin-bottom:0px;text-align:center;" id="statsdate">Last Updated - N/A</div>
                                                 <div style="line-height:5px;">&nbsp;</div>
 
-                                                <table width="100%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="FormTable" style="border:0px;" id="skynet_table_buttons">
+                                                <table width="100%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="formtable" style="border:0px;" id="skynet_table_buttons">
                                                     <tr class="apply_gen" valign="top" height="35px">
                                                         <td style="background-color:rgb(77, 89, 93);border:0px;">
-                                                            <input type="button" onclick="applyRule();" value="Update Stats" class="button_gen" name="button">
+                                                            <input type="button" onclick="applyRule();" value="Update Stats" class="button_gen" name="button" />
                                                         </td>
                                                     </tr>
                                                 </table>
@@ -841,7 +841,7 @@
                                                 <div style="line-height:10px;">&nbsp;</div>
 
                                                 <!-- Key Stats starts here -->
-                                                <table width="100%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="FormTable" id="skynet_table_keystats">
+                                                <table width="100%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="formtable" id="skynet_table_keystats">
                                                     <thead class="collapsible expanded" id="skynet_keystats">
                                                         <tr>
                                                             <td colspan="4" id="keystats">Key Stats (click to expand/collapse)</td>
@@ -850,11 +850,11 @@
                                                     <tr>
                                                         <td colspan="2" align="center" style="padding: 0px;">
                                                             <div class="collapsiblecontent">
-                                                                <table border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="FormTable StatsTable">
-                                                                    <col style="width:25%;">
-                                                                    <col style="width:25%;">
-                                                                    <col style="width:25%;">
-                                                                    <col style="width:25%;">
+                                                                <table border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="formtable statstable">
+                                                                    <col style="width:25%;" />
+                                                                    <col style="width:25%;" />
+                                                                    <col style="width:25%;" />
+                                                                    <col style="width:25%;" />
                                                                     <thead>
                                                                         <tr class="even" style="text-align:center;">
                                                                             <th>IPs Banned</th>
