@@ -117,7 +117,7 @@
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.font = "normal normal bolder 48px Arial";
-            ctx.fillStyle = 'white'
+            ctx.fillStyle = 'white';
             ctx.fillText('No data to display', 368, 180);
             ctx.restore();
         }
@@ -132,7 +132,7 @@
                 Draw_Chart_NoData(txtchartname);
                 return;
             }
-            if (objdataname.length == 0) {
+            if (objdataname.length === 0) {
                 Draw_Chart_NoData(txtchartname);
                 return;
             }
@@ -144,7 +144,7 @@
                     Draw_Chart_NoData(txtchartname);
                     return;
                 }
-                if (objlabeldataname_IPs.length == 0) {
+                if (objlabeldataname_IPs.length === 0) {
                     Draw_Chart_NoData(txtchartname);
                     return;
                 }
@@ -152,7 +152,7 @@
                     Draw_Chart_NoData(txtchartname);
                     return;
                 }
-                if (objlabeldataname_Sorted.length == 0) {
+                if (objlabeldataname_Sorted.length === 0) {
                     Draw_Chart_NoData(txtchartname);
                     return;
                 }
@@ -162,13 +162,13 @@
                     Draw_Chart_NoData(txtchartname);
                     return;
                 }
-                if (objlabeldataname.length == 0) {
+                if (objlabeldataname.length === 0) {
                     Draw_Chart_NoData(txtchartname);
                     return;
                 }
             }
 
-            if (objchartname != undefined) objchartname.destroy();
+            if (objchartname !== undefined) objchartname.destroy();
             var ctx = document.getElementById("divChart" + txtchartname).getContext("2d");
             var chartOptions = {
                 segmentShowStroke: false,
@@ -194,7 +194,7 @@
                         },
                         label: function(tooltipItem, data) {
                             return comma(data.datasets[tooltipItem.datasetIndex].data[tooltipItem.index]);
-                        },
+                        }
                     },
                     mode: 'point',
                     position: 'cursor',
@@ -251,7 +251,7 @@
                             rangeMax: {
                                 x: ZoomPanMax(charttype, "x", objdataname),
                                 y: ZoomPanMax(charttype, "y", objdataname)
-                            },
+                            }
                         },
                         zoom: {
                             enabled: true,
@@ -264,7 +264,7 @@
                                 x: ZoomPanMax(charttype, "x", objdataname),
                                 y: ZoomPanMax(charttype, "y", objdataname)
                             },
-                            speed: 0.1,
+                            speed: 0.1
                         }
                     }
                 }
@@ -275,7 +275,7 @@
                     data: objdataname,
                     borderWidth: 1,
                     backgroundColor: poolColors(objdataname.length),
-                    borderColor: "#000000",
+                    borderColor: "#000000"
                 }]
             };
             objchartname = new Chart(ctx, {
@@ -288,7 +288,7 @@
 
         function GetDropdownCookie(cookiename) {
             var s;
-            if ((s = cookie.get(cookiename)) != null) {
+            if ((s = cookie.get(cookiename)) !== null) {
                 if (s.match(/^([0-2])$/)) {
                     $("#" + cookiename).val(cookie.get(cookiename) * 1);
                 }
@@ -297,10 +297,10 @@
 
         function GetExpandedCookie(cookiename) {
             var s;
-            if ((s = cookie.get(cookiename)) != null) {
+            if ((s = cookie.get(cookiename)) !== null) {
                 return cookie.get(cookiename);
             } else {
-                return ""
+                return "";
             }
         }
 
@@ -323,8 +323,7 @@
                     SetCookie($(this).attr("id"), "expanded");
                 }
                 $(this).siblings().toggle("fast");
-            })
-
+            });
             $(".default-collapsed").trigger("click");
         }
 
@@ -398,7 +397,7 @@
                 var SortedArray = [];
 
                 for (var name in GroupedArray) {
-                    if (name != "") {
+                    if (name !== "") {
                         var sum = 0;
                         var name2 = eval("GroupedArray." + name);
                         for (var i2 = 0; i2 < name2.length; i2++) {
@@ -460,7 +459,7 @@
         }
 
         function getMax(datasetname) {
-            max = Math.max(...datasetname)
+            max = Math.max(...datasetname);
             return max + (max * 0.1);
         }
 
@@ -494,13 +493,13 @@
 
         function getChartColour(colour, length) {
             var chartcolour = "rgba(2, 53, 135, 1)";
-            if (colour == 0) chartcolour = poolColors(length);
+            if (colour === 0) chartcolour = poolColors(length);
             return chartcolour;
         }
 
         function getChartType(layout) {
             var charttype = "horizontalBar";
-            if (layout == 0) charttype = "horizontalBar";
+            if (layout === 0) charttype = "horizontalBar";
             else if (layout == 1) charttype = "bar";
             else if (layout == 2) charttype = "pie";
             return charttype;
@@ -517,26 +516,26 @@
                 if (type == "horizontalBar") axislabel = "Hits";
                 else if (type == "bar") {
                     if (txtchartname.indexOf("Port") != -1) {
-                        axislabel = "Port Number"
+                        axislabel = "Port Number";
                     } else if (txtchartname == "TCConnHits") {
-                        axislabel = "IP Address"
-                    } else if (value == 0) {
-                        axislabel = "IP Address"
+                        axislabel = "IP Address";
+                    } else if (value === 0) {
+                        axislabel = "IP Address";
                     } else if (value == 1) {
-                        axislabel = "Country Code"
+                        axislabel = "Country Code";
                     }
                 } else if (type == "pie") axislabel = "";
                 return axislabel;
             } else if (axis == "y") {
                 if (type == "horizontalBar") {
                     if (txtchartname.indexOf("Port") != -1) {
-                        axislabel = "Port Number"
+                        axislabel = "Port Number";
                     } else if (txtchartname == "TCConnHits") {
-                        axislabel = "IP Address"
-                    } else if (value == 0) {
-                        axislabel = "IP Address"
+                        axislabel = "IP Address";
+                    } else if (value === 0) {
+                        axislabel = "IP Address";
                     } else if (value == 1) {
-                        axislabel = "Country Code"
+                        axislabel = "Country Code";
                     }
                 } else if (type == "bar") axislabel = "Hits";
                 else if (type == "pie") axislabel = "";
@@ -548,13 +547,13 @@
             var chartlegendtitlelabel = "";
             var value = $("#" + txtchartname + "_Group option:selected").val();
             if (txtchartname.indexOf("Port") != -1) {
-                chartlegendtitlelabel = "Port Number"
+                chartlegendtitlelabel = "Port Number";
             } else if (txtchartname == "TCConnHits") {
-                chartlegendtitlelabel = "IP Address"
-            } else if (value == 0) {
-                chartlegendtitlelabel = "IP Address"
+                chartlegendtitlelabel = "IP Address";
+            } else if (value === 0) {
+                chartlegendtitlelabel = "IP Address";
             } else if (value == 1) {
-                chartlegendtitlelabel = "Country Code"
+                chartlegendtitlelabel = "Country Code";
             }
 
             for (i = 0; i < 350 - chartlegendtitlelabel.length; i++) {
@@ -569,7 +568,7 @@
                 return window["Data" + txtchartname];
             } else {
                 value = $("#" + txtchartname + "_Group option:selected").val();
-                if (value == 0) {
+                if (value === 0) {
                     return window["Data" + txtchartname];
                 } else {
                     return window["Data" + txtchartname + "_Sum"];
@@ -582,7 +581,7 @@
                 return window["Label" + txtchartname];
             } else {
                 value = $("#" + txtchartname + "_Group option:selected").val();
-                if (value == 0) {
+                if (value === 0) {
                     return window["Label" + txtchartname + "_IPs"];
                 } else {
                     return window["Label" + txtchartname + "_Sorted"];
@@ -621,7 +620,7 @@
         }
 
         function showGrid(e, axis) {
-            if (e == null) {
+            if (e === null) {
                 return true;
             } else if (e == "pie") {
                 return false;
@@ -634,7 +633,7 @@
             if (e == "bar" && axis == "x") {
                 return true;
             } else {
-                if (e == null) {
+                if (e === null) {
                     return true;
                 } else if (e == "pie") {
                     return false;
@@ -648,7 +647,7 @@
             if (e == "bar" && axis == "x") {
                 return false;
             } else {
-                if (e == null) {
+                if (e === null) {
                     return true;
                 } else if (e == "pie") {
                     return false;
@@ -741,13 +740,13 @@
             var nodata = "";
             var objdataname = window["Label" + txtbase + "_IPs"];
             if (typeof objdataname === 'undefined' || objdataname === null) {
-                nodata = "true"
+                nodata = "true";
             }
-            if (objdataname.length == 0) {
-                nodata = "true"
+            if (objdataname.length === 0) {
+                nodata = "true";
             }
-            if (objdataname.length == 1 && objdataname[0] == "") {
-                nodata = "true"
+            if (objdataname.length == 1 && objdataname[0] === "") {
+                nodata = "true";
             }
 
             if (nodata == "true") {
@@ -780,9 +779,9 @@
                     tablehtml += '<td>' + window["Label" + txtbase + "_Country"][i] + '</td>';
                     tablehtml += '<td style="white-space:pre;">' + window["Label" + txtbase + "_AssDomains"][i].replace(/ /g, "\n") + '</td>';
                     tablehtml += '</tr>';
-                };
+                }
             }
-            tablehtml += '</table>'
+            tablehtml += '</table>';
             tablehtml += '</div>';
             tablehtml += '</td>';
             tablehtml += '</tr>';
@@ -793,10 +792,10 @@
 </head>
 
 <body onload="initial();">
-    <div id="topbanner"></div>
-    <div id="loading" class="popup_bg"></div>
+    <div id="TopBanner"></div>
+    <div id="Loading" class="popup_bg"></div>
     <iframe name="hidden_frame" id="hidden_frame" src="about:blank" width="0" height="0" frameborder="0"></iframe>
-    <form method="post" name="form" id="ruleform" action="/start_apply.htm" target="hidden_frame">
+    <form method="post" name="form" id="ruleForm" action="/start_apply.htm" target="hidden_frame">
         <input type="hidden" name="action_script" value="start_SkynetStats" />
         <input type="hidden" name="current_page" id="current_page" value="" />
         <input type="hidden" name="next_page" id="next_page" value="" />
@@ -811,15 +810,15 @@
             <tr>
                 <td width="17">&nbsp;</td>
                 <td valign="top" width="202">
-                    <div id="mainmenu"></div>
-                    <div id="submenu"></div>
+                    <div id="mainMenu"></div>
+                    <div id="subMenu"></div>
                 </td>
                 <td valign="top">
-                    <div id="tabmenu" class="submenublock"></div>
+                    <div id="tabMenu" class="submenuBlock"></div>
                     <table width="98%" border="0" align="left" cellpadding="0" cellspacing="0">
                         <tr>
                             <td valign="top">
-                                <table width="760px" border="0" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="formtitle" id="formtitle">
+                                <table width="760px" border="0" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="FormTitle" id="FormTitle">
                                     <tbody>
                                         <tr bgcolor="#4D595D">
                                             <td valign="top">
@@ -830,7 +829,7 @@
                                                 <div class="formfonttitle" style="margin-bottom:0px;text-align:center;" id="statsdate">Last Updated - N/A</div>
                                                 <div style="line-height:5px;">&nbsp;</div>
 
-                                                <table width="100%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="formtable" style="border:0px;" id="skynet_table_buttons">
+                                                <table width="100%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="FormTable" style="border:0px;" id="skynet_table_buttons">
                                                     <tr class="apply_gen" valign="top" height="35px">
                                                         <td style="background-color:rgb(77, 89, 93);border:0px;">
                                                             <input type="button" onclick="applyRule();" value="Update Stats" class="button_gen" name="button" />
@@ -841,7 +840,7 @@
                                                 <div style="line-height:10px;">&nbsp;</div>
 
                                                 <!-- Key Stats starts here -->
-                                                <table width="100%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="formtable" id="skynet_table_keystats">
+                                                <table width="100%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="FormTable" id="skynet_table_keystats">
                                                     <thead class="collapsible expanded" id="skynet_keystats">
                                                         <tr>
                                                             <td colspan="4" id="keystats">Key Stats (click to expand/collapse)</td>
@@ -850,7 +849,7 @@
                                                     <tr>
                                                         <td colspan="2" align="center" style="padding: 0px;">
                                                             <div class="collapsiblecontent">
-                                                                <table border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="formtable statstable">
+                                                                <table border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="FormTable StatsTable">
                                                                     <col style="width:25%;" />
                                                                     <col style="width:25%;" />
                                                                     <col style="width:25%;" />
