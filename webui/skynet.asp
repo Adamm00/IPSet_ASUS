@@ -796,7 +796,7 @@
 <body onload="initial();">
     <div id="TopBanner"></div>
     <div id="Loading" class="popup_bg"></div>
-    <iframe name="hidden_frame" id="hidden_frame" src="" width="0" height="0" frameborder="0"></iframe>
+    <iframe name="hidden_frame" id="hidden_frame" src="javascript:false;" width="0" height="0" frameborder="0"></iframe>
     <form method="post" name="form" id="ruleForm" action="/start_apply.htm" target="hidden_frame">
         <input type="hidden" name="action_script" value="start_SkynetStats">
         <input type="hidden" name="current_page" id="current_page" value="">
@@ -806,8 +806,8 @@
         <input type="hidden" name="action_wait" value="45">
         <input type="hidden" name="first_time" value="">
         <input type="hidden" name="SystemCmd" value="">
-        <input type="hidden" name="preferred_lang" id="preferred_lang" value="<% nvram_get(" preferred_lang "); %>">
-        <input type="hidden" name="firmver" value="<% nvram_get(" firmver "); %>">
+        <input type="hidden" name="preferred_lang" id="preferred_lang" value="<% nvram_get( preferred_lang ); %>">
+        <input type="hidden" name="firmver" value="<% nvram_get( firmver ); %>">
         <table class="content" align="center" cellpadding="0" cellspacing="0">
             <tr>
                 <td width="17">&nbsp;</td>
@@ -898,5 +898,7 @@
         </div>
     </form>
 </body>
+
+</html>
 
 </html>
