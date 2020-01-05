@@ -886,16 +886,17 @@
                                         </tr>
                                     </tbody>
                                 </table>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+                <td width="10" align="center" valign="top">&nbsp;</td>
+            </tr>
+        </table>
+
+        <div id="footer">
+        </div>
     </form>
-    </td>
-    </tr>
-    </table>
-    </td>
-    <td width="10" align="center" valign="top">&nbsp;</td>
-    </tr>
-    </table>
-    <div id="footer">
-    </div>
 </body>
 
 </html>
