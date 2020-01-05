@@ -594,12 +594,12 @@ Domain_Lookup () {
 }
 
 LAN_CIDR_Lookup () {
-		if [ "$(echo "$1" | cut -c1-8)" = "192.168." ];	then 
+		if [ "$(echo "$1" | cut -c1-8)" = "192.168." ];	then
 			echo "192.168.0.0/16"
-		elif [ "$(echo "$1" | cut -c1-7)" = "172.16." ];then 
+		elif [ "$(echo "$1" | cut -c1-4)" = "172." ] && [ "$(echo "$1" | cut -c5-6)" -ge 16 ] && [ "$(echo "$1" | cut -c5-6)" -le 31 ]; then
 			echo "172.16.0.0/12"
-		elif [ "$(echo "$1" | cut -c1-3)" = "10." ]; then 
-			echo "10.0.0.0/8"; 
+		elif [ "$(echo "$1" | cut -c1-3)" = "10." ]; then
+			echo "10.0.0.0/8";
 		fi
 }
 
