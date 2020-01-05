@@ -1,6 +1,5 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
-<html xmlns:v>
 
 <head>
     <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
@@ -796,7 +795,7 @@
 <body onload="initial();">
     <div id="TopBanner"></div>
     <div id="Loading" class="popup_bg"></div>
-    <iframe name="hidden_frame" id="hidden_frame" src="javascript:false;" width="0" height="0" frameborder="0"></iframe>
+    <iframe name="hidden_frame" id="hidden_frame" src="about:blank" width="0" height="0" frameborder="0"></iframe>
     <form method="post" name="form" id="ruleForm" action="/start_apply.htm" target="hidden_frame">
         <input type="hidden" name="action_script" value="start_SkynetStats">
         <input type="hidden" name="current_page" id="current_page" value="">
@@ -898,7 +897,5 @@
         </div>
     </form>
 </body>
-
-</html>
 
 </html>
