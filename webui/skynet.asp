@@ -132,7 +132,7 @@
                 Draw_Chart_NoData(txtchartname);
                 return;
             }
-            if (objdataname.length === 0) {
+            if (objdataname.length == 0) {
                 Draw_Chart_NoData(txtchartname);
                 return;
             }
@@ -144,7 +144,7 @@
                     Draw_Chart_NoData(txtchartname);
                     return;
                 }
-                if (objlabeldataname_IPs.length === 0) {
+                if (objlabeldataname_IPs.length == 0) {
                     Draw_Chart_NoData(txtchartname);
                     return;
                 }
@@ -152,7 +152,7 @@
                     Draw_Chart_NoData(txtchartname);
                     return;
                 }
-                if (objlabeldataname_Sorted.length === 0) {
+                if (objlabeldataname_Sorted.length == 0) {
                     Draw_Chart_NoData(txtchartname);
                     return;
                 }
@@ -162,13 +162,13 @@
                     Draw_Chart_NoData(txtchartname);
                     return;
                 }
-                if (objlabeldataname.length === 0) {
+                if (objlabeldataname.length == 0) {
                     Draw_Chart_NoData(txtchartname);
                     return;
                 }
             }
 
-            if (objchartname !== undefined) objchartname.destroy();
+            if (objchartname != undefined) objchartname.destroy();
             var ctx = document.getElementById("divChart" + txtchartname).getContext("2d");
             var chartOptions = {
                 segmentShowStroke: false,
@@ -297,7 +297,7 @@
 
         function GetExpandedCookie(cookiename) {
             var s;
-            if ((s = cookie.get(cookiename)) !== null) {
+            if ((s = cookie.get(cookiename)) != null) {
                 return cookie.get(cookiename);
             } else {
                 return "";
@@ -397,7 +397,7 @@
                 var SortedArray = [];
 
                 for (var name in GroupedArray) {
-                    if (name !== "") {
+                    if (name != "") {
                         var sum = 0;
                         var name2 = eval("GroupedArray." + name);
                         for (var i2 = 0; i2 < name2.length; i2++) {
@@ -493,13 +493,13 @@
 
         function getChartColour(colour, length) {
             var chartcolour = "rgba(2, 53, 135, 1)";
-            if (colour === 0) chartcolour = poolColors(length);
+            if (colour == 0) chartcolour = poolColors(length);
             return chartcolour;
         }
 
         function getChartType(layout) {
             var charttype = "horizontalBar";
-            if (layout === 0) charttype = "horizontalBar";
+            if (layout == 0) charttype = "horizontalBar";
             else if (layout == 1) charttype = "bar";
             else if (layout == 2) charttype = "pie";
             return charttype;
@@ -568,7 +568,7 @@
                 return window["Data" + txtchartname];
             } else {
                 value = $("#" + txtchartname + "_Group option:selected").val();
-                if (value === 0) {
+                if (value == 0) {
                     return window["Data" + txtchartname];
                 } else {
                     return window["Data" + txtchartname + "_Sum"];
@@ -581,7 +581,7 @@
                 return window["Label" + txtchartname];
             } else {
                 value = $("#" + txtchartname + "_Group option:selected").val();
-                if (value === 0) {
+                if (value == 0) {
                     return window["Label" + txtchartname + "_IPs"];
                 } else {
                     return window["Label" + txtchartname + "_Sorted"];
@@ -620,7 +620,7 @@
         }
 
         function showGrid(e, axis) {
-            if (e === null) {
+            if (e == null) {
                 return true;
             } else if (e == "pie") {
                 return false;
@@ -633,7 +633,7 @@
             if (e == "bar" && axis == "x") {
                 return true;
             } else {
-                if (e === null) {
+                if (e == null) {
                     return true;
                 } else if (e == "pie") {
                     return false;
@@ -647,7 +647,7 @@
             if (e == "bar" && axis == "x") {
                 return false;
             } else {
-                if (e === null) {
+                if (e == null) {
                     return true;
                 } else if (e == "pie") {
                     return false;
@@ -742,10 +742,10 @@
             if (typeof objdataname === 'undefined' || objdataname === null) {
                 nodata = "true";
             }
-            if (objdataname.length === 0) {
+            if (objdataname.length == 0) {
                 nodata = "true";
             }
-            if (objdataname.length == 1 && objdataname[0] === "") {
+            if (objdataname.length == 1 && objdataname[0] == "") {
                 nodata = "true";
             }
 
