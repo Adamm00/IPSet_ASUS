@@ -5,8 +5,8 @@
 <head>
     <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    <meta HTTP-EQUIV="Pragma" CONTENT="no-cache">
-    <meta HTTP-EQUIV="Expires" CONTENT="-1">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="-1">
     <link rel="shortcut icon" href="images/favicon.png">
     <link rel="icon" href="images/favicon.png">
     <title>Skynet Statistics</title>
@@ -834,7 +834,7 @@
                                                 <table width="100%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="FormTable" style="border:0px;" id="skynet_table_buttons">
                                                     <tr class="apply_gen" valign="top" height="35px">
                                                         <td style="background-color:rgb(77, 89, 93);border:0px;">
-                                                            <input type="button" onClick="applyRule();" value="Update Stats" class="button_gen" name="button">
+                                                            <input type="button" onclick="applyRule();" value="Update Stats" class="button_gen" name="button">
                                                         </td>
                                                     </tr>
                                                 </table>
@@ -858,34 +858,34 @@
                                                                     <col style="width:25%;">
                                                                     <thead>
                                                                         <tr class="even" style="text-align:center;">
-                                                                            <th>IPs Banned</td>
-                                                        <th>Ranges Banned</td>
-                                            <th>Inbound Blocks</td>
-                            <th>Outbound Blocks</td>
-                </tr>
-                </thead>
-                <tr class="even" style="text-align:center;">
-                    <td class="keystatsnumber" id="blcount1">IPs Banned</td>
-                    <td class="keystatsnumber" id="blcount2">Ranges Banned</td>
-                    <td class="keystatsnumber" id="hits1">Inbound Blocks</td>
-                    <td class="keystatsnumber" id="hits2">Outbound Blocks</td>
-                </tr>
-                </table>
-                </div>
-                </td>
-                </tr>
-                </table>
+                                                                            <th>IPs Banned</th>
+                                                                            <th>Ranges Banned</th>
+                                                                            <th>Inbound Blocks</th>
+                                                                            <th>Outbound Blocks</th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tr class="even" style="text-align:center;">
+                                                                        <td class="keystatsnumber" id="blcount1">IPs Banned</td>
+                                                                        <td class="keystatsnumber" id="blcount2">Ranges Banned</td>
+                                                                        <td class="keystatsnumber" id="hits1">Inbound Blocks</td>
+                                                                        <td class="keystatsnumber" id="hits2">Outbound Blocks</td>
+                                                                    </tr>
+                                                                </table>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                </table>
 
-                <!-- Key Stats ends here -->
+                                                <!-- Key Stats ends here -->
 
-                <!-- Custom tables and charts inserted here -->
+                                                <!-- Custom tables and charts inserted here -->
 
-                <div style="line-height:10px;">&nbsp;</div>
+                                                <div style="line-height:10px;">&nbsp;</div>
 
-                </td>
-                </tr>
-                </tbody>
-                </table>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
     </form>
     </td>
     </tr>
