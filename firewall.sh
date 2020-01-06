@@ -927,7 +927,7 @@ Whitelist_Shared () {
 
 WriteStats_ToJS (){
 	{ echo "function ${3}() {"
-	printf '\tdocument.getElementById("%s").innerHTML = "%s\\r\\n"\n' "$4" "$(if [ -f "$1" ]; then cat "$1"; else echo "$1"; fi)"
+	printf '\tdocument.getElementById("%s").innerHTML = "%s"\n' "$4" "$(if [ -f "$1" ]; then cat "$1"; else echo "$1"; fi)"
 	echo "}"
 	echo; } >> "$2"
 }
