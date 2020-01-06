@@ -4611,10 +4611,10 @@ case "$1" in
 					printf "%-8s\\n" "$result"
 					printf "%-35s | " "Mounted WebUI Files"
 					Get_WebUI_Page "${skynetloc}/webui/skynet.asp"
-					if [ -f "${webdir}/${MyPage}" ] && [ -f "${webdir}/skynet/chartjs-plugin-zoom.js" ] && [ -f "${webdir}/skynet/hammerjs.js" ]; then 
-						result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); 
-					else 
-						result="$(Red "[Failed]")"; 
+					if [ -f "${webdir}/${MyPage}" ] && [ -f "${webdir}/skynet/chartjs-plugin-zoom.js" ] && [ -f "${webdir}/skynet/hammerjs.js" ]; then
+						result="$(Grn "[Passed]")"; passedtests=$((passedtests+1));
+					else
+						result="$(Red "[Failed]")";
 					fi
 					printf "%-8s\\n" "$result"
 					printf "%-35s | " "MenuTree.js Entry"
