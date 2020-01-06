@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            06/01/2020 - v7.0.7                                            #
+#                                            07/01/2020 - v7.0.7                                            #
 #############################################################################################################
 
 
@@ -3813,6 +3813,7 @@ case "$1" in
 		Unload_IOTTables
 		Unload_LogIPTables
 		Unload_IPSets
+		Uninstall_WebUI_Page
 		iptables -t raw -F
 		logger -t Skynet "[%] Restarting Firewall Service"; echo "[%] Restarting Firewall Service"
 		restartfirewall="1"
@@ -3829,6 +3830,7 @@ case "$1" in
 		Unload_IOTTables
 		Unload_LogIPTables
 		Unload_IPSets
+		Uninstall_WebUI_Page
 		logger -t Skynet "[%] Skynet Disabled"; echo "[%] Skynet Disabled"
 		Purge_Logs "all"
 		nolog="2"
