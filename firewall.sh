@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            06/01/2020 - v7.0.6                                            #
+#                                            06/01/2020 - v7.0.7                                            #
 #############################################################################################################
 
 
@@ -439,54 +439,56 @@ Load_IOTTables () {
 }
 
 Check_IPSets () {
-		ipset -L -n Skynet-Whitelist >/dev/null 2>&1 || { fail="1"; return 1; }
-		ipset -L -n Skynet-Blacklist >/dev/null 2>&1 || { fail="2"; return 1; }
-		ipset -L -n Skynet-BlockedRanges >/dev/null 2>&1 || { fail="3"; return 1; }
-		ipset -L -n Skynet-Master >/dev/null 2>&1 || { fail="4"; return 1; }
-		ipset -L -n Skynet-IOT >/dev/null 2>&1 || { fail="5"; return 1; }
+		ipset -L -n Skynet-Whitelist >/dev/null 2>&1 || fail="${fail}#1 "
+		ipset -L -n Skynet-Blacklist >/dev/null 2>&1 || fail="${fail}#2 "
+		ipset -L -n Skynet-BlockedRanges >/dev/null 2>&1 || fail="${fail}#3 "
+		ipset -L -n Skynet-Master >/dev/null 2>&1 || fail="${fail}#4 "
+		ipset -L -n Skynet-IOT >/dev/null 2>&1 || fail="${fail}#5 "
+		if [ -n "$fail" ]; then return 1; fi
 }
 
 Check_IPTables () {
 		if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "inbound" ]; then
-			iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j DROP 2>/dev/null || { fail="6"; return 1; }
+			iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j DROP 2>/dev/null || fail="${fail}#6 "
 		fi
 		if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "outbound" ]; then
-			iptables -t raw -C PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null || { fail="7"; return 1; }
-			iptables -t raw -C OUTPUT -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null || { fail="8"; return 1; }
+			iptables -t raw -C PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null || fail="${fail}#7 "
+			iptables -t raw -C OUTPUT -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null || fail="${fail}#8 "
 		fi
 		if [ "$(nvram get sshd_enable)" = "1" ] && [ "$(nvram get sshd_bfp)" = "1" ] && [ "$(uname -o)" = "ASUSWRT-Merlin" ] && [ "$(nvram get switch_wantag)" != "movistar" ]; then
-			iptables -C SSHBFP -m recent --update --seconds 60 --hitcount 4 --name SSH --rsource -j SET --add-set Skynet-Master src 2>/dev/null || { fail="9"; return 1; }
-			iptables -C SSHBFP -m recent --update --seconds 60 --hitcount 4 --name SSH --rsource -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || { fail="10"; return 1; }
+			iptables -C SSHBFP -m recent --update --seconds 60 --hitcount 4 --name SSH --rsource -j SET --add-set Skynet-Master src 2>/dev/null || fail="${fail}#9 "
+			iptables -C SSHBFP -m recent --update --seconds 60 --hitcount 4 --name SSH --rsource -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || fail="${fail}#10 "
 		fi
-		iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src ! -o tun2+ -j DROP 2>/dev/null || { fail="11"; return 1; }
+		iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src ! -o tun2+ -j DROP 2>/dev/null || fail="${fail}#11 "
 		if [ -n "$iotports" ]; then
 			if [ "$iotproto" = "all" ] || [ "$iotproto" = "udp" ]; then
-				iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp -m multiport --dports "$iotports" -j ACCEPT 2>/dev/null || { fail="12"; return 1; }
+				iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp -m multiport --dports "$iotports" -j ACCEPT 2>/dev/null || fail="${fail}#12 "
 			fi
 			if [ "$iotproto" = "all" ] || [ "$iotproto" = "tcp" ]; then
-				iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p tcp -m tcp -m multiport --dports "$iotports" -j ACCEPT 2>/dev/null || { fail="13"; return 1; }
+				iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p tcp -m tcp -m multiport --dports "$iotports" -j ACCEPT 2>/dev/null || fail="${fail}#13 "
 			fi
 		else
 			if [ "$iotproto" = "all" ] || [ "$iotproto" = "udp" ]; then
-				iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp --dport 123 -j ACCEPT 2>/dev/null || { fail="14"; return 1; }
+				iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp --dport 123 -j ACCEPT 2>/dev/null || fail="${fail}#14 "
 			fi
 			if [ "$iotproto" = "all" ] || [ "$iotproto" = "tcp" ]; then
-				iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p tcp -m tcp --dport 123 -j ACCEPT 2>/dev/null || { fail="15"; return 1; }
+				iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p tcp -m tcp --dport 123 -j ACCEPT 2>/dev/null || fail="${fail}#15 "
 			fi
 		fi
 		if [ "$logmode" = "enabled" ]; then
 			if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "inbound" ]; then
-				iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || { fail="16"; return 1; }
+				iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || fail="${fail}#16 "
 			fi
 			if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "outbound" ]; then
-				iptables -t raw -C PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || { fail="17"; return 1; }
-				iptables -t raw -C OUTPUT -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || { fail="18"; return 1; }
+				iptables -t raw -C PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || fail="${fail}#17 "
+				iptables -t raw -C OUTPUT -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || fail="${fail}#18 "
 			fi
 			if [ "$(nvram get fw_log_x)" = "drop" ] || [ "$(nvram get fw_log_x)" = "both" ] && [ "$loginvalid" = "enabled" ]; then
-				iptables -C logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - INVALID] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || { fail="19"; return 1; }
+				iptables -C logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - INVALID] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || fail="${fail}#19 "
 			fi
-			iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src ! -o tun2+ -j LOG --log-prefix "[BLOCKED - IOT] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || { fail="20"; return 1; }
+			iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src ! -o tun2+ -j LOG --log-prefix "[BLOCKED - IOT] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || fail="${fail}#20 "
 		fi
+		if [ -n "$fail" ]; then return 1; fi
 }
 
 Unload_IPSets () {
@@ -1062,8 +1064,8 @@ Generate_Stats () {
 }
 
 Get_WebUI_Page () {
-	webdir="$(readlink /www/user)"
 	if [ "$(nvram get buildno | tr -d '.')" -ge "38415" ] && [ "$displaywebui" = "enabled" ]; then
+		webdir="$(readlink /www/user)"
 		for i in 1 2 3 4 5 6 7 8 9 10; do
 			page="${webdir}/user$i.asp"
 			if [ ! -f "$page" ] || [ "$(md5sum < "$1")" = "$(md5sum < "$page")" ]; then
@@ -1076,27 +1078,31 @@ Get_WebUI_Page () {
 }
 
 Install_WebUI_Page () {
-	if [ "$(nvram get buildno | tr -d '.')" -ge "38415" ] && [ "$displaywebui" = "enabled" ]; then
-		Get_WebUI_Page "${skynetloc}/webui/skynet.asp"
-		if [ "$MyPage" = "none" ]; then
-			logger -t Skynet "[*] Unable To Mount Skynet Web Page - No Mount Points Avilable" && echo "[*] Unable To Mount Skynet Web Page - No Mount Points Avilable"
-		else
-			logger -t Skynet "[%] Mounting Skynet Web Page As $MyPage" && echo "[%] Mounting Skynet Web Page As $MyPage"
-			cp -f "${skynetloc}/webui/skynet.asp" "${webdir}/$MyPage"
-			if [ ! -f "/tmp/menuTree.js" ]; then
-				cp -f "/www/require/modules/menuTree.js" "/tmp/"
+	if [ "$logmode" = "enabled" ]; then
+		if [ "$(nvram get buildno | tr -d '.')" -ge "38415" ] && [ "$displaywebui" = "enabled" ]; then
+			Get_WebUI_Page "${skynetloc}/webui/skynet.asp"
+			if [ "$MyPage" = "none" ]; then
+				logger -t Skynet "[*] Unable To Mount Skynet Web Page - No Mount Points Avilable" && echo "[*] Unable To Mount Skynet Web Page - No Mount Points Avilable"
+			else
+				logger -t Skynet "[%] Mounting Skynet Web Page As $MyPage" && echo "[%] Mounting Skynet Web Page As $MyPage"
+				cp -f "${skynetloc}/webui/skynet.asp" "${webdir}/$MyPage"
+				if [ ! -f "/tmp/menuTree.js" ]; then
+					cp -f "/www/require/modules/menuTree.js" "/tmp/"
+				fi
+				sed -i "\\~$MyPage~d" /tmp/menuTree.js
+				sed -i "/url: \"Advanced_Firewall_Content.asp\", tabName:/a {url: \"$MyPage\", tabName: \"Skynet\"}," /tmp/menuTree.js
+				umount /www/require/modules/menuTree.js 2>/dev/null
+				mount -o bind /tmp/menuTree.js /www/require/modules/menuTree.js
+				mkdir -p "${webdir}/skynet"
+				ln -s "${skynetloc}/webui/stats.js" "${webdir}/skynet/stats.js" 2>/dev/null
+				ln -s "${skynetloc}/webui/chartjs-plugin-zoom.js" "${webdir}/skynet/chartjs-plugin-zoom.js" 2>/dev/null
+				ln -s "${skynetloc}/webui/hammerjs.js" "${webdir}/skynet/hammerjs.js" 2>/dev/null
+				Unload_Cron "genstats"
+				Load_Cron "genstats"
 			fi
-			sed -i "\\~$MyPage~d" /tmp/menuTree.js
-			sed -i "/url: \"Advanced_Firewall_Content.asp\", tabName:/a {url: \"$MyPage\", tabName: \"Skynet\"}," /tmp/menuTree.js
-			umount /www/require/modules/menuTree.js 2>/dev/null
-			mount -o bind /tmp/menuTree.js /www/require/modules/menuTree.js
-			mkdir -p "${webdir}/skynet"
-			ln -s "${skynetloc}/webui/stats.js" "${webdir}/skynet/stats.js" 2>/dev/null
-			ln -s "${skynetloc}/webui/chartjs-plugin-zoom.js" "${webdir}/skynet/chartjs-plugin-zoom.js" 2>/dev/null
-			ln -s "${skynetloc}/webui/hammerjs.js" "${webdir}/skynet/hammerjs.js" 2>/dev/null
-			Unload_Cron "genstats"
-			Load_Cron "genstats"
 		fi
+	else
+		logger -t Skynet "[*] WebUI Intergration Requires Logging To Be Enabled"; echo "[*] WebUI Intergration Requires Logging To Be Enabled"
 	fi
 }
 
@@ -1355,7 +1361,7 @@ Load_Menu () {
 		printf "%-35s | %-8s\\n" "IPTables Rules" "$(Red "[Failed]")"; nolog="1"
 	fi
 	if [ "$fastswitch" = "enabled" ]; then
-		Ylow "Fast Switch Is Enabled!"
+		Ylow "Fast Switch List Is Enabled!"
 	fi
 	if [ "$nolog" != "1" ]; then Print_Log "minimal"; fi
 	unset "nolog"
@@ -2246,7 +2252,7 @@ Load_Menu () {
 							if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 							option1="fs"
 							while true; do
-								echo "Select Fast Switch Option:"
+								echo "Select Fast Switch List Option:"
 								echo "[1]  --> Enable"
 								echo "[2]  --> Disable"
 								echo
@@ -3330,11 +3336,11 @@ case "$1" in
 		Spinner_Start
 		Purge_Logs
 		if [ "$2" = "disable" ] && [ "$fastswitch" = "disabled" ] && [ "$1" = "fs" ]; then
-			echo "[*] Fast Switch Already Disabled - Stopping Banmalware"
+			echo "[*] Fast Switch List Already Disabled - Stopping Banmalware"
 			echo; exit 1
 		fi
 		if [ "$fastswitch" = "enabled" ] && [ "$1" = "fs" ] && [ -z "$2" ] || [ "$2" = "disable" ]; then
-			echo "[i] Fast Switch Disabled"
+			echo "[i] Fast Switch List Disabled"
 			fastswitch="disabled"
 			set "banmalware"
 		fi
@@ -3361,11 +3367,11 @@ case "$1" in
 			echo "[i] Custom Filter Detected: $customlisturl"
 		elif [ "$1" = "fs" ]; then
 			if [ -z "$2" ] && [ -z "$customlist2url" ]; then
-				logger -st Skynet "[*] Fast Switch URL Not Configured - Stopping Banmalware"
+				logger -st Skynet "[*] Fast Switch List URL Not Configured - Stopping Banmalware"
 				echo; exit 1
 			else
 				fastswitch="enabled"
-				echo "[i] Fast Switch Enabled"
+				echo "[i] Fast Switch List Enabled"
 				if [ -z "$customlist2url" ] || [ -n "$2" ]; then
 					customlist2url="$2"
 					listurl="$customlist2url"
@@ -3740,7 +3746,7 @@ case "$1" in
 	save)
 		Check_Lock "$@"
 		if ! Check_IPSets || ! Check_IPTables; then
-			logger -st Skynet "[*] Rule Integrity Violation - Restarting Firewall [#${fail}]"
+			logger -st Skynet "[*] Rule Integrity Violation - Restarting Firewall [ ${fail}]"
 			restartfirewall="1"
 			nolog="2"
 		else
@@ -4538,7 +4544,7 @@ case "$1" in
 					Ylow "[*] Locked Processes Generally Take A Few Minutes To Complete And May Result In Temporarily \"Failed\" Tests"
 				fi
 				passedtests="0"
-				totaltests="18"
+				totaltests="16"
 				Display_Header "6"
 				ip neigh | grep -E '^([0-9]{1,3}\.){3}[0-9]{1,3} ' | sort -n -t . -k 1,1 -k 2,2 -k 3,3 -k 4,4 | while IFS= read -r "ip"; do
 					ipaddr="$(echo "$ip" | awk '{print $1}')"
@@ -4575,6 +4581,9 @@ case "$1" in
 				printf "%-35s | " "Services-Stop Entry"
 				if grep -F "# Skynet" /jffs/scripts/services-stop | grep -qvE "^#"; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
 				printf "%-8s\\n" "$result"
+				printf "%-35s | " "Service-Event Entry"
+				if grep -F "# Skynet" /jffs/scripts/service-event | grep -qvE "^#"; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
+				printf "%-8s\\n" "$result"
 				printf "%-35s | " "SWAP"
 				if Check_Swap; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
 				printf "%-8s\\n" "$result"
@@ -4590,32 +4599,30 @@ case "$1" in
 				printf "%-35s | " "Duplicate Rules In RAW"
 				if [ "$(iptables-save -t raw | sort | uniq -d | grep -c " ")" = "0" ]; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
 				printf "%-8s\\n" "$result"
-				printf "%-35s | " "Inbound Filter Rules"
-				if iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j DROP 2>/dev/null; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); elif [ "$filtertraffic" = "outbound" ]; then result="$(Ylow "[Disabled]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
+				printf "%-35s | " "IPSets"
+				if Check_IPSets; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
 				printf "%-8s\\n" "$result"
-				printf "%-35s | " "Inbound Logging Rules"
-				if iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); elif [ "$logmode" = "disabled" ] || [ "$filtertraffic" = "outbound" ]; then result="$(Ylow "[Disabled]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
+				printf "%-35s | " "IPTables Rules"
+				if Check_IPTables; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
 				printf "%-8s\\n" "$result"
-				printf "%-35s | " "Outbound Filter Rules"
-				if iptables -t raw -C PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null && \
-				iptables -t raw -C OUTPUT -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); elif [ "$filtertraffic" = "inbound" ]; then result="$(Ylow "[Disabled]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
-				printf "%-8s\\n" "$result"
-				printf "%-35s | " "Outbound Logging Rules"
-				if iptables -t raw -C PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null && \
-				iptables -t raw -C OUTPUT -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); elif [ "$logmode" = "disabled" ] || [ "$filtertraffic" = "inbound" ]; then result="$(Ylow "[Disabled]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
-				printf "%-8s\\n" "$result"
-				printf "%-35s | " "Whitelist IPSet"
-				if ipset -L -n Skynet-Whitelist >/dev/null 2>&1; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
-				printf "%-8s\\n" "$result"
-				printf "%-35s | " "BlockedRanges IPSet"
-				if ipset -L -n Skynet-BlockedRanges >/dev/null 2>&1; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
-				printf "%-8s\\n" "$result"
-				printf "%-35s | " "Blacklist IPSet"
-				if ipset -L -n Skynet-Blacklist >/dev/null 2>&1; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
-				printf "%-8s\\n" "$result"
-				printf "%-35s | " "Skynet IPSet"
-				if ipset -L -n Skynet-Master >/dev/null 2>&1; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
-				printf "%-8s\\n" "$result"
+				if [ "$displaywebui" = "enabled" ]; then
+					printf "%-35s | " "Local WebUI Files"
+					if [ -f "${skynetloc}/webui/chartjs-plugin-zoom.js" ] && [ -f "${skynetloc}/webui/hammerjs.js" ] && [ -f "${skynetloc}/webui/skynet.asp" ]; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
+					printf "%-8s\\n" "$result"
+					printf "%-35s | " "Mounted WebUI Files"
+					Get_WebUI_Page "${skynetloc}/webui/skynet.asp"
+					if [ -f "${webdir}/${MyPage}" ] && [ -f "${webdir}/skynet/chartjs-plugin-zoom.js" ] && [ -f "${webdir}/skynet/hammerjs.js" ]; then 
+						result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); 
+					else 
+						result="$(Red "[Failed]")"; 
+					fi
+					printf "%-8s\\n" "$result"
+					printf "%-35s | " "MenuTree.js Entry"
+					if grep -qF "Skynet" "/www/require/modules/menuTree.js"; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
+					printf "%-8s\\n" "$result"
+				else
+					totaltests=$((totaltests-3))
+				fi
 				if [ -f /opt/share/diversion/.conf/diversion.conf ]; then
 					printf "%-35s | " "Diversion Plus Content"
 					divlocation="/opt/share/diversion"
@@ -4648,6 +4655,7 @@ case "$1" in
 				printf "%-35s | %-8s\\n" "CDN Whitelisting" "$(if [ "$cdnwhitelist" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
 				printf "%-35s | %-8s\\n" "Display WebUI" "$(if [ "$displaywebui" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
 				printf "\\n%-35s\\n" "${passedtests}/${totaltests} Tests Sucessful"
+				if [ -n "$fail" ]; then echo; echo "[*] Rule Integrity Violation - [ ${fail}]"; fi
 				if [ "$3" = "extended" ]; then echo; echo; cat "$skynetcfg"; fi
 				nocfg="1"
 			;;
