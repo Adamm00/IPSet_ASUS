@@ -4609,15 +4609,19 @@ case "$1" in
 				printf "%-8s\\n" "$result"
 				if [ "$displaywebui" = "enabled" ]; then
 					printf "%-35s | " "Local WebUI Files"
-					if [ -f "${skynetloc}/webui/chartjs-plugin-zoom.js" ] && [ -f "${skynetloc}/webui/hammerjs.js" ] && [ -f "${skynetloc}/webui/skynet.asp" ]; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
+					[ -f "${skynetloc}/webui/skynet.asp" ] || localfail="${localfail}#1 "
+					[ -f "${skynetloc}/webui/stats.js" ] || localfail="${localfail}#2 "
+					[ -f "${skynetloc}/webui/chartjs-plugin-zoom.js" ] || localfail="${localfail}#3 "
+					[ -f "${skynetloc}/webui/hammerjs.js" ] || localfail="${localfail}#4 "
+					if [ -z "$localfail" ]; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
 					printf "%-8s\\n" "$result"
 					printf "%-35s | " "Mounted WebUI Files"
 					Get_WebUI_Page "${skynetloc}/webui/skynet.asp"
-					if [ -f "${webdir}/${MyPage}" ] && [ -f "${webdir}/skynet/chartjs-plugin-zoom.js" ] && [ -f "${webdir}/skynet/hammerjs.js" ]; then
-						result="$(Grn "[Passed]")"; passedtests=$((passedtests+1));
-					else
-						result="$(Red "[Failed]")";
-					fi
+					[ -f "${webdir}/${MyPage}" ] || mountedfail="${mountedfail}#1 "
+					[ -f "${webdir}/skynet/stats.js" ] || mountedfail="${mountedfail}#2 "
+					[ -f "${webdir}/skynet/chartjs-plugin-zoom.js" ] || mountedfail="${mountedfail}#3 "
+					[ -f "${webdir}/skynet/hammerjs.js" ] || mountedfail="${mountedfail}#4 "
+					if [ -z "$mountedfail" ]; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
 					printf "%-8s\\n" "$result"
 					printf "%-35s | " "MenuTree.js Entry"
 					if grep -qF "Skynet" "/www/require/modules/menuTree.js"; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
@@ -4658,6 +4662,8 @@ case "$1" in
 				printf "%-35s | %-8s\\n" "Display WebUI" "$(if [ "$displaywebui" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
 				printf "\\n%-35s\\n" "${passedtests}/${totaltests} Tests Sucessful"
 				if [ -n "$fail" ]; then echo; echo "[*] Rule Integrity Violation - [ ${fail}]"; fi
+				if [ -n "$localfail" ]; then echo; echo "[*] Local File Missing - [ ${localfail}]"; fi
+				if [ -n "$mountedfail" ]; then echo; echo "[*] Mounted File Missing - [ ${mountedfail}]"; fi
 				if [ "$3" = "extended" ]; then echo; echo; cat "$skynetcfg"; fi
 				nocfg="1"
 			;;
