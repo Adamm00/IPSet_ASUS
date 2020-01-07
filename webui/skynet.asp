@@ -132,7 +132,7 @@
                 Draw_Chart_NoData(txtchartname);
                 return;
             }
-            if (objdataname.length == 0) {
+            if (objdataname.length == 1 && objdataname[0] == "") {
                 Draw_Chart_NoData(txtchartname);
                 return;
             }
@@ -178,9 +178,12 @@
                 maintainAspectRatio: false,
                 animateScale: true,
                 legend: {
-                    display: false,
-                    position: "bottom",
-                    onClick: null
+                    onClick: null,
+                    display: showLegend(charttype),
+                    position: "left",
+                    labels: {
+                        fontColor: "#ffffff"
+                    }
                 },
                 title: {
                     display: showTitle(charttype),
@@ -231,13 +234,6 @@
                             beginAtZero: false
                         }
                     }]
-                },
-                legend: {
-                    display: showLegend(charttype),
-                    position: "left",
-                    labels: {
-                        fontColor: "#ffffff"
-                    }
                 },
                 plugins: {
                     zoom: {
@@ -399,7 +395,7 @@
                 for (var name in GroupedArray) {
                     if (name != "") {
                         var sum = 0;
-                        var name2 = eval("GroupedArray." + name);
+                        var name2 = GroupedArray[name];
                         for (var i2 = 0; i2 < name2.length; i2++) {
                             sum = sum + (window["Data" + item][name2[i2]] * 1);
                         }
