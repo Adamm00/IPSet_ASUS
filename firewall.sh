@@ -4422,25 +4422,25 @@ case "$1" in
 							if echo "$logoutput" | grep -qE "INVALID.*=$4 "; then
 								Blue "$logoutput"
 								if [ "$extendedstats" = "enabled" ]; then
-									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | Filter_OutIP | xargs)"
+									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $(NF-2)}' | Strip_Domain | Filter_OutIP | xargs)"
 									[ -n "$domainlist" ] && Blue "Associated Domain(s) - [$domainlist]"
 								fi
 							elif echo "$logoutput" | grep -qE "INBOUND.*=$4 "; then
 								Ylow "$logoutput"
 								if [ "$extendedstats" = "enabled" ]; then
-									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | Filter_OutIP | xargs)"
+									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $(NF-2)}' | Strip_Domain | Filter_OutIP | xargs)"
 									[ -n "$domainlist" ] && Red "Associated Domain(s) - [$domainlist]"
 								fi
 							elif echo "$logoutput" | grep -qE "OUTBOUND.*=$4 "; then
 								Red "$logoutput"
 								if [ "$extendedstats" = "enabled" ]; then
-									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | Filter_OutIP | xargs)"
+									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $(NF-2)}' | Strip_Domain | Filter_OutIP | xargs)"
 									[ -n "$domainlist" ] && Red "Associated Domain(s) - [$domainlist]"
 								fi
 							elif echo "$logoutput" | grep -qE "IOT.*=$4 "; then
 								Red "$logoutput"
 								if [ "$extendedstats" = "enabled" ]; then
-									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | Filter_OutIP | xargs)"
+									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $(NF-2)}' | Strip_Domain | Filter_OutIP | xargs)"
 									[ -n "$domainlist" ] && Red "Associated Domain(s) - [$domainlist]"
 								fi
 							fi
@@ -4454,25 +4454,25 @@ case "$1" in
 							if echo "$logoutput" | grep -qE "INAVLID.*PT=$4 "; then
 								Blue "$logoutput"
 								if [ "$extendedstats" = "enabled" ]; then
-									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | Filter_OutIP | xargs)"
+									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $(NF-2)}' | Strip_Domain | Filter_OutIP | xargs)"
 									[ -n "$domainlist" ] && Blue "Associated Domain(s) - [$domainlist]"
 								fi
 							elif echo "$logoutput" | grep -qE "INBOUND.*PT=$4 "; then
 								Ylow "$logoutput"
 								if [ "$extendedstats" = "enabled" ]; then
-									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | Filter_OutIP | xargs)"
+									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $(NF-2)}' | Strip_Domain | Filter_OutIP | xargs)"
 									[ -n "$domainlist" ] && Red "Associated Domain(s) - [$domainlist]"
 								fi
 							elif echo "$logoutput" | grep -qE "OUTBOUND.*PT=$4 "; then
 								Red "$logoutput"
 								if [ "$extendedstats" = "enabled" ]; then
-									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | Filter_OutIP | xargs)"
+									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $(NF-2)}' | Strip_Domain | Filter_OutIP | xargs)"
 									[ -n "$domainlist" ] && Red "Associated Domain(s) - [$domainlist]"
 								fi
 							elif echo "$logoutput" | grep -qE "IOT.*PT=$4 "; then
 								Red "$logoutput"
 								if [ "$extendedstats" = "enabled" ]; then
-									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | Filter_OutIP | xargs)"
+									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $(NF-2)}' | Strip_Domain | Filter_OutIP | xargs)"
 									[ -n "$domainlist" ] && Red "Associated Domain(s) - [$domainlist]"
 								fi
 							fi
@@ -4483,25 +4483,25 @@ case "$1" in
 							if echo "$logoutput" | grep -q "INVALID"; then
 								Blue "$logoutput"
 								if [ "$extendedstats" = "enabled" ]; then
-									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | Filter_OutIP | xargs)"
+									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $(NF-2)}' | Strip_Domain | Filter_OutIP | xargs)"
 									[ -n "$domainlist" ] && Blue "Associated Domain(s) - [$domainlist]"
 								fi
 							elif echo "$logoutput" | grep -q "INBOUND"; then
 								Ylow "$logoutput"
 								if [ "$extendedstats" = "enabled" ]; then
-									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | Filter_OutIP | xargs)"
+									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $(NF-2)}' | Strip_Domain | Filter_OutIP | xargs)"
 									[ -n "$domainlist" ] && Red "Associated Domain(s) - [$domainlist]"
 								fi
 							elif echo "$logoutput" | grep -q "OUTBOUND"; then
 								Red "$logoutput"
 								if [ "$extendedstats" = "enabled" ]; then
-									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | Filter_OutIP | xargs)"
+									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $(NF-2)}' | Strip_Domain | Filter_OutIP | xargs)"
 									[ -n "$domainlist" ] && Red "Associated Domain(s) - [$domainlist]"
 								fi
 							elif echo "$logoutput" | grep -q "IOT"; then
 								Red "$logoutput"
 								if [ "$extendedstats" = "enabled" ]; then
-									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | Filter_OutIP | xargs)"
+									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sed 's/.$//')" /opt/var/log/dnsmasq* | awk '{print $(NF-2)}' | Strip_Domain | Filter_OutIP | xargs)"
 									[ -n "$domainlist" ] && Red "Associated Domain(s) - [$domainlist]"
 								fi
 							fi
@@ -4894,7 +4894,7 @@ case "$1" in
 			;;
 			search)
 				if [ "$extendedstats" = "enabled" ]; then
-					grep -hE 'reply.* is ([0-9]{1,3}\.){3}[0-9]{1,3}$' /opt/var/log/dnsmasq* | awk '{printf "%s %s\n", $6, $8}' | Strip_Domain > /tmp/skynet/skynetstats.txt
+					grep -hE 'reply.* is ([0-9]{1,3}\.){3}[0-9]{1,3}$' /opt/var/log/dnsmasq* | awk '{printf "%s %s\n", $(NF-2), $NF}' | Strip_Domain > /tmp/skynet/skynetstats.txt
 					printf '   \b\b\b'
 				else
 					touch "/tmp/skynet/skynetstats.txt"
@@ -4929,7 +4929,7 @@ case "$1" in
 						echo
 						if [ "$extendedstats" = "enabled" ] && grep -q "reply.* is $4" /opt/var/log/dnsmasq*; then
 							Red "Associated Domain(s);"
-							assdomains="$(grep -E "reply.* is $4" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | Filter_OutIP)"
+							assdomains="$(grep -E "reply.* is $4" /opt/var/log/dnsmasq* | awk '{print $(NF-2)}' | Strip_Domain | Filter_OutIP)"
 							for domain in $assdomains; do
 								if grep -qE " (www.)?${domain}$| (www.)?${domain} " /opt/share/diversion/list/blockinglist /opt/share/diversion/list/blacklist 2>/dev/null; then
 									echo "$domain (Flagged By Diversion)"
@@ -4969,7 +4969,7 @@ case "$1" in
 						if ! echo "$4" | Is_IPRange; then echo "[*] $4 Is Not A Valid IP/Range"; echo; exit 2; fi
 						if [ "$extendedstats" = "enabled" ] && grep -q "reply.* is $4" /opt/var/log/dnsmasq*; then
 							Red "Associated Domain(s);"
-							assdomains="$(grep -E "reply.* is $4" /opt/var/log/dnsmasq* | awk '{print $6}' | Strip_Domain | Filter_OutIP)"
+							assdomains="$(grep -E "reply.* is $4" /opt/var/log/dnsmasq* | awk '{print $(NF-2)}' | Strip_Domain | Filter_OutIP)"
 							for domain in $assdomains; do
 								if grep -qE " (www.)?${domain}$| (www.)?${domain} " /opt/share/diversion/list/blockinglist /opt/share/diversion/list/blacklist 2>/dev/null; then
 									echo "$domain (Flagged By Diversion)"
@@ -5144,7 +5144,7 @@ case "$1" in
 					;;
 				esac
 				if [ "$extendedstats" = "enabled" ]; then
-					grep -hE 'reply.* is ([0-9]{1,3}\.){3}[0-9]{1,3}$' /opt/var/log/dnsmasq* | awk '{printf "%s %s\n", $6, $8}' | Strip_Domain > /tmp/skynet/skynetstats.txt
+					grep -hE 'reply.* is ([0-9]{1,3}\.){3}[0-9]{1,3}$' /opt/var/log/dnsmasq* | awk '{printf "%s %s\n", $(NF-2), $NF}' | Strip_Domain > /tmp/skynet/skynetstats.txt
 					printf '   \b\b\b'
 				else
 					touch "/tmp/skynet/skynetstats.txt"
