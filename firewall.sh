@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            07/01/2020 - v7.0.7                                            #
+#                                            09/01/2020 - v7.0.7                                            #
 #############################################################################################################
 
 
@@ -4604,18 +4604,18 @@ case "$1" in
 				printf "%-8s\\n" "$result"
 				if [ "$displaywebui" = "enabled" ]; then
 					printf "%-35s | " "Local WebUI Files"
-					[ -f "${skynetloc}/webui/skynet.asp" ] || localfail="${localfail}#1 "
-					[ -f "${skynetloc}/webui/stats.js" ] || localfail="${localfail}#2 "
-					[ -f "${skynetloc}/webui/chartjs-plugin-zoom.js" ] || localfail="${localfail}#3 "
-					[ -f "${skynetloc}/webui/hammerjs.js" ] || localfail="${localfail}#4 "
+					[ -f "${skynetloc}/webui/skynet.asp" ] || localfail="${localfail}skynet.asp "
+					[ -f "${skynetloc}/webui/stats.js" ] || localfail="${localfail}stats.js "
+					[ -f "${skynetloc}/webui/chartjs-plugin-zoom.js" ] || localfail="${localfail}chartjs-plugin-zoom.js "
+					[ -f "${skynetloc}/webui/hammerjs.js" ] || localfail="${localfail}hammerjs.js "
 					if [ -z "$localfail" ]; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
 					printf "%-8s\\n" "$result"
 					printf "%-35s | " "Mounted WebUI Files"
-					Get_WebUI_Page "${skynetloc}/webui/skynet.asp"
-					[ -f "${webdir}/${MyPage}" ] || mountedfail="${mountedfail}#1 "
-					[ -f "${webdir}/skynet/stats.js" ] || mountedfail="${mountedfail}#2 "
-					[ -f "${webdir}/skynet/chartjs-plugin-zoom.js" ] || mountedfail="${mountedfail}#3 "
-					[ -f "${webdir}/skynet/hammerjs.js" ] || mountedfail="${mountedfail}#4 "
+					Get_WebUI_Page "${skynetloc}/webui/skynet.asp" 2>/dev/null
+					[ -f "${webdir}/${MyPage}" ] || mountedfail="${mountedfail}skynet.asp "
+					[ -f "${webdir}/skynet/stats.js" ] || mountedfail="${mountedfail}stats.js "
+					[ -f "${webdir}/skynet/chartjs-plugin-zoom.js" ] || mountedfail="${mountedfail}chartjs-plugin-zoom.js "
+					[ -f "${webdir}/skynet/hammerjs.js" ] || mountedfail="${mountedfail}hammerjs.js "
 					if [ -z "$mountedfail" ]; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
 					printf "%-8s\\n" "$result"
 					printf "%-35s | " "MenuTree.js Entry"
