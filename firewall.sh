@@ -951,7 +951,7 @@ Generate_Stats () {
 		mkdir -p "${skynetloc}/webui/stats"
 		true > "${skynetloc}/webui/stats.js"
 		if [ -f "/opt/var/log/dnsmasq.log" ]; then
-			grep -hE 'reply.* is ([0-9]{1,3}\.){3}[0-9]{1,3}$' /opt/var/log/dnsmasq* | awk '{printf "%s %s\n", $6, $8}' | Strip_Domain > "${skynetloc}/webui/stats/skynetstats.txt"
+			grep -hE 'reply.* is ([0-9]{1,3}\.){3}[0-9]{1,3}$' /opt/var/log/dnsmasq* | awk '{printf "%s %s\n", $(NF-2), $NF}' | Strip_Domain > "${skynetloc}/webui/stats/skynetstats.txt"
 		else
 			touch "${skynetloc}/webui/stats/skynetstats.txt"
 		fi
