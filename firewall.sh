@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            12/01/2020 - v7.0.7                                            #
+#                                            15/01/2020 - v7.0.7                                            #
 #############################################################################################################
 
 
@@ -4551,7 +4551,7 @@ case "$1" in
 					Ylow "[*] Locked Processes Generally Take A Few Minutes To Complete And May Result In Temporarily \"Failed\" Tests"
 				fi
 				passedtests="0"
-				totaltests="16"
+				totaltests="17"
 				Display_Header "6"
 				ip neigh | grep -E '^([0-9]{1,3}\.){3}[0-9]{1,3} ' | sort -n -t . -k 1,1 -k 2,2 -k 3,3 -k 4,4 | while IFS= read -r "ip"; do
 					ipaddr="$(echo "$ip" | awk '{print $1}')"
@@ -4591,11 +4591,14 @@ case "$1" in
 				printf "%-35s | " "Service-Event Entry"
 				if grep -F "# Skynet" /jffs/scripts/service-event | grep -qvE "^#"; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
 				printf "%-8s\\n" "$result"
-				printf "%-35s | " "SWAP"
+				printf "%-35s | " "SWAP File"
 				if Check_Swap; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
 				printf "%-8s\\n" "$result"
 				printf "%-35s | " "Cron Jobs"
 				if [ "$(cru l | grep -c "Skynet")" -ge "2" ]; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
+				printf "%-8s\\n" "$result"
+				printf "%-35s | " "NTP Sync"
+				if [ "$(nvram get ntp_ready)" = "1" ]; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
 				printf "%-8s\\n" "$result"
 				printf "%-35s | " "IPSet Comment Support"
 				if [ -f /lib/modules/"$(uname -r)"/kernel/net/netfilter/ipset/ip_set_hash_ipmac.ko ]; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
