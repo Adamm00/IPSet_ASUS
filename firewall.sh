@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            15/01/2020 - v7.0.7                                            #
+#                                            15/01/2020 - v7.0.8                                            #
 #############################################################################################################
 
 
@@ -947,7 +947,7 @@ WriteData_ToJS (){
 }
 
 Generate_Stats () {
-	if { [ "$(uname -o)" = "ASUSWRT-Merlin" ] && [ "$(nvram get buildno | tr -d '.')" -ge "38415" ]; } || { [ "$(uname -o)" = "ASUSWRT-Merlin-LTS" ] && [ "$(nvram get extendno | cut -c1-2)" -ge "41" ]; } ; then
+	if nvram get rc_support | grep -qF "am_addons" || { [ "$(uname -o)" = "ASUSWRT-Merlin" ] && [ "$(nvram get buildno | tr -d '.')" -ge "38415" ]; } || { [ "$(uname -o)" = "ASUSWRT-Merlin-LTS" ] && [ "$(nvram get extendno | cut -c1-2)" -ge "41" ]; } ; then
 		if [ "$displaywebui" = "enabled" ]; then
 			mkdir -p "${skynetloc}/webui/stats"
 			true > "${skynetloc}/webui/stats.js"
@@ -1061,7 +1061,7 @@ Generate_Stats () {
 }
 
 Get_WebUI_Page () {
-	if { [ "$(uname -o)" = "ASUSWRT-Merlin" ] && [ "$(nvram get buildno | tr -d '.')" -ge "38415" ]; } || { [ "$(uname -o)" = "ASUSWRT-Merlin-LTS" ] && [ "$(nvram get extendno | cut -c1-2)" -ge "41" ]; } ; then
+	if nvram get rc_support | grep -qF "am_addons" || { [ "$(uname -o)" = "ASUSWRT-Merlin" ] && [ "$(nvram get buildno | tr -d '.')" -ge "38415" ]; } || { [ "$(uname -o)" = "ASUSWRT-Merlin-LTS" ] && [ "$(nvram get extendno | cut -c1-2)" -ge "41" ]; } ; then
 		if [ "$displaywebui" = "enabled" ]; then
 			webdir="$(readlink /www/user)"
 			for i in 1 2 3 4 5 6 7 8 9 10; do
@@ -1078,7 +1078,7 @@ Get_WebUI_Page () {
 
 Install_WebUI_Page () {
 	if [ "$logmode" = "enabled" ]; then
-		if { [ "$(uname -o)" = "ASUSWRT-Merlin" ] && [ "$(nvram get buildno | tr -d '.')" -ge "38415" ]; } || { [ "$(uname -o)" = "ASUSWRT-Merlin-LTS" ] && [ "$(nvram get extendno | cut -c1-2)" -ge "41" ]; } ; then
+		if nvram get rc_support | grep -qF "am_addons" || { [ "$(uname -o)" = "ASUSWRT-Merlin" ] && [ "$(nvram get buildno | tr -d '.')" -ge "38415" ]; } || { [ "$(uname -o)" = "ASUSWRT-Merlin-LTS" ] && [ "$(nvram get extendno | cut -c1-2)" -ge "41" ]; } ; then
 			if [ "$displaywebui" = "enabled" ]; then
 				Get_WebUI_Page "${skynetloc}/webui/skynet.asp"
 				if [ "$MyPage" = "none" ]; then
@@ -4378,7 +4378,7 @@ case "$1" in
 						Check_Lock "$@"
 						if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 						Purge_Logs
-						if { [ "$(uname -o)" = "ASUSWRT-Merlin" ] && [ "$(nvram get buildno | tr -d '.')" -ge "38415" ]; } || { [ "$(uname -o)" = "ASUSWRT-Merlin-LTS" ] && [ "$(nvram get extendno | cut -c1-2)" -ge "41" ]; } ; then
+						if nvram get rc_support | grep -qF "am_addons" || { [ "$(uname -o)" = "ASUSWRT-Merlin" ] && [ "$(nvram get buildno | tr -d '.')" -ge "38415" ]; } || { [ "$(uname -o)" = "ASUSWRT-Merlin-LTS" ] && [ "$(nvram get extendno | cut -c1-2)" -ge "41" ]; } ; then
 							displaywebui="enabled"
 							Install_WebUI_Page
 							echo "[i] WebUI Enabled"
@@ -4678,7 +4678,7 @@ case "$1" in
 			genstats)
 				Check_Lock "$@"
 				Purge_Logs "all"
-				if { [ "$(uname -o)" = "ASUSWRT-Merlin" ] && [ "$(nvram get buildno | tr -d '.')" -ge "38415" ]; } || { [ "$(uname -o)" = "ASUSWRT-Merlin-LTS" ] && [ "$(nvram get extendno | cut -c1-2)" -ge "41" ]; } ; then
+				if nvram get rc_support | grep -qF "am_addons" || { [ "$(uname -o)" = "ASUSWRT-Merlin" ] && [ "$(nvram get buildno | tr -d '.')" -ge "38415" ]; } || { [ "$(uname -o)" = "ASUSWRT-Merlin-LTS" ] && [ "$(nvram get extendno | cut -c1-2)" -ge "41" ]; } ; then
 					if [ "$displaywebui" = "enabled" ]; then
 						echo "[i] Generating Stats For WebUI"
 						Generate_Stats
