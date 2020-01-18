@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            15/01/2020 - v7.0.8                                            #
+#                                            19/01/2020 - v7.0.8                                            #
 #############################################################################################################
 
 
@@ -5277,7 +5277,6 @@ case "$1" in
 		if [ "$(nvram get fw_log_x)" != "drop" ] && [ "$(nvram get fw_log_x)" != "both" ]; then
 			nvram set fw_log_x=drop
 		fi
-		Check_Files
 		echo "[i] Installing Skynet $(Filter_Version < "$0")"
 		echo
 		Manage_Device
@@ -5433,6 +5432,7 @@ case "$1" in
 			esac
 		done
 		echo
+		Check_Files
 		touch "/jffs/configs/fstab"
 		if ! grep -qE "^swapon " /jffs/scripts/post-mount && ! grep -qF "swap" /jffs/configs/fstab; then Create_Swap; fi
 		if [ -f "$skynetlog" ]; then mv "$skynetlog" "${device}/skynet/skynet.log"; fi
