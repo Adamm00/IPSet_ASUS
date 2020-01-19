@@ -957,12 +957,12 @@ Generate_Stats () {
 				touch "${skynetloc}/webui/stats/skynetstats.txt"
 			fi
 
-			if [ "$filtertraffic" != "outbound" ]; then
+			if iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j DROP 2>/dev/null; then
 				hits1="$(iptables -xnvL PREROUTING -t raw | grep -Fv "LOG" | grep -F "Skynet-Master src" | awk '{print $1}')"
 			else
 				hits1="0"
 			fi
-			if [ "$filtertraffic" != "inbound" ]; then
+			if iptables -t raw -C PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null; then
 				hits2="$(($(iptables -xnvL PREROUTING -t raw | grep -Fv "LOG" | grep -F "Skynet-Master dst" | awk '{print $1}')+$(iptables -xnvL OUTPUT -t raw | grep -Fv "LOG" | grep -F "Skynet-Master dst" | awk '{print $1}')))"
 			else
 				hits2="0"
@@ -3788,6 +3788,8 @@ case "$1" in
 		Check_Security
 		echo "[i] Saving Changes"
 		Save_IPSets
+		Generate_Stats
+		Install_WebUI_Page
 		while [ "$(($(date +%s) - stime))" -lt "20" ]; do
 			sleep 1
 		done
@@ -3798,8 +3800,6 @@ case "$1" in
 		Load_IOTTables
 		Load_LogIPTables
 		sed -i '\~DROP IN=~d' "$syslog1loc" "$syslogloc" 2>/dev/null
-		Generate_Stats
-		Install_WebUI_Page
 		if [ "$forcebanmalwareupdate" = "true" ]; then Write_Config; rm -rf "/tmp/skynet.lock"; exec "$0" banmalware; fi
 	;;
 
