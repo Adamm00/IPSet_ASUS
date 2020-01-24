@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            19/01/2020 - v7.0.8                                            #
+#                                            25/01/2020 - v7.0.9                                            #
 #############################################################################################################
 
 
@@ -117,13 +117,7 @@ Check_Settings () {
 			echo; exit 1
 		fi
 
-		if [ -z "$syslogloc" ]; then syslogloc="/tmp/syslog.log"; fi
-		if [ -z "$syslog1loc" ]; then syslog1loc="/tmp/syslog.log-1"; fi
 		if [ -z "$iotblocked" ]; then iotblocked="disabled"; fi
-		if [ -z "$iotproto" ]; then iotproto="udp"; fi
-		if [ -z "$lookupcountry" ]; then lookupcountry="enabled"; fi
-		if [ -z "$cdnwhitelist" ]; then cdnwhitelist="enabled"; fi
-		if [ -z "$logmode" ]; then logmode="${debugmode:?}"; fi
 		if [ -z "$displaywebui" ]; then displaywebui="enabled"; fi
 
 		conflicting_scripts="(IPSet_Block.sh|malware-filter|privacy-filter|ipBLOCKer.sh|ya-malware-block.sh|iblocklist-loader.sh|firewall-reinstate.sh)$"
@@ -395,45 +389,51 @@ Load_LogIPTables () {
 			if [ "$(nvram get fw_log_x)" = "drop" ] || [ "$(nvram get fw_log_x)" = "both" ] && [ "$loginvalid" = "enabled" ]; then
 				iptables -I logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - INVALID] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 			fi
-			pos5="$(iptables --line -nL FORWARD | grep -F "Skynet-IOT" | grep -F "DROP" | awk '{print $1}')"
-			iptables -I FORWARD "$pos5" -i br0 -m set --match-set Skynet-IOT src ! -o tun2+ -j LOG --log-prefix "[BLOCKED - IOT] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
+			if [ "$iotblocked" = "enabled" ]; then
+				pos5="$(iptables --line -nL FORWARD | grep -F "Skynet-IOT" | grep -F "DROP" | awk '{print $1}')"
+				iptables -I FORWARD "$pos5" -i br0 -m set --match-set Skynet-IOT src ! -o tun2+ -j LOG --log-prefix "[BLOCKED - IOT] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
+			fi
 		fi
 }
 
 Unload_IOTTables () {
-			iptables -D FORWARD -i br0 -m set --match-set Skynet-IOT src ! -o tun2+ -j DROP 2>/dev/null
-			if [ -n "$iotports" ]; then
-				if [ "$iotproto" = "all" ] || [ "$iotproto" = "udp" ]; then
-					iptables -D FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp -m multiport --dports "$iotports" -j ACCEPT 2>/dev/null
-				fi
-				if [ "$iotproto" = "all" ] || [ "$iotproto" = "tcp" ]; then
-					iptables -D FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p tcp -m tcp -m multiport --dports "$iotports" -j ACCEPT 2>/dev/null
-				fi
-			else
-				if [ "$iotproto" = "all" ] || [ "$iotproto" = "udp" ]; then
-					iptables -D FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp --dport 123 -j ACCEPT 2>/dev/null
-				fi
-				if [ "$iotproto" = "all" ] || [ "$iotproto" = "tcp" ]; then
-					iptables -D FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p tcp -m tcp --dport 123 -j ACCEPT 2>/dev/null
+			if [ "$iotblocked" = "enabled" ]; then
+				iptables -D FORWARD -i br0 -m set --match-set Skynet-IOT src ! -o tun2+ -j DROP 2>/dev/null
+				if [ -n "$iotports" ]; then
+					if [ "$iotproto" = "all" ] || [ "$iotproto" = "udp" ]; then
+						iptables -D FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp -m multiport --dports "$iotports" -j ACCEPT 2>/dev/null
+					fi
+					if [ "$iotproto" = "all" ] || [ "$iotproto" = "tcp" ]; then
+						iptables -D FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p tcp -m tcp -m multiport --dports "$iotports" -j ACCEPT 2>/dev/null
+					fi
+				else
+					if [ "$iotproto" = "all" ] || [ "$iotproto" = "udp" ]; then
+						iptables -D FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp --dport 123 -j ACCEPT 2>/dev/null
+					fi
+					if [ "$iotproto" = "all" ] || [ "$iotproto" = "tcp" ]; then
+						iptables -D FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p tcp -m tcp --dport 123 -j ACCEPT 2>/dev/null
+					fi
 				fi
 			fi
 }
 
 Load_IOTTables () {
-			iptables -I FORWARD -i br0 -m set --match-set Skynet-IOT src ! -o tun2+ -j DROP 2>/dev/null
-			if [ -n "$iotports" ]; then
-				if [ "$iotproto" = "all" ] || [ "$iotproto" = "udp" ]; then
-					iptables -I FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp -m multiport --dports "$iotports" -j ACCEPT 2>/dev/null
-				fi
-				if [ "$iotproto" = "all" ] || [ "$iotproto" = "tcp" ]; then
-					iptables -I FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p tcp -m tcp -m multiport --dports "$iotports" -j ACCEPT 2>/dev/null
-				fi
-			else
-				if [ "$iotproto" = "all" ] || [ "$iotproto" = "udp" ]; then
-					iptables -I FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp --dport 123 -j ACCEPT 2>/dev/null
-				fi
-				if [ "$iotproto" = "all" ] || [ "$iotproto" = "tcp" ]; then
-					iptables -I FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p tcp -m tcp --dport 123 -j ACCEPT 2>/dev/null
+			if [ "$iotblocked" = "enabled" ]; then
+				iptables -I FORWARD -i br0 -m set --match-set Skynet-IOT src ! -o tun2+ -j DROP 2>/dev/null
+				if [ -n "$iotports" ]; then
+					if [ "$iotproto" = "all" ] || [ "$iotproto" = "udp" ]; then
+						iptables -I FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp -m multiport --dports "$iotports" -j ACCEPT 2>/dev/null
+					fi
+					if [ "$iotproto" = "all" ] || [ "$iotproto" = "tcp" ]; then
+						iptables -I FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p tcp -m tcp -m multiport --dports "$iotports" -j ACCEPT 2>/dev/null
+					fi
+				else
+					if [ "$iotproto" = "all" ] || [ "$iotproto" = "udp" ]; then
+						iptables -I FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp --dport 123 -j ACCEPT 2>/dev/null
+					fi
+					if [ "$iotproto" = "all" ] || [ "$iotproto" = "tcp" ]; then
+						iptables -I FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p tcp -m tcp --dport 123 -j ACCEPT 2>/dev/null
+					fi
 				fi
 			fi
 }
@@ -459,20 +459,22 @@ Check_IPTables () {
 			iptables -C SSHBFP -m recent --update --seconds 60 --hitcount 4 --name SSH --rsource -j SET --add-set Skynet-Blacklist src 2>/dev/null || fail="${fail}#9 "
 			iptables -C SSHBFP -m recent --update --seconds 60 --hitcount 4 --name SSH --rsource -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || fail="${fail}#10 "
 		fi
-		iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src ! -o tun2+ -j DROP 2>/dev/null || fail="${fail}#11 "
-		if [ -n "$iotports" ]; then
-			if [ "$iotproto" = "all" ] || [ "$iotproto" = "udp" ]; then
-				iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp -m multiport --dports "$iotports" -j ACCEPT 2>/dev/null || fail="${fail}#12 "
-			fi
-			if [ "$iotproto" = "all" ] || [ "$iotproto" = "tcp" ]; then
-				iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p tcp -m tcp -m multiport --dports "$iotports" -j ACCEPT 2>/dev/null || fail="${fail}#13 "
-			fi
-		else
-			if [ "$iotproto" = "all" ] || [ "$iotproto" = "udp" ]; then
-				iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp --dport 123 -j ACCEPT 2>/dev/null || fail="${fail}#14 "
-			fi
-			if [ "$iotproto" = "all" ] || [ "$iotproto" = "tcp" ]; then
-				iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p tcp -m tcp --dport 123 -j ACCEPT 2>/dev/null || fail="${fail}#15 "
+		if [ "$iotblocked" = "enabled" ]; then
+			iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src ! -o tun2+ -j DROP 2>/dev/null || fail="${fail}#11 "
+			if [ -n "$iotports" ]; then
+				if [ "$iotproto" = "all" ] || [ "$iotproto" = "udp" ]; then
+					iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp -m multiport --dports "$iotports" -j ACCEPT 2>/dev/null || fail="${fail}#12 "
+				fi
+				if [ "$iotproto" = "all" ] || [ "$iotproto" = "tcp" ]; then
+					iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p tcp -m tcp -m multiport --dports "$iotports" -j ACCEPT 2>/dev/null || fail="${fail}#13 "
+				fi
+			else
+				if [ "$iotproto" = "all" ] || [ "$iotproto" = "udp" ]; then
+					iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp --dport 123 -j ACCEPT 2>/dev/null || fail="${fail}#14 "
+				fi
+				if [ "$iotproto" = "all" ] || [ "$iotproto" = "tcp" ]; then
+					iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p tcp -m tcp --dport 123 -j ACCEPT 2>/dev/null || fail="${fail}#15 "
+				fi
 			fi
 		fi
 		if [ "$logmode" = "enabled" ]; then
@@ -486,7 +488,9 @@ Check_IPTables () {
 			if [ "$(nvram get fw_log_x)" = "drop" ] || [ "$(nvram get fw_log_x)" = "both" ] && [ "$loginvalid" = "enabled" ]; then
 				iptables -C logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - INVALID] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || fail="${fail}#19 "
 			fi
-			iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src ! -o tun2+ -j LOG --log-prefix "[BLOCKED - IOT] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || fail="${fail}#20 "
+			if [ "$iotblocked" = "enabled" ]; then
+				iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src ! -o tun2+ -j LOG --log-prefix "[BLOCKED - IOT] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || fail="${fail}#20 "
+			fi
 		fi
 		if [ -n "$fail" ]; then return 1; fi
 }
@@ -947,7 +951,7 @@ WriteData_ToJS (){
 }
 
 Generate_Stats () {
-	if nvram get rc_support | grep -qF "am_addons" || { [ "$(uname -o)" = "ASUSWRT-Merlin" ] && [ "$(nvram get buildno | tr -d '.')" -ge "38415" ]; } || { [ "$(uname -o)" = "ASUSWRT-Merlin-LTS" ] && [ "$(nvram get extendno | cut -c1-2)" -ge "41" ]; } ; then
+	if nvram get rc_support | grep -qF "am_addons" || { [ "$(uname -o)" = "ASUSWRT-Merlin" ] && [ "$(nvram get buildno | tr -d '.')" -ge "38415" ]; }; then
 		if [ "$displaywebui" = "enabled" ]; then
 			mkdir -p "${skynetloc}/webui/stats"
 			true > "${skynetloc}/webui/stats.js"
@@ -972,7 +976,7 @@ Generate_Stats () {
 			WriteStats_ToJS "$blacklist2count" "${skynetloc}/webui/stats.js" "SetBLCount2" "blcount2"
 			WriteStats_ToJS "$hits1" "${skynetloc}/webui/stats.js" "SetHits1" "hits1"
 			WriteStats_ToJS "$hits2" "${skynetloc}/webui/stats.js" "SetHits2" "hits2"
-			WriteStats_ToJS "Last Updated - $(date +"%r")" "${skynetloc}/webui/stats.js" "SetStatsDate" "statsdate"
+			WriteStats_ToJS "Last Updated - $(date +"%r") ($(du -h "$skynetlog" | awk '{print $1}')B)" "${skynetloc}/webui/stats.js" "SetStatsDate" "statsdate"
 			# Inbound Ports
 			grep -F "INBOUND" "$skynetlog" | grep -oE 'DPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -10 | sed "s~^[ \t]*~~;s~ ~\~~g" > "${skynetloc}/webui/stats/iport.txt"
 			WriteData_ToJS "${skynetloc}/webui/stats/iport.txt" "${skynetloc}/webui/stats.js" "DataInPortHits" "LabelInPortHits"
@@ -1061,7 +1065,7 @@ Generate_Stats () {
 }
 
 Get_WebUI_Page () {
-	if nvram get rc_support | grep -qF "am_addons" || { [ "$(uname -o)" = "ASUSWRT-Merlin" ] && [ "$(nvram get buildno | tr -d '.')" -ge "38415" ]; } || { [ "$(uname -o)" = "ASUSWRT-Merlin-LTS" ] && [ "$(nvram get extendno | cut -c1-2)" -ge "41" ]; } ; then
+	if nvram get rc_support | grep -qF "am_addons" || { [ "$(uname -o)" = "ASUSWRT-Merlin" ] && [ "$(nvram get buildno | tr -d '.')" -ge "38415" ]; }; then
 		if [ "$displaywebui" = "enabled" ]; then
 			webdir="$(readlink /www/user)"
 			for i in 1 2 3 4 5 6 7 8 9 10; do
@@ -1078,13 +1082,13 @@ Get_WebUI_Page () {
 
 Install_WebUI_Page () {
 	if [ "$logmode" = "enabled" ]; then
-		if nvram get rc_support | grep -qF "am_addons" || { [ "$(uname -o)" = "ASUSWRT-Merlin" ] && [ "$(nvram get buildno | tr -d '.')" -ge "38415" ]; } || { [ "$(uname -o)" = "ASUSWRT-Merlin-LTS" ] && [ "$(nvram get extendno | cut -c1-2)" -ge "41" ]; } ; then
+		if nvram get rc_support | grep -qF "am_addons" || { [ "$(uname -o)" = "ASUSWRT-Merlin" ] && [ "$(nvram get buildno | tr -d '.')" -ge "38415" ]; }; then
 			if [ "$displaywebui" = "enabled" ]; then
 				Get_WebUI_Page "${skynetloc}/webui/skynet.asp"
 				if [ "$MyPage" = "none" ]; then
 					logger -t Skynet "[*] Unable To Mount Skynet Web Page - No Mount Points Avilable" && echo "[*] Unable To Mount Skynet Web Page - No Mount Points Avilable"
 				else
-					logger -t Skynet "[%] Mounting Skynet Web Page As $MyPage" && echo "[%] Mounting Skynet Web Page As $MyPage"
+					logger -t Skynet "[i] Mounting Skynet Web Page As $MyPage" && echo "[i] Mounting Skynet Web Page As $MyPage"
 					cp -f "${skynetloc}/webui/skynet.asp" "${webdir}/$MyPage"
 					if [ ! -f "/tmp/menuTree.js" ]; then
 						cp -f "/www/require/modules/menuTree.js" "/tmp/"
@@ -1120,7 +1124,7 @@ Uninstall_WebUI_Page () {
 
 Download_File () {
 	if curl -fsL --retry 3 "${remotedir}/${1}" -o "$2"; then
-		echo "[%] Updated $(echo "$1" | awk -F / '{print $NF}')"
+		echo "[i] Updated $(echo "$1" | awk -F / '{print $NF}')"
 	else
 		logger -t Skynet "[*] Updating $(echo "$1" | awk -F / '{print $NF}') Failed"; echo "[*] Updating $(echo "$1" | awk -F / '{print $NF}') Failed"
 	fi
@@ -3761,7 +3765,7 @@ case "$1" in
 
 	start)
 		Check_Lock "$@"
-		logger -st Skynet "[%] Startup Initiated... ( $(echo "$@" | sed 's~start ~~g') )"
+		logger -st Skynet "[i] Startup Initiated... ( $(echo "$@" | sed 's~start ~~g') )"
 		Unload_Cron "all"
 		Check_Settings
 		Check_Files "verify"
@@ -3816,7 +3820,7 @@ case "$1" in
 		Unload_IPSets
 		Uninstall_WebUI_Page
 		iptables -t raw -F
-		logger -t Skynet "[%] Restarting Firewall Service"; echo "[%] Restarting Firewall Service"
+		logger -t Skynet "[i] Restarting Firewall Service"; echo "[i] Restarting Firewall Service"
 		restartfirewall="1"
 		nolog="2"
 	;;
@@ -3832,7 +3836,7 @@ case "$1" in
 		Unload_LogIPTables
 		Unload_IPSets
 		Uninstall_WebUI_Page
-		logger -t Skynet "[%] Skynet Disabled"; echo "[%] Skynet Disabled"
+		logger -t Skynet "[i] Skynet Disabled"; echo "[i] Skynet Disabled"
 		Purge_Logs "all"
 		nolog="2"
 	;;
@@ -3845,16 +3849,16 @@ case "$1" in
 		localmd5="$(md5sum "$0" | awk '{print $1}')"
 		remotemd5="$(curl -fsL --retry 3 "${remotedir}/firewall.sh" | md5sum | awk '{print $1}')"
 		if [ "$localmd5" = "$remotemd5" ] && [ "$2" != "-f" ]; then
-			logger -t Skynet "[%] Skynet Up To Date - $localver (${localmd5})"; echo "[%] Skynet Up To Date - $localver (${localmd5})"
+			logger -t Skynet "[i] Skynet Up To Date - $localver (${localmd5})"; echo "[i] Skynet Up To Date - $localver (${localmd5})"
 			nolog="2"
 		elif [ "$localmd5" != "$remotemd5" ] && [ "$2" = "check" ]; then
-			logger -t Skynet "[%] Skynet Update Detected - $remotever (${remotemd5})"; echo "[%] Skynet Update Detected - $remotever (${remotemd5})"
+			logger -t Skynet "[i] Skynet Update Detected - $remotever (${remotemd5})"; echo "[i] Skynet Update Detected - $remotever (${remotemd5})"
 			nolog="2"
 		elif [ "$2" = "-f" ]; then
 			echo "[i] Forcing Update"
 		fi
 		if [ "$localmd5" != "$remotemd5" ] || [ "$2" = "-f" ] && [ "$nolog" != "2" ]; then
-			logger -t Skynet "[%] New Version Detected - Updating To $remotever (${remotemd5})"; echo "[%] New Version Detected - Updating To $remotever (${remotemd5})"
+			logger -t Skynet "[i] New Version Detected - Updating To $remotever (${remotemd5})"; echo "[i] New Version Detected - Updating To $remotever (${remotemd5})"
 			echo "[i] Saving Changes"
 			Save_IPSets
 			echo "[i] Unloading Skynet Components"
@@ -3870,7 +3874,7 @@ case "$1" in
 			Download_File "webui/hammerjs.js" "${skynetloc}/webui/hammerjs.js"
 			Download_File "webui/skynet.asp" "${skynetloc}/webui/skynet.asp"
 			Download_File "firewall.sh" "$0"
-			logger -t Skynet "[%] Restarting Firewall Service"; echo "[%] Restarting Firewall Service"
+			logger -t Skynet "[i] Restarting Firewall Service"; echo "[i] Restarting Firewall Service"
 			service restart_firewall
 			echo; exit 0
 		fi
@@ -4378,7 +4382,7 @@ case "$1" in
 						Check_Lock "$@"
 						if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 						Purge_Logs
-						if nvram get rc_support | grep -qF "am_addons" || { [ "$(uname -o)" = "ASUSWRT-Merlin" ] && [ "$(nvram get buildno | tr -d '.')" -ge "38415" ]; } || { [ "$(uname -o)" = "ASUSWRT-Merlin-LTS" ] && [ "$(nvram get extendno | cut -c1-2)" -ge "41" ]; } ; then
+						if nvram get rc_support | grep -qF "am_addons" || { [ "$(uname -o)" = "ASUSWRT-Merlin" ] && [ "$(nvram get buildno | tr -d '.')" -ge "38415" ]; }; then
 							displaywebui="enabled"
 							Install_WebUI_Page
 							echo "[i] WebUI Enabled"
@@ -4678,7 +4682,7 @@ case "$1" in
 			genstats)
 				Check_Lock "$@"
 				Purge_Logs "all"
-				if nvram get rc_support | grep -qF "am_addons" || { [ "$(uname -o)" = "ASUSWRT-Merlin" ] && [ "$(nvram get buildno | tr -d '.')" -ge "38415" ]; } || { [ "$(uname -o)" = "ASUSWRT-Merlin-LTS" ] && [ "$(nvram get extendno | cut -c1-2)" -ge "41" ]; } ; then
+				if nvram get rc_support | grep -qF "am_addons" || { [ "$(uname -o)" = "ASUSWRT-Merlin" ] && [ "$(nvram get buildno | tr -d '.')" -ge "38415" ]; }; then
 					if [ "$displaywebui" = "enabled" ]; then
 						echo "[i] Generating Stats For WebUI"
 						Generate_Stats
@@ -4717,7 +4721,7 @@ case "$1" in
 							Unload_IOTTables
 							Unload_LogIPTables
 							Unload_IPSets
-							logger -t Skynet "[%] Restarting Firewall Service"; echo "[%] Restarting Firewall Service"
+							logger -t Skynet "[i] Restarting Firewall Service"; echo "[i] Restarting Firewall Service"
 							restartfirewall="1"
 							nolog="2"
 						elif [ -z "$swaplocation" ] && [ -n "$findswap" ]; then
@@ -4735,7 +4739,7 @@ case "$1" in
 							Unload_IOTTables
 							Unload_LogIPTables
 							Unload_IPSets
-							logger -t Skynet "[%] Restarting Firewall Service"; echo "[%] Restarting Firewall Service"
+							logger -t Skynet "[i] Restarting Firewall Service"; echo "[i] Restarting Firewall Service"
 							restartfirewall="1"
 							nolog="2"
 						elif [ -n "$swaplocation" ] && [ ! -f "$swaplocation" ]; then
@@ -4783,7 +4787,7 @@ case "$1" in
 							echo "[*] SWAP File Partially Removed - Please Inspect Manually"
 						fi
 						sed -i '\~swapoff ~d' /jffs/scripts/unmount
-						logger -t Skynet "[%] Restarting Firewall Service"; echo "[%] Restarting Firewall Service"
+						logger -t Skynet "[i] Restarting Firewall Service"; echo "[i] Restarting Firewall Service"
 						restartfirewall="1"
 						nolog="2"
 					;;
@@ -4833,7 +4837,7 @@ case "$1" in
 				tar -xzvf "$backuplocation" -C "${skynetloc}"
 				echo
 				echo "[i] Backup Restored"
-				logger -t Skynet "[%] Restarting Firewall Service"; echo "[%] Restarting Firewall Service"
+				logger -t Skynet "[i] Restarting Firewall Service"; echo "[i] Restarting Firewall Service"
 				restartfirewall="1"
 				nolog="2"
 			;;
@@ -5496,7 +5500,7 @@ case "$1" in
 		Unload_LogIPTables
 		Unload_IPSets
 		iptables -t raw -F
-		echo "[%] Restarting Firewall Service To Complete Installation"
+		echo "[i] Restarting Firewall Service To Complete Installation"
 		restartfirewall="1"
 		nolog="2"
 	;;
@@ -5565,7 +5569,7 @@ case "$1" in
 					sed -i '\~ Skynet ~d' /jffs/scripts/firewall-start /jffs/scripts/services-stop /jffs/scripts/service-event
 					rm -rf "/jffs/shared-Skynet-whitelist" "/jffs/shared-Skynet2-whitelist" "/opt/bin/firewall" "${skynetloc}" "/jffs/scripts/firewall" "/tmp/skynet.lock" "/tmp/skynet"
 					iptables -t raw -F
-					echo "[%] Restarting Firewall Service"
+					echo "[i] Restarting Firewall Service"
 					service restart_firewall
 					exit 0
 				;;
