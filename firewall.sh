@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            25/01/2020 - v7.0.9                                            #
+#                                            27/01/2020 - v7.0.9                                            #
 #############################################################################################################
 
 
@@ -20,6 +20,7 @@ clear
 sed -n '2,14p' "$0"
 export LC_ALL=C
 mkdir -p /tmp/skynet/lists
+mkdir -p /jffs/addons/shared-whitelists
 
 ntptimer=0
 while [ "$(nvram get ntp_ready)" = "0" ] && [ "$ntptimer" -lt "300" ]; do
@@ -117,6 +118,7 @@ Check_Settings () {
 			echo; exit 1
 		fi
 
+		rm -rf "/jffs/shared-Skynet-whitelist" "/jffs/shared-Skynet2-whitelist"
 		if [ -z "$iotblocked" ]; then iotblocked="disabled"; fi
 		if [ -z "$displaywebui" ]; then displaywebui="enabled"; fi
 
@@ -824,7 +826,7 @@ Refresh_MWhitelist () {
 				done &
 			done < /tmp/skynet/mwhitelist.list | Strip_Domain
 			wait
-			cat /tmp/skynet/mwhitelist.list >> /jffs/shared-Skynet2-whitelist
+			cat /tmp/skynet/mwhitelist.list >> /jffs/addons/shared-whitelists/shared-Skynet2-whitelist
 			rm -rf /tmp/skynet/mwhitelist.list
 		fi
 }
@@ -843,7 +845,7 @@ Whitelist_Extra () {
 		nwsrv-ns1.asus.com
 		$(nvram get "firmware_server")
 		$(nvram get "ntp_server0")
-		$(nvram get "ntp_server1")" | tr -d "\t" > /jffs/shared-Skynet2-whitelist
+		$(nvram get "ntp_server1")" | tr -d "\t" > /jffs/addons/shared-whitelists/shared-Skynet2-whitelist
 }
 
 Whitelist_CDN () {
@@ -888,13 +890,13 @@ Whitelist_Shared () {
 		add Skynet-Whitelist $(nvram get wan0_xdns | awk '{print $2}') comment \"nvram: wan0_xdns\"
 		add Skynet-Whitelist 192.30.252.0/22 comment \"nvram: Github Content Server\"
 		add Skynet-Whitelist 127.0.0.0/8 comment \"nvram: Localhost\"" | tr -d "\t" | Filter_IPLine | ipset restore -! 2>/dev/null
-		if [ -n "$(find /jffs -name 'shared-*-whitelist')" ]; then
+		if [ -n "$(find /jffs/addons/shared-whitelists -name 'shared-*-whitelist')" ]; then
 			sed '\~add Skynet-Whitelist ~!d;\~Shared-Whitelist~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
-			if [ "$(cat /jffs/shared-*-whitelist | wc -l)" -gt "150" ]; then
+			if [ "$(cat /jffs/addons/shared-whitelists/shared-*-whitelist | wc -l)" -gt "150" ]; then
 				Clean_Temp
 				cwd="$(pwd)"
 				cd /tmp/skynet/lists || exit 1
-				grep -hvF "#" /jffs/shared-*-whitelist | Strip_Domain | split -l 150
+				grep -hvF "#" /jffs/addons/shared-whitelists/shared-*-whitelist | Strip_Domain | split -l 150
 				for listname in *; do
 					while IFS= read -r "domain"; do
 						for ip in $(Domain_Lookup "$domain" 2> /dev/null); do
@@ -905,7 +907,7 @@ Whitelist_Shared () {
 				done
 				cd "$cwd" || exit 1
 			else
-				grep -hvF "#" /jffs/shared-*-whitelist | Strip_Domain | while IFS= read -r "domain"; do
+				grep -hvF "#" /jffs/addons/shared-whitelists/shared-*-whitelist | Strip_Domain | while IFS= read -r "domain"; do
 					for ip in $(Domain_Lookup "$domain" 2> /dev/null); do
 						ipset -q -A Skynet-Whitelist "$ip" comment "Shared-Whitelist: $domain"
 					done &
@@ -3397,11 +3399,11 @@ case "$1" in
 		btime="$(date +%s)"
 		printf "%-35s | " "[i] Downloading filter.list"
 		if [ -n "$excludelists" ]; then
-			curl -fsL --retry 3 "$listurl" | dos2unix | grep -vE "($excludelists)" > /jffs/shared-Skynet-whitelist && Display_Result
+			curl -fsL --retry 3 "$listurl" | dos2unix | grep -vE "($excludelists)" > /jffs/addons/shared-whitelists/shared-Skynet-whitelist && Display_Result
 		else
-			curl -fsL --retry 3 "$listurl" | dos2unix > /jffs/shared-Skynet-whitelist && Display_Result
+			curl -fsL --retry 3 "$listurl" | dos2unix > /jffs/addons/shared-whitelists/shared-Skynet-whitelist && Display_Result
 		fi
-		sed -i "\\~^http[s]*://\\|^www.~!d;" /jffs/shared-Skynet-whitelist
+		sed -i "\\~^http[s]*://\\|^www.~!d;" /jffs/addons/shared-whitelists/shared-Skynet-whitelist
 		btime="$(date +%s)"
 		printf "%-35s | " "[i] Refreshing Whitelists"
 		Whitelist_Extra
@@ -3417,8 +3419,8 @@ case "$1" in
 		mkdir -p "${skynetloc}/lists"
 		cwd="$(pwd)"
 		cd "${skynetloc}/lists" || exit 1
-		if [ "$(nvram get dns_local_cache)" = "1" ] && [ "$(cat /jffs/shared-*-whitelist | wc -l)" -gt "150" ]; then sleep 10; fi
-		awk -F / '{print $NF}' /jffs/shared-Skynet-whitelist > /tmp/skynet/skynet.manifest
+		if [ "$(nvram get dns_local_cache)" = "1" ] && [ "$(cat /jffs/addons/shared-whitelists/shared-*-whitelist | wc -l)" -gt "150" ]; then sleep 10; fi
+		awk -F / '{print $NF}' /jffs/addons/shared-whitelists/shared-Skynet-whitelist > /tmp/skynet/skynet.manifest
 		while IFS= read -r "list"; do
 			if [ ! -f "$list" ]; then
 				rm -rf "${skynetloc}"/lists/*
@@ -3442,7 +3444,7 @@ case "$1" in
 		else
 			curlpath="/usr/sbin/curl"
 		fi
-		command="$curlpath -fsLZ $(awk -F / '{print $0 " -Oz " $NF " "}' /jffs/shared-Skynet-whitelist | xargs)"
+		command="$curlpath -fsLZ $(awk -F / '{print $0 " -Oz " $NF " "}' /jffs/addons/shared-whitelists/shared-Skynet-whitelist | xargs)"
 		eval "$command"
 		dos2unix "${skynetloc}"/lists/* 2>/dev/null
 		for file in *; do
@@ -3518,7 +3520,7 @@ case "$1" in
 					ipset -A Skynet-Whitelist "$ip" comment "ManualWlistD: $3" && sed -i "\\~=$ip ~d" "$skynetlog" "$skynetevents" && echo "$(date +"%b %d %T") Skynet: [Manual Whitelist] TYPE=Domain SRC=$ip Host=$3 " >> "$skynetevents"
 					ipset -q -D Skynet-Blacklist "$ip"
 				done
-				if [ "$?" = "1" ]; then echo "$3" >> /jffs/shared-Skynet2-whitelist; fi
+				if [ "$?" = "1" ]; then echo "$3" >> /jffs/addons/shared-whitelists/shared-Skynet2-whitelist; fi
 			;;
 			vpn)
 				echo "[i] Updating VPN Whitelist"
@@ -5006,13 +5008,13 @@ case "$1" in
 						cwd="$(pwd)"
 						cd "${skynetloc}/lists" || exit 1
 						grep -HE "^$ip$" -- * | while IFS= read -r "list" && [ -n "$list" ]; do
-							printf "%-20s | %-40s\\n" "$(echo "$list" | cut -d ':' -f2-)" "$(grep -F "$(echo "$list" | cut -d ':' -f1)" /jffs/shared-Skynet-whitelist)"
+							printf "%-20s | %-40s\\n" "$(echo "$list" | cut -d ':' -f2-)" "$(grep -F "$(echo "$list" | cut -d ':' -f1)" /jffs/addons/shared-whitelists/shared-Skynet-whitelist)"
 						done
 						printf '   \b\b\b\n\n'
 						Red "Possible CIDR Matches;"
 						Display_Header "5"
 						grep -HE "^$(echo "$ip" | cut -d '.' -f1-3)..*/" -- * | while IFS= read -r "list"; do
-							printf "%-20s | %-40s\\n" "$(echo "$list" | cut -d ':' -f2-)" "$(grep -F "$(echo "$list" | cut -d ':' -f1)" /jffs/shared-Skynet-whitelist)"
+							printf "%-20s | %-40s\\n" "$(echo "$list" | cut -d ':' -f2-)" "$(grep -F "$(echo "$list" | cut -d ':' -f1)" /jffs/addons/shared-whitelists/shared-Skynet-whitelist)"
 						done
 						printf '   \b\b\b'
 						cd "$cwd" || exit 1
@@ -5567,7 +5569,7 @@ case "$1" in
 					nvram set fw_log_x=none
 					echo "[i] Deleting Skynet Files"
 					sed -i '\~ Skynet ~d' /jffs/scripts/firewall-start /jffs/scripts/services-stop /jffs/scripts/service-event
-					rm -rf "/jffs/shared-Skynet-whitelist" "/jffs/shared-Skynet2-whitelist" "/opt/bin/firewall" "${skynetloc}" "/jffs/scripts/firewall" "/tmp/skynet.lock" "/tmp/skynet"
+					rm -rf "/jffs/addons/shared-whitelists/shared-Skynet-whitelist" "/jffs/addons/shared-whitelists/shared-Skynet2-whitelist" "/opt/bin/firewall" "${skynetloc}" "/jffs/scripts/firewall" "/tmp/skynet.lock" "/tmp/skynet"
 					iptables -t raw -F
 					echo "[i] Restarting Firewall Service"
 					service restart_firewall
