@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            27/01/2020 - v7.0.9                                            #
+#                                            28/01/2020 - v7.0.9                                            #
 #############################################################################################################
 
 
@@ -121,11 +121,6 @@ Check_Settings () {
 		rm -rf "/jffs/shared-Skynet-whitelist" "/jffs/shared-Skynet2-whitelist"
 		if [ -z "$iotblocked" ]; then iotblocked="disabled"; fi
 		if [ -z "$displaywebui" ]; then displaywebui="enabled"; fi
-
-		conflicting_scripts="(IPSet_Block.sh|malware-filter|privacy-filter|ipBLOCKer.sh|ya-malware-block.sh|iblocklist-loader.sh|firewall-reinstate.sh)$"
-		if find /jffs /tmp/mnt | grep -qE "$conflicting_scripts"; then
-			logger -st Skynet "[*] $(find /jffs /tmp/mnt | grep -E "$conflicting_scripts" | xargs) Detected - This Script Will Cause Conflicts! Please Remove Immediately."
-		fi
 
 		unset "swappartition" "swaplocation"
 		if grep -qE "^swapon " /jffs/scripts/post-mount; then
@@ -5282,6 +5277,11 @@ case "$1" in
 		fi
 		if [ "$(nvram get fw_log_x)" != "drop" ] && [ "$(nvram get fw_log_x)" != "both" ]; then
 			nvram set fw_log_x=drop
+		fi
+		conflicting_scripts="(IPSet_Block.sh|malware-filter|privacy-filter|ipBLOCKer.sh|ya-malware-block.sh|iblocklist-loader.sh|firewall-reinstate.sh)$"
+		if find /jffs /tmp/mnt | grep -qE "$conflicting_scripts"; then
+			logger -st Skynet "[*] $(find /jffs /tmp/mnt | grep -E "$conflicting_scripts" | xargs) Detected - This Script Will Cause Conflicts! Please Remove Immediately."
+			echo
 		fi
 		echo "[i] Installing Skynet $(Filter_Version < "$0")"
 		echo
