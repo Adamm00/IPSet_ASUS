@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            28/01/2020 - v7.0.9                                            #
+#                                            29/01/2020 - v7.0.9                                            #
 #############################################################################################################
 
 
@@ -5493,7 +5493,7 @@ case "$1" in
 			echo "[i] Reboot Required To Complete Installation"
 			printf "[i] Press Enter To Confirm..."
 			read -r "continue"
-			reboot
+			service reboot
 			exit 0
 		fi
 		Unload_Cron "all"
