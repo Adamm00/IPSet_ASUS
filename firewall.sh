@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            29/01/2020 - v7.0.9                                            #
+#                                            30/01/2020 - v7.0.9                                            #
 #############################################################################################################
 
 
@@ -1104,7 +1104,7 @@ Install_WebUI_Page () {
 			fi
 		fi
 	else
-		logger -t Skynet "[*] WebUI Intergration Requires Logging To Be Enabled"; echo "[*] WebUI Intergration Requires Logging To Be Enabled"
+		logger -t Skynet "[*] WebUI Integration Requires Logging To Be Enabled"; echo "[*] WebUI Integration Requires Logging To Be Enabled"
 	fi
 }
 
