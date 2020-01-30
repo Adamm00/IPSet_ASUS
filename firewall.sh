@@ -1252,6 +1252,7 @@ Print_Log () {
 		oldranges="$blacklist2count"
 		blacklist1count="$(grep -Foc "add Skynet-Black" "$skynetipset" 2> /dev/null)"
 		blacklist2count="$(grep -Foc "add Skynet-Block" "$skynetipset" 2> /dev/null)"
+		unset fail
 		if Check_IPTables; then
 			if [ "$filtertraffic" != "outbound" ]; then
 				hits1="$(iptables -xnvL PREROUTING -t raw | grep -Fv "LOG" | grep -F "Skynet-Master src" | awk '{print $1}')"
