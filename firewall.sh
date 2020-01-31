@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            30/01/2020 - v7.0.9                                            #
+#                                            01/02/2020 - v7.0.9                                            #
 #############################################################################################################
 
 
@@ -697,6 +697,10 @@ Display_Header () {
 		esac
 }
 
+Display_Message () {
+		btime="$(date +%s)"; printf "%-35s | " "$1"
+}
+
 Display_Result () {
 		result="$(Grn "[$(($(date +%s) - btime))s]")"
 		printf "%-8s\\n" "$result"
@@ -756,7 +760,7 @@ Spinner_Start () {
 }
 
 Save_IPSets () {
-		if Check_IPSets && Check_IPTables; then
+		if Check_IPSets; then
 			{ ipset save Skynet-Whitelist; ipset save Skynet-Blacklist; ipset save Skynet-BlockedRanges; ipset save Skynet-Master; ipset save Skynet-IOT; } > "$skynetipset" 2>/dev/null
 		fi
 }
@@ -3392,16 +3396,14 @@ case "$1" in
 			fi
 		fi
 		curl -sI "$listurl" | grep -qE "HTTP/1.[01] [23].." || { echo "[*] 404 Error Detected - Stopping Banmalware"; echo; exit 1; }
-		btime="$(date +%s)"
-		printf "%-35s | " "[i] Downloading filter.list"
+		Display_Message "[i] Downloading filter.list"
 		if [ -n "$excludelists" ]; then
 			curl -fsL --retry 3 "$listurl" | dos2unix | grep -vE "($excludelists)" > /jffs/addons/shared-whitelists/shared-Skynet-whitelist && Display_Result
 		else
 			curl -fsL --retry 3 "$listurl" | dos2unix > /jffs/addons/shared-whitelists/shared-Skynet-whitelist && Display_Result
 		fi
 		sed -i "\\~^http[s]*://\\|^www.~!d;" /jffs/addons/shared-whitelists/shared-Skynet-whitelist
-		btime="$(date +%s)"
-		printf "%-35s | " "[i] Refreshing Whitelists"
+		Display_Message "[i] Refreshing Whitelists"
 		Whitelist_Extra
 		Whitelist_VPN
 		Spinner_End
@@ -3410,8 +3412,7 @@ case "$1" in
 		Refresh_MWhitelist
 		Spinner_Start
 		Display_Result
-		btime="$(date +%s)"
-		printf "%-35s | " "[i] Consolidating Blacklist"
+		Display_Message "[i] Consolidating Blacklist"
 		mkdir -p "${skynetloc}/lists"
 		cwd="$(pwd)"
 		cd "${skynetloc}/lists" || exit 1
@@ -3457,28 +3458,23 @@ case "$1" in
 			awk '{print $1 " " FILENAME}' -- * | grep -E '^([0-9]{1,3}\.){3}[0-9]{1,3}(/[0-9]{1,2})? .*' | awk '!x[$0]++' | Filter_PrivateIP > /tmp/skynet/malwarelist.txt
 			cd "$cwd" || exit 1
 			Display_Result
-			btime="$(date +%s)"
-			printf "%-35s | " "[i] Filtering IPv4 Addresses"
+			Display_Message "[i] Filtering IPv4 Addresses"
 			sed -i '\~comment \"BanMalware: ~d' "$skynetipset"
 			grep -vF "/" /tmp/skynet/malwarelist.txt | awk '{printf "add Skynet-Blacklist %s comment \"BanMalware: %s\"\n", $1, $2 }' >> "$skynetipset"
 			Display_Result
-			btime="$(date +%s)"
-			printf "%-35s | " "[i] Filtering IPv4 Ranges"
+			Display_Message "[i] Filtering IPv4 Ranges"
 			grep -F "/" /tmp/skynet/malwarelist.txt | awk '{printf "add Skynet-BlockedRanges %s comment \"BanMalware: %s\"\n", $1, $2 }' >> "$skynetipset"
 			Display_Result
-			btime="$(date +%s)"
-			printf "%-35s | " "[i] Applying New Blacklist"
+			Display_Message "[i] Applying New Blacklist"
 			ipset flush Skynet-Blacklist; ipset flush Skynet-BlockedRanges
 			ipset restore -! -f "$skynetipset" >/dev/null 2>&1
 			Display_Result
-			btime="$(date +%s)"
-			printf "%-35s | " "[i] Refreshing AiProtect Bans"
+			Display_Message "[i] Refreshing AiProtect Bans"
 			Spinner_End
 			Refresh_AiProtect
 			Spinner_Start
 			Display_Result
-			btime="$(date +%s)"
-			printf "%-35s | " "[i] Saving Changes"
+			Display_Message "[i] Saving Changes"
 			Save_IPSets
 			Display_Result
 			unset "forcebanmalwareupdate"
@@ -3763,7 +3759,7 @@ case "$1" in
 
 	start)
 		Check_Lock "$@"
-		logger -st Skynet "[i] Startup Initiated... ( $(echo "$@" | sed 's~start ~~g') )"
+		logger -t Skynet "[i] Startup Initiated... ( $(echo "$@" | sed 's~start ~~g') )"; echo "[i] Startup Initiated... ( $(echo "$@" | sed 's~start ~~g') )"
 		Unload_Cron "all"
 		Check_Settings
 		Check_Files "verify"
