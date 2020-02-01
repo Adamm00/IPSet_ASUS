@@ -1458,6 +1458,7 @@ Load_Menu () {
 							read -r "option3"
 							echo
 							if [ "${#option3}" -gt "255" ]; then echo "[*] $option3 Is Not A Valid Comment. 255 Chars Max"; echo; unset "option2" "option3"; continue; fi
+							if [ -z "${#option3}" ]; then echo "[*] Comment Field Can't Be Empty - Please Try Again"; echo; unset "option2" "option3"; continue; fi
 							break
 						;;
 						5)
@@ -1744,6 +1745,7 @@ Load_Menu () {
 										read -r "option4"
 										echo
 										if [ "${#option4}" -gt "255" ]; then echo "[*] $option4 Is Not A Valid Comment. 255 Chars Max"; echo; unset "option3" "option4"; continue; fi
+										if [ -z "${#option4}" ]; then echo "[*] Comment Field Can't Be Empty - Please Try Again"; echo; unset "option3" "option4"; continue; fi
 										break
 									;;
 									e|exit|back|menu)
@@ -5468,6 +5470,7 @@ case "$1" in
 		if [ -z "$syslog1loc" ]; then syslog1loc="/tmp/syslog.log-1"; fi
 		if [ -z "$iotblocked" ]; then iotblocked="disabled"; fi
 		if [ -z "$iotproto" ]; then iotproto="udp"; fi
+		if [ -z "$lookupcountry" ]; then lookupcountry="enabled"; fi
 		if [ -z "$cdnwhitelist" ]; then cdnwhitelist="enabled"; fi
 		if [ -z "$displaywebui" ]; then displaywebui="enabled"; fi
 		Write_Config
