@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            01/02/2020 - v7.0.9                                            #
+#                                            09/02/2020 - v7.0.10                                            #
 #############################################################################################################
 
 
@@ -1362,10 +1362,10 @@ Load_Menu () {
 		printf "%-35s | %-8s\\n" "Cron Jobs" "$(Red "[Failed]")"
 	fi
 	if ! Check_IPSets; then
-		printf "%-35s | %-8s\\n" "IPSets" "$(Red "[Failed]")"; nolog="1"
+		printf "%-35s | %-8s\\n" "IPSets" "$(Red "[Failed]")"; nolog="1"; unset fail
 	fi
 	if ! Check_IPTables; then
-		printf "%-35s | %-8s\\n" "IPTables Rules" "$(Red "[Failed]")"; nolog="1"
+		printf "%-35s | %-8s\\n" "IPTables Rules" "$(Red "[Failed]")"; nolog="1"; unset fail
 	fi
 	if [ "$fastswitch" = "enabled" ]; then
 		Ylow "Fast Switch List Is Enabled!"
@@ -3748,6 +3748,7 @@ case "$1" in
 		Check_Lock "$@"
 		if ! Check_IPSets || ! Check_IPTables; then
 			logger -st Skynet "[*] Rule Integrity Violation - Restarting Firewall [ ${fail}]"
+			unset fail
 			restartfirewall="1"
 			nolog="2"
 		else
@@ -4669,7 +4670,7 @@ case "$1" in
 				printf "%-35s | %-8s\\n" "CDN Whitelisting" "$(if [ "$cdnwhitelist" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
 				printf "%-35s | %-8s\\n" "Display WebUI" "$(if [ "$displaywebui" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
 				printf "\\n%-35s\\n" "${passedtests}/${totaltests} Tests Sucessful"
-				if [ -n "$fail" ]; then echo; echo "[*] Rule Integrity Violation - [ ${fail}]"; fi
+				if [ -n "$fail" ]; then echo; echo "[*] Rule Integrity Violation - [ ${fail}]"; unset fail; fi
 				if [ -n "$localfail" ]; then echo; echo "[*] Local File Missing - [ ${localfail}]"; fi
 				if [ -n "$mountedfail" ]; then echo; echo "[*] Mounted File Missing - [ ${mountedfail}]"; fi
 				if [ "$3" = "extended" ]; then echo; echo; cat "$skynetcfg"; fi
