@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            09/02/2020 - v7.0.10                                            #
+#                                            10/02/2020 - v7.1.0                                            #
 #############################################################################################################
 
 
@@ -123,6 +123,7 @@ Check_Settings () {
 		if [ -z "$displaywebui" ]; then displaywebui="enabled"; fi
 
 		if [ ! -f "${skynetloc}/webui/chart.js" ]; then
+			remotedir="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master"
 			Download_File "webui/chart.js" "${skynetloc}/webui/chart.js"
 		fi
 
