@@ -122,6 +122,10 @@ Check_Settings () {
 		if [ -z "$iotblocked" ]; then iotblocked="disabled"; fi
 		if [ -z "$displaywebui" ]; then displaywebui="enabled"; fi
 
+		if [ ! -f "${skynetloc}/webui/chart.js" ]; then
+			Download_File "webui/chart.js" "${skynetloc}/webui/chart.js"
+		fi
+
 		unset "swappartition" "swaplocation"
 		if grep -qE "^swapon " /jffs/scripts/post-mount; then
 			if Check_Swap; then
@@ -217,8 +221,6 @@ Check_Settings () {
 		else
 			extendedstats="disabled"
 		fi
-
-		if [ -z "$fastswitch" ]; then fastswitch="disabled"; fi
 }
 
 Check_Connection () {
@@ -1099,9 +1101,10 @@ Install_WebUI_Page () {
 					umount /www/require/modules/menuTree.js 2>/dev/null
 					mount -o bind /tmp/menuTree.js /www/require/modules/menuTree.js
 					mkdir -p "${webdir}/skynet"
-					ln -s "${skynetloc}/webui/stats.js" "${webdir}/skynet/stats.js" 2>/dev/null
+					ln -s "${skynetloc}/webui/chart.js" "${webdir}/skynet/chart.js" 2>/dev/null
 					ln -s "${skynetloc}/webui/chartjs-plugin-zoom.js" "${webdir}/skynet/chartjs-plugin-zoom.js" 2>/dev/null
 					ln -s "${skynetloc}/webui/hammerjs.js" "${webdir}/skynet/hammerjs.js" 2>/dev/null
+					ln -s "${skynetloc}/webui/stats.js" "${webdir}/skynet/stats.js" 2>/dev/null
 					Unload_Cron "genstats"
 					Load_Cron "genstats"
 				fi
@@ -3867,6 +3870,7 @@ case "$1" in
 			iptables -t raw -F
 			Uninstall_WebUI_Page
 			mkdir -p "${skynetloc}/webui"
+			Download_File "webui/chart.js" "${skynetloc}/webui/chart.js"
 			Download_File "webui/chartjs-plugin-zoom.js" "${skynetloc}/webui/chartjs-plugin-zoom.js"
 			Download_File "webui/hammerjs.js" "${skynetloc}/webui/hammerjs.js"
 			Download_File "webui/skynet.asp" "${skynetloc}/webui/skynet.asp"
@@ -4618,18 +4622,20 @@ case "$1" in
 				printf "%-8s\\n" "$result"
 				if [ "$displaywebui" = "enabled" ]; then
 					printf "%-35s | " "Local WebUI Files"
-					[ -f "${skynetloc}/webui/skynet.asp" ] || localfail="${localfail}skynet.asp "
-					[ -f "${skynetloc}/webui/stats.js" ] || localfail="${localfail}stats.js "
+					[ -f "${skynetloc}/webui/chart.js" ] || localfail="${localfail}chart.js "
 					[ -f "${skynetloc}/webui/chartjs-plugin-zoom.js" ] || localfail="${localfail}chartjs-plugin-zoom.js "
 					[ -f "${skynetloc}/webui/hammerjs.js" ] || localfail="${localfail}hammerjs.js "
+					[ -f "${skynetloc}/webui/skynet.asp" ] || localfail="${localfail}skynet.asp "
+					[ -f "${skynetloc}/webui/stats.js" ] || localfail="${localfail}stats.js "
 					if [ -z "$localfail" ]; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
 					printf "%-8s\\n" "$result"
 					printf "%-35s | " "Mounted WebUI Files"
 					Get_WebUI_Page "${skynetloc}/webui/skynet.asp" 2>/dev/null
-					[ -f "${webdir}/${MyPage}" ] || mountedfail="${mountedfail}skynet.asp "
-					[ -f "${webdir}/skynet/stats.js" ] || mountedfail="${mountedfail}stats.js "
+					[ -f "${webdir}/skynet/chart.js" ] || mountedfail="${mountedfail}chart.js "
 					[ -f "${webdir}/skynet/chartjs-plugin-zoom.js" ] || mountedfail="${mountedfail}chartjs-plugin-zoom.js "
 					[ -f "${webdir}/skynet/hammerjs.js" ] || mountedfail="${mountedfail}hammerjs.js "
+					[ -f "${webdir}/${MyPage}" ] || mountedfail="${mountedfail}skynet.asp "
+					[ -f "${webdir}/skynet/stats.js" ] || mountedfail="${mountedfail}stats.js "
 					if [ -z "$mountedfail" ]; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
 					printf "%-8s\\n" "$result"
 					printf "%-35s | " "MenuTree.js Entry"
@@ -5452,6 +5458,9 @@ case "$1" in
 		touch "${device}/skynet/skynet.log"
 		remotedir="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master"
 		mkdir -p "${skynetloc}/webui"
+		if [ ! -f "${skynetloc}/webui/chart.js" ]; then
+			Download_File "webui/chart.js" "${skynetloc}/webui/chart.js"
+		fi
 		if [ ! -f "${skynetloc}/webui/chartjs-plugin-zoom.js" ]; then
 			Download_File "webui/chartjs-plugin-zoom.js" "${skynetloc}/webui/chartjs-plugin-zoom.js"
 		fi
