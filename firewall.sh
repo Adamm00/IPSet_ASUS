@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            10/02/2020 - v7.1.0                                            #
+#                                            13/02/2020 - v7.1.0                                            #
 #############################################################################################################
 
 
@@ -930,6 +930,11 @@ Whitelist_Shared () {
 					echo "$stamp" | base64 -d 2>/dev/null
 				done | grep -aoE '([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{printf "add Skynet-Whitelist %s comment \"nvram: DNSCrypt Stamp\"\n", $1 }' | ipset restore -!
 			fi
+		fi
+		if [ -f "/opt/var/lib/unbound/root.hints" ]; then
+			grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' /opt/var/lib/unbound/root.hints | while read -r roothint; do
+				echo "$roothint"
+			done | awk '{printf "add Skynet-Whitelist %s comment \"nvram: Root DNS Server\"\n", $1 }' | ipset restore -!
 		fi
 }
 
