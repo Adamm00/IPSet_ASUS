@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            13/02/2020 - v7.1.0                                            #
+#                                            14/02/2020 - v7.1.0                                            #
 #############################################################################################################
 
 
@@ -178,6 +178,8 @@ Check_Settings () {
 
 		if [ "$(nvram get fw_log_x)" != "drop" ] && [ "$(nvram get fw_log_x)" != "both" ]; then
 			nvram set fw_log_x=drop
+			nvram commit
+			restartfirewall="1"
 		fi
 
 		localver="$(Filter_Version < "$0")"
@@ -200,11 +202,13 @@ Check_Settings () {
 
 		if [ "$(nvram get jffs2_scripts)" != "1" ]; then
 			nvram set jffs2_scripts=1
+			nvram commit
 			logger -st Skynet "[*] Custom JFFS Scripts Enabled - Please Manually Reboot To Apply Changes"
 		fi
 
 		if [ "$(nvram get fw_enable_x)" != "1" ]; then
 			nvram set fw_enable_x=1
+			nvram commit
 			restartfirewall="1"
 		fi
 
@@ -5280,13 +5284,16 @@ case "$1" in
 		fi
 		if [ "$(nvram get jffs2_scripts)" != "1" ]; then
 			nvram set jffs2_scripts=1
+			nvram commit
 			forcereboot=1
 		fi
 		if [ "$(nvram get fw_enable_x)" != "1" ]; then
 			nvram set fw_enable_x=1
+			nvram commit
 		fi
 		if [ "$(nvram get fw_log_x)" != "drop" ] && [ "$(nvram get fw_log_x)" != "both" ]; then
 			nvram set fw_log_x=drop
+			nvram commit
 		fi
 		conflicting_scripts="(IPSet_Block.sh|malware-filter|privacy-filter|ipBLOCKer.sh|ya-malware-block.sh|iblocklist-loader.sh|firewall-reinstate.sh)$"
 		if find /jffs /tmp/mnt | grep -qE "$conflicting_scripts"; then
@@ -5581,6 +5588,7 @@ case "$1" in
 					Unload_IPSets
 					Uninstall_WebUI_Page
 					nvram set fw_log_x=none
+					nvram commit
 					echo "[i] Deleting Skynet Files"
 					sed -i '\~ Skynet ~d' /jffs/scripts/firewall-start /jffs/scripts/services-stop /jffs/scripts/service-event
 					rm -rf "/jffs/addons/shared-whitelists/shared-Skynet-whitelist" "/jffs/addons/shared-whitelists/shared-Skynet2-whitelist" "/opt/bin/firewall" "${skynetloc}" "/jffs/scripts/firewall" "/tmp/skynet.lock" "/tmp/skynet"
