@@ -87,10 +87,6 @@
         }
     </style>
     <script language="JavaScript" type="text/javascript" src="/js/jquery.js"></script>
-    <script language="JavaScript" type="text/javascript" src="/ext/skynet/chart.js"></script>
-    <script language="JavaScript" type="text/javascript" src="/ext/skynet/chartjs-plugin-zoom.js"></script>
-    <script language="JavaScript" type="text/javascript" src="/ext/skynet/hammerjs.js"></script>
-    <script language="JavaScript" type="text/javascript" src="/ext/skynet/stats.js"></script>
     <script language="JavaScript" type="text/javascript" src="/state.js"></script>
     <script language="JavaScript" type="text/javascript" src="/general.js"></script>
     <script language="JavaScript" type="text/javascript" src="/popup.js"></script>
@@ -99,6 +95,10 @@
     <script language="JavaScript" type="text/javascript" src="/tmmenu.js"></script>
     <script language="JavaScript" type="text/javascript" src="/client_function.js"></script>
     <script language="JavaScript" type="text/javascript" src="/validator.js"></script>
+    <script language="JavaScript" type="text/javascript" src="/ext/skynet/chart.js"></script>
+    <script language="JavaScript" type="text/javascript" src="/ext/skynet/chartjs-plugin-zoom.js"></script>
+    <script language="JavaScript" type="text/javascript" src="/ext/skynet/hammerjs.js"></script>
+    <script language="JavaScript" type="text/javascript" src="/ext/skynet/stats.js"></script>
 
     <script>
         var ChartInPortHits;
@@ -820,7 +820,7 @@
                                             <td valign="top">
                                                 <div style="line-height:10px;">&nbsp;</div>
 
-                                                <div class="formfonttitle" style="margin-bottom:0px;text-align:center;" id="statstitle">Skynet Statistics BETA</div>
+                                                <div class="formfonttitle" style="margin-bottom:0px;text-align:center;" id="statstitle">Skynet Statistics</div>
                                                 <div style="line-height:5px;">&nbsp;</div>
                                                 <div class="formfonttitle" style="margin-bottom:0px;text-align:center;" id="statsdate">Last Updated - N/A</div>
                                                 <div style="line-height:5px;">&nbsp;</div>

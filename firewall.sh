@@ -771,16 +771,16 @@ Save_IPSets () {
 Unban_PrivateIP () {
 		if [ "$unbanprivateip" = "enabled" ] && [ "$logmode" = "enabled" ]; then
 			grep -F "INBOUND" "$syslogloc" | Filter_PrivateSRC | grep -oE 'SRC=[0-9,\.]*' | cut -c 5- | awk '!x[$0]++' | while IFS= read -r "ip"; do
-				ipset -q -A Skynet-Whitelist "$ip" comment "PrivateIP"
-				ipset -q -D Skynet-Blacklist "$ip"
+				echo "add Skynet-Whitelist $ip comment \"Private IP\""
+				echo "del Skynet-Blacklist $ip"
 				sed -i "\\~SRC=${ip} ~d" "$syslogloc" "$skynetevents"
-			done
+			done | ipset restore -!
 			grep -F "OUTBOUND" "$syslogloc" | Filter_PrivateDST | grep -oE 'DST=[0-9,\.]*' | cut -c 5- | awk '!x[$0]++' | while IFS= read -r "ip"; do
-				ipset -q -A Skynet-Whitelist "$ip" comment "PrivateIP"
-				ipset -q -D Skynet-Blacklist "$ip"
+				echo "add Skynet-Whitelist $ip comment \"Private IP\""
+				echo "del Skynet-Blacklist $ip"
 				sed -i "\\~DST=${ip} ~d" "$syslogloc"
 				sed -i "\\~SRC=${ip} ~d" "$skynetevents"
-			done
+			done | ipset restore -!
 		fi
 }
 
@@ -794,10 +794,9 @@ Refresh_AiProtect () {
 				sqlite3 /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db "SELECT src FROM monitor;" | awk '!x[$0]++' | Filter_IP | Filter_PrivateIP | awk '{printf "add Skynet-Blacklist %s comment \"BanAiProtect\"\n", $1 }' | ipset restore -!
 				sqlite3 /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db "SELECT dst FROM monitor;" | awk '!x[$0]++' | Filter_OutIP | grep -v ":" | while IFS= read -r "domain"; do
 					for ip in $(Domain_Lookup "$domain" 2>/dev/null | Filter_PrivateIP); do
-						ipset -q -A Skynet-Blacklist "$ip" comment "BanAiProtect: $domain"
+						echo "add Skynet-Blacklist $ip comment \"BanAiProtect: $domain\""
 					done &
-				done
-				wait
+				done | ipset restore -!
 			fi
 		fi
 }
@@ -809,10 +808,10 @@ Refresh_MBans () {
 			sed "\\~add Skynet-Blacklist ~!d;\\~ManualBanD~!d;s~ comment.*~~;s~add~del~g" "$skynetipset" | ipset restore -!
 			while IFS= read -r "domain"; do
 				for ip in $(Domain_Lookup "$domain" | Filter_PrivateIP); do
-					ipset -q -A Skynet-Blacklist "$ip" comment "ManualBanD: $domain" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$domain " >> "$skynetevents"
-				done &
-			done < /tmp/skynet/mbans.list | Strip_Domain
-			wait
+					echo "add Skynet-Blacklist $ip comment \"ManualBanD: $domain\""
+					echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$domain " >> "$skynetevents"
+				done | ipset restore -!
+			done < /tmp/skynet/mbans.list
 			rm -rf /tmp/skynet/mbans.list
 		fi
 }
@@ -824,10 +823,10 @@ Refresh_MWhitelist () {
 			sed "\\~add Skynet-Whitelist ~!d;\\~ManualWlistD~!d;s~ comment.*~~;s~add~del~g" "$skynetipset" | ipset restore -!
 			while IFS= read -r "domain"; do
 				for ip in $(Domain_Lookup "$domain"); do
-					ipset -q -A Skynet-Whitelist "$ip" comment "ManualWlistD: $domain" && echo "$(date +"%b %d %T") Skynet: [Manual Whitelist] TYPE=Domain SRC=$ip Host=$domain " >> "$skynetevents"
-				done &
-			done < /tmp/skynet/mwhitelist.list | Strip_Domain
-			wait
+					echo "add Skynet-Whitelist $ip comment \"ManualWlistD: $domain\""
+					echo "$(date +"%b %d %T") Skynet: [Manual Whitelist] TYPE=Domain SRC=$ip Host=$domain " >> "$skynetevents"
+				done
+			done < /tmp/skynet/mwhitelist.list
 			cat /tmp/skynet/mwhitelist.list >> /jffs/addons/shared-whitelists/shared-Skynet2-whitelist
 			rm -rf /tmp/skynet/mwhitelist.list
 		fi
@@ -902,25 +901,24 @@ Whitelist_Shared () {
 				for listname in *; do
 					while IFS= read -r "domain"; do
 						for ip in $(Domain_Lookup "$domain" 2> /dev/null); do
-							ipset -q -A Skynet-Whitelist "$ip" comment "Shared-Whitelist: $domain"
+							echo "add Skynet-Whitelist $ip comment \"Shared-Whitelist: $domain\""
 						done &
 					done < "$listname"
 					wait
-				done
+				done | ipset restore -!
 				cd "$cwd" || exit 1
 			else
 				grep -hvF "#" /jffs/addons/shared-whitelists/shared-*-whitelist | Strip_Domain | while IFS= read -r "domain"; do
 					for ip in $(Domain_Lookup "$domain" 2> /dev/null); do
-						ipset -q -A Skynet-Whitelist "$ip" comment "Shared-Whitelist: $domain"
+						echo "add Skynet-Whitelist $ip comment \"Shared-Whitelist: $domain\""
 					done &
-				done
-				wait
+				done | ipset restore -!
 			fi
 		fi
 		if [ "$(uname -o)" = "ASUSWRT-Merlin" ]; then dotvar="dnspriv_rulelist"; else dotvar="stubby_dns"; fi
 		for ip in $(nvram get "$dotvar" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}'); do
-			ipset -q -A Skynet-Whitelist "$ip" comment "nvram: $dotvar"
-		done
+			echo "add Skynet-Whitelist $ip comment \"nvram: $dotvar\""
+		done | ipset restore -!
 		if [ -f "/jffs/dnscrypt/public-resolvers.md" ] && [ -f "/jffs/dnscrypt/relays.md" ]; then
 			if [ -f /opt/bin/opkg ] && [ ! -f /opt/bin/base64 ]; then
 				opkg update && opkg install coreutils-base64
@@ -933,8 +931,8 @@ Whitelist_Shared () {
 		fi
 		if [ -f "/opt/var/lib/unbound/root.hints" ]; then
 			grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' /opt/var/lib/unbound/root.hints | while read -r roothint; do
-				echo "$roothint"
-			done | awk '{printf "add Skynet-Whitelist %s comment \"nvram: Root DNS Server\"\n", $1 }' | ipset restore -!
+				echo "add Skynet-Whitelist $roothint comment \"nvram: Root DNS Server\""
+			done | ipset restore -!
 		fi
 }
 
@@ -3308,7 +3306,7 @@ case "$1" in
 				echo "[i] Adding $domain To Blacklist"
 				for ip in $(Domain_Lookup "$domain" | Filter_PrivateIP); do
 					echo "[i] Banning $ip"
-					ipset -A Skynet-Blacklist "$ip" comment "ManualBanD: $3" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$3 " >> "$skynetevents"
+					ipset -A Skynet-Blacklist "$ip" comment "ManualBanD: $domain" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$domain " >> "$skynetevents"
 				done
 			;;
 			country)
@@ -3520,10 +3518,10 @@ case "$1" in
 				echo "[i] Adding $domain To Whitelist"
 				for ip in $(Domain_Lookup "$domain"); do
 					echo "[i] Whitelisting $ip"
-					ipset -A Skynet-Whitelist "$ip" comment "ManualWlistD: $3" && sed -i "\\~=$ip ~d" "$skynetlog" "$skynetevents" && echo "$(date +"%b %d %T") Skynet: [Manual Whitelist] TYPE=Domain SRC=$ip Host=$3 " >> "$skynetevents"
+					ipset -A Skynet-Whitelist "$ip" comment "ManualWlistD: $domain" && sed -i "\\~=$ip ~d" "$skynetlog" "$skynetevents" && echo "$(date +"%b %d %T") Skynet: [Manual Whitelist] TYPE=Domain SRC=$ip Host=$domain " >> "$skynetevents"
 					ipset -q -D Skynet-Blacklist "$ip"
 				done
-				if [ "$?" = "1" ]; then echo "$3" >> /jffs/addons/shared-whitelists/shared-Skynet2-whitelist; fi
+				if [ "$?" = "1" ]; then echo "$domain" >> /jffs/addons/shared-whitelists/shared-Skynet2-whitelist; fi
 			;;
 			vpn)
 				echo "[i] Updating VPN Whitelist"
