@@ -814,8 +814,8 @@ Refresh_MBans () {
 				for ip in $(Domain_Lookup "$domain" | Filter_PrivateIP); do
 					echo "add Skynet-Blacklist $ip comment \"ManualBanD: $domain\""
 					echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$domain " >> "$skynetevents"
-				done | ipset restore -!
-			done < /tmp/skynet/mbans.list
+				done
+			done < /tmp/skynet/mbans.list | ipset restore -!
 			rm -rf /tmp/skynet/mbans.list
 		fi
 }
@@ -830,7 +830,7 @@ Refresh_MWhitelist () {
 					echo "add Skynet-Whitelist $ip comment \"ManualWlistD: $domain\""
 					echo "$(date +"%b %d %T") Skynet: [Manual Whitelist] TYPE=Domain SRC=$ip Host=$domain " >> "$skynetevents"
 				done
-			done < /tmp/skynet/mwhitelist.list
+			done < /tmp/skynet/mwhitelist.list | ipset restore -!
 			cat /tmp/skynet/mwhitelist.list >> /jffs/addons/shared-whitelists/shared-Skynet2-whitelist
 			rm -rf /tmp/skynet/mwhitelist.list
 		fi
