@@ -962,7 +962,7 @@ WriteData_ToJS (){
 }
 
 Generate_Stats () {
-	if nvram get rc_support | grep -qF "am_addons" || { [ "$(uname -o)" = "ASUSWRT-Merlin" ] && [ "$(nvram get buildno | tr -d '.')" -ge "38415" ]; }; then
+	if nvram get rc_support | grep -qF "am_addons" && [ "$(uname -o)" = "ASUSWRT-Merlin" ]; then
 		if [ "$displaywebui" = "enabled" ]; then
 			mkdir -p "${skynetloc}/webui/stats"
 			true > "${skynetloc}/webui/stats.js"
@@ -1076,11 +1076,10 @@ Generate_Stats () {
 }
 
 Get_WebUI_Page () {
-	if nvram get rc_support | grep -qF "am_addons" || { [ "$(uname -o)" = "ASUSWRT-Merlin" ] && [ "$(nvram get buildno | tr -d '.')" -ge "38415" ]; }; then
+	if nvram get rc_support | grep -qF "am_addons" && [ "$(uname -o)" = "ASUSWRT-Merlin" ]; then
 		if [ "$displaywebui" = "enabled" ]; then
-			webdir="$(readlink /www/user)"
 			for i in 1 2 3 4 5 6 7 8 9 10; do
-				page="${webdir}/user$i.asp"
+				page="/www/user/user$i.asp"
 				if [ ! -f "$page" ] || [ "$(md5sum < "$1")" = "$(md5sum < "$page")" ]; then
 					MyPage="user$i.asp"
 					return
@@ -1093,14 +1092,14 @@ Get_WebUI_Page () {
 
 Install_WebUI_Page () {
 	if [ "$logmode" = "enabled" ]; then
-		if nvram get rc_support | grep -qF "am_addons" || { [ "$(uname -o)" = "ASUSWRT-Merlin" ] && [ "$(nvram get buildno | tr -d '.')" -ge "38415" ]; }; then
+		if nvram get rc_support | grep -qF "am_addons" && [ "$(uname -o)" = "ASUSWRT-Merlin" ]; then
 			if [ "$displaywebui" = "enabled" ]; then
 				Get_WebUI_Page "${skynetloc}/webui/skynet.asp"
 				if [ "$MyPage" = "none" ]; then
 					logger -t Skynet "[*] Unable To Mount Skynet Web Page - No Mount Points Avilable" && echo "[*] Unable To Mount Skynet Web Page - No Mount Points Avilable"
 				else
 					logger -t Skynet "[i] Mounting Skynet Web Page As $MyPage" && echo "[i] Mounting Skynet Web Page As $MyPage"
-					cp -f "${skynetloc}/webui/skynet.asp" "${webdir}/$MyPage"
+					cp -f "${skynetloc}/webui/skynet.asp" "/www/user/$MyPage"
 					if [ ! -f "/tmp/menuTree.js" ]; then
 						cp -f "/www/require/modules/menuTree.js" "/tmp/"
 					fi
@@ -1108,11 +1107,11 @@ Install_WebUI_Page () {
 					sed -i "/url: \"Advanced_Firewall_Content.asp\", tabName:/a {url: \"$MyPage\", tabName: \"Skynet\"}," /tmp/menuTree.js
 					umount /www/require/modules/menuTree.js 2>/dev/null
 					mount -o bind /tmp/menuTree.js /www/require/modules/menuTree.js
-					mkdir -p "${webdir}/skynet"
-					ln -s "${skynetloc}/webui/chart.js" "${webdir}/skynet/chart.js" 2>/dev/null
-					ln -s "${skynetloc}/webui/chartjs-plugin-zoom.js" "${webdir}/skynet/chartjs-plugin-zoom.js" 2>/dev/null
-					ln -s "${skynetloc}/webui/hammerjs.js" "${webdir}/skynet/hammerjs.js" 2>/dev/null
-					ln -s "${skynetloc}/webui/stats.js" "${webdir}/skynet/stats.js" 2>/dev/null
+					mkdir -p "/www/user/skynet"
+					ln -s "${skynetloc}/webui/chart.js" "/www/user/skynet/chart.js" 2>/dev/null
+					ln -s "${skynetloc}/webui/chartjs-plugin-zoom.js" "/www/user/skynet/chartjs-plugin-zoom.js" 2>/dev/null
+					ln -s "${skynetloc}/webui/hammerjs.js" "/www/user/skynet/hammerjs.js" 2>/dev/null
+					ln -s "${skynetloc}/webui/stats.js" "/www/user/skynet/stats.js" 2>/dev/null
 					Unload_Cron "genstats"
 					Load_Cron "genstats"
 				fi
@@ -1129,7 +1128,7 @@ Uninstall_WebUI_Page () {
 		sed -i "\\~$MyPage~d" /tmp/menuTree.js
 		umount /www/require/modules/menuTree.js
 		mount -o bind /tmp/menuTree.js /www/require/modules/menuTree.js
-		rm -rf "${webdir:?}/$MyPage" "${webdir}/skynet"
+		rm -rf "/www/user/$MyPage" "/www/user/skynet"
 		Unload_Cron "genstats"
 	fi
 }
@@ -4393,7 +4392,7 @@ case "$1" in
 						Check_Lock "$@"
 						if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 						Purge_Logs
-						if nvram get rc_support | grep -qF "am_addons" || { [ "$(uname -o)" = "ASUSWRT-Merlin" ] && [ "$(nvram get buildno | tr -d '.')" -ge "38415" ]; }; then
+						if nvram get rc_support | grep -qF "am_addons" && [ "$(uname -o)" = "ASUSWRT-Merlin" ]; then
 							displaywebui="enabled"
 							Install_WebUI_Page
 							echo "[i] WebUI Enabled"
@@ -4641,11 +4640,11 @@ case "$1" in
 					printf "%-8s\\n" "$result"
 					printf "%-35s | " "Mounted WebUI Files"
 					Get_WebUI_Page "${skynetloc}/webui/skynet.asp" 2>/dev/null
-					[ -f "${webdir}/skynet/chart.js" ] || mountedfail="${mountedfail}chart.js "
-					[ -f "${webdir}/skynet/chartjs-plugin-zoom.js" ] || mountedfail="${mountedfail}chartjs-plugin-zoom.js "
-					[ -f "${webdir}/skynet/hammerjs.js" ] || mountedfail="${mountedfail}hammerjs.js "
-					[ -f "${webdir}/${MyPage}" ] || mountedfail="${mountedfail}skynet.asp "
-					[ -f "${webdir}/skynet/stats.js" ] || mountedfail="${mountedfail}stats.js "
+					[ -f "/www/user/skynet/chart.js" ] || mountedfail="${mountedfail}chart.js "
+					[ -f "/www/user/skynet/chartjs-plugin-zoom.js" ] || mountedfail="${mountedfail}chartjs-plugin-zoom.js "
+					[ -f "/www/user/skynet/hammerjs.js" ] || mountedfail="${mountedfail}hammerjs.js "
+					[ -f "/www/user/${MyPage}" ] || mountedfail="${mountedfail}skynet.asp "
+					[ -f "/www/user/skynet/stats.js" ] || mountedfail="${mountedfail}stats.js "
 					if [ -z "$mountedfail" ]; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
 					printf "%-8s\\n" "$result"
 					printf "%-35s | " "MenuTree.js Entry"
@@ -4695,7 +4694,7 @@ case "$1" in
 			genstats)
 				Check_Lock "$@"
 				Purge_Logs "all"
-				if nvram get rc_support | grep -qF "am_addons" || { [ "$(uname -o)" = "ASUSWRT-Merlin" ] && [ "$(nvram get buildno | tr -d '.')" -ge "38415" ]; }; then
+				if nvram get rc_support | grep -qF "am_addons" && [ "$(uname -o)" = "ASUSWRT-Merlin" ]; then
 					if [ "$displaywebui" = "enabled" ]; then
 						echo "[i] Generating Stats For WebUI"
 						Generate_Stats
