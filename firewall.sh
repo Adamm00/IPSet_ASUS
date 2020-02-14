@@ -1135,10 +1135,12 @@ Uninstall_WebUI_Page () {
 }
 
 Download_File () {
-	if curl -fsL --retry 3 "${remotedir}/${1}" -o "$2"; then
-		echo "[i] Updated $(echo "$1" | awk -F / '{print $NF}')"
-	else
-		logger -t Skynet "[*] Updating $(echo "$1" | awk -F / '{print $NF}') Failed"; echo "[*] Updating $(echo "$1" | awk -F / '{print $NF}') Failed"
+	if [ "$(curl -fsL --retry 3 "${remotedir}/${1}" | md5sum | awk '{print $1}')" != "$(md5sum "$2" 2>/dev/null | awk '{print $1}')" ] || [ "$3" = "-f" ]; then
+		if curl -fsL --retry 3 "${remotedir}/${1}" -o "$2"; then
+			echo "[i] Updated $(echo "$1" | awk -F / '{print $NF}')"
+		else
+			logger -t Skynet "[*] Updating $(echo "$1" | awk -F / '{print $NF}') Failed"; echo "[*] Updating $(echo "$1" | awk -F / '{print $NF}') Failed"
+		fi
 	fi
 }
 
@@ -3878,11 +3880,11 @@ case "$1" in
 			iptables -t raw -F
 			Uninstall_WebUI_Page
 			mkdir -p "${skynetloc}/webui"
-			Download_File "webui/chart.js" "${skynetloc}/webui/chart.js"
-			Download_File "webui/chartjs-plugin-zoom.js" "${skynetloc}/webui/chartjs-plugin-zoom.js"
-			Download_File "webui/hammerjs.js" "${skynetloc}/webui/hammerjs.js"
-			Download_File "webui/skynet.asp" "${skynetloc}/webui/skynet.asp"
-			Download_File "firewall.sh" "$0"
+			Download_File "webui/chart.js" "${skynetloc}/webui/chart.js" "$2"
+			Download_File "webui/chartjs-plugin-zoom.js" "${skynetloc}/webui/chartjs-plugin-zoom.js" "$2"
+			Download_File "webui/hammerjs.js" "${skynetloc}/webui/hammerjs.js" "$2"
+			Download_File "webui/skynet.asp" "${skynetloc}/webui/skynet.asp" "$2"
+			Download_File "firewall.sh" "$0" "$2"
 			logger -t Skynet "[i] Restarting Firewall Service"; echo "[i] Restarting Firewall Service"
 			service restart_firewall
 			echo; exit 0
@@ -5469,18 +5471,10 @@ case "$1" in
 		touch "${device}/skynet/skynet.log"
 		remotedir="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master"
 		mkdir -p "${skynetloc}/webui"
-		if [ ! -f "${skynetloc}/webui/chart.js" ]; then
-			Download_File "webui/chart.js" "${skynetloc}/webui/chart.js"
-		fi
-		if [ ! -f "${skynetloc}/webui/chartjs-plugin-zoom.js" ]; then
-			Download_File "webui/chartjs-plugin-zoom.js" "${skynetloc}/webui/chartjs-plugin-zoom.js"
-		fi
-		if [ ! -f "${skynetloc}/webui/hammerjs.js" ]; then
-			Download_File "webui/hammerjs.js" "${skynetloc}/webui/hammerjs.js"
-		fi
-		if [ ! -f "${skynetloc}/webui/skynet.asp" ]; then
-			Download_File "webui/skynet.asp" "${skynetloc}/webui/skynet.asp"
-		fi
+		Download_File "webui/chart.js" "${skynetloc}/webui/chart.js"
+		Download_File "webui/chartjs-plugin-zoom.js" "${skynetloc}/webui/chartjs-plugin-zoom.js"
+		Download_File "webui/hammerjs.js" "${skynetloc}/webui/hammerjs.js"
+		Download_File "webui/skynet.asp" "${skynetloc}/webui/skynet.asp"
 		[ -z "$(nvram get odmpid)" ] && model="$(nvram get productid)" || model="$(nvram get odmpid)"
 		if [ -z "$loginvalid" ]; then loginvalid="disabled"; fi
 		if [ -z "$unbanprivateip" ]; then unbanprivateip="enabled"; fi
