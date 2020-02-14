@@ -272,9 +272,11 @@ Check_Files () {
 		elif [ -f "/jffs/scripts/service-event" ] && ! head -1 /jffs/scripts/service-event | grep -qE "^#!/bin/sh"; then
 			sed -i '1s~^~#!/bin/sh\n~' /jffs/scripts/service-event
 		fi
-		cmdline="if [ \"\$1\" = \"start\" ] && [ \"\$2\" = \"SkynetStats\" ]; then sh /jffs/scripts/firewall debug genstats; fi # Skynet Firewall Addition"
-		sed -i '\~# Skynet Firewall Addition~d' /jffs/scripts/service-event
-		echo "$cmdline" >> /jffs/scripts/service-event
+		if ! grep -vE "^#" /jffs/scripts/service-event | grep -qF "sh /jffs/scripts/firewall debug genstats"; then
+			cmdline="if [ \"\$1\" = \"start\" ] && [ \"\$2\" = \"SkynetStats\" ]; then sh /jffs/scripts/firewall debug genstats; fi # Skynet Firewall Addition"
+			sed -i '\~# Skynet Firewall Addition~d' /jffs/scripts/service-event
+			echo "$cmdline" >> /jffs/scripts/service-event
+		fi
 		if [ ! -f "/jffs/scripts/post-mount" ]; then
 			echo "#!/bin/sh" > /jffs/scripts/post-mount
 			echo >> /jffs/scripts/post-mount
@@ -290,7 +292,7 @@ Check_Files () {
 		if [ ! -f "/jffs/configs/fstab" ]; then
 			touch "/jffs/configs/fstab"
 		fi
-		if [ "$1" = "verify" ] && ! grep -qF "# Skynet" /jffs/scripts/services-stop; then
+		if ! grep -vE "^#" /jffs/scripts/services-stop | grep -qF "sh /jffs/scripts/firewall save"; then
 			echo "sh /jffs/scripts/firewall save # Skynet Firewall Addition" >> /jffs/scripts/services-stop
 		fi
 		if [ "$(wc -l < /jffs/scripts/post-mount)" -lt "2" ]; then echo >> /jffs/scripts/post-mount; fi
