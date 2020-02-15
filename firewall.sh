@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            14/02/2020 - v7.1.0                                            #
+#                                            16/02/2020 - v7.1.0                                            #
 #############################################################################################################
 
 
@@ -1194,30 +1194,20 @@ Manage_Device () {
 Create_Swap () {
 		while true; do
 			echo "Select SWAP File Size:"
-			echo "[1]  --> 256MB"
-			echo "[2]  --> 512MB"
-			echo "[3]  --> 1GB"
-			echo "[4]  --> 2GB"
+			echo "[1]  --> 1GB"
+			echo "[2]  --> 2GB"
 			echo
 			echo "[e]  --> Exit Menu"
 			echo
-			printf "[1-4]: "
+			printf "[1-2]: "
 			read -r "menu"
 			echo
 			case "$menu" in
 				1)
-					swapsize=262144
-					break
-				;;
-				2)
-					swapsize=524288
-					break
-				;;
-				3)
 					swapsize=1048576
 					break
 				;;
-				4)
+				2)
 					swapsize=2097152
 					break
 				;;
