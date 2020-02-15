@@ -176,6 +176,10 @@ Check_Settings () {
 			echo; exit 1
 		fi
 
+		if [ -n "$swaplocation" ] && [ "$(du "$swaplocation" | awk '{print $1}')" -lt "1048576" ]; then
+			logger -st Skynet "[*] SWAP File Too Small - 1GB Minimum Required - Please Fix Immediately!"
+		fi
+
 		if [ "$(nvram get fw_log_x)" != "drop" ] && [ "$(nvram get fw_log_x)" != "both" ]; then
 			nvram set fw_log_x=drop
 			nvram commit
@@ -4536,6 +4540,9 @@ case "$1" in
 				echo "Install Dir; ${skynetloc} ($(df -h "${skynetloc}" | xargs | awk '{printf "%s / %s\n", $11, $9}') Space Available)"
 				if [ -n "$swaplocation" ]; then
 					echo "SWAP File; $swaplocation ($(du -h "$swaplocation" | awk '{print $1}'))";
+					if [ "$(du "$swaplocation" | awk '{print $1}')" -lt "1048576" ]; then
+						Red "SWAP File Too Small - 1GB Minimum Required - Please Fix Immediately!"
+					fi
 				elif [ -n "$swappartition" ]; then
 					partitionsize="$((($(sed -n '2p' /proc/swaps | awk '{print $3}') + (1024 + 1)) / 1024))"
 					echo "SWAP Partition; $swappartition (${partitionsize}M)"
