@@ -1345,7 +1345,7 @@ Load_Menu () {
 	echo "Install Dir; ${skynetloc} ($(df -h "${skynetloc}" | xargs | awk '{printf "%s / %s\n", $11, $9}') Space Available)"
 	if [ -n "$swaplocation" ]; then
 		echo "SWAP File; $swaplocation ($(du -h "$swaplocation" | awk '{print $1}'))"
-		if [ "$(du "$swaplocation" | awk '{print $1}')" -lt "10485760" ]; then
+		if [ "$(du "$swaplocation" | awk '{print $1}')" -lt "1048576" ]; then
 			Red "SWAP File Too Small - 1GB Minimum Required - Please Fix Immediately!"
 		fi
 	elif [ -n "$swappartition" ]; then
