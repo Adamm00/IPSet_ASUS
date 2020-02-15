@@ -903,7 +903,9 @@ Whitelist_Shared () {
 		add Skynet-Whitelist 127.0.0.0/8 comment \"nvram: Localhost\"" | tr -d "\t" | Filter_IPLine | ipset restore -! 2>/dev/null
 		if [ -n "$(find /jffs/addons/shared-whitelists -name 'shared-*-whitelist')" ]; then
 			sed '\~add Skynet-Whitelist ~!d;\~Shared-Whitelist~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
-			if [ "$(cat /jffs/addons/shared-whitelists/shared-*-whitelist | wc -l)" -gt "150" ]; then
+			swapsize="$(du "$(grep -E "^swapon " /jffs/scripts/post-mount | awk '{print $2}')" | awk '{print $1}')"
+			if [ "$(cat /jffs/addons/shared-whitelists/shared-*-whitelist | wc -l)" -gt "150" ] && [ "$swapsize" -lt "1048576" ] || \
+			{ [ "$(cat /jffs/addons/shared-whitelists/shared-*-whitelist | wc -l)" -gt "150" ] && [ "$swapsize" -lt "2097152" ] && [ "$(nvram get dns_local_cache)" = "1" ] ; }; then
 				Clean_Temp
 				cwd="$(pwd)"
 				cd /tmp/skynet/lists || exit 1
@@ -1199,7 +1201,7 @@ Create_Swap () {
 		while true; do
 			echo "Select SWAP File Size:"
 			echo "[1]  --> 1GB"
-			echo "[2]  --> 2GB"
+			echo "[2]  --> 2GB (Recommended)"
 			echo
 			echo "[e]  --> Exit Menu"
 			echo
@@ -1226,7 +1228,7 @@ Create_Swap () {
 			esac
 		done
 		swaplocation="${device}/myswap.swp"
-		if [ -f "$swaplocation" ]; then swapoff -a "$swaplocation" 2>/dev/null; rm -rf "$swaplocation"; fi
+		if [ -f "$swaplocation" ]; then swapoff -a 2>/dev/null; rm -rf "$swaplocation"; fi
 		if [ "$(df "$device" | xargs | awk '{print $11}')" -le "$swapsize" ]; then echo "[*] Not Enough Free Space Available On $device"; Create_Swap; fi
 		echo "[i] Creating SWAP File"
 		dd if=/dev/zero of="$swaplocation" bs=1k count="$swapsize"
@@ -4792,7 +4794,7 @@ case "$1" in
 						if [ -f "$swaplocation" ]; then
 							sed -i '\~swapon ~d' /jffs/scripts/post-mount
 							sync; echo 3 > /proc/sys/vm/drop_caches
-							swapoff -a "$swaplocation"
+							swapoff -a
 							if rm -rf "$swaplocation"; then echo "[i] SWAP File Removed"; else "[*] SWAP File Partially Removed - Please Inspect Manually"; fi
 						else
 							sed -i '\~swapon ~d' /jffs/scripts/post-mount
@@ -5554,7 +5556,7 @@ case "$1" in
 									sed -i '\~ Skynet ~d' /jffs/scripts/post-mount
 									sed -i '\~ Skynet ~d' /jffs/scripts/unmount
 									sync; echo 3 > /proc/sys/vm/drop_caches
-									swapoff -a "$swaplocation"
+									swapoff -a
 									rm -rf "$swaplocation"
 									break
 								;;
