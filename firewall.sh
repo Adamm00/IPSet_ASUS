@@ -1226,7 +1226,7 @@ Create_Swap () {
 			esac
 		done
 		swaplocation="${device}/myswap.swp"
-		if [ -f "$swaplocation" ]; then swapoff "$swaplocation" 2>/dev/null; rm -rf "$swaplocation"; fi
+		if [ -f "$swaplocation" ]; then swapoff -a "$swaplocation" 2>/dev/null; rm -rf "$swaplocation"; fi
 		if [ "$(df "$device" | xargs | awk '{print $11}')" -le "$swapsize" ]; then echo "[*] Not Enough Free Space Available On $device"; Create_Swap; fi
 		echo "[i] Creating SWAP File"
 		dd if=/dev/zero of="$swaplocation" bs=1k count="$swapsize"
@@ -4791,7 +4791,7 @@ case "$1" in
 						echo "[i] Removing SWAP File ($swaplocation)"
 						if [ -f "$swaplocation" ]; then
 							sed -i '\~swapon ~d' /jffs/scripts/post-mount
-							swapoff "$swaplocation"
+							swapoff -a "$swaplocation"
 							if rm -r "$swaplocation"; then echo "[i] SWAP File Removed"; else "[*] SWAP File Partially Removed - Please Inspect Manually"; fi
 						else
 							sed -i '\~swapon ~d' /jffs/scripts/post-mount
@@ -5552,7 +5552,7 @@ case "$1" in
 									echo "[i] Removing Skynet Generated SWAP File"
 									sed -i '\~ Skynet ~d' /jffs/scripts/post-mount
 									sed -i '\~ Skynet ~d' /jffs/scripts/unmount
-									swapoff "$swaplocation"
+									swapoff -a "$swaplocation"
 									rm -rf "$swaplocation"
 									break
 								;;
