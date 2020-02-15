@@ -903,7 +903,7 @@ Whitelist_Shared () {
 		add Skynet-Whitelist 127.0.0.0/8 comment \"nvram: Localhost\"" | tr -d "\t" | Filter_IPLine | ipset restore -! 2>/dev/null
 		if [ -n "$(find /jffs/addons/shared-whitelists -name 'shared-*-whitelist')" ]; then
 			sed '\~add Skynet-Whitelist ~!d;\~Shared-Whitelist~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
-			swapsize="$(du "$(grep -E "^swapon " /jffs/scripts/post-mount | awk '{print $2}')" | awk '{print $1}')"
+			swapsize="$(du "$swaplocation" | awk '{print $1}')"
 			if [ "$(cat /jffs/addons/shared-whitelists/shared-*-whitelist | wc -l)" -gt "150" ] && [ "$swapsize" -lt "1048576" ] || \
 			{ [ "$(cat /jffs/addons/shared-whitelists/shared-*-whitelist | wc -l)" -gt "150" ] && [ "$swapsize" -lt "2097152" ] && [ "$(nvram get dns_local_cache)" = "1" ] ; }; then
 				Clean_Temp
@@ -1344,7 +1344,10 @@ Load_Menu () {
 	echo "FW Version; $(nvram get buildno)_$(nvram get extendno) ($(uname -v | awk '{printf "%s %s %s\n", $5, $6, $9}')) ($(uname -r))"
 	echo "Install Dir; ${skynetloc} ($(df -h "${skynetloc}" | xargs | awk '{printf "%s / %s\n", $11, $9}') Space Available)"
 	if [ -n "$swaplocation" ]; then
-		echo "SWAP File; $swaplocation ($(du -h "$swaplocation" | awk '{print $1}'))";
+		echo "SWAP File; $swaplocation ($(du -h "$swaplocation" | awk '{print $1}'))"
+		if [ "$(du "$swaplocation" | awk '{print $1}')" -lt "10485760" ]; then
+			Red "SWAP File Too Small - 1GB Minimum Required - Please Fix Immediately!"
+		fi
 	elif [ -n "$swappartition" ]; then
 		partitionsize="$((($(sed -n '2p' /proc/swaps | awk '{print $3}') + (1024 + 1)) / 1024))"
 		echo "SWAP Partition; $swappartition (${partitionsize}M)"
