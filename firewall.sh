@@ -4791,8 +4791,9 @@ case "$1" in
 						echo "[i] Removing SWAP File ($swaplocation)"
 						if [ -f "$swaplocation" ]; then
 							sed -i '\~swapon ~d' /jffs/scripts/post-mount
+							sync; echo 3 > /proc/sys/vm/drop_caches
 							swapoff -a "$swaplocation"
-							if rm -r "$swaplocation"; then echo "[i] SWAP File Removed"; else "[*] SWAP File Partially Removed - Please Inspect Manually"; fi
+							if rm -rf "$swaplocation"; then echo "[i] SWAP File Removed"; else "[*] SWAP File Partially Removed - Please Inspect Manually"; fi
 						else
 							sed -i '\~swapon ~d' /jffs/scripts/post-mount
 							echo "[*] SWAP File Partially Removed - Please Inspect Manually"
@@ -5552,6 +5553,7 @@ case "$1" in
 									echo "[i] Removing Skynet Generated SWAP File"
 									sed -i '\~ Skynet ~d' /jffs/scripts/post-mount
 									sed -i '\~ Skynet ~d' /jffs/scripts/unmount
+									sync; echo 3 > /proc/sys/vm/drop_caches
 									swapoff -a "$swaplocation"
 									rm -rf "$swaplocation"
 									break
