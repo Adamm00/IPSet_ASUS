@@ -22,9 +22,9 @@ export LC_ALL=C
 mkdir -p /tmp/skynet/lists
 mkdir -p /jffs/addons/shared-whitelists
 
-ntptimer=0
+ntptimer="0"
 while [ "$(nvram get ntp_ready)" = "0" ] && [ "$ntptimer" -lt "300" ]; do
-	ntptimer=$((ntptimer+1))
+	ntptimer="$((ntptimer+1))"
 	if [ "$ntptimer" = "60" ]; then echo; logger -st Skynet "[*] Waiting For NTP To Sync"; fi
 	sleep 1
 done
@@ -75,7 +75,7 @@ if [ ! -d "${skynetloc}" ] && ! echo "$@" | grep -wqE "(install|uninstall|disabl
 	usbtest="0"
 	if [ -z "${skynetloc}" ]; then usbtest="10"; fi
 	while [ ! -d "${skynetloc}" ] && [ "$usbtest" -le "10" ]; do
-		usbtest=$((usbtest+1))
+		usbtest="$((usbtest+1))"
 		logger -st Skynet "[*] USB Not Found - Sleeping For 10 Seconds ( Attempt $usbtest Of 10 )"
 		sleep 10
 	done
@@ -244,7 +244,7 @@ Check_Connection () {
 					if ping -q -w3 -c1 snbforums.com >/dev/null 2>&1; then
 						break
 					else
-						livecheck=$((livecheck+1))
+						livecheck="$((livecheck+1))"
 						if [ "$livecheck" != "4" ]; then
 							echo "[*] Internet Connectivity Error"
 							sleep 10
@@ -949,23 +949,23 @@ Whitelist_Shared () {
 		fi
 }
 
-WriteStats_ToJS (){
+WriteStats_ToJS () {
 	{ echo "function ${3}() {"
 	printf '\tdocument.getElementById("%s").innerHTML = "%s"\n' "$4" "$(if [ -f "$1" ]; then cat "$1"; else echo "$1"; fi)"
 	echo "}"
 	echo; } >> "$2"
 }
 
-WriteData_ToJS (){
+WriteData_ToJS () {
 	inputfile="$1"
 	outputfile="$2"
 	shift;shift
-	i=0
+	i="0"
 	for var in "$@"; do
-			i=$((i+1))
+			i="$((i+1))"
 			{ echo "var $var;"
 			echo "$var = [];"
-			echo "${var}.unshift('$(awk -F "~" -v i=$i '{printf t $i} {t=","}' "$inputfile" | sed "s~,~\\', \\'~g")');"
+			echo "${var}.unshift('$(awk -F "~" -v i="$i" '{printf t $i} {t=","}' "$inputfile" | sed "s~,~\\', \\'~g")');"
 			echo; } >> "$outputfile"
 	done
 }
@@ -976,7 +976,7 @@ Generate_Stats () {
 			mkdir -p "${skynetloc}/webui/stats"
 			true > "${skynetloc}/webui/stats.js"
 			if [ -f "/opt/var/log/dnsmasq.log" ]; then
-				grep -hE 'reply.* is ([0-9]{1,3}\.){3}[0-9]{1,3}$' /opt/var/log/dnsmasq* | awk '{printf "%s %s\n", $(NF-2), $NF}' | Strip_Domain > "${skynetloc}/webui/stats/skynetstats.txt"
+				grep -hE 'reply.* is ([0-9]{1,3}\.){3}[0-9]{1,3}$' /opt/var/log/dnsmasq* | awk '{printf "%s %s\n", $(NF-2), $NF}' | awk '!x[$0]++' | Strip_Domain > "${skynetloc}/webui/stats/skynetstats.txt"
 			else
 				touch "${skynetloc}/webui/stats/skynetstats.txt"
 			fi
@@ -1154,20 +1154,20 @@ Download_File () {
 
 Manage_Device () {
 		echo "Looking For Available Partitions"
-		i=1
+		i="1"
 		IFS="
 		"
 		for mounted in $(/bin/mount | grep -E "ext2|ext3|ext4|tfat|exfat" | awk '{printf "%s - (%s)\n", $3, $1}'); do
 			echo "[$i]  --> $mounted"
 			eval mounts$i="$(echo "$mounted" | awk '{print $1}')"
-			i=$((i + 1))
+			i="$((i + 1))"
 		done
 		unset IFS
 		if [ "$i" = "1" ]; then
 			echo "[*] No Compatible ext* USB Partitions Found - Exiting!"
 			echo; exit 1
 		fi
-		Select_Device (){
+		Select_Device () {
 				echo
 				echo "Please Enter Partition Number Or e To Exit"
 				printf "[0-%s]: " "$((i - 1))"
@@ -1176,10 +1176,10 @@ Manage_Device () {
 				if [ "$partitionNumber" = "e" ] || [ "$partitionNumber" = "exit" ]; then
 					echo "[*] Exiting!"
 					echo; exit 0
-				elif [ -z "$partitionNumber" ] || [ "$partitionNumber" -gt $((i - 1)) ] 2>/dev/null || [ "$partitionNumber" = "0" ]; then
+				elif [ -z "$partitionNumber" ] || [ "$partitionNumber" -gt "$((i - 1))" ] 2>/dev/null || [ "$partitionNumber" = "0" ]; then
 					echo "[*] Invalid Partition Number!"
 					Select_Device
-				elif [ "$partitionNumber" -eq "$partitionNumber" ] 2>/dev/null;then
+				elif [ "$partitionNumber" -eq "$partitionNumber" ] 2>/dev/null; then
 					true
 				else
 					echo "[*] $partitionNumber Isn't An Option!"
@@ -4596,43 +4596,43 @@ case "$1" in
 				done
 				Display_Header "7"
 				printf "%-35s | " "Internet-Connectivity"
-				if Check_Connection >/dev/null 2>&1; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
+				if Check_Connection >/dev/null 2>&1; then result="$(Grn "[Passed]")"; passedtests="$((passedtests+1))"; else result="$(Red "[Failed]")"; fi
 				printf "%-8s\\n" "$result"
 				printf "%-35s | " "Write Permission"
-				if [ -w "${skynetloc}" ]; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
+				if [ -w "${skynetloc}" ]; then result="$(Grn "[Passed]")"; passedtests="$((passedtests+1))"; else result="$(Red "[Failed]")"; fi
 				printf "%-8s\\n" "$result"
 				printf "%-35s | " "Firewall-Start Entry"
-				if grep -E "start.* # Skynet" /jffs/scripts/firewall-start | grep -qvE "^#"; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
+				if grep -E "start.* # Skynet" /jffs/scripts/firewall-start | grep -qvE "^#"; then result="$(Grn "[Passed]")"; passedtests="$((passedtests+1))"; else result="$(Red "[Failed]")"; fi
 				printf "%-8s\\n" "$result"
 				printf "%-35s | " "Services-Stop Entry"
-				if grep -F "# Skynet" /jffs/scripts/services-stop | grep -qvE "^#"; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
+				if grep -F "# Skynet" /jffs/scripts/services-stop | grep -qvE "^#"; then result="$(Grn "[Passed]")"; passedtests="$((passedtests+1))"; else result="$(Red "[Failed]")"; fi
 				printf "%-8s\\n" "$result"
 				printf "%-35s | " "Service-Event Entry"
-				if grep -F "# Skynet" /jffs/scripts/service-event | grep -qvE "^#"; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
+				if grep -F "# Skynet" /jffs/scripts/service-event | grep -qvE "^#"; then result="$(Grn "[Passed]")"; passedtests="$((passedtests+1))"; else result="$(Red "[Failed]")"; fi
 				printf "%-8s\\n" "$result"
 				printf "%-35s | " "SWAP File"
-				if Check_Swap; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
+				if Check_Swap; then result="$(Grn "[Passed]")"; passedtests="$((passedtests+1))"; else result="$(Red "[Failed]")"; fi
 				printf "%-8s\\n" "$result"
 				printf "%-35s | " "Cron Jobs"
-				if [ "$(cru l | grep -c "Skynet")" -ge "2" ]; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
+				if [ "$(cru l | grep -c "Skynet")" -ge "2" ]; then result="$(Grn "[Passed]")"; passedtests="$((passedtests+1))"; else result="$(Red "[Failed]")"; fi
 				printf "%-8s\\n" "$result"
 				printf "%-35s | " "NTP Sync"
-				if [ "$(nvram get ntp_ready)" = "1" ]; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
+				if [ "$(nvram get ntp_ready)" = "1" ]; then result="$(Grn "[Passed]")"; passedtests="$((passedtests+1))"; else result="$(Red "[Failed]")"; fi
 				printf "%-8s\\n" "$result"
 				printf "%-35s | " "IPSet Comment Support"
-				if [ -f /lib/modules/"$(uname -r)"/kernel/net/netfilter/ipset/ip_set_hash_ipmac.ko ]; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
+				if [ -f /lib/modules/"$(uname -r)"/kernel/net/netfilter/ipset/ip_set_hash_ipmac.ko ]; then result="$(Grn "[Passed]")"; passedtests="$((passedtests+1))"; else result="$(Red "[Failed]")"; fi
 				printf "%-8s\\n" "$result"
 				printf "%-35s | " "Log Level $(nvram get message_loglevel) Settings"
-				if [ "$(nvram get message_loglevel)" -le "$(nvram get log_level)" ]; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
+				if [ "$(nvram get message_loglevel)" -le "$(nvram get log_level)" ]; then result="$(Grn "[Passed]")"; passedtests="$((passedtests+1))"; else result="$(Red "[Failed]")"; fi
 				printf "%-8s\\n" "$result"
 				printf "%-35s | " "Duplicate Rules In RAW"
-				if [ "$(iptables-save -t raw | sort | uniq -d | grep -c " ")" = "0" ]; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
+				if [ "$(iptables-save -t raw | sort | uniq -d | grep -c " ")" = "0" ]; then result="$(Grn "[Passed]")"; passedtests="$((passedtests+1))"; else result="$(Red "[Failed]")"; fi
 				printf "%-8s\\n" "$result"
 				printf "%-35s | " "IPSets"
-				if Check_IPSets; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
+				if Check_IPSets; then result="$(Grn "[Passed]")"; passedtests="$((passedtests+1))"; else result="$(Red "[Failed]")"; fi
 				printf "%-8s\\n" "$result"
 				printf "%-35s | " "IPTables Rules"
-				if Check_IPTables; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
+				if Check_IPTables; then result="$(Grn "[Passed]")"; passedtests="$((passedtests+1))"; else result="$(Red "[Failed]")"; fi
 				printf "%-8s\\n" "$result"
 				if [ "$displaywebui" = "enabled" ]; then
 					printf "%-35s | " "Local WebUI Files"
@@ -4641,7 +4641,7 @@ case "$1" in
 					[ -f "${skynetloc}/webui/hammerjs.js" ] || localfail="${localfail}hammerjs.js "
 					[ -f "${skynetloc}/webui/skynet.asp" ] || localfail="${localfail}skynet.asp "
 					[ -f "${skynetloc}/webui/stats.js" ] || localfail="${localfail}stats.js "
-					if [ -z "$localfail" ]; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
+					if [ -z "$localfail" ]; then result="$(Grn "[Passed]")"; passedtests="$((passedtests+1))"; else result="$(Red "[Failed]")"; fi
 					printf "%-8s\\n" "$result"
 					printf "%-35s | " "Mounted WebUI Files"
 					Get_WebUI_Page "${skynetloc}/webui/skynet.asp" 2>/dev/null
@@ -4650,29 +4650,29 @@ case "$1" in
 					[ -f "/www/user/skynet/hammerjs.js" ] || mountedfail="${mountedfail}hammerjs.js "
 					[ -f "/www/user/${MyPage}" ] || mountedfail="${mountedfail}skynet.asp "
 					[ -f "/www/user/skynet/stats.js" ] || mountedfail="${mountedfail}stats.js "
-					if [ -z "$mountedfail" ]; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
+					if [ -z "$mountedfail" ]; then result="$(Grn "[Passed]")"; passedtests="$((passedtests+1))"; else result="$(Red "[Failed]")"; fi
 					printf "%-8s\\n" "$result"
 					printf "%-35s | " "MenuTree.js Entry"
-					if grep -qF "Skynet" "/www/require/modules/menuTree.js"; then result="$(Grn "[Passed]")"; passedtests=$((passedtests+1)); else result="$(Red "[Failed]")"; fi
+					if grep -qF "Skynet" "/www/require/modules/menuTree.js"; then result="$(Grn "[Passed]")"; passedtests="$((passedtests+1))"; else result="$(Red "[Failed]")"; fi
 					printf "%-8s\\n" "$result"
 				else
-					totaltests=$((totaltests-3))
+					totaltests="$((totaltests-3))"
 				fi
 				if [ -f /opt/share/diversion/.conf/diversion.conf ]; then
 					printf "%-35s | " "Diversion Plus Content"
 					divlocation="/opt/share/diversion"
 					if grep -qE "bfPlusHosts=on" "${divlocation}/.conf/diversion.conf"; then
 						result="$(Grn "[Passed]")"
-						passedtests=$((passedtests+1))
+						passedtests="$((passedtests+1))"
 					elif [ -f "${divlocation}/AddPlusHostsDismissed" ]; then
 						result="$(Ylow "[Dismissed]")"
-						passedtests=$((passedtests+1))
+						passedtests="$((passedtests+1))"
 					else
 						result="$(Red "[Failed]")"
 					fi
 					printf "%-8s\\n" "$result"
 				else
-					totaltests=$((totaltests-1))
+					totaltests="$((totaltests-1))"
 				fi
 				Display_Header "8"
 				printf "%-35s | %-8s\\n" "Skynet Auto-Updates" "$(if [ "$autoupdate" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
@@ -4931,7 +4931,7 @@ case "$1" in
 			;;
 			search)
 				if [ "$extendedstats" = "enabled" ]; then
-					grep -hE 'reply.* is ([0-9]{1,3}\.){3}[0-9]{1,3}$' /opt/var/log/dnsmasq* | awk '{printf "%s %s\n", $(NF-2), $NF}' | Strip_Domain > /tmp/skynet/skynetstats.txt
+					grep -hE 'reply.* is ([0-9]{1,3}\.){3}[0-9]{1,3}$' /opt/var/log/dnsmasq* | awk '{printf "%s %s\n", $(NF-2), $NF}' | awk '!x[$0]++' | Strip_Domain > /tmp/skynet/skynetstats.txt
 					printf '   \b\b\b'
 				else
 					touch "/tmp/skynet/skynetstats.txt"
@@ -5029,7 +5029,7 @@ case "$1" in
 						printf '   \b\b\b\n\n'
 						Red "Possible CIDR Matches;"
 						Display_Header "5"
-						grep -HE "^$(echo "$ip" | cut -d '.' -f1-3)..*/" -- * | while IFS= read -r "list"; do
+						grep -HE "^$(echo "$ip" | cut -d '.' -f1-3)..*/" -- * | while IFS= read -r "list" && [ -n "$list" ]; do
 							printf "%-20s | %-40s\\n" "$(echo "$list" | cut -d ':' -f2-)" "$(grep -F "$(echo "$list" | cut -d ':' -f1)" /jffs/addons/shared-whitelists/shared-Skynet-whitelist)"
 						done
 						printf '   \b\b\b'
@@ -5181,7 +5181,7 @@ case "$1" in
 					;;
 				esac
 				if [ "$extendedstats" = "enabled" ]; then
-					grep -hE 'reply.* is ([0-9]{1,3}\.){3}[0-9]{1,3}$' /opt/var/log/dnsmasq* | awk '{printf "%s %s\n", $(NF-2), $NF}' | Strip_Domain > /tmp/skynet/skynetstats.txt
+					grep -hE 'reply.* is ([0-9]{1,3}\.){3}[0-9]{1,3}$' /opt/var/log/dnsmasq* | awk '{printf "%s %s\n", $(NF-2), $NF}' | awk '!x[$0]++' | Strip_Domain > /tmp/skynet/skynetstats.txt
 					printf '   \b\b\b'
 				else
 					touch "/tmp/skynet/skynetstats.txt"
