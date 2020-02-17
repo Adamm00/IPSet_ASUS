@@ -1253,9 +1253,10 @@ Create_Swap () {
 Purge_Logs () {
 		sed '\~BLOCKED -~!d' "$syslog1loc" "$syslogloc" 2>/dev/null >> "$skynetlog"
 		sed -i '\~BLOCKED -~d' "$syslog1loc" "$syslogloc" 2>/dev/null
-		if [ "$(du "$skynetlog" | awk '{print $1}')" -ge "10240" ]; then
+		if [ "$(du "$skynetlog" | awk '{print $1}')" -ge "10240" ] || [ "$1" = "force" ]; then
 			sed -i '\~BLOCKED -~d' "$skynetlog"
 			sed -i '\~Skynet: \[#\] ~d' "$skynetevents"
+			iptables -Z PREROUTING -t raw
 			if [ "$(du "$skynetlog" | awk '{print $1}')" -ge "3000" ]; then
 				true > "$skynetlog"
 			fi
@@ -4907,9 +4908,7 @@ case "$1" in
 		counter="10"
 		case "$2" in
 			reset)
-				sed -i '\~BLOCKED -~d' "$skynetlog"
-				sed -i '\~Skynet: \[#\] ~d' "$skynetevents" "$syslog1loc" "$syslogloc" 2>/dev/null
-				iptables -Z PREROUTING -t raw
+				Purge_Logs "force"
 				echo "[i] Stat Data Reset"
 			;;
 			remove)
