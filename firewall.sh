@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            17/02/2020 - v7.1.1                                            #
+#                                            20/02/2020 - v7.1.1                                            #
 #############################################################################################################
 
 
@@ -46,28 +46,28 @@ fi
 ###############
 
 Kill_Lock () {
-		if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(sed -n '2p' /tmp/skynet.lock)" ]; then
-			logger -st Skynet "[*] Killing Locked Processes ($(sed -n '1p' /tmp/skynet.lock)) (pid=$(sed -n '2p' /tmp/skynet.lock))"
-			logger -st Skynet "[*] $(ps | awk -v pid="$(sed -n '2p' /tmp/skynet.lock)" '$1 == pid')"
-			kill "$(sed -n '2p' /tmp/skynet.lock)"
-			rm -rf /tmp/skynet.lock
-			echo
-		fi
+	if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(sed -n '2p' /tmp/skynet.lock)" ]; then
+		logger -st Skynet "[*] Killing Locked Processes ($(sed -n '1p' /tmp/skynet.lock)) (pid=$(sed -n '2p' /tmp/skynet.lock))"
+		logger -st Skynet "[*] $(ps | awk -v pid="$(sed -n '2p' /tmp/skynet.lock)" '$1 == pid')"
+		kill "$(sed -n '2p' /tmp/skynet.lock)"
+		rm -rf /tmp/skynet.lock
+		echo
+	fi
 }
 
 Check_Lock () {
-		if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(sed -n '2p' /tmp/skynet.lock)" ] && [ "$(sed -n '2p' /tmp/skynet.lock)" != "$$" ]; then
-			if [ "$(($(date +%s)-$(sed -n '3p' /tmp/skynet.lock)))" -gt "1800" ]; then
-				Kill_Lock
-			else
-				logger -st Skynet "[*] Lock File Detected ($(sed -n '1p' /tmp/skynet.lock)) (pid=$(sed -n '2p' /tmp/skynet.lock)) - Exiting (cpid=$$)"
-				echo; exit 1
-			fi
+	if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(sed -n '2p' /tmp/skynet.lock)" ] && [ "$(sed -n '2p' /tmp/skynet.lock)" != "$$" ]; then
+		if [ "$(($(date +%s)-$(sed -n '3p' /tmp/skynet.lock)))" -gt "1800" ]; then
+			Kill_Lock
+		else
+			logger -st Skynet "[*] Lock File Detected ($(sed -n '1p' /tmp/skynet.lock)) (pid=$(sed -n '2p' /tmp/skynet.lock)) - Exiting (cpid=$$)"
+			echo; exit 1
 		fi
-		echo "$@" > /tmp/skynet.lock
-		echo "$$" >> /tmp/skynet.lock
-		date +%s >> /tmp/skynet.lock
-		lockskynet="true"
+	fi
+	echo "$@" > /tmp/skynet.lock
+	echo "$$" >> /tmp/skynet.lock
+	date +%s >> /tmp/skynet.lock
+	lockskynet="true"
 }
 
 if [ ! -d "${skynetloc}" ] && ! echo "$@" | grep -wqE "(install|uninstall|disable|update|restart|info)"; then
@@ -109,848 +109,842 @@ Ylow () {
 }
 
 Check_Swap () {
-		[ "$(wc -l < /proc/swaps)" -ge "2" ]
+	grep -qF "file" "/proc/swaps"
 }
 
 Check_Settings () {
-		if [ ! -f "$skynetcfg" ]; then
-			logger -st Skynet "[*] Configuration File Not Detected - Please Use ( sh $0 install ) To Continue"
-			echo; exit 1
-		fi
+	if [ ! -f "$skynetcfg" ]; then
+		logger -st Skynet "[*] Configuration File Not Detected - Please Use ( sh $0 install ) To Continue"
+		echo; exit 1
+	fi
 
-		rm -rf "/jffs/shared-Skynet-whitelist" "/jffs/shared-Skynet2-whitelist"
-		if [ -z "$iotblocked" ]; then iotblocked="disabled"; fi
-		if [ -z "$displaywebui" ]; then displaywebui="enabled"; fi
+	rm -rf "/jffs/shared-Skynet-whitelist" "/jffs/shared-Skynet2-whitelist"
+	if [ -z "$iotblocked" ]; then iotblocked="disabled"; fi
+	if [ -z "$displaywebui" ]; then displaywebui="enabled"; fi
 
-		if [ ! -f "${skynetloc}/webui/chart.js" ]; then
-			remotedir="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master"
-			Download_File "webui/chart.js" "${skynetloc}/webui/chart.js"
-		fi
+	if [ ! -f "${skynetloc}/webui/chart.js" ]; then
+		remotedir="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master"
+		Download_File "webui/chart.js" "${skynetloc}/webui/chart.js"
+	fi
 
-		unset "swappartition" "swaplocation"
-		if grep -qE "^swapon " /jffs/scripts/post-mount; then
-			if Check_Swap; then
-				swaplocation="$(sed -n '2p' /proc/swaps | awk '{print $1}')"
-				if [ "$(grep -E "^swapon " /jffs/scripts/post-mount | awk '{print $2}')" != "$swaplocation" ]; then
-					logger -st Skynet "[*] Restoring Missing Swap File Entry ( $swaplocation )"
-					sed -i '\~swapon ~d' /jffs/scripts/post-mount
-					if [ "$(wc -l < /jffs/scripts/post-mount)" -lt "2" ]; then echo >> /jffs/scripts/post-mount; fi
-					sed -i "2i swapon $swaplocation # Skynet Firewall Addition" /jffs/scripts/post-mount
-				fi
-			else
-				sleep 10
-				swapon "$(grep -E "^swapon " /jffs/scripts/post-mount | awk '{print $2}')" 2>/dev/null
-			fi
-		elif grep -qF "swap" /jffs/configs/fstab; then
-			if Check_Swap; then
-				swappartition="$(sed -n '2p' /proc/swaps | awk '{print $1}')"
+	unset "swaplocation"
+	if grep -qE "^swapon " /jffs/scripts/post-mount; then
+		if Check_Swap; then
+			swaplocation="$(grep -m1 -F "file" "/proc/swaps" | awk '{print $1}')"
+			if [ "$(grep -E "^swapon " /jffs/scripts/post-mount | awk '{print $2}')" != "$swaplocation" ]; then
+				logger -st Skynet "[*] Restoring Missing Swap File Entry ( $swaplocation )"
+				sed -i '\~swapon ~d' /jffs/scripts/post-mount
+				if [ "$(wc -l < /jffs/scripts/post-mount)" -lt "2" ]; then echo >> /jffs/scripts/post-mount; fi
+				sed -i "2i swapon $swaplocation # Skynet Firewall Addition" /jffs/scripts/post-mount
 			fi
 		else
-			findswap="$(find /tmp/mnt -name "myswap.swp")"
+			sleep 10
+			swapon "$(grep -E "^swapon " /jffs/scripts/post-mount | awk '{print $2}')" 2>/dev/null
+		fi
+	else
+		logger -st Skynet "[*] Scanning /tmp/mnt For Swap Files"
+		findswap="$(find /tmp/mnt -name "myswap.swp")"
+		if [ -n "$findswap" ] && [ -f "$findswap" ]; then
+			logger -st Skynet "[*] Restoring Damaged Swap File Entry ( $findswap )"
+			sed -i '\~swapon ~d' /jffs/scripts/post-mount
+			if [ "$(wc -l < /jffs/scripts/post-mount)" -lt "2" ]; then echo >> /jffs/scripts/post-mount; fi
+			sed -i "2i swapon $findswap # Skynet Firewall Addition" /jffs/scripts/post-mount
+			if ! Check_Swap; then swapon "$findswap"; fi
+			swaplocation="$findswap"
+		elif Check_Swap; then
+			findswap="$(grep -m1 -F "file" "/proc/swaps" | awk '{print $1}')"
 			if [ -n "$findswap" ] && [ -f "$findswap" ]; then
-				logger -st Skynet "[*] Restoring Damaged Swap File ( $findswap )"
+				logger -st Skynet "[*] Restoring Missing Swap File Entry ( $findswap )"
 				sed -i '\~swapon ~d' /jffs/scripts/post-mount
 				if [ "$(wc -l < /jffs/scripts/post-mount)" -lt "2" ]; then echo >> /jffs/scripts/post-mount; fi
 				sed -i "2i swapon $findswap # Skynet Firewall Addition" /jffs/scripts/post-mount
-				if ! Check_Swap; then swapon "$findswap"; fi
 				swaplocation="$findswap"
-			elif Check_Swap && ! grep -qF "partition" /proc/swaps; then
-				findswap="$(sed -n '2p' /proc/swaps | awk '{print $1}')"
-				if [ -n "$findswap" ] && [ -f "$findswap" ]; then
-					logger -st Skynet "[*] Restoring Missing Swap File Entry ( $findswap )"
-					sed -i '\~swapon ~d' /jffs/scripts/post-mount
-					if [ "$(wc -l < /jffs/scripts/post-mount)" -lt "2" ]; then echo >> /jffs/scripts/post-mount; fi
-					sed -i "2i swapon $findswap # Skynet Firewall Addition" /jffs/scripts/post-mount
-					swaplocation="$findswap"
-				fi
 			fi
 		fi
-		if [ -n "$swaplocation" ] && [ ! -f "$swaplocation" ]; then
-			logger -st Skynet "[*] SWAP File Missing ( $swaplocation ) - Fix This By Running ( $0 debug swap uninstall ) Then ( $0 debug swap install )"
-			echo; exit 1
-		elif [ -n "$swappartition" ] && ! Check_Swap; then
-			logger -st Skynet "[*] SWAP Partition Missing ( $swappartition ) - Please Investigate Manually"
-			echo; exit 1
-		elif [ -z "$swaplocation" ] && [ -z "$swappartition" ] && ! Check_Swap; then
-			logger -st Skynet "[*] Skynet Requires A SWAP File - Install One By Running ( $0 debug swap install )"
-			echo; exit 1
-		fi
+	fi
+	if [ -n "$swaplocation" ] && [ ! -f "$swaplocation" ]; then
+		logger -st Skynet "[*] SWAP File Missing ( $swaplocation ) - Fix This By Running ( $0 debug swap uninstall ) Then ( $0 debug swap install )"
+		echo; exit 1
+	elif grep -m1 -qF "partition" "/proc/swaps"; then
+		logger -st Skynet "[*] SWAP Partitions Not Supported - Please Use SWAP File"
+		echo; exit 1
+	elif [ -z "$swaplocation" ] && ! Check_Swap; then
+		logger -st Skynet "[*] Skynet Requires A SWAP File - Install One By Running ( $0 debug swap install )"
+		echo; exit 1
+	fi
 
-		if [ -n "$swaplocation" ] && [ "$(du "$swaplocation" | awk '{print $1}')" -lt "1048576" ]; then
-			logger -st Skynet "[*] SWAP File Too Small - 1GB Minimum Required - Please Fix Immediately!"
-		fi
+	if [ -n "$swaplocation" ] && [ "$(du "$swaplocation" | awk '{print $1}')" -lt "1048576" ]; then
+		logger -st Skynet "[*] SWAP File Too Small - 1GB Minimum Required - Please Fix Immediately!"
+	fi
 
-		if [ "$(nvram get fw_log_x)" != "drop" ] && [ "$(nvram get fw_log_x)" != "both" ]; then
-			nvram set fw_log_x=drop
-			nvram commit
-			restartfirewall="1"
-		fi
+	if [ "$(nvram get fw_log_x)" != "drop" ] && [ "$(nvram get fw_log_x)" != "both" ]; then
+		nvram set fw_log_x=drop
+		nvram commit
+		restartfirewall="1"
+	fi
 
-		localver="$(Filter_Version < "$0")"
+	localver="$(Filter_Version < "$0")"
 
-		if [ "$banmalwareupdate" = "daily" ]; then
-			Load_Cron "banmalwaredaily"
-		elif [ "$banmalwareupdate" = "weekly" ]; then
-			Load_Cron "banmalwareweekly"
-		fi
+	if [ "$banmalwareupdate" = "daily" ]; then
+		Load_Cron "banmalwaredaily"
+	elif [ "$banmalwareupdate" = "weekly" ]; then
+		Load_Cron "banmalwareweekly"
+	fi
 
-		if [ "$autoupdate" = "enabled" ]; then
-			Load_Cron "autoupdate"
-		else
-			Load_Cron "checkupdate"
-		fi
+	if [ "$autoupdate" = "enabled" ]; then
+		Load_Cron "autoupdate"
+	else
+		Load_Cron "checkupdate"
+	fi
 
-		if [ -d "/opt/bin" ] && [ ! -L "/opt/bin/firewall" ]; then
-			ln -s /jffs/scripts/firewall /opt/bin
-		fi
+	if [ -d "/opt/bin" ] && [ ! -L "/opt/bin/firewall" ]; then
+		ln -s /jffs/scripts/firewall /opt/bin
+	fi
 
-		if [ "$(nvram get jffs2_scripts)" != "1" ]; then
-			nvram set jffs2_scripts=1
-			nvram commit
-			logger -st Skynet "[*] Custom JFFS Scripts Enabled - Please Manually Reboot To Apply Changes"
-		fi
+	if [ "$(nvram get jffs2_scripts)" != "1" ]; then
+		nvram set jffs2_scripts=1
+		nvram commit
+		logger -st Skynet "[*] Custom JFFS Scripts Enabled - Please Manually Reboot To Apply Changes"
+	fi
 
-		if [ "$(nvram get fw_enable_x)" != "1" ]; then
-			nvram set fw_enable_x=1
-			nvram commit
-			restartfirewall="1"
-		fi
+	if [ "$(nvram get fw_enable_x)" != "1" ]; then
+		nvram set fw_enable_x=1
+		nvram commit
+		restartfirewall="1"
+	fi
 
-		if [ -f /opt/share/diversion/.conf/diversion.conf ]; then
-			divlocation="/opt/share/diversion"
-			if ! grep -qE "bfPlusHosts=on" "${divlocation}/.conf/diversion.conf"; then
-				if [ ! -f "${divlocation}/AddPlusHosts" ] && [ ! -f "${divlocation}/AddPlusHostsDismissed" ]; then
-					touch "${divlocation}/AddPlusHosts"
-				fi
+	if [ -f /opt/share/diversion/.conf/diversion.conf ]; then
+		divlocation="/opt/share/diversion"
+		if ! grep -qE "bfPlusHosts=on" "${divlocation}/.conf/diversion.conf"; then
+			if [ ! -f "${divlocation}/AddPlusHosts" ] && [ ! -f "${divlocation}/AddPlusHostsDismissed" ]; then
+				touch "${divlocation}/AddPlusHosts"
 			fi
 		fi
+	fi
 
-		if [ -f "/opt/var/log/dnsmasq.log" ]; then
-			extendedstats="enabled"
-		else
-			extendedstats="disabled"
-		fi
+	if [ -f "/opt/var/log/dnsmasq.log" ]; then
+		extendedstats="enabled"
+	else
+		extendedstats="disabled"
+	fi
 }
 
 Check_Connection () {
-		livecheck="0"
-		while [ "$livecheck" != "4" ]; do
-			if ping -q -w3 -c1 google.com >/dev/null 2>&1; then
+	livecheck="0"
+	while [ "$livecheck" != "4" ]; do
+		if ping -q -w3 -c1 google.com >/dev/null 2>&1; then
+			break
+		else
+			if ping -q -w3 -c1 github.com >/dev/null 2>&1; then
 				break
 			else
-				if ping -q -w3 -c1 github.com >/dev/null 2>&1; then
+				if ping -q -w3 -c1 snbforums.com >/dev/null 2>&1; then
 					break
 				else
-					if ping -q -w3 -c1 snbforums.com >/dev/null 2>&1; then
-						break
+					livecheck="$((livecheck+1))"
+					if [ "$livecheck" != "4" ]; then
+						echo "[*] Internet Connectivity Error"
+						sleep 10
 					else
-						livecheck="$((livecheck+1))"
-						if [ "$livecheck" != "4" ]; then
-							echo "[*] Internet Connectivity Error"
-							sleep 10
-						else
-							return "1"
-						fi
+						return "1"
 					fi
 				fi
 			fi
-		done
+		fi
+	done
 }
 
 Check_Files () {
-		if [ ! -f "/jffs/scripts/firewall-start" ]; then
-			echo "#!/bin/sh" > /jffs/scripts/firewall-start
-			echo >> /jffs/scripts/firewall-start
-		elif [ -f "/jffs/scripts/firewall-start" ] && ! head -1 /jffs/scripts/firewall-start | grep -qE "^#!/bin/sh"; then
-			sed -i '1s~^~#!/bin/sh\n~' /jffs/scripts/firewall-start
-		fi
-		if [ ! -f "/jffs/scripts/services-stop" ]; then
-			echo "#!/bin/sh" > /jffs/scripts/services-stop
-			echo >> /jffs/scripts/services-stop
-		elif [ -f "/jffs/scripts/services-stop" ] && ! head -1 /jffs/scripts/services-stop | grep -qE "^#!/bin/sh"; then
-			sed -i '1s~^~#!/bin/sh\n~' /jffs/scripts/services-stop
-		fi
-		if [ ! -f "/jffs/scripts/service-event" ]; then
-			echo "#!/bin/sh" > /jffs/scripts/service-event
-			echo >> /jffs/scripts/service-event
-		elif [ -f "/jffs/scripts/service-event" ] && ! head -1 /jffs/scripts/service-event | grep -qE "^#!/bin/sh"; then
-			sed -i '1s~^~#!/bin/sh\n~' /jffs/scripts/service-event
-		fi
-		if ! grep -vE "^#" /jffs/scripts/service-event | grep -qF "sh /jffs/scripts/firewall debug genstats"; then
-			cmdline="if [ \"\$1\" = \"start\" ] && [ \"\$2\" = \"SkynetStats\" ]; then sh /jffs/scripts/firewall debug genstats; fi # Skynet Firewall Addition"
-			sed -i '\~# Skynet Firewall Addition~d' /jffs/scripts/service-event
-			echo "$cmdline" >> /jffs/scripts/service-event
-		fi
-		if [ ! -f "/jffs/scripts/post-mount" ]; then
-			echo "#!/bin/sh" > /jffs/scripts/post-mount
-			echo >> /jffs/scripts/post-mount
-		elif [ -f "/jffs/scripts/post-mount" ] && ! head -1 /jffs/scripts/post-mount | grep -qE "^#!/bin/sh"; then
-			sed -i '1s~^~#!/bin/sh\n~' /jffs/scripts/post-mount
-		fi
-		if [ ! -f "/jffs/scripts/unmount" ]; then
-			echo "#!/bin/sh" > /jffs/scripts/unmount
-			echo >> /jffs/scripts/unmount
-		elif [ -f "/jffs/scripts/unmount" ] && ! head -1 /jffs/scripts/unmount | grep -qE "^#!/bin/sh"; then
-			sed -i '1s~^~#!/bin/sh\n~' /jffs/scripts/unmount
-		fi
-		if ! grep -qE "^swapoff " /jffs/scripts/unmount; then
-			sed -i '\~swapoff ~d' /jffs/scripts/unmount
-			echo "swapoff -a 2>/dev/null # Skynet Firewall Addition" >> /jffs/scripts/unmount
-		fi
-		if [ ! -f "/jffs/configs/fstab" ]; then
-			touch "/jffs/configs/fstab"
-		fi
-		if ! grep -vE "^#" /jffs/scripts/services-stop | grep -qF "sh /jffs/scripts/firewall save"; then
-			echo "sh /jffs/scripts/firewall save # Skynet Firewall Addition" >> /jffs/scripts/services-stop
-		fi
-		if [ "$(wc -l < /jffs/scripts/post-mount)" -lt "2" ]; then echo >> /jffs/scripts/post-mount; fi
-		chmod 755 "/jffs/scripts/firewall" "/jffs/scripts/firewall-start" "/jffs/scripts/services-stop" "/jffs/scripts/service-event" "/jffs/scripts/post-mount" "/jffs/scripts/unmount" "/jffs/configs/fstab"
+	if [ ! -f "/jffs/scripts/firewall-start" ]; then
+		echo "#!/bin/sh" > /jffs/scripts/firewall-start
+		echo >> /jffs/scripts/firewall-start
+	elif [ -f "/jffs/scripts/firewall-start" ] && ! head -1 /jffs/scripts/firewall-start | grep -qE "^#!/bin/sh"; then
+		sed -i '1s~^~#!/bin/sh\n~' /jffs/scripts/firewall-start
+	fi
+	if [ ! -f "/jffs/scripts/services-stop" ]; then
+		echo "#!/bin/sh" > /jffs/scripts/services-stop
+		echo >> /jffs/scripts/services-stop
+	elif [ -f "/jffs/scripts/services-stop" ] && ! head -1 /jffs/scripts/services-stop | grep -qE "^#!/bin/sh"; then
+		sed -i '1s~^~#!/bin/sh\n~' /jffs/scripts/services-stop
+	fi
+	if [ ! -f "/jffs/scripts/service-event" ]; then
+		echo "#!/bin/sh" > /jffs/scripts/service-event
+		echo >> /jffs/scripts/service-event
+	elif [ -f "/jffs/scripts/service-event" ] && ! head -1 /jffs/scripts/service-event | grep -qE "^#!/bin/sh"; then
+		sed -i '1s~^~#!/bin/sh\n~' /jffs/scripts/service-event
+	fi
+	if ! grep -vE "^#" /jffs/scripts/service-event | grep -qF "sh /jffs/scripts/firewall debug genstats"; then
+		cmdline="if [ \"\$1\" = \"start\" ] && [ \"\$2\" = \"SkynetStats\" ]; then sh /jffs/scripts/firewall debug genstats; fi # Skynet Firewall Addition"
+		sed -i '\~# Skynet Firewall Addition~d' /jffs/scripts/service-event
+		echo "$cmdline" >> /jffs/scripts/service-event
+	fi
+	if [ ! -f "/jffs/scripts/post-mount" ]; then
+		echo "#!/bin/sh" > /jffs/scripts/post-mount
+		echo >> /jffs/scripts/post-mount
+	elif [ -f "/jffs/scripts/post-mount" ] && ! head -1 /jffs/scripts/post-mount | grep -qE "^#!/bin/sh"; then
+		sed -i '1s~^~#!/bin/sh\n~' /jffs/scripts/post-mount
+	fi
+	if [ ! -f "/jffs/scripts/unmount" ]; then
+		echo "#!/bin/sh" > /jffs/scripts/unmount
+		echo >> /jffs/scripts/unmount
+	elif [ -f "/jffs/scripts/unmount" ] && ! head -1 /jffs/scripts/unmount | grep -qE "^#!/bin/sh"; then
+		sed -i '1s~^~#!/bin/sh\n~' /jffs/scripts/unmount
+	fi
+	if ! grep -qE "^swapoff " /jffs/scripts/unmount; then
+		sed -i '\~swapoff ~d' /jffs/scripts/unmount
+		echo "swapoff -a 2>/dev/null # Skynet Firewall Addition" >> /jffs/scripts/unmount
+	fi
+	if ! grep -vE "^#" /jffs/scripts/services-stop | grep -qF "sh /jffs/scripts/firewall save"; then
+		echo "sh /jffs/scripts/firewall save # Skynet Firewall Addition" >> /jffs/scripts/services-stop
+	fi
+	if [ "$(wc -l < /jffs/scripts/post-mount)" -lt "2" ]; then echo >> /jffs/scripts/post-mount; fi
+	chmod 755 "/jffs/scripts/firewall" "/jffs/scripts/firewall-start" "/jffs/scripts/services-stop" "/jffs/scripts/service-event" "/jffs/scripts/post-mount" "/jffs/scripts/unmount"
 }
 
 Check_Security () {
-		if [ "$securemode" = "enabled" ]; then
-			if [ "$(nvram get sshd_enable)" = "1" ] && [ "$(uname -o)" = "ASUSWRT-Merlin" ]; then
-				logger -st Skynet "[!] Insecure Setting Detected - Disabling WAN SSH Access"
-				nvram set sshd_enable="2"
-				nvram commit
-				restartfirewall="1"
-			fi
-			if [ "$(nvram get sshd_wan)" = "1" ] && [ "$(uname -o)" = "ASUSWRT-Merlin-LTS" ]; then
-				logger -st Skynet "[!] Insecure Setting Detected - Disabling WAN SSH Access"
-				nvram set sshd_wan="0"
-				nvram commit
-				restartfirewall="1"
-			fi
-			if [ "$(nvram get misc_http_x)" = "1" ]; then
-				logger -st Skynet "[!] Insecure Setting Detected - Disabling WAN GUI Access"
-				nvram set misc_http_x="0"
-				nvram commit
-				restartfirewall="1"
-			fi
-			if [ "$(nvram get pptpd_enable)" = "1" ] && nvram get pptpd_clientlist | grep -qE 'i[0-9]{7}|p[0-9]{7}'; then
-				logger -st Skynet "[!] PPTP VPN Server Shows Signs Of Compromise - Investigate Immediately!"
-				nvram set pptpd_enable="0"
-				nvram set pptpd_broadcast="0"
-				nvram commit
-				echo "[i] Stopping PPTP Service"
-				service stop_pptpd
-				echo "[i] Restarting Samba Service"
-				service restart_samba
-				restartfirewall="1"
-			fi
-			if [ -e "/var/run/tor" ] || [ -e "/var/run/torrc" ] || [ -e "/var/run/tord" ] || [ -e "/var/run/vpnfilterm" ] || [ -e "/var/run/vpnfilterw" ]; then
-				logger -st Skynet "[!] Suspected VPNFilter Malware Found - Investigate Immediately!"
-				logger -st Skynet "[!] Caching Potential VPNFilter Malware: ${skynetloc}/vpnfilter.tar.gz"
-				tar -czf "${skynetloc}/vpnfilter.tar.gz" "/var/run/tor" "/var/run/torrc" "/var/run/tord" "/var/run/vpnfilterm" "/var/run/vpnfilterw" >/dev/null 2>&1
-				rm -rf "/var/run/tor" "/var/run/torrc" "/var/run/tord" "/var/run/vpnfilterm" "/var/run/vpnfilterw"
-				restartfirewall="1"
-			fi
+	if [ "$securemode" = "enabled" ]; then
+		if [ "$(nvram get sshd_enable)" = "1" ] && [ "$(uname -o)" = "ASUSWRT-Merlin" ]; then
+			logger -st Skynet "[!] Insecure Setting Detected - Disabling WAN SSH Access"
+			nvram set sshd_enable="2"
+			nvram commit
+			restartfirewall="1"
 		fi
+		if [ "$(nvram get sshd_wan)" = "1" ] && [ "$(uname -o)" = "ASUSWRT-Merlin-LTS" ]; then
+			logger -st Skynet "[!] Insecure Setting Detected - Disabling WAN SSH Access"
+			nvram set sshd_wan="0"
+			nvram commit
+			restartfirewall="1"
+		fi
+		if [ "$(nvram get misc_http_x)" = "1" ]; then
+			logger -st Skynet "[!] Insecure Setting Detected - Disabling WAN GUI Access"
+			nvram set misc_http_x="0"
+			nvram commit
+			restartfirewall="1"
+		fi
+		if [ "$(nvram get pptpd_enable)" = "1" ] && nvram get pptpd_clientlist | grep -qE 'i[0-9]{7}|p[0-9]{7}'; then
+			logger -st Skynet "[!] PPTP VPN Server Shows Signs Of Compromise - Investigate Immediately!"
+			nvram set pptpd_enable="0"
+			nvram set pptpd_broadcast="0"
+			nvram commit
+			echo "[i] Stopping PPTP Service"
+			service stop_pptpd
+			echo "[i] Restarting Samba Service"
+			service restart_samba
+			restartfirewall="1"
+		fi
+		if [ -e "/var/run/tor" ] || [ -e "/var/run/torrc" ] || [ -e "/var/run/tord" ] || [ -e "/var/run/vpnfilterm" ] || [ -e "/var/run/vpnfilterw" ]; then
+			logger -st Skynet "[!] Suspected VPNFilter Malware Found - Investigate Immediately!"
+			logger -st Skynet "[!] Caching Potential VPNFilter Malware: ${skynetloc}/vpnfilter.tar.gz"
+			tar -czf "${skynetloc}/vpnfilter.tar.gz" "/var/run/tor" "/var/run/torrc" "/var/run/tord" "/var/run/vpnfilterm" "/var/run/vpnfilterw" >/dev/null 2>&1
+			rm -rf "/var/run/tor" "/var/run/torrc" "/var/run/tord" "/var/run/vpnfilterm" "/var/run/vpnfilterw"
+			restartfirewall="1"
+		fi
+	fi
 }
 
 Clean_Temp () {
-		rm -rf /tmp/skynet/*
-		mkdir -p /tmp/skynet/lists
+	rm -rf /tmp/skynet/*
+	mkdir -p /tmp/skynet/lists
 }
 
 Unload_IPTables () {
-		iptables -t raw -D PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j DROP 2>/dev/null
-		iptables -t raw -D PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null
-		iptables -t raw -D OUTPUT -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null
-		iptables -D SSHBFP -m recent --update --seconds 60 --hitcount 4 --name SSH --rsource -j SET --add-set Skynet-Blacklist src 2>/dev/null
-		iptables -D SSHBFP -m recent --update --seconds 60 --hitcount 4 --name SSH --rsource -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
-		iptables -D logdrop -m state --state NEW -j LOG --log-prefix "DROP " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
-		ip6tables -D logdrop -m state --state NEW -j LOG --log-prefix "DROP " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
-		iptables -D logdrop -m state --state NEW -m limit --limit 4/sec -j LOG --log-prefix "DROP " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
-		ip6tables -D logdrop -m state --state NEW -m limit --limit 4/sec -j LOG --log-prefix "DROP " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
+	iptables -t raw -D PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j DROP 2>/dev/null
+	iptables -t raw -D PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null
+	iptables -t raw -D OUTPUT -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null
+	iptables -D SSHBFP -m recent --update --seconds 60 --hitcount 4 --name SSH --rsource -j SET --add-set Skynet-Blacklist src 2>/dev/null
+	iptables -D SSHBFP -m recent --update --seconds 60 --hitcount 4 --name SSH --rsource -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
+	iptables -D logdrop -m state --state NEW -j LOG --log-prefix "DROP " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
+	ip6tables -D logdrop -m state --state NEW -j LOG --log-prefix "DROP " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
+	iptables -D logdrop -m state --state NEW -m limit --limit 4/sec -j LOG --log-prefix "DROP " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
+	ip6tables -D logdrop -m state --state NEW -m limit --limit 4/sec -j LOG --log-prefix "DROP " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 }
 
 Load_IPTables () {
-		if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "inbound" ]; then
-			iptables -t raw -I PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j DROP 2>/dev/null
-		fi
-		if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "outbound" ]; then
-			iptables -t raw -I PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null
-			iptables -t raw -I OUTPUT -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null
-		fi
-		if [ "$(nvram get sshd_enable)" = "1" ] && [ "$(nvram get sshd_bfp)" = "1" ] && [ "$(uname -o)" = "ASUSWRT-Merlin" ] && [ "$(nvram get switch_wantag)" != "movistar" ]; then
-			pos1="$(iptables --line -nL SSHBFP | grep -F "seconds: 60 hit_count: 4" | grep -E 'DROP|logdrop' | awk '{print $1}')"
-			iptables -I SSHBFP "$pos1" -m recent --update --seconds 60 --hitcount 4 --name SSH --rsource -j SET --add-set Skynet-Blacklist src 2>/dev/null
-			iptables -I SSHBFP "$pos1" -m recent --update --seconds 60 --hitcount 4 --name SSH --rsource -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
-		fi
+	if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "inbound" ]; then
+		iptables -t raw -I PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j DROP 2>/dev/null
+	fi
+	if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "outbound" ]; then
+		iptables -t raw -I PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null
+		iptables -t raw -I OUTPUT -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null
+	fi
+	if [ "$(nvram get sshd_enable)" = "1" ] && [ "$(nvram get sshd_bfp)" = "1" ] && [ "$(uname -o)" = "ASUSWRT-Merlin" ] && [ "$(nvram get switch_wantag)" != "movistar" ]; then
+		pos1="$(iptables --line -nL SSHBFP | grep -F "seconds: 60 hit_count: 4" | grep -E 'DROP|logdrop' | awk '{print $1}')"
+		iptables -I SSHBFP "$pos1" -m recent --update --seconds 60 --hitcount 4 --name SSH --rsource -j SET --add-set Skynet-Blacklist src 2>/dev/null
+		iptables -I SSHBFP "$pos1" -m recent --update --seconds 60 --hitcount 4 --name SSH --rsource -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
+	fi
 }
 
 Unload_LogIPTables () {
-		iptables -t raw -D PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
-		iptables -t raw -D PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
-		iptables -t raw -D OUTPUT -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
-		iptables -D logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - INVALID] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
-		iptables -D FORWARD -i br0 -m set --match-set Skynet-IOT src ! -o tun2+ -j LOG --log-prefix "[BLOCKED - IOT] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
+	iptables -t raw -D PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
+	iptables -t raw -D PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
+	iptables -t raw -D OUTPUT -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
+	iptables -D logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - INVALID] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
+	iptables -D FORWARD -i br0 -m set --match-set Skynet-IOT src ! -o tun2+ -j LOG --log-prefix "[BLOCKED - IOT] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 }
 
 Load_LogIPTables () {
-		if [ "$logmode" = "enabled" ]; then
-			if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "inbound" ]; then
-				pos2="$(iptables --line -nL PREROUTING -t raw | grep -F "Skynet-Master src" | grep -F "DROP" | awk '{print $1}')"
-				iptables -t raw -I PREROUTING "$pos2" -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
-			fi
-			if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "outbound" ]; then
-				pos3="$(iptables --line -nL PREROUTING -t raw | grep -F "Skynet-Master dst" | grep -F "DROP" | awk '{print $1}')"
-				iptables -t raw -I PREROUTING "$pos3" -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
-				pos4="$(iptables --line -nL OUTPUT -t raw | grep -F "Skynet-Master dst" | grep -F "DROP" | awk '{print $1}')"
-				iptables -t raw -I OUTPUT "$pos4" -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
-			fi
-			if [ "$(nvram get fw_log_x)" = "drop" ] || [ "$(nvram get fw_log_x)" = "both" ] && [ "$loginvalid" = "enabled" ]; then
-				iptables -I logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - INVALID] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
-			fi
-			if [ "$iotblocked" = "enabled" ]; then
-				pos5="$(iptables --line -nL FORWARD | grep -F "Skynet-IOT" | grep -F "DROP" | awk '{print $1}')"
-				iptables -I FORWARD "$pos5" -i br0 -m set --match-set Skynet-IOT src ! -o tun2+ -j LOG --log-prefix "[BLOCKED - IOT] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
-			fi
+	if [ "$logmode" = "enabled" ]; then
+		if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "inbound" ]; then
+			pos2="$(iptables --line -nL PREROUTING -t raw | grep -F "Skynet-Master src" | grep -F "DROP" | awk '{print $1}')"
+			iptables -t raw -I PREROUTING "$pos2" -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 		fi
+		if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "outbound" ]; then
+			pos3="$(iptables --line -nL PREROUTING -t raw | grep -F "Skynet-Master dst" | grep -F "DROP" | awk '{print $1}')"
+			iptables -t raw -I PREROUTING "$pos3" -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
+			pos4="$(iptables --line -nL OUTPUT -t raw | grep -F "Skynet-Master dst" | grep -F "DROP" | awk '{print $1}')"
+			iptables -t raw -I OUTPUT "$pos4" -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
+		fi
+		if [ "$(nvram get fw_log_x)" = "drop" ] || [ "$(nvram get fw_log_x)" = "both" ] && [ "$loginvalid" = "enabled" ]; then
+			iptables -I logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - INVALID] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
+		fi
+		if [ "$iotblocked" = "enabled" ]; then
+			pos5="$(iptables --line -nL FORWARD | grep -F "Skynet-IOT" | grep -F "DROP" | awk '{print $1}')"
+			iptables -I FORWARD "$pos5" -i br0 -m set --match-set Skynet-IOT src ! -o tun2+ -j LOG --log-prefix "[BLOCKED - IOT] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
+		fi
+	fi
 }
 
 Unload_IOTTables () {
-			if [ "$iotblocked" = "enabled" ]; then
-				iptables -D FORWARD -i br0 -m set --match-set Skynet-IOT src ! -o tun2+ -j DROP 2>/dev/null
-				if [ -n "$iotports" ]; then
-					if [ "$iotproto" = "all" ] || [ "$iotproto" = "udp" ]; then
-						iptables -D FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp -m multiport --dports "$iotports" -j ACCEPT 2>/dev/null
-					fi
-					if [ "$iotproto" = "all" ] || [ "$iotproto" = "tcp" ]; then
-						iptables -D FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p tcp -m tcp -m multiport --dports "$iotports" -j ACCEPT 2>/dev/null
-					fi
-				else
-					if [ "$iotproto" = "all" ] || [ "$iotproto" = "udp" ]; then
-						iptables -D FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp --dport 123 -j ACCEPT 2>/dev/null
-					fi
-					if [ "$iotproto" = "all" ] || [ "$iotproto" = "tcp" ]; then
-						iptables -D FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p tcp -m tcp --dport 123 -j ACCEPT 2>/dev/null
-					fi
-				fi
+	if [ "$iotblocked" = "enabled" ]; then
+		iptables -D FORWARD -i br0 -m set --match-set Skynet-IOT src ! -o tun2+ -j DROP 2>/dev/null
+		if [ -n "$iotports" ]; then
+			if [ "$iotproto" = "all" ] || [ "$iotproto" = "udp" ]; then
+				iptables -D FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp -m multiport --dports "$iotports" -j ACCEPT 2>/dev/null
 			fi
+			if [ "$iotproto" = "all" ] || [ "$iotproto" = "tcp" ]; then
+				iptables -D FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p tcp -m tcp -m multiport --dports "$iotports" -j ACCEPT 2>/dev/null
+			fi
+		else
+			if [ "$iotproto" = "all" ] || [ "$iotproto" = "udp" ]; then
+				iptables -D FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp --dport 123 -j ACCEPT 2>/dev/null
+			fi
+			if [ "$iotproto" = "all" ] || [ "$iotproto" = "tcp" ]; then
+				iptables -D FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p tcp -m tcp --dport 123 -j ACCEPT 2>/dev/null
+			fi
+		fi
+	fi
 }
 
 Load_IOTTables () {
-			if [ "$iotblocked" = "enabled" ]; then
-				iptables -I FORWARD -i br0 -m set --match-set Skynet-IOT src ! -o tun2+ -j DROP 2>/dev/null
-				if [ -n "$iotports" ]; then
-					if [ "$iotproto" = "all" ] || [ "$iotproto" = "udp" ]; then
-						iptables -I FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp -m multiport --dports "$iotports" -j ACCEPT 2>/dev/null
-					fi
-					if [ "$iotproto" = "all" ] || [ "$iotproto" = "tcp" ]; then
-						iptables -I FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p tcp -m tcp -m multiport --dports "$iotports" -j ACCEPT 2>/dev/null
-					fi
-				else
-					if [ "$iotproto" = "all" ] || [ "$iotproto" = "udp" ]; then
-						iptables -I FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp --dport 123 -j ACCEPT 2>/dev/null
-					fi
-					if [ "$iotproto" = "all" ] || [ "$iotproto" = "tcp" ]; then
-						iptables -I FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p tcp -m tcp --dport 123 -j ACCEPT 2>/dev/null
-					fi
-				fi
+	if [ "$iotblocked" = "enabled" ]; then
+		iptables -I FORWARD -i br0 -m set --match-set Skynet-IOT src ! -o tun2+ -j DROP 2>/dev/null
+		if [ -n "$iotports" ]; then
+			if [ "$iotproto" = "all" ] || [ "$iotproto" = "udp" ]; then
+				iptables -I FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp -m multiport --dports "$iotports" -j ACCEPT 2>/dev/null
 			fi
+			if [ "$iotproto" = "all" ] || [ "$iotproto" = "tcp" ]; then
+				iptables -I FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p tcp -m tcp -m multiport --dports "$iotports" -j ACCEPT 2>/dev/null
+			fi
+		else
+			if [ "$iotproto" = "all" ] || [ "$iotproto" = "udp" ]; then
+				iptables -I FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp --dport 123 -j ACCEPT 2>/dev/null
+			fi
+			if [ "$iotproto" = "all" ] || [ "$iotproto" = "tcp" ]; then
+				iptables -I FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p tcp -m tcp --dport 123 -j ACCEPT 2>/dev/null
+			fi
+		fi
+	fi
 }
 
 Check_IPSets () {
-		ipset -L -n Skynet-Whitelist >/dev/null 2>&1 || fail="${fail}#1 "
-		ipset -L -n Skynet-Blacklist >/dev/null 2>&1 || fail="${fail}#2 "
-		ipset -L -n Skynet-BlockedRanges >/dev/null 2>&1 || fail="${fail}#3 "
-		ipset -L -n Skynet-Master >/dev/null 2>&1 || fail="${fail}#4 "
-		ipset -L -n Skynet-IOT >/dev/null 2>&1 || fail="${fail}#5 "
-		if [ -n "$fail" ]; then return 1; fi
+	ipset -L -n Skynet-Whitelist >/dev/null 2>&1 || fail="${fail}#1 "
+	ipset -L -n Skynet-Blacklist >/dev/null 2>&1 || fail="${fail}#2 "
+	ipset -L -n Skynet-BlockedRanges >/dev/null 2>&1 || fail="${fail}#3 "
+	ipset -L -n Skynet-Master >/dev/null 2>&1 || fail="${fail}#4 "
+	ipset -L -n Skynet-IOT >/dev/null 2>&1 || fail="${fail}#5 "
+	if [ -n "$fail" ]; then return 1; fi
 }
 
 Check_IPTables () {
+	if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "inbound" ]; then
+		iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j DROP 2>/dev/null || fail="${fail}#6 "
+	fi
+	if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "outbound" ]; then
+		iptables -t raw -C PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null || fail="${fail}#7 "
+		iptables -t raw -C OUTPUT -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null || fail="${fail}#8 "
+	fi
+	if [ "$(nvram get sshd_enable)" = "1" ] && [ "$(nvram get sshd_bfp)" = "1" ] && [ "$(uname -o)" = "ASUSWRT-Merlin" ] && [ "$(nvram get switch_wantag)" != "movistar" ]; then
+		iptables -C SSHBFP -m recent --update --seconds 60 --hitcount 4 --name SSH --rsource -j SET --add-set Skynet-Blacklist src 2>/dev/null || fail="${fail}#9 "
+		iptables -C SSHBFP -m recent --update --seconds 60 --hitcount 4 --name SSH --rsource -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || fail="${fail}#10 "
+	fi
+	if [ "$iotblocked" = "enabled" ]; then
+		iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src ! -o tun2+ -j DROP 2>/dev/null || fail="${fail}#11 "
+		if [ -n "$iotports" ]; then
+			if [ "$iotproto" = "all" ] || [ "$iotproto" = "udp" ]; then
+				iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp -m multiport --dports "$iotports" -j ACCEPT 2>/dev/null || fail="${fail}#12 "
+			fi
+			if [ "$iotproto" = "all" ] || [ "$iotproto" = "tcp" ]; then
+				iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p tcp -m tcp -m multiport --dports "$iotports" -j ACCEPT 2>/dev/null || fail="${fail}#13 "
+			fi
+		else
+			if [ "$iotproto" = "all" ] || [ "$iotproto" = "udp" ]; then
+				iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp --dport 123 -j ACCEPT 2>/dev/null || fail="${fail}#14 "
+			fi
+			if [ "$iotproto" = "all" ] || [ "$iotproto" = "tcp" ]; then
+				iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p tcp -m tcp --dport 123 -j ACCEPT 2>/dev/null || fail="${fail}#15 "
+			fi
+		fi
+	fi
+	if [ "$logmode" = "enabled" ]; then
 		if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "inbound" ]; then
-			iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j DROP 2>/dev/null || fail="${fail}#6 "
+			iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || fail="${fail}#16 "
 		fi
 		if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "outbound" ]; then
-			iptables -t raw -C PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null || fail="${fail}#7 "
-			iptables -t raw -C OUTPUT -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null || fail="${fail}#8 "
+			iptables -t raw -C PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || fail="${fail}#17 "
+			iptables -t raw -C OUTPUT -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || fail="${fail}#18 "
 		fi
-		if [ "$(nvram get sshd_enable)" = "1" ] && [ "$(nvram get sshd_bfp)" = "1" ] && [ "$(uname -o)" = "ASUSWRT-Merlin" ] && [ "$(nvram get switch_wantag)" != "movistar" ]; then
-			iptables -C SSHBFP -m recent --update --seconds 60 --hitcount 4 --name SSH --rsource -j SET --add-set Skynet-Blacklist src 2>/dev/null || fail="${fail}#9 "
-			iptables -C SSHBFP -m recent --update --seconds 60 --hitcount 4 --name SSH --rsource -j LOG --log-prefix "[BLOCKED - NEW BAN] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || fail="${fail}#10 "
+		if [ "$(nvram get fw_log_x)" = "drop" ] || [ "$(nvram get fw_log_x)" = "both" ] && [ "$loginvalid" = "enabled" ]; then
+			iptables -C logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - INVALID] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || fail="${fail}#19 "
 		fi
 		if [ "$iotblocked" = "enabled" ]; then
-			iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src ! -o tun2+ -j DROP 2>/dev/null || fail="${fail}#11 "
-			if [ -n "$iotports" ]; then
-				if [ "$iotproto" = "all" ] || [ "$iotproto" = "udp" ]; then
-					iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp -m multiport --dports "$iotports" -j ACCEPT 2>/dev/null || fail="${fail}#12 "
-				fi
-				if [ "$iotproto" = "all" ] || [ "$iotproto" = "tcp" ]; then
-					iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p tcp -m tcp -m multiport --dports "$iotports" -j ACCEPT 2>/dev/null || fail="${fail}#13 "
-				fi
-			else
-				if [ "$iotproto" = "all" ] || [ "$iotproto" = "udp" ]; then
-					iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp --dport 123 -j ACCEPT 2>/dev/null || fail="${fail}#14 "
-				fi
-				if [ "$iotproto" = "all" ] || [ "$iotproto" = "tcp" ]; then
-					iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src -o "$iface" -p tcp -m tcp --dport 123 -j ACCEPT 2>/dev/null || fail="${fail}#15 "
-				fi
-			fi
+			iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src ! -o tun2+ -j LOG --log-prefix "[BLOCKED - IOT] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || fail="${fail}#20 "
 		fi
-		if [ "$logmode" = "enabled" ]; then
-			if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "inbound" ]; then
-				iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || fail="${fail}#16 "
-			fi
-			if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "outbound" ]; then
-				iptables -t raw -C PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || fail="${fail}#17 "
-				iptables -t raw -C OUTPUT -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || fail="${fail}#18 "
-			fi
-			if [ "$(nvram get fw_log_x)" = "drop" ] || [ "$(nvram get fw_log_x)" = "both" ] && [ "$loginvalid" = "enabled" ]; then
-				iptables -C logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - INVALID] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || fail="${fail}#19 "
-			fi
-			if [ "$iotblocked" = "enabled" ]; then
-				iptables -C FORWARD -i br0 -m set --match-set Skynet-IOT src ! -o tun2+ -j LOG --log-prefix "[BLOCKED - IOT] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || fail="${fail}#20 "
-			fi
-		fi
-		if [ -n "$fail" ]; then return 1; fi
+	fi
+	if [ -n "$fail" ]; then return 1; fi
 }
 
 Unload_IPSets () {
-		ipset -q destroy Skynet-Master
-		ipset -q destroy Skynet-Blacklist
-		ipset -q destroy Skynet-BlockedRanges
-		ipset -q destroy Skynet-Whitelist
-		ipset -q destroy Skynet-IOT
+	ipset -q destroy Skynet-Master
+	ipset -q destroy Skynet-Blacklist
+	ipset -q destroy Skynet-BlockedRanges
+	ipset -q destroy Skynet-Whitelist
+	ipset -q destroy Skynet-IOT
 }
 
 Unload_Cron () {
-		if [ -z "$1" ]; then set "all"; fi
-		for cron in "$@"; do
-		 case "$cron" in
-			 save)
+	if [ -z "$1" ]; then set "all"; fi
+	for cron in "$@"; do
+		case "$cron" in
+			save)
 				cru d Skynet_save
-			 ;;
-			 banmalware)
+			;;
+			banmalware)
 				cru d Skynet_banmalware
-			 ;;
-			 autoupdate)
+			;;
+			autoupdate)
 				cru d Skynet_autoupdate
-			 ;;
-			 checkupdate)
+			;;
+			checkupdate)
 				cru d Skynet_checkupdate
-			 ;;
+			;;
 			genstats)
 				cru d Skynet_genstats
-			 ;;
-			 all)
+			;;
+			all)
 				cru d Skynet_save
 				cru d Skynet_banmalware
 				cru d Skynet_autoupdate
 				cru d Skynet_checkupdate
 				cru d Skynet_genstats
-			 ;;
-			 *)
+			;;
+			*)
 				echo "[*] Error - No Cron Specified To Unload"
-			 ;;
-		 esac
-		done
+			;;
+		esac
+	done
 }
 
 Load_Cron () {
-		if [ -z "$1" ]; then set "all"; fi
-		for cron in "$@"; do
-			case "$cron" in
-				save)
-					cru a Skynet_save "0 * * * * sh /jffs/scripts/firewall save"
-				;;
-				banmalwaredaily)
-					hour="$(date +%s | tail -c 2)"
-					cru a Skynet_banmalware "25 $hour * * * sh /jffs/scripts/firewall banmalware"
-				;;
-				banmalwareweekly)
-					hour="$(date +%s | tail -c 2)"
-					cru a Skynet_banmalware "25 $hour * * Mon sh /jffs/scripts/firewall banmalware"
-				;;
-				autoupdate)
-					cru a Skynet_autoupdate "25 1 * * Mon sh /jffs/scripts/firewall update"
-				;;
-				checkupdate)
-					cru a Skynet_checkupdate "25 1 * * Mon sh /jffs/scripts/firewall update check"
-				;;
-				genstats)
-					cru a Skynet_genstats "40 */12 * * * sh /jffs/scripts/firewall debug genstats"
-				;;
-				*)
-					echo "[*] Error - No Cron Specified To Load"
-				;;
-			esac
-		 done
+	if [ -z "$1" ]; then set "all"; fi
+	for cron in "$@"; do
+		case "$cron" in
+			save)
+				cru a Skynet_save "0 * * * * sh /jffs/scripts/firewall save"
+			;;
+			banmalwaredaily)
+				hour="$(date +%s | tail -c 2)"
+				cru a Skynet_banmalware "25 $hour * * * sh /jffs/scripts/firewall banmalware"
+			;;
+			banmalwareweekly)
+				hour="$(date +%s | tail -c 2)"
+				cru a Skynet_banmalware "25 $hour * * Mon sh /jffs/scripts/firewall banmalware"
+			;;
+			autoupdate)
+				cru a Skynet_autoupdate "25 1 * * Mon sh /jffs/scripts/firewall update"
+			;;
+			checkupdate)
+				cru a Skynet_checkupdate "25 1 * * Mon sh /jffs/scripts/firewall update check"
+			;;
+			genstats)
+				cru a Skynet_genstats "40 */12 * * * sh /jffs/scripts/firewall debug genstats"
+			;;
+			*)
+				echo "[*] Error - No Cron Specified To Load"
+			;;
+		esac
+	done
 }
 
 Is_IP () {
-		grep -qE '^([0-9]{1,3}\.){3}[0-9]{1,3}$'
+	grep -qE '^([0-9]{1,3}\.){3}[0-9]{1,3}$'
 }
 
 Is_Range () {
-		grep -qE '^([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}$'
+	grep -qE '^([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}$'
 }
 
 Is_IPRange () {
-		grep -qE '^([0-9]{1,3}\.){3}[0-9]{1,3}(/[0-9]{1,2})?$'
+	grep -qE '^([0-9]{1,3}\.){3}[0-9]{1,3}(/[0-9]{1,2})?$'
 }
 
 Is_MAC () {
-		grep -qE '^([[:xdigit:]]{1,2}:){5}[[:xdigit:]]{1,2}$'
+	grep -qE '^([[:xdigit:]]{1,2}:){5}[[:xdigit:]]{1,2}$'
 }
 
 Is_Port () {
-		grep -qE '^[0-9]{1,5}$'
+	grep -qE '^[0-9]{1,5}$'
 }
 
 Is_ASN () {
-		grep -qiE '^AS[0-9]{1,6}$'
+	grep -qiE '^AS[0-9]{1,6}$'
 }
 
 Strip_Domain () {
-		sed 's~http[s]*://~~;s~/.*~~;s~www\.~~g' | awk '!x[$0]++'
+	sed 's~http[s]*://~~;s~/.*~~;s~www\.~~g' | awk '!x[$0]++'
 }
 
 Domain_Lookup () {
-		nslookup "$1" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' | awk 'NR>2'
+	nslookup "$1" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' | awk 'NR>2'
 }
 
 LAN_CIDR_Lookup () {
-		if [ "$(echo "$1" | cut -c1-8)" = "192.168." ];	then
-			echo "192.168.0.0/16"
-		elif [ "$(echo "$1" | cut -c1-4)" = "172." ]; then
-			echo "172.16.0.0/12"
-		elif [ "$(echo "$1" | cut -c1-3)" = "10." ]; then
-			echo "10.0.0.0/8";
-		fi
+	if [ "$(echo "$1" | cut -c1-8)" = "192.168." ];	then
+		echo "192.168.0.0/16"
+	elif [ "$(echo "$1" | cut -c1-4)" = "172." ]; then
+		echo "172.16.0.0/12"
+	elif [ "$(echo "$1" | cut -c1-3)" = "10." ]; then
+		echo "10.0.0.0/8";
+	fi
 }
 
 Extended_DNSStats () {
-		case "$1" in
-			1)
-				if [ "$lookupcountry" = "enabled" ]; then
-					country="($(curl -fsL --retry 3 "https://ipapi.co/$statdata/country/"))"
-				fi
-				banreason="$(grep -F " ${statdata} " "$skynetipset" | awk -F "\"" '{print $2}')"
-				if [ -z "$banreason" ]; then
-					banreason="$(grep -m1 -E "$(echo "$statdata" | cut -d '.' -f1-3)..*/" "$skynetipset" | awk -F "\"" '{print $2}')*"
-				fi
-				if [ "${#banreason}" -gt "45" ]; then banreason="$(echo "$banreason" | cut -c 1-45)"; fi
-				printf "%-15s %-4s | %-55s | %-45s | %-60s \\n" "$statdata" "$country" "https://otx.alienvault.com/indicator/ip/${statdata}" "$banreason" "$(grep -F "$statdata" /tmp/skynet/skynetstats.txt | awk '{print $1}' | xargs)"
-			;;
-			2)
-				hits="$(echo "$statdata" | awk '{print $1}')"
-				ipaddr="$(echo "$statdata" | awk '{print $2}')"
-				if [ "$lookupcountry" = "enabled" ]; then
-					country="($(curl -fsL --retry 3 "https://ipapi.co/$ipaddr/country/"))"
-				fi
-				banreason="$(grep -F " ${ipaddr} " "$skynetipset" | awk -F "\"" '{print $2}')"
-				if [ -z "$banreason" ]; then
-					banreason="$(grep -m1 -E "$(echo "$ipaddr" | cut -d '.' -f1-3)..*/" "$skynetipset" | awk -F "\"" '{print $2}')*"
-				fi
-				if [ "${#banreason}" -gt "45" ]; then banreason="$(echo "$banreason" | cut -c 1-45)"; fi
-				printf "%-10s | %-15s %-4s | %-55s | %-45s | %-60s\\n" "${hits}x" "${ipaddr}" "${country}" "https://otx.alienvault.com/indicator/ip/${ipaddr}" "$banreason" "$(grep -F "$ipaddr" /tmp/skynet/skynetstats.txt | awk '{print $1}' | xargs)"
-			;;
-			*)
-				echo "[*] Error - No Stats Specified To Load"
-			;;
-		esac
+	case "$1" in
+		1)
+			if [ "$lookupcountry" = "enabled" ]; then
+				country="($(curl -fsL --retry 3 "https://ipapi.co/$statdata/country/"))"
+			fi
+			banreason="$(grep -F " ${statdata} " "$skynetipset" | awk -F "\"" '{print $2}')"
+			if [ -z "$banreason" ]; then
+				banreason="$(grep -m1 -E "$(echo "$statdata" | cut -d '.' -f1-3)..*/" "$skynetipset" | awk -F "\"" '{print $2}')*"
+			fi
+			if [ "${#banreason}" -gt "45" ]; then banreason="$(echo "$banreason" | cut -c 1-45)"; fi
+			printf "%-15s %-4s | %-55s | %-45s | %-60s \\n" "$statdata" "$country" "https://otx.alienvault.com/indicator/ip/${statdata}" "$banreason" "$(grep -F "$statdata" /tmp/skynet/skynetstats.txt | awk '{print $1}' | xargs)"
+		;;
+		2)
+			hits="$(echo "$statdata" | awk '{print $1}')"
+			ipaddr="$(echo "$statdata" | awk '{print $2}')"
+			if [ "$lookupcountry" = "enabled" ]; then
+				country="($(curl -fsL --retry 3 "https://ipapi.co/$ipaddr/country/"))"
+			fi
+			banreason="$(grep -F " ${ipaddr} " "$skynetipset" | awk -F "\"" '{print $2}')"
+			if [ -z "$banreason" ]; then
+				banreason="$(grep -m1 -E "$(echo "$ipaddr" | cut -d '.' -f1-3)..*/" "$skynetipset" | awk -F "\"" '{print $2}')*"
+			fi
+			if [ "${#banreason}" -gt "45" ]; then banreason="$(echo "$banreason" | cut -c 1-45)"; fi
+			printf "%-10s | %-15s %-4s | %-55s | %-45s | %-60s\\n" "${hits}x" "${ipaddr}" "${country}" "https://otx.alienvault.com/indicator/ip/${ipaddr}" "$banreason" "$(grep -F "$ipaddr" /tmp/skynet/skynetstats.txt | awk '{print $1}' | xargs)"
+		;;
+		*)
+			echo "[*] Error - No Stats Specified To Load"
+		;;
+	esac
 }
 
 Display_Header () {
-		case "$1" in
-			1)
-				printf "\\n\\n%-20s | %-55s | %-45s | %-60s\\n" "--------------" "--------------" "--------------" "----------------------"
-				printf "%-20s | %-55s | %-45s | %-60s\\n" "| IP Address |" "| AlienVault |" "| Ban Reason |" "| Associated Domains |"
-				printf "%-20s | %-55s | %-45s | %-60s\\n\\n" "--------------" "--------------" "--------------" "----------------------"
-			;;
-			2)
-				printf "\\n\\n%-10s | %-20s | %-55s | %-45s | %-60s\\n" "--------" "--------------" "--------------" "--------------" "----------------------"
-				printf "%-10s | %-20s | %-55s | %-45s | %-60s\\n" "| Hits |" "| IP Address |" "| AlienVault |" "| Ban Reason |" "| Associated Domains |"
-				printf "%-10s | %-20s | %-55s | %-45s | %-60s\\n\\n" "--------" "--------------" "--------------" "--------------" "----------------------"
-			;;
-			3)
-				printf "\\n\\n%-10s | %-10s | %-60s\\n" "--------" "--------" "--------------"
-				printf "%-10s | %-10s | %-60s\\n" "| Hits |" "| Port |" "| SpeedGuide |"
-				printf "%-10s | %-10s | %-60s\\n\\n" "--------" "--------" "--------------"
-			;;
-			4)
-				printf "\\n\\n%-10s | %-16s | %-60s\\n" "--------" "------------" "---------------"
-				printf "%-10s | %-16s | %-60s\\n" "| Hits |" "| Local IP |" "| Device Name |"
-				printf "%-10s | %-16s | %-60s\\n\\n" "--------" "------------" "---------------"
-			;;
-			5)
-				printf "\\n\\n%-20s | %-40s\\n" "--------------" "---------"
-				printf "%-20s | %-40s\\n" "| IP Address |" "| List |"
-				printf "%-20s | %-40s\\n\\n" "--------------" "---------"
-			;;
-			6)
-				printf "\\n\\n%-40s | %-16s | %-20s | %-15s\\n" "---------------" "------------" "---------------" "----------"
-				printf "%-40s | %-16s | %-20s | %-15s\\n" "| Device Name |" "| Local IP |" "| MAC Address |" "| Status |"
-				printf "%-40s | %-16s | %-20s | %-15s\\n\\n" "---------------" "------------" "---------------" "----------"
-			;;
-			7)
-				printf "\\n\\n%-35s | %-8s\\n" "--------------------" "----------"
-				printf "%-35s | %-8s\\n" "| Test Description |" "| Result |"
-				printf "%-35s | %-8s\\n\\n" "--------------------" "----------"
-			;;
-			8)
-				printf "\\n\\n%-35s | %-8s\\n" "-----------" "----------"
-				printf "%-35s | %-8s\\n" "| Setting |" "| Status |"
-				printf "%-35s | %-8s\\n\\n" "----------" "----------"
-			;;
-			9)
-				printf "\\n\\n=============================================================================================================\\n\\n\\n"
-			;;
-			10)
-				printf "\\n=============================================================================================================\\n\\n\\n"
-			;;
-			11)
-				printf "%-10s | %-18s | %-10s | %-18s | %-10s | %-20s\\n" "---------" "-------------" "---------" "------------------" "---------" "------------------"
-				printf "%-10s | %-18s | %-10s | %-18s | %-10s | %-20s\\n" "| Proto |" "| Source IP |" "| SPort |" "| Destination IP |" "| DPort |" "| Identification |"
-				printf "%-10s | %-18s | %-10s | %-18s | %-10s | %-20s\\n\\n" "---------" "-------------" "---------" "------------------" "---------" "------------------"
-			;;
-			*)
-				echo "[*] Error - No Header Specified To Load"
-			;;
-		esac
+	case "$1" in
+		1)
+			printf "\\n\\n%-20s | %-55s | %-45s | %-60s\\n" "--------------" "--------------" "--------------" "----------------------"
+			printf "%-20s | %-55s | %-45s | %-60s\\n" "| IP Address |" "| AlienVault |" "| Ban Reason |" "| Associated Domains |"
+			printf "%-20s | %-55s | %-45s | %-60s\\n\\n" "--------------" "--------------" "--------------" "----------------------"
+		;;
+		2)
+			printf "\\n\\n%-10s | %-20s | %-55s | %-45s | %-60s\\n" "--------" "--------------" "--------------" "--------------" "----------------------"
+			printf "%-10s | %-20s | %-55s | %-45s | %-60s\\n" "| Hits |" "| IP Address |" "| AlienVault |" "| Ban Reason |" "| Associated Domains |"
+			printf "%-10s | %-20s | %-55s | %-45s | %-60s\\n\\n" "--------" "--------------" "--------------" "--------------" "----------------------"
+		;;
+		3)
+			printf "\\n\\n%-10s | %-10s | %-60s\\n" "--------" "--------" "--------------"
+			printf "%-10s | %-10s | %-60s\\n" "| Hits |" "| Port |" "| SpeedGuide |"
+			printf "%-10s | %-10s | %-60s\\n\\n" "--------" "--------" "--------------"
+		;;
+		4)
+			printf "\\n\\n%-10s | %-16s | %-60s\\n" "--------" "------------" "---------------"
+			printf "%-10s | %-16s | %-60s\\n" "| Hits |" "| Local IP |" "| Device Name |"
+			printf "%-10s | %-16s | %-60s\\n\\n" "--------" "------------" "---------------"
+		;;
+		5)
+			printf "\\n\\n%-20s | %-40s\\n" "--------------" "---------"
+			printf "%-20s | %-40s\\n" "| IP Address |" "| List |"
+			printf "%-20s | %-40s\\n\\n" "--------------" "---------"
+		;;
+		6)
+			printf "\\n\\n%-40s | %-16s | %-20s | %-15s\\n" "---------------" "------------" "---------------" "----------"
+			printf "%-40s | %-16s | %-20s | %-15s\\n" "| Device Name |" "| Local IP |" "| MAC Address |" "| Status |"
+			printf "%-40s | %-16s | %-20s | %-15s\\n\\n" "---------------" "------------" "---------------" "----------"
+		;;
+		7)
+			printf "\\n\\n%-35s | %-8s\\n" "--------------------" "----------"
+			printf "%-35s | %-8s\\n" "| Test Description |" "| Result |"
+			printf "%-35s | %-8s\\n\\n" "--------------------" "----------"
+		;;
+		8)
+			printf "\\n\\n%-35s | %-8s\\n" "-----------" "----------"
+			printf "%-35s | %-8s\\n" "| Setting |" "| Status |"
+			printf "%-35s | %-8s\\n\\n" "----------" "----------"
+		;;
+		9)
+			printf "\\n\\n=============================================================================================================\\n\\n\\n"
+		;;
+		10)
+			printf "\\n=============================================================================================================\\n\\n\\n"
+		;;
+		11)
+			printf "%-10s | %-18s | %-10s | %-18s | %-10s | %-20s\\n" "---------" "-------------" "---------" "------------------" "---------" "------------------"
+			printf "%-10s | %-18s | %-10s | %-18s | %-10s | %-20s\\n" "| Proto |" "| Source IP |" "| SPort |" "| Destination IP |" "| DPort |" "| Identification |"
+			printf "%-10s | %-18s | %-10s | %-18s | %-10s | %-20s\\n\\n" "---------" "-------------" "---------" "------------------" "---------" "------------------"
+		;;
+		*)
+			echo "[*] Error - No Header Specified To Load"
+		;;
+	esac
 }
 
 Display_Message () {
-		btime="$(date +%s)"; printf "%-35s | " "$1"
+	btime="$(date +%s)"; printf "%-35s | " "$1"
 }
 
 Display_Result () {
-		result="$(Grn "[$(($(date +%s) - btime))s]")"
-		printf "%-8s\\n" "$result"
+	result="$(Grn "[$(($(date +%s) - btime))s]")"
+	printf "%-8s\\n" "$result"
 }
 
 Filter_Version () {
-		grep -m1 -oE 'v[0-9]{1,2}([.][0-9]{1,2})([.][0-9]{1,2})'
+	grep -m1 -oE 'v[0-9]{1,2}([.][0-9]{1,2})([.][0-9]{1,2})'
 }
 
 Filter_Date () {
-		grep -m1 -oE '[0-9]{1,2}([/][0-9]{1,2})([/][0-9]{1,4})'
+	grep -m1 -oE '[0-9]{1,2}([/][0-9]{1,2})([/][0-9]{1,4})'
 }
 
 Filter_IP () {
-		grep -E '^([0-9]{1,3}\.){3}[0-9]{1,3}$'
+	grep -E '^([0-9]{1,3}\.){3}[0-9]{1,3}$'
 }
 
 Filter_IPLine () {
-		grep -E '([0-9]{1,3}\.){3}[0-9]{1,3}'
+	grep -E '([0-9]{1,3}\.){3}[0-9]{1,3}'
 }
 
 Filter_OutIP () {
-		grep -vE '^([0-9]{1,3}\.){3}[0-9]{1,3}$'
+	grep -vE '^([0-9]{1,3}\.){3}[0-9]{1,3}$'
 }
 
 Filter_PrivateIP () {
-		grep -vE '(^127\.)|(^10\.)|(^172\.1[6-9]\.)|(^172\.2[0-9]\.)|(^172\.3[0-1]\.)|(^192\.168\.)|(^0.)|(^169\.254\.)|(^22[4-9]\.)|(^23[0-9]\.)|(^255\.255\.255\.255)|(^8\.8\.8\.8)|(^8\.8\.4\.4)(^1\.1\.1\.1)|(^1\.0\.0\.1)'
+	grep -vE '(^127\.)|(^10\.)|(^172\.1[6-9]\.)|(^172\.2[0-9]\.)|(^172\.3[0-1]\.)|(^192\.168\.)|(^0.)|(^169\.254\.)|(^22[4-9]\.)|(^23[0-9]\.)|(^255\.255\.255\.255)|(^8\.8\.8\.8)|(^8\.8\.4\.4)(^1\.1\.1\.1)|(^1\.0\.0\.1)'
 }
 
 Filter_PrivateSRC () {
-		grep -E '(SRC=127\.)|(SRC=10\.)|(SRC=172\.1[6-9]\.)|(SRC=172\.2[0-9]\.)|(SRC=172\.3[0-1]\.)|(SRC=192\.168\.)|(SRC=0.)|(SRC=169\.254\.)|(SRC=22[4-9]\.)|(SRC=23[0-9]\.)|(SRC=255\.255\.255\.255)'
+	grep -E '(SRC=127\.)|(SRC=10\.)|(SRC=172\.1[6-9]\.)|(SRC=172\.2[0-9]\.)|(SRC=172\.3[0-1]\.)|(SRC=192\.168\.)|(SRC=0.)|(SRC=169\.254\.)|(SRC=22[4-9]\.)|(SRC=23[0-9]\.)|(SRC=255\.255\.255\.255)'
 }
 
 Filter_PrivateDST () {
-		grep -E '(DST=127\.)|(DST=10\.)|(DST=172\.1[6-9]\.)|(DST=172\.2[0-9]\.)|(DST=172\.3[0-1]\.)|(DST=192\.168\.)|(DST=0.)|(DST=169\.254\.)|(DST=22[4-9]\.)|(DST=23[0-9]\.)|(DST=255\.255\.255\.255)'
+	grep -E '(DST=127\.)|(DST=10\.)|(DST=172\.1[6-9]\.)|(DST=172\.2[0-9]\.)|(DST=172\.3[0-1]\.)|(DST=192\.168\.)|(DST=0.)|(DST=169\.254\.)|(DST=22[4-9]\.)|(DST=23[0-9]\.)|(DST=255\.255\.255\.255)'
 }
 
 Spinner_End () {
-		if [ -f /tmp/skynet/spinstart ]; then
-			pider="$(cat /tmp/skynet/spinstart)"
-			rm -rf /tmp/skynet/spinstart
-			if [ -d "/proc/$pider" ]; then kill "$pider"; fi
-		fi
+	if [ -f /tmp/skynet/spinstart ]; then
+		pider="$(cat /tmp/skynet/spinstart)"
+		rm -rf /tmp/skynet/spinstart
+		if [ -d "/proc/$pider" ]; then kill "$pider"; fi
+	fi
 }
 
 Spinner_Start () {
-		Spinner_End
-		touch "/tmp/skynet/spinstart"
-		{ while [ -f "/tmp/skynet/spinstart" ]; do
-			for c in \*-- -\*- --\* ; do
-				printf '\033[1;32m%s\033[0m\b\b\b' "$c"
-				usleep 250000
-			done
-			printf '   \b\b\b'
-		done; } &
-		echo "$!" > /tmp/skynet/spinstart
+	Spinner_End
+	touch "/tmp/skynet/spinstart"
+	{ while [ -f "/tmp/skynet/spinstart" ]; do
+		for c in \*-- -\*- --\* ; do
+			printf '\033[1;32m%s\033[0m\b\b\b' "$c"
+			usleep 250000
+		done
+		printf '   \b\b\b'
+	done; } &
+	echo "$!" > /tmp/skynet/spinstart
 }
 
 Save_IPSets () {
-		if Check_IPSets; then
-			{ ipset save Skynet-Whitelist; ipset save Skynet-Blacklist; ipset save Skynet-BlockedRanges; ipset save Skynet-Master; ipset save Skynet-IOT; } > "$skynetipset" 2>/dev/null
-		fi
+	if Check_IPSets; then
+		{ ipset save Skynet-Whitelist; ipset save Skynet-Blacklist; ipset save Skynet-BlockedRanges; ipset save Skynet-Master; ipset save Skynet-IOT; } > "$skynetipset" 2>/dev/null
+	fi
 }
 
 Unban_PrivateIP () {
-		if [ "$unbanprivateip" = "enabled" ] && [ "$logmode" = "enabled" ]; then
-			grep -F "INBOUND" "$syslogloc" | Filter_PrivateSRC | grep -oE 'SRC=[0-9,\.]*' | cut -c 5- | awk '!x[$0]++' | while IFS= read -r "ip"; do
-				echo "add Skynet-Whitelist $ip comment \"Private IP\""
-				echo "del Skynet-Blacklist $ip"
-				sed -i "\\~SRC=${ip} ~d" "$syslogloc" "$skynetevents"
-			done | ipset restore -!
-			grep -F "OUTBOUND" "$syslogloc" | Filter_PrivateDST | grep -oE 'DST=[0-9,\.]*' | cut -c 5- | awk '!x[$0]++' | while IFS= read -r "ip"; do
-				echo "add Skynet-Whitelist $ip comment \"Private IP\""
-				echo "del Skynet-Blacklist $ip"
-				sed -i "\\~DST=${ip} ~d" "$syslogloc"
-				sed -i "\\~SRC=${ip} ~d" "$skynetevents"
-			done | ipset restore -!
-		fi
+	if [ "$unbanprivateip" = "enabled" ] && [ "$logmode" = "enabled" ]; then
+		grep -F "INBOUND" "$syslogloc" | Filter_PrivateSRC | grep -oE 'SRC=[0-9,\.]*' | cut -c 5- | awk '!x[$0]++' | while IFS= read -r "ip"; do
+			echo "add Skynet-Whitelist $ip comment \"Private IP\""
+			echo "del Skynet-Blacklist $ip"
+			sed -i "\\~SRC=${ip} ~d" "$syslogloc" "$skynetevents"
+		done | ipset restore -!
+		grep -F "OUTBOUND" "$syslogloc" | Filter_PrivateDST | grep -oE 'DST=[0-9,\.]*' | cut -c 5- | awk '!x[$0]++' | while IFS= read -r "ip"; do
+			echo "add Skynet-Whitelist $ip comment \"Private IP\""
+			echo "del Skynet-Blacklist $ip"
+			sed -i "\\~DST=${ip} ~d" "$syslogloc"
+			sed -i "\\~SRC=${ip} ~d" "$skynetevents"
+		done | ipset restore -!
+	fi
 }
 
 Refresh_AiProtect () {
-		if [ "$banaiprotect" = "enabled" ] && [ -f /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db ]; then
-			if [ -f /opt/bin/opkg ] && [ ! -f /opt/bin/sqlite3 ]; then
-				opkg update && opkg install sqlite3-cli
-			fi
-			if [ -f /opt/bin/opkg ] && [ -f /opt/bin/sqlite3 ]; then
-				sed "\\~add Skynet-Blacklist ~!d;\\~BanAiProtect~!d;s~ comment.*~~;s~add~del~g" "$skynetipset" | ipset restore -!
-				sqlite3 /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db "SELECT src FROM monitor;" | awk '!x[$0]++' | Filter_IP | Filter_PrivateIP | awk '{printf "add Skynet-Blacklist %s comment \"BanAiProtect\"\n", $1 }' | ipset restore -!
-				sqlite3 /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db "SELECT dst FROM monitor;" | awk '!x[$0]++' | Filter_OutIP | grep -v ":" | while IFS= read -r "domain"; do
-					for ip in $(Domain_Lookup "$domain" 2>/dev/null | Filter_PrivateIP); do
-						echo "add Skynet-Blacklist $ip comment \"BanAiProtect: $domain\""
-					done &
-				done | ipset restore -!
-			fi
+	if [ "$banaiprotect" = "enabled" ] && [ -f /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db ]; then
+		if [ -f /opt/bin/opkg ] && [ ! -f /opt/bin/sqlite3 ]; then
+			opkg update && opkg install sqlite3-cli
 		fi
+		if [ -f /opt/bin/opkg ] && [ -f /opt/bin/sqlite3 ]; then
+			sed "\\~add Skynet-Blacklist ~!d;\\~BanAiProtect~!d;s~ comment.*~~;s~add~del~g" "$skynetipset" | ipset restore -!
+			sqlite3 /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db "SELECT src FROM monitor;" | awk '!x[$0]++' | Filter_IP | Filter_PrivateIP | awk '{printf "add Skynet-Blacklist %s comment \"BanAiProtect\"\n", $1 }' | ipset restore -!
+			sqlite3 /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db "SELECT dst FROM monitor;" | awk '!x[$0]++' | Filter_OutIP | grep -v ":" | while IFS= read -r "domain"; do
+				for ip in $(Domain_Lookup "$domain" 2>/dev/null | Filter_PrivateIP); do
+					echo "add Skynet-Blacklist $ip comment \"BanAiProtect: $domain\""
+				done &
+			done | ipset restore -!
+		fi
+	fi
 }
 
 Refresh_MBans () {
-		if grep -qF "[Manual Ban] TYPE=Domain" "$skynetevents"; then
-			grep -F "[Manual Ban] TYPE=Domain" "$skynetevents" | awk '{print $9}' | awk '!x[$0]++' | sed 's~Host=~~g' > /tmp/skynet/mbans.list
-			sed -i '\~\[Manual Ban\] TYPE=Domain~d;' "$skynetevents"
-			sed "\\~add Skynet-Blacklist ~!d;\\~ManualBanD~!d;s~ comment.*~~;s~add~del~g" "$skynetipset" | ipset restore -!
-			while IFS= read -r "domain"; do
-				for ip in $(Domain_Lookup "$domain" | Filter_PrivateIP); do
-					echo "add Skynet-Blacklist $ip comment \"ManualBanD: $domain\""
-					echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$domain " >> "$skynetevents"
-				done
-			done < /tmp/skynet/mbans.list | ipset restore -!
-			rm -rf /tmp/skynet/mbans.list
-		fi
+	if grep -qF "[Manual Ban] TYPE=Domain" "$skynetevents"; then
+		grep -F "[Manual Ban] TYPE=Domain" "$skynetevents" | awk '{print $9}' | awk '!x[$0]++' | sed 's~Host=~~g' > /tmp/skynet/mbans.list
+		sed -i '\~\[Manual Ban\] TYPE=Domain~d;' "$skynetevents"
+		sed "\\~add Skynet-Blacklist ~!d;\\~ManualBanD~!d;s~ comment.*~~;s~add~del~g" "$skynetipset" | ipset restore -!
+		while IFS= read -r "domain"; do
+			for ip in $(Domain_Lookup "$domain" | Filter_PrivateIP); do
+				echo "add Skynet-Blacklist $ip comment \"ManualBanD: $domain\""
+				echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$domain " >> "$skynetevents"
+			done
+		done < /tmp/skynet/mbans.list | ipset restore -!
+		rm -rf /tmp/skynet/mbans.list
+	fi
 }
 
 Refresh_MWhitelist () {
-		if grep -qE "Manual Whitelist.* TYPE=Domain" "$skynetevents"; then
-			grep -E "Manual Whitelist.* TYPE=Domain" "$skynetevents" | awk '{print $9}' | awk '!x[$0]++' | sed 's~Host=~~g' > /tmp/skynet/mwhitelist.list
-			sed -i '\~\[Manual Whitelist\] TYPE=Domain~d;' "$skynetevents"
-			sed "\\~add Skynet-Whitelist ~!d;\\~ManualWlistD~!d;s~ comment.*~~;s~add~del~g" "$skynetipset" | ipset restore -!
-			while IFS= read -r "domain"; do
-				for ip in $(Domain_Lookup "$domain"); do
-					echo "add Skynet-Whitelist $ip comment \"ManualWlistD: $domain\""
-					echo "$(date +"%b %d %T") Skynet: [Manual Whitelist] TYPE=Domain SRC=$ip Host=$domain " >> "$skynetevents"
-				done
-			done < /tmp/skynet/mwhitelist.list | ipset restore -!
-			cat /tmp/skynet/mwhitelist.list >> /jffs/addons/shared-whitelists/shared-Skynet2-whitelist
-			rm -rf /tmp/skynet/mwhitelist.list
-		fi
+	if grep -qE "Manual Whitelist.* TYPE=Domain" "$skynetevents"; then
+		grep -E "Manual Whitelist.* TYPE=Domain" "$skynetevents" | awk '{print $9}' | awk '!x[$0]++' | sed 's~Host=~~g' > /tmp/skynet/mwhitelist.list
+		sed -i '\~\[Manual Whitelist\] TYPE=Domain~d;' "$skynetevents"
+		sed "\\~add Skynet-Whitelist ~!d;\\~ManualWlistD~!d;s~ comment.*~~;s~add~del~g" "$skynetipset" | ipset restore -!
+		while IFS= read -r "domain"; do
+			for ip in $(Domain_Lookup "$domain"); do
+				echo "add Skynet-Whitelist $ip comment \"ManualWlistD: $domain\""
+				echo "$(date +"%b %d %T") Skynet: [Manual Whitelist] TYPE=Domain SRC=$ip Host=$domain " >> "$skynetevents"
+			done
+		done < /tmp/skynet/mwhitelist.list | ipset restore -!
+		cat /tmp/skynet/mwhitelist.list >> /jffs/addons/shared-whitelists/shared-Skynet2-whitelist
+		rm -rf /tmp/skynet/mwhitelist.list
+	fi
 }
 
 Whitelist_Extra () {
-		echo "ipdeny.com
-		ipapi.co
-		ipinfo.io
-		speedguide.net
-		otx.alienvault.com
-		raw.githubusercontent.com
-		iplists.firehol.org
-		astrill.com
-		strongpath.net
-		snbforums.com
-		bin.entware.net
-		nwsrv-ns1.asus.com
-		$(nvram get "firmware_server")
-		$(nvram get "ntp_server0")
-		$(nvram get "ntp_server1")" | tr -d "\t" > /jffs/addons/shared-whitelists/shared-Skynet2-whitelist
+	echo "ipdeny.com
+	ipapi.co
+	ipinfo.io
+	speedguide.net
+	otx.alienvault.com
+	raw.githubusercontent.com
+	iplists.firehol.org
+	astrill.com
+	strongpath.net
+	snbforums.com
+	bin.entware.net
+	nwsrv-ns1.asus.com
+	$(nvram get "firmware_server")
+	$(nvram get "ntp_server0")
+	$(nvram get "ntp_server1")" | tr -d "\t" > /jffs/addons/shared-whitelists/shared-Skynet2-whitelist
 }
 
 Whitelist_CDN () {
-		sed '\~add Skynet-Whitelist ~!d;\~CDN-Whitelist~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
-		if [ "$cdnwhitelist" = "enabled" ]; then
-			{
-			# Apple AS714 | Akamai AS12222 AS16625 | HighWinds AS33438 AS20446 | Fastly AS54113
-			for asn in AS714 AS12222 AS16625 AS33438 AS20446 AS54113; do
-				curl -fsL --retry 3 "https://ipinfo.io/$asn" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}' | awk -v asn="$asn" '{printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: %s\"\n", $1, asn }' &
-			done
-			wait
-			curl -fsL --retry 3 https://www.cloudflare.com/ips-v4 | grep -E '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}' | awk '{printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: CloudFlare\"\n", $1 }'
-			curl -fsL --retry 3 https://ip-ranges.amazonaws.com/ip-ranges.json | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}' | awk '{printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: Amazon\"\n", $1 }';
-			} | awk '!x[$0]++' | ipset restore -!
-		fi
+	sed '\~add Skynet-Whitelist ~!d;\~CDN-Whitelist~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
+	if [ "$cdnwhitelist" = "enabled" ]; then
+		{
+		# Apple AS714 | Akamai AS12222 AS16625 | HighWinds AS33438 AS20446 | Fastly AS54113
+		for asn in AS714 AS12222 AS16625 AS33438 AS20446 AS54113; do
+			curl -fsL --retry 3 "https://ipinfo.io/$asn" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}' | awk -v asn="$asn" '{printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: %s\"\n", $1, asn }' &
+		done
+		wait
+		curl -fsL --retry 3 https://www.cloudflare.com/ips-v4 | grep -E '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}' | awk '{printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: CloudFlare\"\n", $1 }'
+		curl -fsL --retry 3 https://ip-ranges.amazonaws.com/ip-ranges.json | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}' | awk '{printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: Amazon\"\n", $1 }';
+		} | awk '!x[$0]++' | ipset restore -!
+	fi
 }
 
 Whitelist_VPN () {
-		echo "add Skynet-Whitelist $(nvram get vpn_server1_sn)/24 comment \"nvram: vpn_server1_sn\"
-		add Skynet-Whitelist $(nvram get vpn_server2_sn)/24 comment \"nvram: vpn_server2_sn\"
-		add Skynet-Whitelist $(nvram get vpn_server_sn)/24 comment \"nvram: vpn_server_sn\"
-		add Skynet-Whitelist $(nvram get vpn_client1_addr)/24 comment \"nvram: vpn_client1_addr\"
-		add Skynet-Whitelist $(nvram get vpn_client2_addr)/24 comment \"nvram: vpn_client2_addr\"
-		add Skynet-Whitelist $(nvram get vpn_client3_addr)/24 comment \"nvram: vpn_client3_addr\"
-		add Skynet-Whitelist $(nvram get vpn_client4_addr)/24 comment \"nvram: vpn_client4_addr\"
-		add Skynet-Whitelist $(nvram get vpn_client5_addr)/24 comment \"nvram: vpn_client5_addr\"" | tr -d "\t" | Filter_IPLine | ipset restore -! 2>/dev/null
-		if [ -f "/dev/astrill/openvpn.conf" ]; then ipset -q -A Skynet-Whitelist "$(sed '\~remote ~!d;s~remote ~~' "/dev/astrill/openvpn.conf")/24" comment "nvram: Astrill_VPN"; fi
+	echo "add Skynet-Whitelist $(nvram get vpn_server1_sn)/24 comment \"nvram: vpn_server1_sn\"
+	add Skynet-Whitelist $(nvram get vpn_server2_sn)/24 comment \"nvram: vpn_server2_sn\"
+	add Skynet-Whitelist $(nvram get vpn_server_sn)/24 comment \"nvram: vpn_server_sn\"
+	add Skynet-Whitelist $(nvram get vpn_client1_addr)/24 comment \"nvram: vpn_client1_addr\"
+	add Skynet-Whitelist $(nvram get vpn_client2_addr)/24 comment \"nvram: vpn_client2_addr\"
+	add Skynet-Whitelist $(nvram get vpn_client3_addr)/24 comment \"nvram: vpn_client3_addr\"
+	add Skynet-Whitelist $(nvram get vpn_client4_addr)/24 comment \"nvram: vpn_client4_addr\"
+	add Skynet-Whitelist $(nvram get vpn_client5_addr)/24 comment \"nvram: vpn_client5_addr\"" | tr -d "\t" | Filter_IPLine | ipset restore -! 2>/dev/null
+	if [ -f "/dev/astrill/openvpn.conf" ]; then ipset -q -A Skynet-Whitelist "$(sed '\~remote ~!d;s~remote ~~' "/dev/astrill/openvpn.conf")/24" comment "nvram: Astrill_VPN"; fi
 }
 
 Whitelist_Shared () {
-		echo "add Skynet-Whitelist $(nvram get wan0_ipaddr) comment \"nvram: wan0_ipaddr\"
-		add Skynet-Whitelist $(LAN_CIDR_Lookup "$(nvram get "lan_ipaddr")") comment \"nvram: lan_ipaddr\"
-		add Skynet-Whitelist $(nvram get wan_dns1_x) comment \"nvram: wan_dns1_x\"
-		add Skynet-Whitelist $(nvram get wan_dns2_x) comment \"nvram: wan_dns2_x\"
-		add Skynet-Whitelist $(nvram get wan0_dns1_x) comment \"nvram: wan0_dns1_x\"
-		add Skynet-Whitelist $(nvram get wan0_dns2_x) comment \"nvram: wan0_dns2_x\"
-		add Skynet-Whitelist $(nvram get wan_dns | awk '{print $1}') comment \"nvram: wan_dns\"
-		add Skynet-Whitelist $(nvram get wan_dns | awk '{print $2}') comment \"nvram: wan_dns\"
-		add Skynet-Whitelist $(nvram get wan0_dns | awk '{print $1}') comment \"nvram: wan0_dns\"
-		add Skynet-Whitelist $(nvram get wan0_dns | awk '{print $2}') comment \"nvram: wan0_dns\"
-		add Skynet-Whitelist $(nvram get wan0_xdns | awk '{print $1}') comment \"nvram: wan0_xdns\"
-		add Skynet-Whitelist $(nvram get wan0_xdns | awk '{print $2}') comment \"nvram: wan0_xdns\"
-		add Skynet-Whitelist 192.30.252.0/22 comment \"nvram: Github Content Server\"
-		add Skynet-Whitelist 127.0.0.0/8 comment \"nvram: Localhost\"" | tr -d "\t" | Filter_IPLine | ipset restore -! 2>/dev/null
-		if [ -n "$(find /jffs/addons/shared-whitelists -name 'shared-*-whitelist')" ]; then
-			sed '\~add Skynet-Whitelist ~!d;\~Shared-Whitelist~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
-			swapsize="$(du "$swaplocation" | awk '{print $1}')"
-			if [ "$(cat /jffs/addons/shared-whitelists/shared-*-whitelist | wc -l)" -gt "150" ] && [ "$swapsize" -lt "1048576" ] || \
-			{ [ "$(cat /jffs/addons/shared-whitelists/shared-*-whitelist | wc -l)" -gt "150" ] && [ "$swapsize" -lt "2097152" ] && [ "$(nvram get dns_local_cache)" = "1" ] ; }; then
-				Clean_Temp
-				cwd="$(pwd)"
-				cd /tmp/skynet/lists || exit 1
-				grep -hvF "#" /jffs/addons/shared-whitelists/shared-*-whitelist | Strip_Domain | split -l 150
-				for listname in *; do
-					while IFS= read -r "domain"; do
-						for ip in $(Domain_Lookup "$domain" 2> /dev/null); do
-							echo "add Skynet-Whitelist $ip comment \"Shared-Whitelist: $domain\""
-						done &
-					done < "$listname"
-					wait
-				done | ipset restore -!
-				cd "$cwd" || exit 1
-			else
-				grep -hvF "#" /jffs/addons/shared-whitelists/shared-*-whitelist | Strip_Domain | while IFS= read -r "domain"; do
+	echo "add Skynet-Whitelist $(nvram get wan0_ipaddr) comment \"nvram: wan0_ipaddr\"
+	add Skynet-Whitelist $(LAN_CIDR_Lookup "$(nvram get "lan_ipaddr")") comment \"nvram: lan_ipaddr\"
+	add Skynet-Whitelist $(nvram get wan_dns1_x) comment \"nvram: wan_dns1_x\"
+	add Skynet-Whitelist $(nvram get wan_dns2_x) comment \"nvram: wan_dns2_x\"
+	add Skynet-Whitelist $(nvram get wan0_dns1_x) comment \"nvram: wan0_dns1_x\"
+	add Skynet-Whitelist $(nvram get wan0_dns2_x) comment \"nvram: wan0_dns2_x\"
+	add Skynet-Whitelist $(nvram get wan_dns | awk '{print $1}') comment \"nvram: wan_dns\"
+	add Skynet-Whitelist $(nvram get wan_dns | awk '{print $2}') comment \"nvram: wan_dns\"
+	add Skynet-Whitelist $(nvram get wan0_dns | awk '{print $1}') comment \"nvram: wan0_dns\"
+	add Skynet-Whitelist $(nvram get wan0_dns | awk '{print $2}') comment \"nvram: wan0_dns\"
+	add Skynet-Whitelist $(nvram get wan0_xdns | awk '{print $1}') comment \"nvram: wan0_xdns\"
+	add Skynet-Whitelist $(nvram get wan0_xdns | awk '{print $2}') comment \"nvram: wan0_xdns\"
+	add Skynet-Whitelist 192.30.252.0/22 comment \"nvram: Github Content Server\"
+	add Skynet-Whitelist 127.0.0.0/8 comment \"nvram: Localhost\"" | tr -d "\t" | Filter_IPLine | ipset restore -! 2>/dev/null
+	if [ -n "$(find /jffs/addons/shared-whitelists -name 'shared-*-whitelist')" ]; then
+		sed '\~add Skynet-Whitelist ~!d;\~Shared-Whitelist~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
+		swapsize="$(du "$swaplocation" | awk '{print $1}')"
+		if [ "$(cat /jffs/addons/shared-whitelists/shared-*-whitelist | wc -l)" -gt "150" ] && [ "$swapsize" -lt "1048576" ] || \
+		{ [ "$(cat /jffs/addons/shared-whitelists/shared-*-whitelist | wc -l)" -gt "150" ] && [ "$swapsize" -lt "2097152" ] && [ "$(nvram get dns_local_cache)" = "1" ] ; }; then
+			Clean_Temp
+			cwd="$(pwd)"
+			cd /tmp/skynet/lists || exit 1
+			grep -hvF "#" /jffs/addons/shared-whitelists/shared-*-whitelist | Strip_Domain | split -l 150
+			for listname in *; do
+				while IFS= read -r "domain"; do
 					for ip in $(Domain_Lookup "$domain" 2> /dev/null); do
 						echo "add Skynet-Whitelist $ip comment \"Shared-Whitelist: $domain\""
 					done &
-				done | ipset restore -!
-			fi
-		fi
-		if [ "$(uname -o)" = "ASUSWRT-Merlin" ]; then dotvar="dnspriv_rulelist"; else dotvar="stubby_dns"; fi
-		for ip in $(nvram get "$dotvar" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}'); do
-			echo "add Skynet-Whitelist $ip comment \"nvram: $dotvar\""
-		done | ipset restore -!
-		if [ -f "/jffs/dnscrypt/public-resolvers.md" ] && [ -f "/jffs/dnscrypt/relays.md" ]; then
-			if [ -f /opt/bin/opkg ] && [ ! -f /opt/bin/base64 ]; then
-				opkg update && opkg install coreutils-base64
-			fi
-			if [ -f /opt/bin/opkg ] && [ -f /opt/bin/base64 ]; then
-				grep -hoE '^sdns:.*' /jffs/dnscrypt/public-resolvers.md /jffs/dnscrypt/relays.md | sed "s~'~~g;s~sdns://~~g" | while read -r stamp; do
-					echo "$stamp" | base64 -d 2>/dev/null
-				done | grep -aoE '([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{printf "add Skynet-Whitelist %s comment \"nvram: DNSCrypt Stamp\"\n", $1 }' | ipset restore -!
-			fi
-		fi
-		if [ -f "/opt/var/lib/unbound/root.hints" ]; then
-			grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' /opt/var/lib/unbound/root.hints | while read -r roothint; do
-				echo "add Skynet-Whitelist $roothint comment \"nvram: Root DNS Server\""
+				done < "$listname"
+				wait
+			done | ipset restore -!
+			cd "$cwd" || exit 1
+		else
+			grep -hvF "#" /jffs/addons/shared-whitelists/shared-*-whitelist | Strip_Domain | while IFS= read -r "domain"; do
+				for ip in $(Domain_Lookup "$domain" 2> /dev/null); do
+					echo "add Skynet-Whitelist $ip comment \"Shared-Whitelist: $domain\""
+				done &
 			done | ipset restore -!
 		fi
+	fi
+	if [ "$(uname -o)" = "ASUSWRT-Merlin" ]; then dotvar="dnspriv_rulelist"; else dotvar="stubby_dns"; fi
+	for ip in $(nvram get "$dotvar" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}'); do
+		echo "add Skynet-Whitelist $ip comment \"nvram: $dotvar\""
+	done | ipset restore -!
+	if [ -f "/jffs/dnscrypt/public-resolvers.md" ] && [ -f "/jffs/dnscrypt/relays.md" ]; then
+		if [ -f /opt/bin/opkg ] && [ ! -f /opt/bin/base64 ]; then
+			opkg update && opkg install coreutils-base64
+		fi
+		if [ -f /opt/bin/opkg ] && [ -f /opt/bin/base64 ]; then
+			grep -hoE '^sdns:.*' /jffs/dnscrypt/public-resolvers.md /jffs/dnscrypt/relays.md | sed "s~'~~g;s~sdns://~~g" | while read -r stamp; do
+				echo "$stamp" | base64 -d 2>/dev/null
+			done | grep -aoE '([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{printf "add Skynet-Whitelist %s comment \"nvram: DNSCrypt Stamp\"\n", $1 }' | ipset restore -!
+		fi
+	fi
+	if [ -f "/opt/var/lib/unbound/root.hints" ]; then
+		grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' /opt/var/lib/unbound/root.hints | while read -r roothint; do
+			echo "add Skynet-Whitelist $roothint comment \"nvram: Root DNS Server\""
+		done | ipset restore -!
+	fi
 }
 
 WriteStats_ToJS () {
@@ -1157,183 +1151,182 @@ Download_File () {
 }
 
 Manage_Device () {
-		echo "Looking For Available Partitions"
-		i="1"
-		IFS="
-		"
-		for mounted in $(/bin/mount | grep -E "ext2|ext3|ext4|tfat|exfat" | awk '{printf "%s - (%s)\n", $3, $1}'); do
-			echo "[$i]  --> $mounted"
-			eval mounts$i="$(echo "$mounted" | awk '{print $1}')"
-			i="$((i + 1))"
-		done
-		unset IFS
-		if [ "$i" = "1" ]; then
-			echo "[*] No Compatible ext* USB Partitions Found - Exiting!"
-			echo; exit 1
-		fi
-		Select_Device () {
-				echo
-				echo "Please Enter Partition Number Or e To Exit"
-				printf "[0-%s]: " "$((i - 1))"
-				read -r "partitionNumber"
-				echo
-				if [ "$partitionNumber" = "e" ] || [ "$partitionNumber" = "exit" ]; then
-					echo "[*] Exiting!"
-					echo; exit 0
-				elif [ -z "$partitionNumber" ] || [ "$partitionNumber" -gt "$((i - 1))" ] 2>/dev/null || [ "$partitionNumber" = "0" ]; then
-					echo "[*] Invalid Partition Number!"
-					Select_Device
-				elif [ "$partitionNumber" -eq "$partitionNumber" ] 2>/dev/null; then
-					true
-				else
-					echo "[*] $partitionNumber Isn't An Option!"
-					Select_Device
-				fi
-		}
-		Select_Device
-		device=""
-		eval device=\$mounts"$partitionNumber"
-		touch "${device}/rwtest"
-		if [ ! -w "${device}/rwtest" ]; then
-			echo "[*] Writing To $device Failed - Exiting!"
-			Manage_Device
+	echo "Looking For Available Partitions"
+	i="1"
+	IFS="
+	"
+	for mounted in $(/bin/mount | grep -E "ext2|ext3|ext4|tfat|exfat" | awk '{printf "%s - (%s)\n", $3, $1}'); do
+		echo "[$i]  --> $mounted"
+		eval mounts$i="$(echo "$mounted" | awk '{print $1}')"
+		i="$((i + 1))"
+	done
+	unset IFS
+	if [ "$i" = "1" ]; then
+		echo "[*] No Compatible ext* USB Partitions Found - Exiting!"
+		echo; exit 1
+	fi
+	Select_Device () {
+		echo
+		echo "Please Enter Partition Number Or e To Exit"
+		printf "[0-%s]: " "$((i - 1))"
+		read -r "partitionNumber"
+		echo
+		if [ "$partitionNumber" = "e" ] || [ "$partitionNumber" = "exit" ]; then
+			echo "[*] Exiting!"
+			echo; exit 0
+		elif [ -z "$partitionNumber" ] || [ "$partitionNumber" -gt "$((i - 1))" ] 2>/dev/null || [ "$partitionNumber" = "0" ]; then
+			echo "[*] Invalid Partition Number!"
+			Select_Device
+		elif [ "$partitionNumber" -eq "$partitionNumber" ] 2>/dev/null; then
+			true
 		else
-			rm -rf "${device}/rwtest"
+			echo "[*] $partitionNumber Isn't An Option!"
+			Select_Device
 		fi
+	}
+	Select_Device
+	device=""
+	eval device=\$mounts"$partitionNumber"
+	touch "${device}/rwtest"
+	if [ ! -w "${device}/rwtest" ]; then
+		echo "[*] Writing To $device Failed - Exiting!"
+		Manage_Device
+	else
+		rm -rf "${device}/rwtest"
+	fi
 }
 
 Create_Swap () {
-		while true; do
-			echo "Select SWAP File Size:"
-			echo "[1]  --> 1GB"
-			echo "[2]  --> 2GB (Recommended)"
-			echo
-			echo "[e]  --> Exit Menu"
-			echo
-			printf "[1-2]: "
-			read -r "menu"
-			echo
-			case "$menu" in
-				1)
-					swapsize=1048576
-					break
-				;;
-				2)
-					swapsize=2097152
-					break
-				;;
-				e|exit)
-					echo "[*] Exiting!"
-					echo; exit 0
-				;;
-				*)
-					echo "[*] $menu Isn't An Option!"
-					echo
-				;;
-			esac
-		done
-		swaplocation="${device}/myswap.swp"
-		if [ -f "$swaplocation" ]; then swapoff -a 2>/dev/null; rm -rf "$swaplocation"; fi
-		if [ "$(df "$device" | xargs | awk '{print $11}')" -le "$swapsize" ]; then echo "[*] Not Enough Free Space Available On $device"; Create_Swap; fi
-		echo "[i] Creating SWAP File"
-		dd if=/dev/zero of="$swaplocation" bs=1k count="$swapsize"
-		mkswap "$swaplocation"
-		swapon "$swaplocation"
-		sed -i '\~swapon ~d' /jffs/scripts/post-mount
-		if [ "$(wc -l < /jffs/scripts/post-mount)" -lt "2" ]; then echo >> /jffs/scripts/post-mount; fi
-		sed -i "2i swapon $swaplocation # Skynet Firewall Addition" /jffs/scripts/post-mount
-		if [ -f "/jffs/scripts/unmount" ] && ! grep -qE "^swapoff " /jffs/scripts/unmount; then
-			sed -i '\~swapoff ~d' /jffs/scripts/unmount
-			echo "swapoff -a 2>/dev/null # Skynet Firewall Addition" >> /jffs/scripts/unmount
-		fi
-		echo "[i] SWAP File Located At $swaplocation"
+	while true; do
+		echo "Select SWAP File Size:"
+		echo "[1]  --> 1GB"
+		echo "[2]  --> 2GB (Recommended)"
 		echo
+		echo "[e]  --> Exit Menu"
+		echo
+		printf "[1-2]: "
+		read -r "menu"
+		echo
+		case "$menu" in
+			1)
+				swapsize=1048576
+				break
+			;;
+			2)
+				swapsize=2097152
+				break
+			;;
+			e|exit)
+				echo "[*] Exiting!"
+				echo; exit 0
+			;;
+			*)
+				echo "[*] $menu Isn't An Option!"
+				echo
+			;;
+		esac
+	done
+	swaplocation="${device}/myswap.swp"
+	if [ -f "$swaplocation" ]; then swapoff -a 2>/dev/null; rm -rf "$swaplocation"; fi
+	if [ "$(df "$device" | xargs | awk '{print $11}')" -le "$swapsize" ]; then echo "[*] Not Enough Free Space Available On $device"; Create_Swap; fi
+	echo "[i] Creating SWAP File"
+	dd if=/dev/zero of="$swaplocation" bs=1k count="$swapsize"
+	mkswap "$swaplocation"
+	swapon "$swaplocation"
+	sed -i '\~swapon ~d' /jffs/scripts/post-mount
+	if [ "$(wc -l < /jffs/scripts/post-mount)" -lt "2" ]; then echo >> /jffs/scripts/post-mount; fi
+	sed -i "2i swapon $swaplocation # Skynet Firewall Addition" /jffs/scripts/post-mount
+	if [ -f "/jffs/scripts/unmount" ] && ! grep -qE "^swapoff " /jffs/scripts/unmount; then
+		sed -i '\~swapoff ~d' /jffs/scripts/unmount
+		echo "swapoff -a 2>/dev/null # Skynet Firewall Addition" >> /jffs/scripts/unmount
+	fi
+	echo "[i] SWAP File Located At $swaplocation"
+	echo
 }
 
 Purge_Logs () {
-		sed '\~BLOCKED -~!d' "$syslog1loc" "$syslogloc" 2>/dev/null >> "$skynetlog"
-		sed -i '\~BLOCKED -~d' "$syslog1loc" "$syslogloc" 2>/dev/null
-		if [ "$(du "$skynetlog" | awk '{print $1}')" -ge "10240" ] || [ "$1" = "force" ]; then
-			sed -i '\~BLOCKED -~d' "$skynetlog"
-			sed -i '\~Skynet: \[#\] ~d' "$skynetevents"
-			iptables -Z PREROUTING -t raw
-			if [ "$(du "$skynetlog" | awk '{print $1}')" -ge "3000" ]; then
-				true > "$skynetlog"
-			fi
+	sed '\~BLOCKED -~!d' "$syslog1loc" "$syslogloc" 2>/dev/null >> "$skynetlog"
+	sed -i '\~BLOCKED -~d' "$syslog1loc" "$syslogloc" 2>/dev/null
+	if [ "$(du "$skynetlog" | awk '{print $1}')" -ge "10240" ] || [ "$1" = "force" ]; then
+		sed -i '\~BLOCKED -~d' "$skynetlog"
+		sed -i '\~Skynet: \[#\] ~d' "$skynetevents"
+		iptables -Z PREROUTING -t raw
+		if [ "$(du "$skynetlog" | awk '{print $1}')" -ge "3000" ]; then
+			true > "$skynetlog"
 		fi
-		if [ "$1" = "all" ] || [ "$(grep -cE "Skynet: [#] " "$syslogloc" 2>/dev/null)" -gt "24" ] 2>/dev/null; then
-			sed '\~Skynet: \[#\] ~!d' "$syslog1loc" "$syslogloc" 2>/dev/null >> "$skynetevents"
-			sed -i '\~Skynet: \[#\] ~d;\~Skynet: \[i\] ~d;\~Skynet: \[\*\] Lock ~d' "$syslog1loc" "$syslogloc" 2>/dev/null
-		fi
-		if [ -f "/opt/etc/syslog-ng.d/skynet" ]; then /usr/bin/killall -HUP syslog-ng; fi
+	fi
+	if [ "$1" = "all" ] || [ "$(grep -cE "Skynet: [#] " "$syslogloc" 2>/dev/null)" -gt "24" ] 2>/dev/null; then
+		sed '\~Skynet: \[#\] ~!d' "$syslog1loc" "$syslogloc" 2>/dev/null >> "$skynetevents"
+		sed -i '\~Skynet: \[#\] ~d;\~Skynet: \[i\] ~d;\~Skynet: \[\*\] Lock ~d' "$syslog1loc" "$syslogloc" 2>/dev/null
+	fi
+	if [ -f "/opt/etc/syslog-ng.d/skynet" ]; then /usr/bin/killall -HUP syslog-ng; fi
 }
 
 Print_Log () {
-		oldips="$blacklist1count"
-		oldranges="$blacklist2count"
-		blacklist1count="$(grep -Foc "add Skynet-Black" "$skynetipset" 2> /dev/null)"
-		blacklist2count="$(grep -Foc "add Skynet-Block" "$skynetipset" 2> /dev/null)"
-		unset fail
-		if Check_IPTables; then
-			if [ "$filtertraffic" != "outbound" ]; then
-				hits1="$(iptables -xnvL PREROUTING -t raw | grep -Fv "LOG" | grep -F "Skynet-Master src" | awk '{print $1}')"
-			else
-				hits1="0"
-			fi
-			if [ "$filtertraffic" != "inbound" ]; then
-				hits2="$(($(iptables -xnvL PREROUTING -t raw | grep -Fv "LOG" | grep -F "Skynet-Master dst" | awk '{print $1}')+$(iptables -xnvL OUTPUT -t raw | grep -Fv "LOG" | grep -F "Skynet-Master dst" | awk '{print $1}')))"
-			else
-				hits2="0"
-			fi
-		fi
-		ftime="$(($(date +%s) - stime))"
-		if ! echo "$((blacklist1count - oldips))" | grep -qF "-"; then newips="+$((blacklist1count - oldips))"; else newips="$((blacklist1count - oldips))"; fi
-		if ! echo "$((blacklist2count - oldranges))" | grep -qF "-"; then newranges="+$((blacklist2count - oldranges))"; else newranges="$((blacklist2count - oldranges))"; fi
-		if [ "$1" = "minimal" ]; then
-			Grn "$blacklist1count IPs (${newips}) -- $blacklist2count Ranges Banned (${newranges}) || $hits1 Inbound -- $hits2 Outbound Connections Blocked!"
+	oldips="$blacklist1count"
+	oldranges="$blacklist2count"
+	blacklist1count="$(grep -Foc "add Skynet-Black" "$skynetipset" 2> /dev/null)"
+	blacklist2count="$(grep -Foc "add Skynet-Block" "$skynetipset" 2> /dev/null)"
+	unset fail
+	if Check_IPTables; then
+		if [ "$filtertraffic" != "outbound" ]; then
+			hits1="$(iptables -xnvL PREROUTING -t raw | grep -Fv "LOG" | grep -F "Skynet-Master src" | awk '{print $1}')"
 		else
-			logz="[#] $blacklist1count IPs (${newips}) -- $blacklist2count Ranges Banned (${newranges}) || $hits1 Inbound -- $hits2 Outbound Connections Blocked! [$1] [${ftime}s]"
-			logger -t Skynet "$logz"; echo "$logz"
+			hits1="0"
 		fi
+		if [ "$filtertraffic" != "inbound" ]; then
+			hits2="$(($(iptables -xnvL PREROUTING -t raw | grep -Fv "LOG" | grep -F "Skynet-Master dst" | awk '{print $1}')+$(iptables -xnvL OUTPUT -t raw | grep -Fv "LOG" | grep -F "Skynet-Master dst" | awk '{print $1}')))"
+		else
+			hits2="0"
+		fi
+	fi
+	ftime="$(($(date +%s) - stime))"
+	if ! echo "$((blacklist1count - oldips))" | grep -qF "-"; then newips="+$((blacklist1count - oldips))"; else newips="$((blacklist1count - oldips))"; fi
+	if ! echo "$((blacklist2count - oldranges))" | grep -qF "-"; then newranges="+$((blacklist2count - oldranges))"; else newranges="$((blacklist2count - oldranges))"; fi
+	if [ "$1" = "minimal" ]; then
+		Grn "$blacklist1count IPs (${newips}) -- $blacklist2count Ranges Banned (${newranges}) || $hits1 Inbound -- $hits2 Outbound Connections Blocked!"
+	else
+		logz="[#] $blacklist1count IPs (${newips}) -- $blacklist2count Ranges Banned (${newranges}) || $hits1 Inbound -- $hits2 Outbound Connections Blocked! [$1] [${ftime}s]"
+		logger -t Skynet "$logz"; echo "$logz"
+	fi
 }
 
 Write_Config () {
-		{ printf "%s\\n" "################################################"
-		printf "%s\\n" "## Generated By Skynet - Do Not Manually Edit ##"
-		printf "%-45s %s\\n\\n" "## $(date +"%b %d %T")" "##"
-		printf "%s\\n" "## Installer ##"
-		printf "%s=\"%s\"\\n" "model" "$model"
-		printf "%s=\"%s\"\\n" "localver" "$localver"
-		printf "%s=\"%s\"\\n" "autoupdate" "$autoupdate"
-		printf "%s=\"%s\"\\n" "banmalwareupdate" "$banmalwareupdate"
-		printf "%s=\"%s\"\\n" "forcebanmalwareupdate" "$forcebanmalwareupdate"
-		printf "%s=\"%s\"\\n" "logmode" "$logmode"
-		printf "%s=\"%s\"\\n" "filtertraffic" "$filtertraffic"
-		printf "%s=\"%s\"\\n" "swaplocation" "$swaplocation"
-		printf "%s=\"%s\"\\n" "swappartition" "$swappartition"
-		printf "\\n%s\\n" "## Counters / Lists ##"
-		printf "%s=\"%s\"\\n" "blacklist1count" "$blacklist1count"
-		printf "%s=\"%s\"\\n" "blacklist2count" "$blacklist2count"
-		printf "%s=\"%s\"\\n" "customlisturl" "$customlisturl"
-		printf "%s=\"%s\"\\n" "customlist2url" "$customlist2url"
-		printf "%s=\"%s\"\\n" "countrylist" "$countrylist"
-		printf "%s=\"%s\"\\n" "excludelists" "$excludelists"
-		printf "\\n%s\\n" "## Settings ##"
-		printf "%s=\"%s\"\\n" "unbanprivateip" "$unbanprivateip"
-		printf "%s=\"%s\"\\n" "loginvalid" "$loginvalid"
-		printf "%s=\"%s\"\\n" "banaiprotect" "$banaiprotect"
-		printf "%s=\"%s\"\\n" "securemode" "$securemode"
-		printf "%s=\"%s\"\\n" "extendedstats" "$extendedstats"
-		printf "%s=\"%s\"\\n" "fastswitch" "$fastswitch"
-		printf "%s=\"%s\"\\n" "syslogloc" "$syslogloc"
-		printf "%s=\"%s\"\\n" "syslog1loc" "$syslog1loc"
-		printf "%s=\"%s\"\\n" "iotblocked" "$iotblocked"
-		printf "%s=\"%s\"\\n" "iotports" "$iotports"
-		printf "%s=\"%s\"\\n" "iotproto" "$iotproto"
-		printf "%s=\"%s\"\\n" "lookupcountry" "$lookupcountry"
-		printf "%s=\"%s\"\\n" "cdnwhitelist" "$cdnwhitelist"
-		printf "%s=\"%s\"\\n" "displaywebui" "$displaywebui"
-		printf "\\n%s\\n" "################################################"; } > "$skynetcfg"
+	{ printf "%s\\n" "################################################"
+	printf "%s\\n" "## Generated By Skynet - Do Not Manually Edit ##"
+	printf "%-45s %s\\n\\n" "## $(date +"%b %d %T")" "##"
+	printf "%s\\n" "## Installer ##"
+	printf "%s=\"%s\"\\n" "model" "$model"
+	printf "%s=\"%s\"\\n" "localver" "$localver"
+	printf "%s=\"%s\"\\n" "autoupdate" "$autoupdate"
+	printf "%s=\"%s\"\\n" "banmalwareupdate" "$banmalwareupdate"
+	printf "%s=\"%s\"\\n" "forcebanmalwareupdate" "$forcebanmalwareupdate"
+	printf "%s=\"%s\"\\n" "logmode" "$logmode"
+	printf "%s=\"%s\"\\n" "filtertraffic" "$filtertraffic"
+	printf "%s=\"%s\"\\n" "swaplocation" "$swaplocation"
+	printf "\\n%s\\n" "## Counters / Lists ##"
+	printf "%s=\"%s\"\\n" "blacklist1count" "$blacklist1count"
+	printf "%s=\"%s\"\\n" "blacklist2count" "$blacklist2count"
+	printf "%s=\"%s\"\\n" "customlisturl" "$customlisturl"
+	printf "%s=\"%s\"\\n" "customlist2url" "$customlist2url"
+	printf "%s=\"%s\"\\n" "countrylist" "$countrylist"
+	printf "%s=\"%s\"\\n" "excludelists" "$excludelists"
+	printf "\\n%s\\n" "## Settings ##"
+	printf "%s=\"%s\"\\n" "unbanprivateip" "$unbanprivateip"
+	printf "%s=\"%s\"\\n" "loginvalid" "$loginvalid"
+	printf "%s=\"%s\"\\n" "banaiprotect" "$banaiprotect"
+	printf "%s=\"%s\"\\n" "securemode" "$securemode"
+	printf "%s=\"%s\"\\n" "extendedstats" "$extendedstats"
+	printf "%s=\"%s\"\\n" "fastswitch" "$fastswitch"
+	printf "%s=\"%s\"\\n" "syslogloc" "$syslogloc"
+	printf "%s=\"%s\"\\n" "syslog1loc" "$syslog1loc"
+	printf "%s=\"%s\"\\n" "iotblocked" "$iotblocked"
+	printf "%s=\"%s\"\\n" "iotports" "$iotports"
+	printf "%s=\"%s\"\\n" "iotproto" "$iotproto"
+	printf "%s=\"%s\"\\n" "lookupcountry" "$lookupcountry"
+	printf "%s=\"%s\"\\n" "cdnwhitelist" "$cdnwhitelist"
+	printf "%s=\"%s\"\\n" "displaywebui" "$displaywebui"
+	printf "\\n%s\\n" "################################################"; } > "$skynetcfg"
 }
 
 ##########
@@ -1355,9 +1348,6 @@ Load_Menu () {
 		if [ "$(du "$swaplocation" | awk '{print $1}')" -lt "1048576" ]; then
 			Red "SWAP File Too Small - 1GB Minimum Required - Please Fix Immediately!"
 		fi
-	elif [ -n "$swappartition" ]; then
-		partitionsize="$((($(sed -n '2p' /proc/swaps | awk '{print $3}') + (1024 + 1)) / 1024))"
-		echo "SWAP Partition; $swappartition (${partitionsize}M)"
 	fi
 	if [ -n "$countrylist" ]; then echo "Banned Countries; $countrylist"; fi
 	if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(sed -n '2p' /tmp/skynet.lock)" ]; then
@@ -4555,9 +4545,6 @@ case "$1" in
 					if [ "$(du "$swaplocation" | awk '{print $1}')" -lt "1048576" ]; then
 						Red "SWAP File Too Small - 1GB Minimum Required - Please Fix Immediately!"
 					fi
-				elif [ -n "$swappartition" ]; then
-					partitionsize="$((($(sed -n '2p' /proc/swaps | awk '{print $3}') + (1024 + 1)) / 1024))"
-					echo "SWAP Partition; $swappartition (${partitionsize}M)"
 				fi
 				if [ "$syslogloc" != "/tmp/syslog.log" ] || [ "$syslog1loc" != "/tmp/syslog.log-1" ]; then
 					echo "Syslog Location; ($syslogloc) ($syslog1loc)"
@@ -4729,11 +4716,11 @@ case "$1" in
 						Check_Lock "$@"
 						Check_Files
 						swaplocation="$(grep -E "^swapon " /jffs/scripts/post-mount | awk '{print $2}')"
-						findswap="$(find /tmp/mnt -name "myswap.swp" >/dev/null 2>&1)"
-						if [ -z "$findswap" ] && ! grep -qF "partition" /proc/swaps; then
-							findswap="$(sed -n '2p' /proc/swaps | awk '{print $1}')"
+						findswap="$(find /tmp/mnt -name "myswap.swp")"
+						if [ -z "$findswap" ]; then
+							findswap="$(grep -m1 -F "file" "/proc/swaps" | awk '{print $1}')"
 						fi
-						if [ -z "$swaplocation" ] && [ -z "$findswap" ] && ! grep -F "swap" /jffs/configs/fstab && ! Check_Swap; then
+						if [ -z "$swaplocation" ] && [ -z "$findswap" ] && ! Check_Swap; then
 							Manage_Device
 							Create_Swap
 							echo "[i] Saving Changes"
@@ -4766,7 +4753,7 @@ case "$1" in
 							restartfirewall="1"
 							nolog="2"
 						elif [ -n "$swaplocation" ] && [ ! -f "$swaplocation" ]; then
-							echo "[*] SWAP File Missing - Fix This By First Running ( $0 debug swap uninstall )"
+							logger -st Skynet "[*] SWAP File Missing ( $swaplocation ) - Fix This By Running ( $0 debug swap uninstall ) Then ( $0 debug swap install )"
 							nolog="2"
 						else
 							echo "[*] Pre-existing SWAP File Detected - Exiting!"
@@ -4774,19 +4761,16 @@ case "$1" in
 					;;
 					uninstall)
 						Check_Lock "$@"
-						if grep -qF "swap" /jffs/configs/fstab || grep -qF "partition" /proc/swaps; then
-							echo "[*] Skynet Can Not Modify Swap Partitions - Exiting!"; echo; exit 1
-						fi
 						if ! grep -qE "^swapon " /jffs/scripts/post-mount; then
-							findswap="$(find /tmp/mnt -name "myswap.swp" 2> /dev/null)"
+							findswap="$(find /tmp/mnt -name "myswap.swp")"
 							if [ -n "$findswap" ]; then
 								swaplocation="$findswap"
 							elif [ -z "$findswap" ]; then
-								findswap="$(sed -n '2p' /proc/swaps | awk '{print $1}')"
+								findswap="$(grep -m1 -F "file" "/proc/swaps" | awk '{print $1}')"
 								if [ -n "$findswap" ]; then
 									swaplocation="$findswap"
 								else
-									echo "[*] No SWAP Entry Detected - Exiting!"; echo; exit 1
+									echo "[*] No SWAP File Detected - Exiting!"; echo; exit 1
 								fi
 							fi
 						else
@@ -5467,8 +5451,7 @@ case "$1" in
 		done
 		echo
 		Check_Files
-		touch "/jffs/configs/fstab"
-		if ! grep -qE "^swapon " /jffs/scripts/post-mount && ! grep -qF "swap" /jffs/configs/fstab; then Create_Swap; fi
+		if ! grep -qE "^swapon " /jffs/scripts/post-mount; then Create_Swap; fi
 		if [ -f "$skynetlog" ]; then mv "$skynetlog" "${device}/skynet/skynet.log"; fi
 		if [ -f "$skynetevents" ]; then mv "$skynetevents" "${device}/skynet/events.log"; fi
 		if [ -f "$skynetipset" ]; then mv "$skynetipset" "${device}/skynet/skynet.ipset"; fi
