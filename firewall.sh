@@ -4753,7 +4753,7 @@ case "$1" in
 							restartfirewall="1"
 							nolog="2"
 						elif [ -n "$swaplocation" ] && [ ! -f "$swaplocation" ]; then
-							logger -st Skynet "[*] SWAP File Missing ( $swaplocation ) - Fix This By Running ( $0 debug swap uninstall ) Then ( $0 debug swap install )"
+							echo "[*] SWAP File Missing ( $swaplocation ) - Fix This By Running ( $0 debug swap uninstall ) Then ( $0 debug swap install )"
 							nolog="2"
 						else
 							echo "[*] Pre-existing SWAP File Detected - Exiting!"
