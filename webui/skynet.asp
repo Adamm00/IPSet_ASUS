@@ -235,24 +235,22 @@
                         }
                     }]
                 },
-                onClick: function(e){
+                onClick: function(e) {
                     var element = this.getElementAtEvent(e);
                     if (typeof element === 'undefined' || element === null) return false;
                     if (element.length == 0) return false;
-                    indexofelement=element[0]._index;
-                    var labeldataset=GetLabelDataset(txtchartname, multilabel);
-                    var urlprefix="";
-                    if (txtchartname == "InPortHits" || txtchartname == "SPortHits"){
-                        urlprefix="https://www.speedguide.net/port.php?port=";
+                    indexofelement = element[0]._index;
+                    var labeldataset = GetLabelDataset(txtchartname, multilabel);
+                    var urlprefix = "";
+                    if (txtchartname == "InPortHits" || txtchartname == "SPortHits") {
+                        urlprefix = "https://www.speedguide.net/port.php?port=";
+                    } else if (txtchartname == "TCConnHits") {
+                        urlprefix = "https://otx.alienvault.com/indicator/ip/";
+                    } else if ($("#" + txtchartname + "_Group option:selected").val() == 0) {
+                        urlprefix = "https://otx.alienvault.com/indicator/ip/";
                     }
-                    else if (txtchartname == "TCConnHits"){
-                        urlprefix="https://otx.alienvault.com/indicator/ip/";
-                    }
-                    else if($("#" + txtchartname + "_Group option:selected").val() == 0){
-                        urlprefix="https://otx.alienvault.com/indicator/ip/";
-                    }
-                    if(urlprefix != ""){
-                        window.open(urlprefix+labeldataset[indexofelement],"_blank");
+                    if (urlprefix != "") {
+                        window.open(urlprefix + labeldataset[indexofelement], "_blank");
                     }
                 },
                 plugins: {
