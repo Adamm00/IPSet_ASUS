@@ -24,7 +24,7 @@ mkdir -p /jffs/addons/shared-whitelists
 
 ntptimer="0"
 while [ "$(nvram get ntp_ready)" = "0" ] && [ "$ntptimer" -lt "300" ]; do
-	ntptimer="$((ntptimer+1))"
+	ntptimer="$((ntptimer + 1))"
 	if [ "$ntptimer" = "60" ]; then echo; logger -st Skynet "[*] Waiting For NTP To Sync"; fi
 	sleep 1
 done
@@ -57,7 +57,7 @@ Kill_Lock() {
 
 Check_Lock() {
 	if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(sed -n '2p' /tmp/skynet.lock)" ] && [ "$(sed -n '2p' /tmp/skynet.lock)" != "$$" ]; then
-		if [ "$(($(date +%s)-$(sed -n '3p' /tmp/skynet.lock)))" -gt "1800" ]; then
+		if [ "$(($(date +%s) - $(sed -n '3p' /tmp/skynet.lock)))" -gt "1800" ]; then
 			Kill_Lock
 		else
 			logger -st Skynet "[*] Lock File Detected ($(sed -n '1p' /tmp/skynet.lock)) (pid=$(sed -n '2p' /tmp/skynet.lock)) - Exiting (cpid=$$)"
@@ -75,7 +75,7 @@ if [ ! -d "${skynetloc}" ] && ! echo "$@" | grep -wqE "(install|uninstall|disabl
 	usbtest="0"
 	if [ -z "${skynetloc}" ]; then usbtest="10"; fi
 	while [ ! -d "${skynetloc}" ] && [ "$usbtest" -le "10" ]; do
-		usbtest="$((usbtest+1))"
+		usbtest="$((usbtest + 1))"
 		logger -st Skynet "[*] USB Not Found - Sleeping For 10 Seconds ( Attempt $usbtest Of 10 )"
 		sleep 10
 	done
@@ -241,7 +241,7 @@ Check_Connection() {
 				if ping -q -w3 -c1 snbforums.com >/dev/null 2>&1; then
 					break
 				else
-					livecheck="$((livecheck+1))"
+					livecheck="$((livecheck + 1))"
 					if [ "$livecheck" != "4" ]; then
 						echo "[*] Internet Connectivity Error"
 						sleep 10
@@ -274,7 +274,7 @@ Check_Files() {
 		sed -i '1s~^~#!/bin/sh\n~' /jffs/scripts/service-event
 	fi
 	if ! grep -vE "^#" /jffs/scripts/service-event | grep -qF "sh /jffs/scripts/firewall debug genstats"; then
-		cmdline="if [ \"\$1\" = \"start\" ] && [ \"\$2\" = \"SkynetStats\" ]; then sh /jffs/scripts/firewall debug genstats; fi # Skynet Firewall Addition"
+		cmdline='if [ "$1" = "start" ] && [ "$2" = "SkynetStats" ]; then sh /jffs/scripts/firewall debug genstats; fi # Skynet Firewall Addition'
 		sed -i '\~# Skynet Firewall Addition~d' /jffs/scripts/service-event
 		echo "$cmdline" >> /jffs/scripts/service-event
 	fi
@@ -608,12 +608,12 @@ Domain_Lookup() {
 }
 
 LAN_CIDR_Lookup() {
-	if [ "$(echo "$1" | cut -c1-8)" = "192.168." ];	then
+	if [ "$(echo "$1" | cut -c1-8)" = "192.168." ]; then
 		echo "192.168.0.0/16"
 	elif [ "$(echo "$1" | cut -c1-4)" = "172." ]; then
 		echo "172.16.0.0/12"
 	elif [ "$(echo "$1" | cut -c1-3)" = "10." ]; then
-		echo "10.0.0.0/8";
+		echo "10.0.0.0/8"
 	fi
 }
 
@@ -683,12 +683,12 @@ Display_Header() {
 		;;
 		7)
 			printf "\\n\\n%-35s | %-8s\\n" "--------------------" "----------"
-			printf "%-35s | %-8s\\n" "| Test Description |" "| Result |"
+			printf '%-35s | %-8s\n' "| Test Description |" "| Result |"
 			printf "%-35s | %-8s\\n\\n" "--------------------" "----------"
 		;;
 		8)
 			printf "\\n\\n%-35s | %-8s\\n" "-----------" "----------"
-			printf "%-35s | %-8s\\n" "| Setting |" "| Status |"
+			printf '%-35s | %-8s\n' "| Setting |" "| Status |"
 			printf "%-35s | %-8s\\n\\n" "----------" "----------"
 		;;
 		9)
@@ -714,7 +714,7 @@ Display_Message() {
 
 Display_Result() {
 	result="$(Grn "[$(($(date +%s) - btime))s]")"
-	printf "%-8s\\n" "$result"
+	printf '%-8s\n' "$result"
 }
 
 Filter_Version() {
@@ -761,7 +761,7 @@ Spinner_Start() {
 	Spinner_End
 	touch "/tmp/skynet/spinstart"
 	{ while [ -f "/tmp/skynet/spinstart" ]; do
-		for c in \*-- -\*- --\* ; do
+		for c in \*-- -\*- --\*; do
 			printf '\033[1;32m%s\033[0m\b\b\b' "$c"
 			usleep 250000
 		done
@@ -798,7 +798,7 @@ Refresh_AiProtect() {
 			opkg update && opkg install sqlite3-cli
 		fi
 		if [ -f /opt/bin/opkg ] && [ -f /opt/bin/sqlite3 ]; then
-			sed "\\~add Skynet-Blacklist ~!d;\\~BanAiProtect~!d;s~ comment.*~~;s~add~del~g" "$skynetipset" | ipset restore -!
+			sed '\~add Skynet-Blacklist ~!d;\~BanAiProtect~!d;s~ comment.*~~;s~add~del~g' "$skynetipset"
 			sqlite3 /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db "SELECT src FROM monitor;" | awk '!x[$0]++' | Filter_IP | Filter_PrivateIP | awk '{printf "add Skynet-Blacklist %s comment \"BanAiProtect\"\n", $1 }' | ipset restore -!
 			sqlite3 /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db "SELECT dst FROM monitor;" | awk '!x[$0]++' | Filter_OutIP | grep -v ":" | while IFS= read -r "domain"; do
 				for ip in $(Domain_Lookup "$domain" 2>/dev/null | Filter_PrivateIP); do
@@ -813,7 +813,7 @@ Refresh_MBans() {
 	if grep -qF "[Manual Ban] TYPE=Domain" "$skynetevents"; then
 		grep -F "[Manual Ban] TYPE=Domain" "$skynetevents" | awk '{print $9}' | awk '!x[$0]++' | sed 's~Host=~~g' > /tmp/skynet/mbans.list
 		sed -i '\~\[Manual Ban\] TYPE=Domain~d;' "$skynetevents"
-		sed "\\~add Skynet-Blacklist ~!d;\\~ManualBanD~!d;s~ comment.*~~;s~add~del~g" "$skynetipset" | ipset restore -!
+		sed '\~add Skynet-Blacklist ~!d;\~ManualBanD~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
 		while IFS= read -r "domain"; do
 			for ip in $(Domain_Lookup "$domain" | Filter_PrivateIP); do
 				echo "add Skynet-Blacklist $ip comment \"ManualBanD: $domain\""
@@ -828,7 +828,7 @@ Refresh_MWhitelist() {
 	if grep -qE "Manual Whitelist.* TYPE=Domain" "$skynetevents"; then
 		grep -E "Manual Whitelist.* TYPE=Domain" "$skynetevents" | awk '{print $9}' | awk '!x[$0]++' | sed 's~Host=~~g' > /tmp/skynet/mwhitelist.list
 		sed -i '\~\[Manual Whitelist\] TYPE=Domain~d;' "$skynetevents"
-		sed "\\~add Skynet-Whitelist ~!d;\\~ManualWlistD~!d;s~ comment.*~~;s~add~del~g" "$skynetipset" | ipset restore -!
+		sed '\~add Skynet-Whitelist ~!d;\~ManualWlistD~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
 		while IFS= read -r "domain"; do
 			for ip in $(Domain_Lookup "$domain"); do
 				echo "add Skynet-Whitelist $ip comment \"ManualWlistD: $domain\""
@@ -862,13 +862,13 @@ Whitelist_CDN() {
 	sed '\~add Skynet-Whitelist ~!d;\~CDN-Whitelist~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
 	if [ "$cdnwhitelist" = "enabled" ]; then
 		{
-		# Apple AS714 | Akamai AS12222 AS16625 | HighWinds AS33438 AS20446 | Fastly AS54113
-		for asn in AS714 AS12222 AS16625 AS33438 AS20446 AS54113; do
-			curl -fsL --retry 3 "https://ipinfo.io/$asn" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}' | awk -v asn="$asn" '{printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: %s\"\n", $1, asn }' &
-		done
-		wait
-		curl -fsL --retry 3 https://www.cloudflare.com/ips-v4 | grep -E '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}' | awk '{printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: CloudFlare\"\n", $1 }'
-		curl -fsL --retry 3 https://ip-ranges.amazonaws.com/ip-ranges.json | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}' | awk '{printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: Amazon\"\n", $1 }';
+			# Apple AS714 | Akamai AS12222 AS16625 | HighWinds AS33438 AS20446 | Fastly AS54113
+			for asn in AS714 AS12222 AS16625 AS33438 AS20446 AS54113; do
+				curl -fsL --retry 3 "https://ipinfo.io/$asn" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}' | awk -v asn="$asn" '{printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: %s\"\n", $1, asn }' &
+			done
+			wait
+			curl -fsL --retry 3 https://www.cloudflare.com/ips-v4 | grep -E '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}' | awk '{printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: CloudFlare\"\n", $1 }'
+			curl -fsL --retry 3 https://ip-ranges.amazonaws.com/ip-ranges.json | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}' | awk '{printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: Amazon\"\n", $1 }'
 		} | awk '!x[$0]++' | ipset restore -!
 	fi
 }
@@ -904,7 +904,7 @@ Whitelist_Shared() {
 		sed '\~add Skynet-Whitelist ~!d;\~Shared-Whitelist~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
 		swapsize="$(du "$swaplocation" | awk '{print $1}')"
 		if [ "$(cat /jffs/addons/shared-whitelists/shared-*-whitelist | wc -l)" -gt "150" ] && [ "$swapsize" -lt "1048576" ] || \
-		{ [ "$(cat /jffs/addons/shared-whitelists/shared-*-whitelist | wc -l)" -gt "150" ] && [ "$swapsize" -lt "2097152" ] && [ "$(nvram get dns_local_cache)" = "1" ] ; }; then
+			{ [ "$(cat /jffs/addons/shared-whitelists/shared-*-whitelist | wc -l)" -gt "150" ] && [ "$swapsize" -lt "2097152" ] && [ "$(nvram get dns_local_cache)" = "1" ]; }; then
 			Clean_Temp
 			cwd="$(pwd)"
 			cd /tmp/skynet/lists || exit 1
@@ -948,23 +948,27 @@ Whitelist_Shared() {
 }
 
 WriteStats_ToJS() {
-	{ echo "function ${3}() {"
-	printf '\tdocument.getElementById("%s").innerHTML = "%s"\n' "$4" "$(if [ -f "$1" ]; then cat "$1"; else echo "$1"; fi)"
-	echo "}"
-	echo; } >> "$2"
+	{
+		echo "function ${3}() {"
+		printf '\tdocument.getElementById("%s").innerHTML = "%s"\n' "$4" "$(if [ -f "$1" ]; then cat "$1"; else echo "$1"; fi)"
+		echo "}"
+		echo
+	} >> "$2"
 }
 
 WriteData_ToJS() {
 	inputfile="$1"
 	outputfile="$2"
-	shift;shift
+	shift 2
 	i="0"
 	for var in "$@"; do
-			i="$((i+1))"
-			{ echo "var $var;"
+		i="$((i+1))"
+		{
+			echo "var $var;"
 			echo "$var = [];"
 			echo "${var}.unshift('$(awk -F "~" -v i="$i" '{printf t $i} {t=","}' "$inputfile" | sed "s~,~\\', \\'~g")');"
-			echo; } >> "$outputfile"
+			echo
+		} >> "$outputfile"
 	done
 }
 
@@ -985,7 +989,7 @@ Generate_Stats() {
 				hits1="0"
 			fi
 			if iptables -t raw -C PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null; then
-				hits2="$(($(iptables -xnvL PREROUTING -t raw | grep -Fv "LOG" | grep -F "Skynet-Master dst" | awk '{print $1}')+$(iptables -xnvL OUTPUT -t raw | grep -Fv "LOG" | grep -F "Skynet-Master dst" | awk '{print $1}')))"
+				hits2="$(($(iptables -xnvL PREROUTING -t raw | grep -Fv "LOG" | grep -F "Skynet-Master dst" | awk '{print $1}') + $(iptables -xnvL OUTPUT -t raw | grep -Fv "LOG" | grep -F "Skynet-Master dst" | awk '{print $1}')))"
 			else
 				hits2="0"
 			fi
@@ -1004,9 +1008,9 @@ Generate_Stats() {
 			# last 10 Connections Blocked Inbound
 			true > "${skynetloc}/webui/stats/liconn.txt"
 			grep -F "INBOUND" "$skynetlog" | grep -oE ' SRC=[0-9,\.]*' | cut -c 6- | awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' | awk '!x[$0]++' | head -10 | while IFS= read -r "statdata"; do
-				banreason="$(grep -F " ${statdata} " "$skynetipset" | awk -F "\"" '{print $2}' | sed "s~BanMalware: ~~g")"
+				banreason="$(grep -F " ${statdata} " "$skynetipset" | awk -F '"' '{print $2}' | sed "s~BanMalware: ~~g")"
 				if [ -z "$banreason" ]; then
-					banreason="$(grep -m1 -E "$(echo "$statdata" | cut -d '.' -f1-3)..*/" "$skynetipset" | awk -F "\"" '{print $2}' | sed "s~BanMalware: ~~g")*"
+					banreason="$(grep -m1 -E "$(echo "$statdata" | cut -d '.' -f1-3)..*/" "$skynetipset" | awk -F '"' '{print $2}' | sed "s~BanMalware: ~~g")*"
 				fi
 				if [ "${#banreason}" -gt "45" ]; then banreason="$(echo "$banreason" | cut -c 1-45)"; fi
 				alienvault="https://otx.alienvault.com/indicator/ip/${statdata}"
@@ -1019,9 +1023,9 @@ Generate_Stats() {
 			# Last 10 Connections Blocked Outbound
 			true > "${skynetloc}/webui/stats/loconn.txt"
 			grep -F "OUTBOUND" "$skynetlog" | grep -vE 'DPT=80 |DPT=443 ' | grep -oE ' DST=[0-9,\.]*' | cut -c 6- | awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' | awk '!x[$0]++' | head -10 | while IFS= read -r "statdata"; do
-				banreason="$(grep -F " ${statdata} " "$skynetipset" | awk -F "\"" '{print $2}' | sed "s~BanMalware: ~~g")"
+				banreason="$(grep -F " ${statdata} " "$skynetipset" | awk -F '"' '{print $2}' | sed "s~BanMalware: ~~g")"
 				if [ -z "$banreason" ]; then
-					banreason="$(grep -m1 -E "$(echo "$statdata" | cut -d '.' -f1-3)..*/" "$skynetipset" | awk -F "\"" '{print $2}' | sed "s~BanMalware: ~~g")*"
+					banreason="$(grep -m1 -E "$(echo "$statdata" | cut -d '.' -f1-3)..*/" "$skynetipset" | awk -F '"' '{print $2}' | sed "s~BanMalware: ~~g")*"
 				fi
 				if [ "${#banreason}" -gt "45" ]; then banreason="$(echo "$banreason" | cut -c 1-45)"; fi
 				alienvault="https://otx.alienvault.com/indicator/ip/${statdata}"
@@ -1034,9 +1038,9 @@ Generate_Stats() {
 			# Last 10 HTTP Connections Blocked Outbound
 			true > "${skynetloc}/webui/stats/lhconn.txt"
 			grep -E 'DPT=80 |DPT=443 ' "$skynetlog" | grep -F "OUTBOUND" | grep -oE ' DST=[0-9,\.]*' | cut -c 6- | awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' | awk '!x[$0]++' | head -10 | while IFS= read -r "statdata"; do
-				banreason="$(grep -F " ${statdata} " "$skynetipset" | awk -F "\"" '{print $2}' | sed "s~BanMalware: ~~g")"
+				banreason="$(grep -F " ${statdata} " "$skynetipset" | awk -F '"' '{print $2}' | sed "s~BanMalware: ~~g")"
 				if [ -z "$banreason" ]; then
-					banreason="$(grep -m1 -E "$(echo "$statdata" | cut -d '.' -f1-3)..*/" "$skynetipset" | awk -F "\"" '{print $2}' | sed "s~BanMalware: ~~g")*"
+					banreason="$(grep -m1 -E "$(echo "$statdata" | cut -d '.' -f1-3)..*/" "$skynetipset" | awk -F '"' '{print $2}' | sed "s~BanMalware: ~~g")*"
 				fi
 				if [ "${#banreason}" -gt "45" ]; then banreason="$(echo "$banreason" | cut -c 1-45)"; fi
 				alienvault="https://otx.alienvault.com/indicator/ip/${statdata}"
@@ -1058,10 +1062,10 @@ Generate_Stats() {
 			# Top 10 Inbound Connections Blocked
 			true > "${skynetloc}/webui/stats/ticonn.txt"
 			grep -F "INBOUND" "$skynetlog" | grep -oE ' SRC=[0-9,\.]*' | cut -c 6- | sort -n | uniq -c | sort -nr | head -10 | while IFS= read -r "statdata"; do
-			hits="$(echo "$statdata" | awk '{print $1}')"
-			ipaddr="$(echo "$statdata" | awk '{print $2}')"
-			country="$(curl -fsL --retry 3 "https://ipapi.co/$ipaddr/country/")"
-			echo "$hits~$ipaddr~$country" >> "${skynetloc}/webui/stats/ticonn.txt"
+				hits="$(echo "$statdata" | awk '{print $1}')"
+				ipaddr="$(echo "$statdata" | awk '{print $2}')"
+				country="$(curl -fsL --retry 3 "https://ipapi.co/$ipaddr/country/")"
+				echo "$hits~$ipaddr~$country" >> "${skynetloc}/webui/stats/ticonn.txt"
 			done
 			WriteData_ToJS "${skynetloc}/webui/stats/ticonn.txt" "${skynetloc}/webui/stats.js" "DataTIConnHits" "LabelTIConnHits_IPs" "LabelTIConnHits_Country"
 			# Top 10 Outbound Connections Blocked
@@ -1275,7 +1279,7 @@ Print_Log() {
 			hits1="0"
 		fi
 		if [ "$filtertraffic" != "inbound" ]; then
-			hits2="$(($(iptables -xnvL PREROUTING -t raw | grep -Fv "LOG" | grep -F "Skynet-Master dst" | awk '{print $1}')+$(iptables -xnvL OUTPUT -t raw | grep -Fv "LOG" | grep -F "Skynet-Master dst" | awk '{print $1}')))"
+			hits2="$(($(iptables -xnvL PREROUTING -t raw | grep -Fv "LOG" | grep -F "Skynet-Master dst" | awk '{print $1}') + $(iptables -xnvL OUTPUT -t raw | grep -Fv "LOG" | grep -F "Skynet-Master dst" | awk '{print $1}')))"
 		else
 			hits2="0"
 		fi
@@ -1292,41 +1296,43 @@ Print_Log() {
 }
 
 Write_Config() {
-	{ printf "%s\\n" "################################################"
-	printf "%s\\n" "## Generated By Skynet - Do Not Manually Edit ##"
-	printf "%-45s %s\\n\\n" "## $(date +"%b %d %T")" "##"
-	printf "%s\\n" "## Installer ##"
-	printf "%s=\"%s\"\\n" "model" "$model"
-	printf "%s=\"%s\"\\n" "localver" "$localver"
-	printf "%s=\"%s\"\\n" "autoupdate" "$autoupdate"
-	printf "%s=\"%s\"\\n" "banmalwareupdate" "$banmalwareupdate"
-	printf "%s=\"%s\"\\n" "forcebanmalwareupdate" "$forcebanmalwareupdate"
-	printf "%s=\"%s\"\\n" "logmode" "$logmode"
-	printf "%s=\"%s\"\\n" "filtertraffic" "$filtertraffic"
-	printf "%s=\"%s\"\\n" "swaplocation" "$swaplocation"
-	printf "\\n%s\\n" "## Counters / Lists ##"
-	printf "%s=\"%s\"\\n" "blacklist1count" "$blacklist1count"
-	printf "%s=\"%s\"\\n" "blacklist2count" "$blacklist2count"
-	printf "%s=\"%s\"\\n" "customlisturl" "$customlisturl"
-	printf "%s=\"%s\"\\n" "customlist2url" "$customlist2url"
-	printf "%s=\"%s\"\\n" "countrylist" "$countrylist"
-	printf "%s=\"%s\"\\n" "excludelists" "$excludelists"
-	printf "\\n%s\\n" "## Settings ##"
-	printf "%s=\"%s\"\\n" "unbanprivateip" "$unbanprivateip"
-	printf "%s=\"%s\"\\n" "loginvalid" "$loginvalid"
-	printf "%s=\"%s\"\\n" "banaiprotect" "$banaiprotect"
-	printf "%s=\"%s\"\\n" "securemode" "$securemode"
-	printf "%s=\"%s\"\\n" "extendedstats" "$extendedstats"
-	printf "%s=\"%s\"\\n" "fastswitch" "$fastswitch"
-	printf "%s=\"%s\"\\n" "syslogloc" "$syslogloc"
-	printf "%s=\"%s\"\\n" "syslog1loc" "$syslog1loc"
-	printf "%s=\"%s\"\\n" "iotblocked" "$iotblocked"
-	printf "%s=\"%s\"\\n" "iotports" "$iotports"
-	printf "%s=\"%s\"\\n" "iotproto" "$iotproto"
-	printf "%s=\"%s\"\\n" "lookupcountry" "$lookupcountry"
-	printf "%s=\"%s\"\\n" "cdnwhitelist" "$cdnwhitelist"
-	printf "%s=\"%s\"\\n" "displaywebui" "$displaywebui"
-	printf "\\n%s\\n" "################################################"; } > "$skynetcfg"
+	{
+		printf "%s\\n" "################################################"
+		printf "%s\\n" "## Generated By Skynet - Do Not Manually Edit ##"
+		printf "%-45s %s\\n\\n" "## $(date +"%b %d %T")" "##"
+		printf "%s\\n" "## Installer ##"
+		printf "%s=\"%s\"\\n" "model" "$model"
+		printf "%s=\"%s\"\\n" "localver" "$localver"
+		printf "%s=\"%s\"\\n" "autoupdate" "$autoupdate"
+		printf "%s=\"%s\"\\n" "banmalwareupdate" "$banmalwareupdate"
+		printf "%s=\"%s\"\\n" "forcebanmalwareupdate" "$forcebanmalwareupdate"
+		printf "%s=\"%s\"\\n" "logmode" "$logmode"
+		printf "%s=\"%s\"\\n" "filtertraffic" "$filtertraffic"
+		printf "%s=\"%s\"\\n" "swaplocation" "$swaplocation"
+		printf "\\n%s\\n" "## Counters / Lists ##"
+		printf "%s=\"%s\"\\n" "blacklist1count" "$blacklist1count"
+		printf "%s=\"%s\"\\n" "blacklist2count" "$blacklist2count"
+		printf "%s=\"%s\"\\n" "customlisturl" "$customlisturl"
+		printf "%s=\"%s\"\\n" "customlist2url" "$customlist2url"
+		printf "%s=\"%s\"\\n" "countrylist" "$countrylist"
+		printf "%s=\"%s\"\\n" "excludelists" "$excludelists"
+		printf "\\n%s\\n" "## Settings ##"
+		printf "%s=\"%s\"\\n" "unbanprivateip" "$unbanprivateip"
+		printf "%s=\"%s\"\\n" "loginvalid" "$loginvalid"
+		printf "%s=\"%s\"\\n" "banaiprotect" "$banaiprotect"
+		printf "%s=\"%s\"\\n" "securemode" "$securemode"
+		printf "%s=\"%s\"\\n" "extendedstats" "$extendedstats"
+		printf "%s=\"%s\"\\n" "fastswitch" "$fastswitch"
+		printf "%s=\"%s\"\\n" "syslogloc" "$syslogloc"
+		printf "%s=\"%s\"\\n" "syslog1loc" "$syslog1loc"
+		printf "%s=\"%s\"\\n" "iotblocked" "$iotblocked"
+		printf "%s=\"%s\"\\n" "iotports" "$iotports"
+		printf "%s=\"%s\"\\n" "iotproto" "$iotproto"
+		printf "%s=\"%s\"\\n" "lookupcountry" "$lookupcountry"
+		printf "%s=\"%s\"\\n" "cdnwhitelist" "$cdnwhitelist"
+		printf "%s=\"%s\"\\n" "displaywebui" "$displaywebui"
+		printf "\\n%s\\n" "################################################"
+	} > "$skynetcfg"
 }
 
 ##########
@@ -1353,29 +1359,29 @@ Load_Menu() {
 	if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(sed -n '2p' /tmp/skynet.lock)" ]; then
 		echo
 		Red "[*] Lock File Detected ($(sed -n '1p' /tmp/skynet.lock)) (pid=$(sed -n '2p' /tmp/skynet.lock))"
-		Ylow "[*] Locked Processes Generally Take 1-2 Minutes To Complete And May Result In Temporarily \"Failed\" Tests"
+		Ylow '[*] Locked Processes Generally Take 1-2 Minutes To Complete And May Result In Temporarily "Failed" Tests'
 	fi
 	echo
 	if ! Check_Connection >/dev/null 2>&1; then
-		printf "%-35s | %-8s\\n" "Internet-Connectivity" "$(Red "[Failed]")"
+		printf '%-35s | %-8s\n' "Internet-Connectivity" "$(Red "[Failed]")"
 	fi
 	if ! grep -E "start.* # Skynet" /jffs/scripts/firewall-start 2>/dev/null | grep -qvE "^#"; then
-		printf "%-35s | %-8s\\n" "Firewall-Start Entry" "$(Red "[Failed]")"
+		printf '%-35s | %-8s\n' "Firewall-Start Entry" "$(Red "[Failed]")"
 	fi
 	if ! [ -w "${skynetloc}" ]; then
-		printf "%-35s | %-8s\\n" "Write Permission" "$(Red "[Failed]")"
+		printf '%-35s | %-8s\n' "Write Permission" "$(Red "[Failed]")"
 	fi
 	if ! Check_Swap; then
-		printf "%-35s | %-8s\\n" "SWAP" "$(Red "[Failed]")"
+		printf '%-35s | %-8s\n' "SWAP" "$(Red "[Failed]")"
 	fi
 	if [ "$(cru l | grep -c "Skynet")" -lt "2" ]; then
-		printf "%-35s | %-8s\\n" "Cron Jobs" "$(Red "[Failed]")"
+		printf '%-35s | %-8s\n' "Cron Jobs" "$(Red "[Failed]")"
 	fi
 	if ! Check_IPSets; then
-		printf "%-35s | %-8s\\n" "IPSets" "$(Red "[Failed]")"; nolog="1"; unset fail
+		printf '%-35s | %-8s\n' "IPSets" "$(Red "[Failed]")"; nolog="1"; unset fail
 	fi
 	if ! Check_IPTables; then
-		printf "%-35s | %-8s\\n" "IPTables Rules" "$(Red "[Failed]")"; nolog="1"; unset fail
+		printf '%-35s | %-8s\n' "IPTables Rules" "$(Red "[Failed]")"; nolog="1"; unset fail
 	fi
 	if [ "$fastswitch" = "enabled" ]; then
 		Ylow "Fast Switch List Is Enabled!"
@@ -1966,20 +1972,20 @@ Load_Menu() {
 				option1="settings"
 				while true; do
 					echo "Select Setting To Toggle:"
-					printf "%-35s | %-40s\\n" "[1]  --> Skynet Auto-Updates" "$(if [ "$autoupdate" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
-					printf "%-35s | %-40s\\n" "[2]  --> Malware List Auto-Updates" "$(if [ "$banmalwareupdate" = "daily" ] || [ "$banmalwareupdate" = "weekly" ]; then Grn "[$banmalwareupdate]"; else Red "[Disabled]"; fi)"
-					printf "%-35s | %-40s\\n" "[3]  --> Logging" "$(if [ "$logmode" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
-					printf "%-35s | %-40s\\n" "[4]  --> Filter Traffic" "$(Grn "[$filtertraffic]")"
-					printf "%-35s | %-40s\\n" "[5]  --> Unban PrivateIP" "$(if [ "$unbanprivateip" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
-					printf "%-35s | %-40s\\n" "[6]  --> Log Invalid Packets" "$(if [ "$loginvalid" = "enabled" ]; then Grn "[Enabled]";else Grn "[Disabled]"; fi)"
-					printf "%-35s | %-40s\\n" "[7]  --> Ban AiProtect" "$(if [ "$banaiprotect" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
-					printf "%-35s | %-40s\\n" "[8]  --> Secure Mode" "$(if [ "$securemode" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
-					printf "%-35s | %-40s\\n" "[9]  --> Fast Switch List" "$(if [ "$fastswitch" = "enabled" ]; then Ylow "[Enabled]"; else Grn "[Disabled]"; fi)"
-					printf "%-35s | %-40s\\n" "[10] --> Syslog Location" "$(if [ "$syslogloc" = "/tmp/syslog.log" ] && [ "$syslog1loc" = "/tmp/syslog.log-1" ]; then Grn "[Default]"; else Ylow "[Custom]"; fi)"
-					printf "%-35s | %-40s\\n" "[11] --> IOT Blocking" "$(if [ "$iotblocked" != "enabled" ]; then Grn "[Disabled]"; else Ylow "[Enabled]"; fi)"
-					printf "%-35s | %-40s\\n" "[12] --> Stats Country Lookup" "$(if [ "$lookupcountry" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
-					printf "%-35s | %-40s\\n" "[13] --> CDN Whitelisting" "$(if [ "$cdnwhitelist" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
-					printf "%-35s | %-40s\\n" "[14] --> Display WebUI" "$(if [ "$displaywebui" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
+					printf '%-35s | %-40s\n' "[1]  --> Skynet Auto-Updates" "$(if [ "$autoupdate" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
+					printf '%-35s | %-40s\n' "[2]  --> Malware List Auto-Updates" "$(if [ "$banmalwareupdate" = "daily" ] || [ "$banmalwareupdate" = "weekly" ]; then Grn "[$banmalwareupdate]"; else Red "[Disabled]"; fi)"
+					printf '%-35s | %-40s\n' "[3]  --> Logging" "$(if [ "$logmode" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
+					printf '%-35s | %-40s\n' "[4]  --> Filter Traffic" "$(Grn "[$filtertraffic]")"
+					printf '%-35s | %-40s\n' "[5]  --> Unban PrivateIP" "$(if [ "$unbanprivateip" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
+					printf '%-35s | %-40s\n' "[6]  --> Log Invalid Packets" "$(if [ "$loginvalid" = "enabled" ]; then Grn "[Enabled]";else Grn "[Disabled]"; fi)"
+					printf '%-35s | %-40s\n' "[7]  --> Ban AiProtect" "$(if [ "$banaiprotect" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
+					printf '%-35s | %-40s\n' "[8]  --> Secure Mode" "$(if [ "$securemode" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
+					printf '%-35s | %-40s\n' "[9]  --> Fast Switch List" "$(if [ "$fastswitch" = "enabled" ]; then Ylow "[Enabled]"; else Grn "[Disabled]"; fi)"
+					printf '%-35s | %-40s\n' "[10] --> Syslog Location" "$(if [ "$syslogloc" = "/tmp/syslog.log" ] && [ "$syslog1loc" = "/tmp/syslog.log-1" ]; then Grn "[Default]"; else Ylow "[Custom]"; fi)"
+					printf '%-35s | %-40s\n' "[11] --> IOT Blocking" "$(if [ "$iotblocked" != "enabled" ]; then Grn "[Disabled]"; else Ylow "[Enabled]"; fi)"
+					printf '%-35s | %-40s\n' "[12] --> Stats Country Lookup" "$(if [ "$lookupcountry" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
+					printf '%-35s | %-40s\n' "[13] --> CDN Whitelisting" "$(if [ "$cdnwhitelist" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
+					printf '%-35s | %-40s\n' "[14] --> Display WebUI" "$(if [ "$displaywebui" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
 					echo
 					printf "[1-14]: "
 					read -r "menu2"
@@ -4103,7 +4109,7 @@ case "$1" in
 						if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 						Purge_Logs
 						banaiprotect="disabled"
-						sed "\\~add Skynet-Blacklist ~!d;\\~BanAiProtect~!d;s~ comment.*~~;s~add~del~g" "$skynetipset" | ipset restore -!
+						sed '\~add Skynet-Blacklist ~!d;\~BanAiProtect~!d;s~ comment.*~~;s~add~del~g' "$skynetipset"
 						echo "[i] Ban AiProtect Disabled"
 					;;
 					*)
@@ -4668,20 +4674,20 @@ case "$1" in
 					totaltests="$((totaltests-1))"
 				fi
 				Display_Header "8"
-				printf "%-35s | %-8s\\n" "Skynet Auto-Updates" "$(if [ "$autoupdate" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
-				printf "%-35s | %-8s\\n" "Malware List Auto-Updates" "$(if [ "$banmalwareupdate" = "daily" ] || [ "$banmalwareupdate" = "weekly" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
-				printf "%-35s | %-8s\\n" "Logging" "$(if [ "$logmode" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
-				printf "%-35s | %-8s\\n" "Filter Traffic" "$(if [ "$filtertraffic" = "all" ]; then Grn "[Enabled]"; else Ylow "[Selective]"; fi)"
-				printf "%-35s | %-8s\\n" "Unban PrivateIP" "$(if [ "$unbanprivateip" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
-				printf "%-35s | %-8s\\n" "Log Invalid Packets" "$(if [ "$loginvalid" = "enabled" ]; then Grn "[Enabled]"; else Grn "[Disabled]"; fi)"
-				printf "%-35s | %-8s\\n" "Ban AiProtect" "$(if [ "$banaiprotect" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
-				printf "%-35s | %-8s\\n" "Secure Mode" "$(if [ "$securemode" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
-				printf "%-35s | %-8s\\n" "Fast Switch List" "$(if [ "$fastswitch" = "enabled" ]; then Ylow "[Enabled]"; else Grn "[Disabled]"; fi)"
-				printf "%-35s | %-8s\\n" "Syslog Location" "$(if [ "$syslogloc" = "/tmp/syslog.log" ] && [ "$syslog1loc" = "/tmp/syslog.log-1" ]; then Grn "[Default]"; else Ylow "[Custom]"; fi)"
-				printf "%-35s | %-8s\\n" "IOT Blocking" "$(if [ "$iotblocked" != "enabled" ]; then Grn "[Disabled]"; else Ylow "[Enabled]"; fi)"
-				printf "%-35s | %-8s\\n" "Country Lookup For Stats" "$(if [ "$lookupcountry" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
-				printf "%-35s | %-8s\\n" "CDN Whitelisting" "$(if [ "$cdnwhitelist" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
-				printf "%-35s | %-8s\\n" "Display WebUI" "$(if [ "$displaywebui" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
+				printf '%-35s | %-8s\n' "Skynet Auto-Updates" "$(if [ "$autoupdate" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
+				printf '%-35s | %-8s\n' "Malware List Auto-Updates" "$(if [ "$banmalwareupdate" = "daily" ] || [ "$banmalwareupdate" = "weekly" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
+				printf '%-35s | %-8s\n' "Logging" "$(if [ "$logmode" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
+				printf '%-35s | %-8s\n' "Filter Traffic" "$(if [ "$filtertraffic" = "all" ]; then Grn "[Enabled]"; else Ylow "[Selective]"; fi)"
+				printf '%-35s | %-8s\n' "Unban PrivateIP" "$(if [ "$unbanprivateip" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
+				printf '%-35s | %-8s\n' "Log Invalid Packets" "$(if [ "$loginvalid" = "enabled" ]; then Grn "[Enabled]"; else Grn "[Disabled]"; fi)"
+				printf '%-35s | %-8s\n' "Ban AiProtect" "$(if [ "$banaiprotect" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
+				printf '%-35s | %-8s\n' "Secure Mode" "$(if [ "$securemode" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
+				printf '%-35s | %-8s\n' "Fast Switch List" "$(if [ "$fastswitch" = "enabled" ]; then Ylow "[Enabled]"; else Grn "[Disabled]"; fi)"
+				printf '%-35s | %-8s\n' "Syslog Location" "$(if [ "$syslogloc" = "/tmp/syslog.log" ] && [ "$syslog1loc" = "/tmp/syslog.log-1" ]; then Grn "[Default]"; else Ylow "[Custom]"; fi)"
+				printf '%-35s | %-8s\n' "IOT Blocking" "$(if [ "$iotblocked" != "enabled" ]; then Grn "[Disabled]"; else Ylow "[Enabled]"; fi)"
+				printf '%-35s | %-8s\n' "Country Lookup For Stats" "$(if [ "$lookupcountry" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
+				printf '%-35s | %-8s\n' "CDN Whitelisting" "$(if [ "$cdnwhitelist" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
+				printf '%-35s | %-8s\n' "Display WebUI" "$(if [ "$displaywebui" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
 				printf "\\n%-35s\\n" "${passedtests}/${totaltests} Tests Sucessful"
 				if [ -n "$fail" ]; then echo; echo "[*] Rule Integrity Violation - [ ${fail}]"; unset fail; fi
 				if [ -n "$localfail" ]; then echo; echo "[*] Local File Missing - [ ${localfail}]"; fi
