@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            20/02/2020 - v7.1.1                                            #
+#                                            26/02/2020 - v7.1.1                                            #
 #############################################################################################################
 
 
@@ -45,7 +45,7 @@ fi
 #- Functions -#
 ###############
 
-Kill_Lock () {
+Kill_Lock() {
 	if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(sed -n '2p' /tmp/skynet.lock)" ]; then
 		logger -st Skynet "[*] Killing Locked Processes ($(sed -n '1p' /tmp/skynet.lock)) (pid=$(sed -n '2p' /tmp/skynet.lock))"
 		logger -st Skynet "[*] $(ps | awk -v pid="$(sed -n '2p' /tmp/skynet.lock)" '$1 == pid')"
@@ -55,7 +55,7 @@ Kill_Lock () {
 	fi
 }
 
-Check_Lock () {
+Check_Lock() {
 	if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(sed -n '2p' /tmp/skynet.lock)" ] && [ "$(sed -n '2p' /tmp/skynet.lock)" != "$$" ]; then
 		if [ "$(($(date +%s)-$(sed -n '3p' /tmp/skynet.lock)))" -gt "1800" ]; then
 			Kill_Lock
@@ -92,27 +92,27 @@ else
 	iface="$(nvram get wan0_ifname)"
 fi
 
-Red () {
+Red() {
 	printf -- '\033[1;31m%s\033[0m\n' "$1"
 }
 
-Grn () {
+Grn() {
 	printf -- '\033[1;32m%s\033[0m\n' "$1"
 }
 
-Blue () {
+Blue() {
 	printf -- '\033[1;36m%s\033[0m\n' "$1"
 }
 
-Ylow () {
+Ylow() {
 	printf -- '\033[1;33m%s\033[0m\n' "$1"
 }
 
-Check_Swap () {
+Check_Swap() {
 	grep -qF "file" "/proc/swaps"
 }
 
-Check_Settings () {
+Check_Settings() {
 	if [ ! -f "$skynetcfg" ]; then
 		logger -st Skynet "[*] Configuration File Not Detected - Please Use ( sh $0 install ) To Continue"
 		echo; exit 1
@@ -229,7 +229,7 @@ Check_Settings () {
 	fi
 }
 
-Check_Connection () {
+Check_Connection() {
 	livecheck="0"
 	while [ "$livecheck" != "4" ]; do
 		if ping -q -w3 -c1 google.com >/dev/null 2>&1; then
@@ -254,7 +254,7 @@ Check_Connection () {
 	done
 }
 
-Check_Files () {
+Check_Files() {
 	if [ ! -f "/jffs/scripts/firewall-start" ]; then
 		echo "#!/bin/sh" > /jffs/scripts/firewall-start
 		echo >> /jffs/scripts/firewall-start
@@ -301,7 +301,7 @@ Check_Files () {
 	chmod 755 "/jffs/scripts/firewall" "/jffs/scripts/firewall-start" "/jffs/scripts/services-stop" "/jffs/scripts/service-event" "/jffs/scripts/post-mount" "/jffs/scripts/unmount"
 }
 
-Check_Security () {
+Check_Security() {
 	if [ "$securemode" = "enabled" ]; then
 		if [ "$(nvram get sshd_enable)" = "1" ] && [ "$(uname -o)" = "ASUSWRT-Merlin" ]; then
 			logger -st Skynet "[!] Insecure Setting Detected - Disabling WAN SSH Access"
@@ -342,12 +342,12 @@ Check_Security () {
 	fi
 }
 
-Clean_Temp () {
+Clean_Temp() {
 	rm -rf /tmp/skynet/*
 	mkdir -p /tmp/skynet/lists
 }
 
-Unload_IPTables () {
+Unload_IPTables() {
 	iptables -t raw -D PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j DROP 2>/dev/null
 	iptables -t raw -D PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null
 	iptables -t raw -D OUTPUT -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null
@@ -359,7 +359,7 @@ Unload_IPTables () {
 	ip6tables -D logdrop -m state --state NEW -m limit --limit 4/sec -j LOG --log-prefix "DROP " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 }
 
-Load_IPTables () {
+Load_IPTables() {
 	if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "inbound" ]; then
 		iptables -t raw -I PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j DROP 2>/dev/null
 	fi
@@ -374,7 +374,7 @@ Load_IPTables () {
 	fi
 }
 
-Unload_LogIPTables () {
+Unload_LogIPTables() {
 	iptables -t raw -D PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 	iptables -t raw -D PREROUTING -i br0 -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 	iptables -t raw -D OUTPUT -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
@@ -382,7 +382,7 @@ Unload_LogIPTables () {
 	iptables -D FORWARD -i br0 -m set --match-set Skynet-IOT src ! -o tun2+ -j LOG --log-prefix "[BLOCKED - IOT] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 }
 
-Load_LogIPTables () {
+Load_LogIPTables() {
 	if [ "$logmode" = "enabled" ]; then
 		if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "inbound" ]; then
 			pos2="$(iptables --line -nL PREROUTING -t raw | grep -F "Skynet-Master src" | grep -F "DROP" | awk '{print $1}')"
@@ -404,7 +404,7 @@ Load_LogIPTables () {
 	fi
 }
 
-Unload_IOTTables () {
+Unload_IOTTables() {
 	if [ "$iotblocked" = "enabled" ]; then
 		iptables -D FORWARD -i br0 -m set --match-set Skynet-IOT src ! -o tun2+ -j DROP 2>/dev/null
 		if [ -n "$iotports" ]; then
@@ -425,7 +425,7 @@ Unload_IOTTables () {
 	fi
 }
 
-Load_IOTTables () {
+Load_IOTTables() {
 	if [ "$iotblocked" = "enabled" ]; then
 		iptables -I FORWARD -i br0 -m set --match-set Skynet-IOT src ! -o tun2+ -j DROP 2>/dev/null
 		if [ -n "$iotports" ]; then
@@ -446,7 +446,7 @@ Load_IOTTables () {
 	fi
 }
 
-Check_IPSets () {
+Check_IPSets() {
 	ipset -L -n Skynet-Whitelist >/dev/null 2>&1 || fail="${fail}#1 "
 	ipset -L -n Skynet-Blacklist >/dev/null 2>&1 || fail="${fail}#2 "
 	ipset -L -n Skynet-BlockedRanges >/dev/null 2>&1 || fail="${fail}#3 "
@@ -455,7 +455,7 @@ Check_IPSets () {
 	if [ -n "$fail" ]; then return 1; fi
 }
 
-Check_IPTables () {
+Check_IPTables() {
 	if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "inbound" ]; then
 		iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j DROP 2>/dev/null || fail="${fail}#6 "
 	fi
@@ -503,7 +503,7 @@ Check_IPTables () {
 	if [ -n "$fail" ]; then return 1; fi
 }
 
-Unload_IPSets () {
+Unload_IPSets() {
 	ipset -q destroy Skynet-Master
 	ipset -q destroy Skynet-Blacklist
 	ipset -q destroy Skynet-BlockedRanges
@@ -511,7 +511,7 @@ Unload_IPSets () {
 	ipset -q destroy Skynet-IOT
 }
 
-Unload_Cron () {
+Unload_Cron() {
 	if [ -z "$1" ]; then set "all"; fi
 	for cron in "$@"; do
 		case "$cron" in
@@ -544,7 +544,7 @@ Unload_Cron () {
 	done
 }
 
-Load_Cron () {
+Load_Cron() {
 	if [ -z "$1" ]; then set "all"; fi
 	for cron in "$@"; do
 		case "$cron" in
@@ -575,39 +575,39 @@ Load_Cron () {
 	done
 }
 
-Is_IP () {
+Is_IP() {
 	grep -qE '^([0-9]{1,3}\.){3}[0-9]{1,3}$'
 }
 
-Is_Range () {
+Is_Range() {
 	grep -qE '^([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}$'
 }
 
-Is_IPRange () {
+Is_IPRange() {
 	grep -qE '^([0-9]{1,3}\.){3}[0-9]{1,3}(/[0-9]{1,2})?$'
 }
 
-Is_MAC () {
+Is_MAC() {
 	grep -qE '^([[:xdigit:]]{1,2}:){5}[[:xdigit:]]{1,2}$'
 }
 
-Is_Port () {
+Is_Port() {
 	grep -qE '^[0-9]{1,5}$'
 }
 
-Is_ASN () {
+Is_ASN() {
 	grep -qiE '^AS[0-9]{1,6}$'
 }
 
-Strip_Domain () {
+Strip_Domain() {
 	sed 's~http[s]*://~~;s~/.*~~;s~www\.~~g' | awk '!x[$0]++'
 }
 
-Domain_Lookup () {
+Domain_Lookup() {
 	nslookup "$1" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' | awk 'NR>2'
 }
 
-LAN_CIDR_Lookup () {
+LAN_CIDR_Lookup() {
 	if [ "$(echo "$1" | cut -c1-8)" = "192.168." ];	then
 		echo "192.168.0.0/16"
 	elif [ "$(echo "$1" | cut -c1-4)" = "172." ]; then
@@ -617,7 +617,7 @@ LAN_CIDR_Lookup () {
 	fi
 }
 
-Extended_DNSStats () {
+Extended_DNSStats() {
 	case "$1" in
 		1)
 			if [ "$lookupcountry" = "enabled" ]; then
@@ -649,7 +649,7 @@ Extended_DNSStats () {
 	esac
 }
 
-Display_Header () {
+Display_Header() {
 	case "$1" in
 		1)
 			printf "\\n\\n%-20s | %-55s | %-45s | %-60s\\n" "--------------" "--------------" "--------------" "----------------------"
@@ -708,48 +708,48 @@ Display_Header () {
 	esac
 }
 
-Display_Message () {
+Display_Message() {
 	btime="$(date +%s)"; printf "%-35s | " "$1"
 }
 
-Display_Result () {
+Display_Result() {
 	result="$(Grn "[$(($(date +%s) - btime))s]")"
 	printf "%-8s\\n" "$result"
 }
 
-Filter_Version () {
+Filter_Version() {
 	grep -m1 -oE 'v[0-9]{1,2}([.][0-9]{1,2})([.][0-9]{1,2})'
 }
 
-Filter_Date () {
+Filter_Date() {
 	grep -m1 -oE '[0-9]{1,2}([/][0-9]{1,2})([/][0-9]{1,4})'
 }
 
-Filter_IP () {
+Filter_IP() {
 	grep -E '^([0-9]{1,3}\.){3}[0-9]{1,3}$'
 }
 
-Filter_IPLine () {
+Filter_IPLine() {
 	grep -E '([0-9]{1,3}\.){3}[0-9]{1,3}'
 }
 
-Filter_OutIP () {
+Filter_OutIP() {
 	grep -vE '^([0-9]{1,3}\.){3}[0-9]{1,3}$'
 }
 
-Filter_PrivateIP () {
+Filter_PrivateIP() {
 	grep -vE '(^127\.)|(^10\.)|(^172\.1[6-9]\.)|(^172\.2[0-9]\.)|(^172\.3[0-1]\.)|(^192\.168\.)|(^0.)|(^169\.254\.)|(^22[4-9]\.)|(^23[0-9]\.)|(^255\.255\.255\.255)|(^8\.8\.8\.8)|(^8\.8\.4\.4)(^1\.1\.1\.1)|(^1\.0\.0\.1)'
 }
 
-Filter_PrivateSRC () {
+Filter_PrivateSRC() {
 	grep -E '(SRC=127\.)|(SRC=10\.)|(SRC=172\.1[6-9]\.)|(SRC=172\.2[0-9]\.)|(SRC=172\.3[0-1]\.)|(SRC=192\.168\.)|(SRC=0.)|(SRC=169\.254\.)|(SRC=22[4-9]\.)|(SRC=23[0-9]\.)|(SRC=255\.255\.255\.255)'
 }
 
-Filter_PrivateDST () {
+Filter_PrivateDST() {
 	grep -E '(DST=127\.)|(DST=10\.)|(DST=172\.1[6-9]\.)|(DST=172\.2[0-9]\.)|(DST=172\.3[0-1]\.)|(DST=192\.168\.)|(DST=0.)|(DST=169\.254\.)|(DST=22[4-9]\.)|(DST=23[0-9]\.)|(DST=255\.255\.255\.255)'
 }
 
-Spinner_End () {
+Spinner_End() {
 	if [ -f /tmp/skynet/spinstart ]; then
 		pider="$(cat /tmp/skynet/spinstart)"
 		rm -rf /tmp/skynet/spinstart
@@ -757,7 +757,7 @@ Spinner_End () {
 	fi
 }
 
-Spinner_Start () {
+Spinner_Start() {
 	Spinner_End
 	touch "/tmp/skynet/spinstart"
 	{ while [ -f "/tmp/skynet/spinstart" ]; do
@@ -770,13 +770,13 @@ Spinner_Start () {
 	echo "$!" > /tmp/skynet/spinstart
 }
 
-Save_IPSets () {
+Save_IPSets() {
 	if Check_IPSets; then
 		{ ipset save Skynet-Whitelist; ipset save Skynet-Blacklist; ipset save Skynet-BlockedRanges; ipset save Skynet-Master; ipset save Skynet-IOT; } > "$skynetipset" 2>/dev/null
 	fi
 }
 
-Unban_PrivateIP () {
+Unban_PrivateIP() {
 	if [ "$unbanprivateip" = "enabled" ] && [ "$logmode" = "enabled" ]; then
 		grep -F "INBOUND" "$syslogloc" | Filter_PrivateSRC | grep -oE 'SRC=[0-9,\.]*' | cut -c 5- | awk '!x[$0]++' | while IFS= read -r "ip"; do
 			echo "add Skynet-Whitelist $ip comment \"Private IP\""
@@ -792,7 +792,7 @@ Unban_PrivateIP () {
 	fi
 }
 
-Refresh_AiProtect () {
+Refresh_AiProtect() {
 	if [ "$banaiprotect" = "enabled" ] && [ -f /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db ]; then
 		if [ -f /opt/bin/opkg ] && [ ! -f /opt/bin/sqlite3 ]; then
 			opkg update && opkg install sqlite3-cli
@@ -809,7 +809,7 @@ Refresh_AiProtect () {
 	fi
 }
 
-Refresh_MBans () {
+Refresh_MBans() {
 	if grep -qF "[Manual Ban] TYPE=Domain" "$skynetevents"; then
 		grep -F "[Manual Ban] TYPE=Domain" "$skynetevents" | awk '{print $9}' | awk '!x[$0]++' | sed 's~Host=~~g' > /tmp/skynet/mbans.list
 		sed -i '\~\[Manual Ban\] TYPE=Domain~d;' "$skynetevents"
@@ -824,7 +824,7 @@ Refresh_MBans () {
 	fi
 }
 
-Refresh_MWhitelist () {
+Refresh_MWhitelist() {
 	if grep -qE "Manual Whitelist.* TYPE=Domain" "$skynetevents"; then
 		grep -E "Manual Whitelist.* TYPE=Domain" "$skynetevents" | awk '{print $9}' | awk '!x[$0]++' | sed 's~Host=~~g' > /tmp/skynet/mwhitelist.list
 		sed -i '\~\[Manual Whitelist\] TYPE=Domain~d;' "$skynetevents"
@@ -840,7 +840,7 @@ Refresh_MWhitelist () {
 	fi
 }
 
-Whitelist_Extra () {
+Whitelist_Extra() {
 	echo "ipdeny.com
 	ipapi.co
 	ipinfo.io
@@ -858,7 +858,7 @@ Whitelist_Extra () {
 	$(nvram get "ntp_server1")" | tr -d "\t" > /jffs/addons/shared-whitelists/shared-Skynet2-whitelist
 }
 
-Whitelist_CDN () {
+Whitelist_CDN() {
 	sed '\~add Skynet-Whitelist ~!d;\~CDN-Whitelist~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
 	if [ "$cdnwhitelist" = "enabled" ]; then
 		{
@@ -873,7 +873,7 @@ Whitelist_CDN () {
 	fi
 }
 
-Whitelist_VPN () {
+Whitelist_VPN() {
 	echo "add Skynet-Whitelist $(nvram get vpn_server1_sn)/24 comment \"nvram: vpn_server1_sn\"
 	add Skynet-Whitelist $(nvram get vpn_server2_sn)/24 comment \"nvram: vpn_server2_sn\"
 	add Skynet-Whitelist $(nvram get vpn_server_sn)/24 comment \"nvram: vpn_server_sn\"
@@ -885,7 +885,7 @@ Whitelist_VPN () {
 	if [ -f "/dev/astrill/openvpn.conf" ]; then ipset -q -A Skynet-Whitelist "$(sed '\~remote ~!d;s~remote ~~' "/dev/astrill/openvpn.conf")/24" comment "nvram: Astrill_VPN"; fi
 }
 
-Whitelist_Shared () {
+Whitelist_Shared() {
 	echo "add Skynet-Whitelist $(nvram get wan0_ipaddr) comment \"nvram: wan0_ipaddr\"
 	add Skynet-Whitelist $(LAN_CIDR_Lookup "$(nvram get "lan_ipaddr")") comment \"nvram: lan_ipaddr\"
 	add Skynet-Whitelist $(nvram get wan_dns1_x) comment \"nvram: wan_dns1_x\"
@@ -947,14 +947,14 @@ Whitelist_Shared () {
 	fi
 }
 
-WriteStats_ToJS () {
+WriteStats_ToJS() {
 	{ echo "function ${3}() {"
 	printf '\tdocument.getElementById("%s").innerHTML = "%s"\n' "$4" "$(if [ -f "$1" ]; then cat "$1"; else echo "$1"; fi)"
 	echo "}"
 	echo; } >> "$2"
 }
 
-WriteData_ToJS () {
+WriteData_ToJS() {
 	inputfile="$1"
 	outputfile="$2"
 	shift;shift
@@ -968,7 +968,7 @@ WriteData_ToJS () {
 	done
 }
 
-Generate_Stats () {
+Generate_Stats() {
 	if nvram get rc_support | grep -qF "am_addons" && [ "$(uname -o)" = "ASUSWRT-Merlin" ]; then
 		if [ "$displaywebui" = "enabled" ]; then
 			mkdir -p "${skynetloc}/webui/stats"
@@ -1082,7 +1082,7 @@ Generate_Stats () {
 	fi
 }
 
-Get_WebUI_Page () {
+Get_WebUI_Page() {
 	if nvram get rc_support | grep -qF "am_addons" && [ "$(uname -o)" = "ASUSWRT-Merlin" ]; then
 		if [ "$displaywebui" = "enabled" ]; then
 			for i in 1 2 3 4 5 6 7 8 9 10; do
@@ -1097,7 +1097,7 @@ Get_WebUI_Page () {
 	fi
 }
 
-Install_WebUI_Page () {
+Install_WebUI_Page() {
 	if [ "$logmode" = "enabled" ]; then
 		if nvram get rc_support | grep -qF "am_addons" && [ "$(uname -o)" = "ASUSWRT-Merlin" ]; then
 			if [ "$displaywebui" = "enabled" ]; then
@@ -1129,7 +1129,7 @@ Install_WebUI_Page () {
 	fi
 }
 
-Uninstall_WebUI_Page () {
+Uninstall_WebUI_Page() {
 	Get_WebUI_Page "${skynetloc}/webui/skynet.asp"
 	if [ -n "$MyPage" ] && [ "$MyPage" != "none" ] && [ -f "/tmp/menuTree.js" ]; then
 		sed -i "\\~$MyPage~d" /tmp/menuTree.js
@@ -1140,7 +1140,7 @@ Uninstall_WebUI_Page () {
 	fi
 }
 
-Download_File () {
+Download_File() {
 	if [ "$(curl -fsL --retry 3 "${remotedir}/${1}" | md5sum | awk '{print $1}')" != "$(md5sum "$2" 2>/dev/null | awk '{print $1}')" ] || [ "$3" = "-f" ]; then
 		if curl -fsL --retry 3 "${remotedir}/${1}" -o "$2"; then
 			echo "[i] Updated $(echo "$1" | awk -F / '{print $NF}')"
@@ -1150,7 +1150,7 @@ Download_File () {
 	fi
 }
 
-Manage_Device () {
+Manage_Device() {
 	echo "Looking For Available Partitions"
 	i="1"
 	IFS="
@@ -1165,7 +1165,7 @@ Manage_Device () {
 		echo "[*] No Compatible ext* USB Partitions Found - Exiting!"
 		echo; exit 1
 	fi
-	Select_Device () {
+	Select_Device() {
 		echo
 		echo "Please Enter Partition Number Or e To Exit"
 		printf "[0-%s]: " "$((i - 1))"
@@ -1196,7 +1196,7 @@ Manage_Device () {
 	fi
 }
 
-Create_Swap () {
+Create_Swap() {
 	while true; do
 		echo "Select SWAP File Size:"
 		echo "[1]  --> 1GB"
@@ -1244,7 +1244,7 @@ Create_Swap () {
 	echo
 }
 
-Purge_Logs () {
+Purge_Logs() {
 	sed '\~BLOCKED -~!d' "$syslog1loc" "$syslogloc" 2>/dev/null >> "$skynetlog"
 	sed -i '\~BLOCKED -~d' "$syslog1loc" "$syslogloc" 2>/dev/null
 	if [ "$(du "$skynetlog" | awk '{print $1}')" -ge "10240" ] || [ "$1" = "force" ]; then
@@ -1262,7 +1262,7 @@ Purge_Logs () {
 	if [ -f "/opt/etc/syslog-ng.d/skynet" ]; then /usr/bin/killall -HUP syslog-ng; fi
 }
 
-Print_Log () {
+Print_Log() {
 	oldips="$blacklist1count"
 	oldranges="$blacklist2count"
 	blacklist1count="$(grep -Foc "add Skynet-Black" "$skynetipset" 2> /dev/null)"
@@ -1291,7 +1291,7 @@ Print_Log () {
 	fi
 }
 
-Write_Config () {
+Write_Config() {
 	{ printf "%s\\n" "################################################"
 	printf "%s\\n" "## Generated By Skynet - Do Not Manually Edit ##"
 	printf "%-45s %s\\n\\n" "## $(date +"%b %d %T")" "##"
@@ -1333,7 +1333,7 @@ Write_Config () {
 #- Menu -#
 ##########
 
-Load_Menu () {
+Load_Menu() {
 	. "$skynetcfg"
 	Display_Header "9"
 	echo "Router Model; $model"
