@@ -274,7 +274,7 @@ Check_Files() {
 		sed -i '1s~^~#!/bin/sh\n~' /jffs/scripts/service-event
 	fi
 	if ! grep -vE "^#" /jffs/scripts/service-event | grep -qF "sh /jffs/scripts/firewall debug genstats"; then
-		cmdline='if [ "$1" = "start" ] && [ "$2" = "SkynetStats" ]; then sh /jffs/scripts/firewall debug genstats; fi # Skynet Firewall Addition'
+		cmdline="if [ \"\$1\" = \"start\" ] && [ \"\$2\" = \"SkynetStats\" ]; then sh /jffs/scripts/firewall debug genstats; fi # Skynet Firewall Addition"
 		sed -i '\~# Skynet Firewall Addition~d' /jffs/scripts/service-event
 		echo "$cmdline" >> /jffs/scripts/service-event
 	fi
@@ -623,12 +623,12 @@ Extended_DNSStats() {
 			if [ "$lookupcountry" = "enabled" ]; then
 				country="($(curl -fsL --retry 3 "https://ipapi.co/$statdata/country/"))"
 			fi
-			banreason="$(grep -F " ${statdata} " "$skynetipset" | awk -F "\"" '{print $2}')"
+			banreason="$(grep -F " ${statdata} " "$skynetipset" | awk -F '"' '{print $2}')"
 			if [ -z "$banreason" ]; then
-				banreason="$(grep -m1 -E "$(echo "$statdata" | cut -d '.' -f1-3)..*/" "$skynetipset" | awk -F "\"" '{print $2}')*"
+				banreason="$(grep -m1 -E "$(echo "$statdata" | cut -d '.' -f1-3)..*/" "$skynetipset" | awk -F '"' '{print $2}')*"
 			fi
 			if [ "${#banreason}" -gt "45" ]; then banreason="$(echo "$banreason" | cut -c 1-45)"; fi
-			printf "%-15s %-4s | %-55s | %-45s | %-60s \\n" "$statdata" "$country" "https://otx.alienvault.com/indicator/ip/${statdata}" "$banreason" "$(grep -F "$statdata" /tmp/skynet/skynetstats.txt | awk '{print $1}' | xargs)"
+			printf '%-15s %-4s | %-55s | %-45s | %-60s \n' "$statdata" "$country" "https://otx.alienvault.com/indicator/ip/${statdata}" "$banreason" "$(grep -F "$statdata" /tmp/skynet/skynetstats.txt | awk '{print $1}' | xargs)"
 		;;
 		2)
 			hits="$(echo "$statdata" | awk '{print $1}')"
@@ -636,12 +636,12 @@ Extended_DNSStats() {
 			if [ "$lookupcountry" = "enabled" ]; then
 				country="($(curl -fsL --retry 3 "https://ipapi.co/$ipaddr/country/"))"
 			fi
-			banreason="$(grep -F " ${ipaddr} " "$skynetipset" | awk -F "\"" '{print $2}')"
+			banreason="$(grep -F " ${ipaddr} " "$skynetipset" | awk -F '"' '{print $2}')"
 			if [ -z "$banreason" ]; then
-				banreason="$(grep -m1 -E "$(echo "$ipaddr" | cut -d '.' -f1-3)..*/" "$skynetipset" | awk -F "\"" '{print $2}')*"
+				banreason="$(grep -m1 -E "$(echo "$ipaddr" | cut -d '.' -f1-3)..*/" "$skynetipset" | awk -F '"' '{print $2}')*"
 			fi
 			if [ "${#banreason}" -gt "45" ]; then banreason="$(echo "$banreason" | cut -c 1-45)"; fi
-			printf "%-10s | %-15s %-4s | %-55s | %-45s | %-60s\\n" "${hits}x" "${ipaddr}" "${country}" "https://otx.alienvault.com/indicator/ip/${ipaddr}" "$banreason" "$(grep -F "$ipaddr" /tmp/skynet/skynetstats.txt | awk '{print $1}' | xargs)"
+			printf '%-10s | %-15s %-4s | %-55s | %-45s | %-60s\n' "${hits}x" "${ipaddr}" "${country}" "https://otx.alienvault.com/indicator/ip/${ipaddr}" "$banreason" "$(grep -F "$ipaddr" /tmp/skynet/skynetstats.txt | awk '{print $1}' | xargs)"
 		;;
 		*)
 			echo "[*] Error - No Stats Specified To Load"
@@ -652,55 +652,55 @@ Extended_DNSStats() {
 Display_Header() {
 	case "$1" in
 		1)
-			printf "\\n\\n%-20s | %-55s | %-45s | %-60s\\n" "--------------" "--------------" "--------------" "----------------------"
-			printf "%-20s | %-55s | %-45s | %-60s\\n" "| IP Address |" "| AlienVault |" "| Ban Reason |" "| Associated Domains |"
-			printf "%-20s | %-55s | %-45s | %-60s\\n\\n" "--------------" "--------------" "--------------" "----------------------"
+			printf '\n\n%-20s | %-55s | %-45s | %-60s\n' "--------------" "--------------" "--------------" "----------------------"
+			printf '%-20s | %-55s | %-45s | %-60s\n' "| IP Address |" "| AlienVault |" "| Ban Reason |" "| Associated Domains |"
+			printf '%-20s | %-55s | %-45s | %-60s\n\n' "--------------" "--------------" "--------------" "----------------------"
 		;;
 		2)
-			printf "\\n\\n%-10s | %-20s | %-55s | %-45s | %-60s\\n" "--------" "--------------" "--------------" "--------------" "----------------------"
-			printf "%-10s | %-20s | %-55s | %-45s | %-60s\\n" "| Hits |" "| IP Address |" "| AlienVault |" "| Ban Reason |" "| Associated Domains |"
-			printf "%-10s | %-20s | %-55s | %-45s | %-60s\\n\\n" "--------" "--------------" "--------------" "--------------" "----------------------"
+			printf '\n\n%-10s | %-20s | %-55s | %-45s | %-60s\n' "--------" "--------------" "--------------" "--------------" "----------------------"
+			printf '%-10s | %-20s | %-55s | %-45s | %-60s\n' "| Hits |" "| IP Address |" "| AlienVault |" "| Ban Reason |" "| Associated Domains |"
+			printf '%-10s | %-20s | %-55s | %-45s | %-60s\n\n' "--------" "--------------" "--------------" "--------------" "----------------------"
 		;;
 		3)
-			printf "\\n\\n%-10s | %-10s | %-60s\\n" "--------" "--------" "--------------"
-			printf "%-10s | %-10s | %-60s\\n" "| Hits |" "| Port |" "| SpeedGuide |"
-			printf "%-10s | %-10s | %-60s\\n\\n" "--------" "--------" "--------------"
+			printf '\n\n%-10s | %-10s | %-60s\n' "--------" "--------" "--------------"
+			printf '%-10s | %-10s | %-60s\n' "| Hits |" "| Port |" "| SpeedGuide |"
+			printf '%-10s | %-10s | %-60s\n\n' "--------" "--------" "--------------"
 		;;
 		4)
-			printf "\\n\\n%-10s | %-16s | %-60s\\n" "--------" "------------" "---------------"
-			printf "%-10s | %-16s | %-60s\\n" "| Hits |" "| Local IP |" "| Device Name |"
-			printf "%-10s | %-16s | %-60s\\n\\n" "--------" "------------" "---------------"
+			printf '\n\n%-10s | %-16s | %-60s\n' "--------" "------------" "---------------"
+			printf '%-10s | %-16s | %-60s\n' "| Hits |" "| Local IP |" "| Device Name |"
+			printf '%-10s | %-16s | %-60s\n\n' "--------" "------------" "---------------"
 		;;
 		5)
-			printf "\\n\\n%-20s | %-40s\\n" "--------------" "---------"
-			printf "%-20s | %-40s\\n" "| IP Address |" "| List |"
-			printf "%-20s | %-40s\\n\\n" "--------------" "---------"
+			printf '\n\n%-20s | %-40s\n' "--------------" "---------"
+			printf '%-20s | %-40s\n' "| IP Address |" "| List |"
+			printf '%-20s | %-40s\n\n' "--------------" "---------"
 		;;
 		6)
-			printf "\\n\\n%-40s | %-16s | %-20s | %-15s\\n" "---------------" "------------" "---------------" "----------"
-			printf "%-40s | %-16s | %-20s | %-15s\\n" "| Device Name |" "| Local IP |" "| MAC Address |" "| Status |"
-			printf "%-40s | %-16s | %-20s | %-15s\\n\\n" "---------------" "------------" "---------------" "----------"
+			printf '\n\n%-40s | %-16s | %-20s | %-15s\n' "---------------" "------------" "---------------" "----------"
+			printf '%-40s | %-16s | %-20s | %-15s\n' "| Device Name |" "| Local IP |" "| MAC Address |" "| Status |"
+			printf '%-40s | %-16s | %-20s | %-15s\n\n' "---------------" "------------" "---------------" "----------"
 		;;
 		7)
-			printf "\\n\\n%-35s | %-8s\\n" "--------------------" "----------"
+			printf '\n\n%-35s | %-8s\n' "--------------------" "----------"
 			printf '%-35s | %-8s\n' "| Test Description |" "| Result |"
-			printf "%-35s | %-8s\\n\\n" "--------------------" "----------"
+			printf '%-35s | %-8s\n\n' "--------------------" "----------"
 		;;
 		8)
-			printf "\\n\\n%-35s | %-8s\\n" "-----------" "----------"
+			printf '\n\n%-35s | %-8s\n' "-----------" "----------"
 			printf '%-35s | %-8s\n' "| Setting |" "| Status |"
-			printf "%-35s | %-8s\\n\\n" "----------" "----------"
+			printf '%-35s | %-8s\n\n' "----------" "----------"
 		;;
 		9)
-			printf "\\n\\n=============================================================================================================\\n\\n\\n"
+			printf '\n\n=============================================================================================================\n\n\n'
 		;;
 		10)
-			printf "\\n=============================================================================================================\\n\\n\\n"
+			printf '\n=============================================================================================================\n\n\n'
 		;;
 		11)
-			printf "%-10s | %-18s | %-10s | %-18s | %-10s | %-20s\\n" "---------" "-------------" "---------" "------------------" "---------" "------------------"
-			printf "%-10s | %-18s | %-10s | %-18s | %-10s | %-20s\\n" "| Proto |" "| Source IP |" "| SPort |" "| Destination IP |" "| DPort |" "| Identification |"
-			printf "%-10s | %-18s | %-10s | %-18s | %-10s | %-20s\\n\\n" "---------" "-------------" "---------" "------------------" "---------" "------------------"
+			printf '%-10s | %-18s | %-10s | %-18s | %-10s | %-20s\n' "---------" "-------------" "---------" "------------------" "---------" "------------------"
+			printf '%-10s | %-18s | %-10s | %-18s | %-10s | %-20s\n' "| Proto |" "| Source IP |" "| SPort |" "| Destination IP |" "| DPort |" "| Identification |"
+			printf '%-10s | %-18s | %-10s | %-18s | %-10s | %-20s\n\n' "---------" "-------------" "---------" "------------------" "---------" "------------------"
 		;;
 		*)
 			echo "[*] Error - No Header Specified To Load"
@@ -903,7 +903,7 @@ Whitelist_Shared() {
 	if [ -n "$(find /jffs/addons/shared-whitelists -name 'shared-*-whitelist')" ]; then
 		sed '\~add Skynet-Whitelist ~!d;\~Shared-Whitelist~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
 		swapsize="$(du "$swaplocation" | awk '{print $1}')"
-		if [ "$(cat /jffs/addons/shared-whitelists/shared-*-whitelist | wc -l)" -gt "150" ] && [ "$swapsize" -lt "1048576" ] || \
+		if [ "$(cat /jffs/addons/shared-whitelists/shared-*-whitelist | wc -l)" -gt "150" ] && [ "$swapsize" -lt "1048576" ] ||
 			{ [ "$(cat /jffs/addons/shared-whitelists/shared-*-whitelist | wc -l)" -gt "150" ] && [ "$swapsize" -lt "2097152" ] && [ "$(nvram get dns_local_cache)" = "1" ]; }; then
 			Clean_Temp
 			cwd="$(pwd)"
@@ -962,7 +962,7 @@ WriteData_ToJS() {
 	shift 2
 	i="0"
 	for var in "$@"; do
-		i="$((i+1))"
+		i="$((i + 1))"
 		{
 			echo "var $var;"
 			echo "$var = [];"
@@ -1297,41 +1297,41 @@ Print_Log() {
 
 Write_Config() {
 	{
-		printf "%s\\n" "################################################"
-		printf "%s\\n" "## Generated By Skynet - Do Not Manually Edit ##"
-		printf "%-45s %s\\n\\n" "## $(date +"%b %d %T")" "##"
-		printf "%s\\n" "## Installer ##"
-		printf "%s=\"%s\"\\n" "model" "$model"
-		printf "%s=\"%s\"\\n" "localver" "$localver"
-		printf "%s=\"%s\"\\n" "autoupdate" "$autoupdate"
-		printf "%s=\"%s\"\\n" "banmalwareupdate" "$banmalwareupdate"
-		printf "%s=\"%s\"\\n" "forcebanmalwareupdate" "$forcebanmalwareupdate"
-		printf "%s=\"%s\"\\n" "logmode" "$logmode"
-		printf "%s=\"%s\"\\n" "filtertraffic" "$filtertraffic"
-		printf "%s=\"%s\"\\n" "swaplocation" "$swaplocation"
-		printf "\\n%s\\n" "## Counters / Lists ##"
-		printf "%s=\"%s\"\\n" "blacklist1count" "$blacklist1count"
-		printf "%s=\"%s\"\\n" "blacklist2count" "$blacklist2count"
-		printf "%s=\"%s\"\\n" "customlisturl" "$customlisturl"
-		printf "%s=\"%s\"\\n" "customlist2url" "$customlist2url"
-		printf "%s=\"%s\"\\n" "countrylist" "$countrylist"
-		printf "%s=\"%s\"\\n" "excludelists" "$excludelists"
-		printf "\\n%s\\n" "## Settings ##"
-		printf "%s=\"%s\"\\n" "unbanprivateip" "$unbanprivateip"
-		printf "%s=\"%s\"\\n" "loginvalid" "$loginvalid"
-		printf "%s=\"%s\"\\n" "banaiprotect" "$banaiprotect"
-		printf "%s=\"%s\"\\n" "securemode" "$securemode"
-		printf "%s=\"%s\"\\n" "extendedstats" "$extendedstats"
-		printf "%s=\"%s\"\\n" "fastswitch" "$fastswitch"
-		printf "%s=\"%s\"\\n" "syslogloc" "$syslogloc"
-		printf "%s=\"%s\"\\n" "syslog1loc" "$syslog1loc"
-		printf "%s=\"%s\"\\n" "iotblocked" "$iotblocked"
-		printf "%s=\"%s\"\\n" "iotports" "$iotports"
-		printf "%s=\"%s\"\\n" "iotproto" "$iotproto"
-		printf "%s=\"%s\"\\n" "lookupcountry" "$lookupcountry"
-		printf "%s=\"%s\"\\n" "cdnwhitelist" "$cdnwhitelist"
-		printf "%s=\"%s\"\\n" "displaywebui" "$displaywebui"
-		printf "\\n%s\\n" "################################################"
+		printf '%s\n' "################################################"
+		printf '%s\n' "## Generated By Skynet - Do Not Manually Edit ##"
+		printf '%-45s %s\n\n' "## $(date +"%b %d %T")" "##"
+		printf '%s\n' "## Installer ##"
+		printf '%s="%s"\n' "model" "$model"
+		printf '%s="%s"\n' "localver" "$localver"
+		printf '%s="%s"\n' "autoupdate" "$autoupdate"
+		printf '%s="%s"\n' "banmalwareupdate" "$banmalwareupdate"
+		printf '%s="%s"\n' "forcebanmalwareupdate" "$forcebanmalwareupdate"
+		printf '%s="%s"\n' "logmode" "$logmode"
+		printf '%s="%s"\n' "filtertraffic" "$filtertraffic"
+		printf '%s="%s"\n' "swaplocation" "$swaplocation"
+		printf '\n%s\n' "## Counters / Lists ##"
+		printf '%s="%s"\n' "blacklist1count" "$blacklist1count"
+		printf '%s="%s"\n' "blacklist2count" "$blacklist2count"
+		printf '%s="%s"\n' "customlisturl" "$customlisturl"
+		printf '%s="%s"\n' "customlist2url" "$customlist2url"
+		printf '%s="%s"\n' "countrylist" "$countrylist"
+		printf '%s="%s"\n' "excludelists" "$excludelists"
+		printf '\n%s\n' "## Settings ##"
+		printf '%s="%s"\n' "unbanprivateip" "$unbanprivateip"
+		printf '%s="%s"\n' "loginvalid" "$loginvalid"
+		printf '%s="%s"\n' "banaiprotect" "$banaiprotect"
+		printf '%s="%s"\n' "securemode" "$securemode"
+		printf '%s="%s"\n' "extendedstats" "$extendedstats"
+		printf '%s="%s"\n' "fastswitch" "$fastswitch"
+		printf '%s="%s"\n' "syslogloc" "$syslogloc"
+		printf '%s="%s"\n' "syslog1loc" "$syslog1loc"
+		printf '%s="%s"\n' "iotblocked" "$iotblocked"
+		printf '%s="%s"\n' "iotports" "$iotports"
+		printf '%s="%s"\n' "iotproto" "$iotproto"
+		printf '%s="%s"\n' "lookupcountry" "$lookupcountry"
+		printf '%s="%s"\n' "cdnwhitelist" "$cdnwhitelist"
+		printf '%s="%s"\n' "displaywebui" "$displaywebui"
+		printf '\n%s\n' "################################################"
 	} > "$skynetcfg"
 }
 
@@ -3444,7 +3444,7 @@ case "$1" in
 		done < /tmp/skynet/skynet.manifest
 		if [ "$(/usr/sbin/curl --version | awk 'NR >= 1 && NR <= 1 {print $2}' | tr -d '.')" -lt "7660" ]; then
 			if [ "$(/opt/bin/curl --version | awk 'NR >= 1 && NR <= 1 {print $2}' | tr -d '.')" -ge "7660" ]; then
-					curlpath="/opt/bin/curl"
+				curlpath="/opt/bin/curl"
 			elif [ -f "/opt/bin/opkg" ] && [ ! -f "/opt/bin/curl" ]; then
 				opkg update
 				opkg install curl
@@ -3463,12 +3463,12 @@ case "$1" in
 		eval "$command"
 		dos2unix "${skynetloc}"/lists/* 2>/dev/null
 		for file in *; do
-			grep -qF "$file" /tmp/skynet/skynet.manifest ||  rm -rf "$file"
+			grep -qF "$file" /tmp/skynet/skynet.manifest || rm -rf "$file"
 		done
 		if ! grep -qE '^([0-9]{1,3}\.){3}[0-9]{1,3}(/[0-9]{1,2})?$' "${skynetloc}"/lists/* 2>/dev/null; then
 			result="$(Red "[$(($(date +%s) - btime))s]")"
-			printf "%-8s\\n" "$result"
-			printf "%-35s\\n" "[*] List Content Error Detected - Stopping Banmalware"
+			printf '%-8s\n' "$result"
+			printf '%-35s\n' "[*] List Content Error Detected - Stopping Banmalware"
 			nocfg="1"
 			result="1"
 		fi
@@ -3638,7 +3638,7 @@ case "$1" in
 					echo; exit 2
 				fi
 				dos2unix /tmp/skynet/iplist-unfiltered.txt
-				if ! Is_IPRange < /tmp/skynet/iplist-unfiltered.txt; then { echo "[*] No Content Detected - Stopping Import"; rm -rf /tmp/skynet/iplist-unfiltered.txt; echo; exit 1; }; fi
+				if ! Is_IPRange < /tmp/skynet/iplist-unfiltered.txt; then echo "[*] No Content Detected - Stopping Import"; rm -rf /tmp/skynet/iplist-unfiltered.txt; echo; exit 1; fi
 				echo "[i] Processing List"
 				if [ -n "$4" ] && [ "${#4}" -le "245" ]; then
 					grep -vF "/" /tmp/skynet/iplist-unfiltered.txt | Filter_PrivateIP | awk -v desc="Imported: $4" '{printf "add Skynet-Blacklist %s comment \"%s\"\n", $1, desc }' > /tmp/skynet/iplist-filtered.txt
@@ -3671,7 +3671,7 @@ case "$1" in
 					echo; exit 2
 				fi
 				dos2unix /tmp/skynet/iplist-unfiltered.txt
-				if ! Is_IPRange < /tmp/skynet/iplist-unfiltered.txt; then { echo "[*] No Content Detected - Stopping Import"; rm -rf /tmp/skynet/iplist-unfiltered.txt; echo; exit 1; }; fi
+				if ! Is_IPRange < /tmp/skynet/iplist-unfiltered.txt; then echo "[*] No Content Detected - Stopping Import"; rm -rf /tmp/skynet/iplist-unfiltered.txt; echo; exit 1; fi
 				echo "[i] Processing List"
 				if [ -n "$4" ] && [ "${#4}" -le "245" ]; then
 					Filter_PrivateIP < /tmp/skynet/iplist-unfiltered.txt | awk -v desc="Imported: $4" '{printf "add Skynet-Whitelist %s comment \"%s\"\n", $1, desc }' > /tmp/skynet/iplist-filtered.txt
@@ -3714,7 +3714,7 @@ case "$1" in
 					echo; exit 2
 				fi
 				dos2unix /tmp/skynet/iplist-unfiltered.txt
-				if ! Is_IPRange < /tmp/skynet/iplist-unfiltered.txt; then { echo "[*] No Content Detected - Stopping Deport"; rm -rf /tmp/skynet/iplist-unfiltered.txt; echo; exit 1; }; fi
+				if ! Is_IPRange < /tmp/skynet/iplist-unfiltered.txt; then echo "[*] No Content Detected - Stopping Deport"; rm -rf /tmp/skynet/iplist-unfiltered.txt; echo; exit 1; fi
 				echo "[i] Processing IPv4 Addresses"
 				grep -vF "/" /tmp/skynet/iplist-unfiltered.txt | Filter_PrivateIP | awk '{printf "del Skynet-Blacklist %s\n", $1}' > /tmp/skynet/iplist-filtered.txt
 				echo "[i] Processing IPv4 Ranges"
@@ -3742,7 +3742,7 @@ case "$1" in
 					echo; exit 2
 				fi
 				dos2unix /tmp/skynet/iplist-unfiltered.txt
-				if ! Is_IPRange < /tmp/skynet/iplist-unfiltered.txt; then { echo "[*] No Content Detected - Stopping Deport"; rm -rf /tmp/skynet/iplist-unfiltered.txt; echo; exit 1; }; fi
+				if ! Is_IPRange < /tmp/skynet/iplist-unfiltered.txt; then echo "[*] No Content Detected - Stopping Deport"; rm -rf /tmp/skynet/iplist-unfiltered.txt; echo; exit 1; fi
 				echo "[i] Processing IPv4 Addresses"
 				Filter_PrivateIP < /tmp/skynet/iplist-unfiltered.txt | awk '{print "del Skynet-Whitelist %s\n", $1}' > /tmp/skynet/iplist-filtered.txt
 				echo "[i] Removing IPs From Whitelist"
@@ -4239,7 +4239,7 @@ case "$1" in
 							macaddr="$(echo "$ip" | awk '{print $5}')"
 							localname="$(grep -F " $ipaddr " /var/lib/misc/dnsmasq.leases | awk '{print $4}')"
 							if [ -z "$localname" ]; then
-								 localname="Unknown"
+								localname="Unknown"
 							elif [ "${#localname}" -gt "40" ]; then
 								localname="$(echo "$localname" | cut -c 1-40)"
 							fi
@@ -4253,7 +4253,7 @@ case "$1" in
 							else
 								state="$(Grn Unblocked)"
 							fi
-							printf "%-40s | %-16s | %-20s | %-15s\\n" "$localname" "$ipaddr" "$macaddr" "$state"
+							printf '%-40s | %-16s | %-20s | %-15s\n' "$localname" "$ipaddr" "$macaddr" "$state"
 						done
 					;;
 					ports)
@@ -4566,7 +4566,7 @@ case "$1" in
 				if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(sed -n '2p' /tmp/skynet.lock)" ]; then
 					echo
 					Red "[*] Lock File Detected ($(sed -n '1p' /tmp/skynet.lock)) (pid=$(sed -n '2p' /tmp/skynet.lock))"
-					Ylow "[*] Locked Processes Generally Take A Few Minutes To Complete And May Result In Temporarily \"Failed\" Tests"
+					Ylow '[*] Locked Processes Generally Take A Few Minutes To Complete And May Result In Temporarily "Failed" Tests'
 				fi
 				passedtests="0"
 				totaltests="17"
@@ -4576,7 +4576,7 @@ case "$1" in
 					macaddr="$(echo "$ip" | awk '{print $5}')"
 					localname="$(grep -F " $ipaddr " /var/lib/misc/dnsmasq.leases | awk '{print $4}')"
 					if [ -z "$localname" ]; then
-						 localname="Unknown"
+						localname="Unknown"
 					elif [ "${#localname}" -gt "40" ]; then
 						localname="$(echo "$localname" | cut -c 1-40)"
 					fi
@@ -4591,48 +4591,48 @@ case "$1" in
 					else
 						state="$(Grn "$state")"
 					fi
-					printf "%-40s | %-16s | %-20s | %-15s\\n" "$localname" "$ipaddr" "$macaddr" "$state"
+					printf '%-40s | %-16s | %-20s | %-15s\n' "$localname" "$ipaddr" "$macaddr" "$state"
 				done
 				Display_Header "7"
 				printf "%-35s | " "Internet-Connectivity"
-				if Check_Connection >/dev/null 2>&1; then result="$(Grn "[Passed]")"; passedtests="$((passedtests+1))"; else result="$(Red "[Failed]")"; fi
-				printf "%-8s\\n" "$result"
+				if Check_Connection >/dev/null 2>&1; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
+				printf '%-8s\n' "$result"
 				printf "%-35s | " "Write Permission"
-				if [ -w "${skynetloc}" ]; then result="$(Grn "[Passed]")"; passedtests="$((passedtests+1))"; else result="$(Red "[Failed]")"; fi
-				printf "%-8s\\n" "$result"
+				if [ -w "${skynetloc}" ]; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
+				printf '%-8s\n' "$result"
 				printf "%-35s | " "Firewall-Start Entry"
-				if grep -E "start.* # Skynet" /jffs/scripts/firewall-start | grep -qvE "^#"; then result="$(Grn "[Passed]")"; passedtests="$((passedtests+1))"; else result="$(Red "[Failed]")"; fi
-				printf "%-8s\\n" "$result"
+				if grep -E "start.* # Skynet" /jffs/scripts/firewall-start | grep -qvE "^#"; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
+				printf '%-8s\n' "$result"
 				printf "%-35s | " "Services-Stop Entry"
-				if grep -F "# Skynet" /jffs/scripts/services-stop | grep -qvE "^#"; then result="$(Grn "[Passed]")"; passedtests="$((passedtests+1))"; else result="$(Red "[Failed]")"; fi
-				printf "%-8s\\n" "$result"
+				if grep -F "# Skynet" /jffs/scripts/services-stop | grep -qvE "^#"; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
+				printf '%-8s\n' "$result"
 				printf "%-35s | " "Service-Event Entry"
-				if grep -F "# Skynet" /jffs/scripts/service-event | grep -qvE "^#"; then result="$(Grn "[Passed]")"; passedtests="$((passedtests+1))"; else result="$(Red "[Failed]")"; fi
-				printf "%-8s\\n" "$result"
+				if grep -F "# Skynet" /jffs/scripts/service-event | grep -qvE "^#"; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
+				printf '%-8s\n' "$result"
 				printf "%-35s | " "SWAP File"
-				if Check_Swap; then result="$(Grn "[Passed]")"; passedtests="$((passedtests+1))"; else result="$(Red "[Failed]")"; fi
-				printf "%-8s\\n" "$result"
+				if Check_Swap; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
+				printf '%-8s\n' "$result"
 				printf "%-35s | " "Cron Jobs"
-				if [ "$(cru l | grep -c "Skynet")" -ge "2" ]; then result="$(Grn "[Passed]")"; passedtests="$((passedtests+1))"; else result="$(Red "[Failed]")"; fi
-				printf "%-8s\\n" "$result"
+				if [ "$(cru l | grep -c "Skynet")" -ge "2" ]; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
+				printf '%-8s\n' "$result"
 				printf "%-35s | " "NTP Sync"
-				if [ "$(nvram get ntp_ready)" = "1" ]; then result="$(Grn "[Passed]")"; passedtests="$((passedtests+1))"; else result="$(Red "[Failed]")"; fi
-				printf "%-8s\\n" "$result"
+				if [ "$(nvram get ntp_ready)" = "1" ]; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
+				printf '%-8s\n' "$result"
 				printf "%-35s | " "IPSet Comment Support"
-				if [ -f /lib/modules/"$(uname -r)"/kernel/net/netfilter/ipset/ip_set_hash_ipmac.ko ]; then result="$(Grn "[Passed]")"; passedtests="$((passedtests+1))"; else result="$(Red "[Failed]")"; fi
-				printf "%-8s\\n" "$result"
+				if [ -f /lib/modules/"$(uname -r)"/kernel/net/netfilter/ipset/ip_set_hash_ipmac.ko ]; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
+				printf '%-8s\n' "$result"
 				printf "%-35s | " "Log Level $(nvram get message_loglevel) Settings"
-				if [ "$(nvram get message_loglevel)" -le "$(nvram get log_level)" ]; then result="$(Grn "[Passed]")"; passedtests="$((passedtests+1))"; else result="$(Red "[Failed]")"; fi
-				printf "%-8s\\n" "$result"
+				if [ "$(nvram get message_loglevel)" -le "$(nvram get log_level)" ]; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
+				printf '%-8s\n' "$result"
 				printf "%-35s | " "Duplicate Rules In RAW"
-				if [ "$(iptables-save -t raw | sort | uniq -d | grep -c " ")" = "0" ]; then result="$(Grn "[Passed]")"; passedtests="$((passedtests+1))"; else result="$(Red "[Failed]")"; fi
-				printf "%-8s\\n" "$result"
+				if [ "$(iptables-save -t raw | sort | uniq -d | grep -c " ")" = "0" ]; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
+				printf '%-8s\n' "$result"
 				printf "%-35s | " "IPSets"
-				if Check_IPSets; then result="$(Grn "[Passed]")"; passedtests="$((passedtests+1))"; else result="$(Red "[Failed]")"; fi
-				printf "%-8s\\n" "$result"
+				if Check_IPSets; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
+				printf '%-8s\n' "$result"
 				printf "%-35s | " "IPTables Rules"
-				if Check_IPTables; then result="$(Grn "[Passed]")"; passedtests="$((passedtests+1))"; else result="$(Red "[Failed]")"; fi
-				printf "%-8s\\n" "$result"
+				if Check_IPTables; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
+				printf '%-8s\n' "$result"
 				if [ "$displaywebui" = "enabled" ]; then
 					printf "%-35s | " "Local WebUI Files"
 					[ -f "${skynetloc}/webui/chart.js" ] || localfail="${localfail}chart.js "
@@ -4640,8 +4640,8 @@ case "$1" in
 					[ -f "${skynetloc}/webui/hammerjs.js" ] || localfail="${localfail}hammerjs.js "
 					[ -f "${skynetloc}/webui/skynet.asp" ] || localfail="${localfail}skynet.asp "
 					[ -f "${skynetloc}/webui/stats.js" ] || localfail="${localfail}stats.js "
-					if [ -z "$localfail" ]; then result="$(Grn "[Passed]")"; passedtests="$((passedtests+1))"; else result="$(Red "[Failed]")"; fi
-					printf "%-8s\\n" "$result"
+					if [ -z "$localfail" ]; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
+					printf '%-8s\n' "$result"
 					printf "%-35s | " "Mounted WebUI Files"
 					Get_WebUI_Page "${skynetloc}/webui/skynet.asp" 2>/dev/null
 					[ -f "/www/user/skynet/chart.js" ] || mountedfail="${mountedfail}chart.js "
@@ -4649,29 +4649,29 @@ case "$1" in
 					[ -f "/www/user/skynet/hammerjs.js" ] || mountedfail="${mountedfail}hammerjs.js "
 					[ -f "/www/user/${MyPage}" ] || mountedfail="${mountedfail}skynet.asp "
 					[ -f "/www/user/skynet/stats.js" ] || mountedfail="${mountedfail}stats.js "
-					if [ -z "$mountedfail" ]; then result="$(Grn "[Passed]")"; passedtests="$((passedtests+1))"; else result="$(Red "[Failed]")"; fi
-					printf "%-8s\\n" "$result"
+					if [ -z "$mountedfail" ]; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
+					printf '%-8s\n' "$result"
 					printf "%-35s | " "MenuTree.js Entry"
-					if grep -qF "Skynet" "/www/require/modules/menuTree.js"; then result="$(Grn "[Passed]")"; passedtests="$((passedtests+1))"; else result="$(Red "[Failed]")"; fi
-					printf "%-8s\\n" "$result"
+					if grep -qF "Skynet" "/www/require/modules/menuTree.js"; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
+					printf '%-8s\n' "$result"
 				else
-					totaltests="$((totaltests-3))"
+					totaltests="$((totaltests - 3))"
 				fi
 				if [ -f /opt/share/diversion/.conf/diversion.conf ]; then
 					printf "%-35s | " "Diversion Plus Content"
 					divlocation="/opt/share/diversion"
 					if grep -qE "bfPlusHosts=on" "${divlocation}/.conf/diversion.conf"; then
 						result="$(Grn "[Passed]")"
-						passedtests="$((passedtests+1))"
+						passedtests="$((passedtests + 1))"
 					elif [ -f "${divlocation}/AddPlusHostsDismissed" ]; then
 						result="$(Ylow "[Dismissed]")"
-						passedtests="$((passedtests+1))"
+						passedtests="$((passedtests + 1))"
 					else
 						result="$(Red "[Failed]")"
 					fi
-					printf "%-8s\\n" "$result"
+					printf '%-8s\n' "$result"
 				else
-					totaltests="$((totaltests-1))"
+					totaltests="$((totaltests - 1))"
 				fi
 				Display_Header "8"
 				printf '%-35s | %-8s\n' "Skynet Auto-Updates" "$(if [ "$autoupdate" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
@@ -4688,7 +4688,7 @@ case "$1" in
 				printf '%-35s | %-8s\n' "Country Lookup For Stats" "$(if [ "$lookupcountry" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
 				printf '%-35s | %-8s\n' "CDN Whitelisting" "$(if [ "$cdnwhitelist" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
 				printf '%-35s | %-8s\n' "Display WebUI" "$(if [ "$displaywebui" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
-				printf "\\n%-35s\\n" "${passedtests}/${totaltests} Tests Sucessful"
+				printf '\n%-35s\n' "${passedtests}/${totaltests} Tests Sucessful"
 				if [ -n "$fail" ]; then echo; echo "[*] Rule Integrity Violation - [ ${fail}]"; unset fail; fi
 				if [ -n "$localfail" ]; then echo; echo "[*] Local File Missing - [ ${localfail}]"; fi
 				if [ -n "$mountedfail" ]; then echo; echo "[*] Mounted File Missing - [ ${mountedfail}]"; fi
@@ -4858,9 +4858,9 @@ case "$1" in
 			run)
 				Check_Lock
 				if grep -qE "^${3}()" "$0"; then
-					printf "[i] Running Function %s()\\n\\n" "$3"
+					printf '[i] Running Function %s()\n\n' "$3"
 					"$3"
-					printf "\\n[i] Complete\\n"
+					printf '\n[i] Complete\n'
 				else
 					printf "%s() Doesn't Exist\\n" "$3"
 				fi
@@ -4942,7 +4942,7 @@ case "$1" in
 						Red "First Block Tracked On Port $4;"
 						grep -m1 -F "PT=$4 " "$skynetlog"
 						echo
-						Red "$counter Most Recent Blocks On Port $4;";
+						Red "$counter Most Recent Blocks On Port $4;"
 						grep -F "PT=$4 " "$skynetlog" | tail -"$counter"
 						echo
 					;;
@@ -5010,7 +5010,7 @@ case "$1" in
 							done
 							echo; echo
 						fi
-						ip="$(echo "$4" | sed "s~\\.~\\\\.~g")"
+						ip="$(echo "$4" | sed 's~\.~\\.~g')"
 						printf '   \b\b\b'
 						Display_Header "10"
 						Red "Exact Matches;"
@@ -5018,13 +5018,13 @@ case "$1" in
 						cwd="$(pwd)"
 						cd "${skynetloc}/lists" || exit 1
 						grep -HE "^$ip$" -- * | while IFS= read -r "list" && [ -n "$list" ]; do
-							printf "%-20s | %-40s\\n" "$(echo "$list" | cut -d ':' -f2-)" "$(grep -F "$(echo "$list" | cut -d ':' -f1)" /jffs/addons/shared-whitelists/shared-Skynet-whitelist)"
+							printf '%-20s | %-40s\n' "$(echo "$list" | cut -d ':' -f2-)" "$(grep -F "$(echo "$list" | cut -d ':' -f1)" /jffs/addons/shared-whitelists/shared-Skynet-whitelist)"
 						done
 						printf '   \b\b\b\n\n'
 						Red "Possible CIDR Matches;"
 						Display_Header "5"
 						grep -HE "^$(echo "$ip" | cut -d '.' -f1-3)..*/" -- * | while IFS= read -r "list" && [ -n "$list" ]; do
-							printf "%-20s | %-40s\\n" "$(echo "$list" | cut -d ':' -f2-)" "$(grep -F "$(echo "$list" | cut -d ':' -f1)" /jffs/addons/shared-whitelists/shared-Skynet-whitelist)"
+							printf '%-20s | %-40s\n' "$(echo "$list" | cut -d ':' -f2-)" "$(grep -F "$(echo "$list" | cut -d ':' -f1)" /jffs/addons/shared-whitelists/shared-Skynet-whitelist)"
 						done
 						printf '   \b\b\b'
 						cd "$cwd" || exit 1
@@ -5097,13 +5097,12 @@ case "$1" in
 							Display_Header "11"
 							while IFS= read -r "logs"; do
 								mark="$(echo "$logs" | awk '{printf $8}' | sed 's~mark=~~g')"
-								mark="$(printf "%d\\n" "0x${mark}")"
+								mark="$(printf '%d\n' "0x${mark}")"
 								mark2="$(printf '%X\n' "$((mark & 0x3F0000))")"
 								mark2="0x${mark2}"
 								id="$(awk -v mark="$mark2" 'BEGIN {printf "%.3f\n", mark / 65535}' | sed 's~\..*~~g')"
 								hex="$(printf '%X\n' "$((mark & 0xFFFF))")"
-								cat="$(printf "%d\\n" "0x${hex}")"
-
+								cat="$(printf '%d\n' "0x${hex}")"
 								proto="$(echo "$logs" | awk '{print $2}')"
 								sourceip="$(echo "$logs" | awk '{print $3}' | cut -d '=' -f2)"
 								if echo "$sourceip" | grep -q ":"; then sourceip="IPv6 Address"; fi
@@ -5125,7 +5124,7 @@ case "$1" in
 								elif [ "$4" = "id" ] && [ -n "$5" ] && [ "$5" != "$reason" ]; then
 									true
 								else
-									printf "%-10s | %-18s | %-10s | %-18s | %-10s | %-18s\\n" "$proto" "$sourceip" "$sport" "$destip" "$dport" "$reason"
+									printf '%-10s | %-18s | %-10s | %-18s | %-10s | %-18s\n' "$proto" "$sourceip" "$sport" "$destip" "$dport" "$reason"
 								fi
 							done < /proc/bw_cte_dump
 						else
@@ -5266,7 +5265,7 @@ case "$1" in
 					elif [ -z "$localname" ]; then
 						localname="Unknown"
 					fi
-					printf "%-10s | %-16s | %-60s\\n" "${hits}x" "${ipaddr}" "$localname"
+					printf '%-10s | %-16s | %-60s\n' "${hits}x" "${ipaddr}" "$localname"
 				done
 			;;
 		esac
