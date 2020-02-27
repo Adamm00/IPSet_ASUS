@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            26/02/2020 - v7.1.1                                            #
+#                                            28/02/2020 - v7.1.1                                            #
 #############################################################################################################
 
 
@@ -3459,8 +3459,7 @@ case "$1" in
 		else
 			curlpath="/usr/sbin/curl"
 		fi
-		command="$curlpath -fsLZ $(awk -F / '{print $0 " -Oz " $NF " "}' /jffs/addons/shared-whitelists/shared-Skynet-whitelist | xargs)"
-		eval "$command"
+		awk -F/ '{print $0" -Oz "$NF}' /jffs/addons/shared-whitelists/shared-Skynet-whitelist | xargs "$curlpath" -fsLZ
 		dos2unix "${skynetloc}"/lists/* 2>/dev/null
 		for file in *; do
 			grep -qF "$file" /tmp/skynet/skynet.manifest || rm -rf "$file"
