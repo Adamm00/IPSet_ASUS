@@ -4181,6 +4181,7 @@ case "$1" in
 				case "$3" in
 					unban)
 						if [ -z "$4" ]; then echo "[*] Device(s) Not Specified - Exiting"; echo; exit 1; fi
+						oldiotblocked="$(ipset -L -t Skynet-IOT | tail -1 | awk '{print $4}')"
 						if echo "$4" | grep -q ","; then
 							for ip in $(echo "$4" | sed 's~,~ ~g'); do
 									if ! echo "$ip" | Is_IPRange; then
@@ -4201,14 +4202,21 @@ case "$1" in
 						fi
 						if [ "$(ipset -L -t Skynet-IOT | tail -1 | awk '{print $4}')" -gt "0" ]; then
 							iotblocked="enabled"
+							if [ "$oldiotblocked" = "0" ]; then
+								Load_IOTTables
+								Unload_LogIPTables
+								Load_LogIPTables
+							fi
 						else
 							iotblocked="disabled"
+							Unload_IOTTables
+							Unload_LogIPTables
+							Load_LogIPTables
 						fi
-						Unload_IOTTables
-						Load_IOTTables
 					;;
 					ban)
 						if [ -z "$4" ]; then echo "[*] Device(s) Not Specified - Exiting"; echo; exit 1; fi
+						oldiotblocked="$(ipset -L -t Skynet-IOT | tail -1 | awk '{print $4}')"
 						desc="$(date +"%b %d %T")"
 						if echo "$4" | grep -q ","; then
 							for ip in $(echo "$4" | sed 's~,~ ~g'); do
@@ -4229,11 +4237,17 @@ case "$1" in
 						fi
 						if [ "$(ipset -L -t Skynet-IOT | tail -1 | awk '{print $4}')" -gt "0" ]; then
 							iotblocked="enabled"
+							if [ "$oldiotblocked" = "0" ]; then
+								Load_IOTTables
+								Unload_LogIPTables
+								Load_LogIPTables
+							fi
 						else
 							iotblocked="disabled"
+							Unload_IOTTables
+							Unload_LogIPTables
+							Load_LogIPTables
 						fi
-						Unload_IOTTables
-						Load_IOTTables
 					;;
 					view)
 						Display_Header "6"
