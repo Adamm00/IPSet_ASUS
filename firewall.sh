@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            28/02/2020 - v7.1.2                                            #
+#                                            02/03/2020 - v7.1.2                                            #
 #############################################################################################################
 
 
@@ -4204,6 +4204,8 @@ case "$1" in
 						else
 							iotblocked="disabled"
 						fi
+						Unload_IOTTables
+						Load_IOTTables
 					;;
 					ban)
 						if [ -z "$4" ]; then echo "[*] Device(s) Not Specified - Exiting"; echo; exit 1; fi
@@ -4230,6 +4232,8 @@ case "$1" in
 						else
 							iotblocked="disabled"
 						fi
+						Unload_IOTTables
+						Load_IOTTables
 					;;
 					view)
 						Display_Header "6"
