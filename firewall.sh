@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            02/03/2020 - v7.1.2                                            #
+#                                            05/03/2020 - v7.1.2                                            #
 #############################################################################################################
 
 
@@ -781,13 +781,10 @@ Unban_PrivateIP() {
 		grep -F "INBOUND" "$syslogloc" | Filter_PrivateSRC | grep -oE 'SRC=[0-9,\.]*' | cut -c 5- | awk '!x[$0]++' | while IFS= read -r "ip"; do
 			echo "add Skynet-Whitelist $ip comment \"Private IP\""
 			echo "del Skynet-Blacklist $ip"
-			sed -i "\\~SRC=${ip} ~d" "$syslogloc" "$skynetevents"
 		done | ipset restore -!
 		grep -F "OUTBOUND" "$syslogloc" | Filter_PrivateDST | grep -oE 'DST=[0-9,\.]*' | cut -c 5- | awk '!x[$0]++' | while IFS= read -r "ip"; do
 			echo "add Skynet-Whitelist $ip comment \"Private IP\""
 			echo "del Skynet-Blacklist $ip"
-			sed -i "\\~DST=${ip} ~d" "$syslogloc"
-			sed -i "\\~SRC=${ip} ~d" "$skynetevents"
 		done | ipset restore -!
 	fi
 }
