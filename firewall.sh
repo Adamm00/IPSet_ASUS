@@ -422,6 +422,7 @@ Unload_IOTTables() {
 				iptables -D FORWARD -m set --match-set Skynet-IOT src -o "$iface" -p tcp -m tcp --dport 123 -j ACCEPT 2>/dev/null
 			fi
 		fi
+		iptables -D FORWARD -m set --match-set Skynet-IOT src -o "$iface" -p icmp -j ACCEPT 2>/dev/null
 	fi
 }
 
@@ -443,6 +444,7 @@ Load_IOTTables() {
 				iptables -I FORWARD -m set --match-set Skynet-IOT src -o "$iface" -p tcp -m tcp --dport 123 -j ACCEPT 2>/dev/null
 			fi
 		fi
+		iptables -I FORWARD -m set --match-set Skynet-IOT src -o "$iface" -p icmp -j ACCEPT 2>/dev/null
 	fi
 }
 
