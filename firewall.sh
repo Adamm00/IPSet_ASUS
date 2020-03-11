@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            05/03/2020 - v7.1.2                                            #
+#                                            12/03/2020 - v7.1.2                                            #
 #############################################################################################################
 
 
@@ -1233,6 +1233,7 @@ Create_Swap() {
 	if [ -f "$swaplocation" ]; then swapoff -a 2>/dev/null; rm -rf "$swaplocation"; fi
 	if [ "$(df "$device" | xargs | awk '{print $11}')" -le "$swapsize" ]; then echo "[*] Not Enough Free Space Available On $device"; Create_Swap; fi
 	echo "[i] Creating SWAP File"
+	echo
 	dd if=/dev/zero of="$swaplocation" bs=1k count="$swapsize"
 	mkswap "$swaplocation"
 	swapon "$swaplocation"
@@ -1243,6 +1244,7 @@ Create_Swap() {
 		sed -i '\~swapoff ~d' /jffs/scripts/unmount
 		echo "swapoff -a 2>/dev/null # Skynet Firewall Addition" >> /jffs/scripts/unmount
 	fi
+	echo
 	echo "[i] SWAP File Located At $swaplocation"
 	echo
 }
