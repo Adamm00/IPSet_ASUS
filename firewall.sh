@@ -4209,9 +4209,9 @@ case "$1" in
 								Load_LogIPTables
 							fi
 						else
-							iotblocked="disabled"
 							Unload_IOTTables
 							Unload_LogIPTables
+							iotblocked="disabled"
 							Load_LogIPTables
 						fi
 					;;
@@ -4244,9 +4244,9 @@ case "$1" in
 								Load_LogIPTables
 							fi
 						else
-							iotblocked="disabled"
 							Unload_IOTTables
 							Unload_LogIPTables
+							iotblocked="disabled"
 							Load_LogIPTables
 						fi
 					;;
