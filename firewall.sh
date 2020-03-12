@@ -231,11 +231,11 @@ Check_Settings() {
 	if [ -f "/opt/bin/scribe" ] && [ ! -f "/opt/etc/syslog-ng.d/skynet" ] && [ -f "/opt/etc/syslog-ng.d/examples/skynet" ]; then
 		logger -st Skynet "[i] Installing Scribe Plugin"
 		cp -p "/opt/etc/syslog-ng.d/examples/skynet" "/opt/etc/syslog-ng.d"
+		rm -rf "/opt/etc/syslog-ng.d/firewall" "/opt/etc/logrotate/firewall"
 		syslogloc="/opt/var/log/skynet-0.log"
 	elif [ -f "/opt/bin/scribe" ] && [ -f "/opt/etc/syslog-ng.d/skynet" ] && [ "$syslogloc" = "/tmp/syslog.log" ]; then
 		syslogloc="/opt/var/log/skynet-0.log"
 	fi
-
 }
 
 Check_Connection() {
