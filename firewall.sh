@@ -233,6 +233,7 @@ Check_Settings() {
 		cp -p "/opt/etc/syslog-ng.d/examples/skynet" "/opt/etc/syslog-ng.d"
 		rm -rf "/opt/etc/syslog-ng.d/firewall" "/opt/etc/logrotate/firewall"
 		syslogloc="/opt/var/log/skynet-0.log"
+		killall -HUP syslog-ng
 	elif [ -f "/opt/bin/scribe" ] && [ -f "/opt/etc/syslog-ng.d/skynet" ] && [ "$syslogloc" = "/tmp/syslog.log" ]; then
 		syslogloc="/opt/var/log/skynet-0.log"
 	fi
@@ -1273,7 +1274,7 @@ Purge_Logs() {
 		sed '\~Skynet: \[#\] ~!d' "$syslog1loc" "$syslogloc" 2>/dev/null >> "$skynetevents"
 		sed -i '\~Skynet: \[#\] ~d;\~Skynet: \[i\] ~d;\~Skynet: \[\*\] Lock ~d' "$syslog1loc" "$syslogloc" 2>/dev/null
 	fi
-	if [ -f "/opt/etc/syslog-ng.d/skynet" ]; then /usr/bin/killall -HUP syslog-ng; fi
+	if [ -f "/opt/etc/syslog-ng.d/skynet" ]; then killall -HUP syslog-ng; fi
 }
 
 Print_Log() {
