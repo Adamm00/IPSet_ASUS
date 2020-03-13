@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            13/03/2020 - v7.1.3                                            #
+#                                            14/03/2020 - v7.1.3                                            #
 #############################################################################################################
 
 
@@ -228,10 +228,10 @@ Check_Settings() {
 		extendedstats="disabled"
 	fi
 
-	if [ -f "/opt/bin/scribe" ] && [ ! -f "/opt/etc/syslog-ng.d/skynet" ] && [ -f "/opt/share/syslog-ng.d/examples/skynet" ]; then
+	if [ -f "/opt/bin/scribe" ] && [ ! -f "/opt/etc/syslog-ng.d/skynet" ] && [ -f "/opt/share/syslog-ng/examples/skynet" ]; then
 		logger -st Skynet "[i] Installing Scribe Plugin"
 		rm -rf "/opt/etc/syslog-ng.d/firewall" "/opt/etc/logrotate/firewall"
-		cp -p "/opt/share/syslog-ng.d/examples/skynet" "/opt/etc/syslog-ng.d"
+		cp -p "/opt/share/syslog-ng/examples/skynet" "/opt/etc/syslog-ng.d"
 		syslogloc="/opt/var/log/skynet-0.log"
 		killall -HUP syslog-ng
 	elif [ -f "/opt/bin/scribe" ] && [ -f "/opt/etc/syslog-ng.d/skynet" ] && [ "$syslogloc" = "/tmp/syslog.log" ]; then
@@ -5613,7 +5613,7 @@ case "$1" in
 					rm -rf "/jffs/addons/shared-whitelists/shared-Skynet-whitelist" "/jffs/addons/shared-whitelists/shared-Skynet2-whitelist" "/opt/bin/firewall" "${skynetloc}" "/jffs/scripts/firewall" "/tmp/skynet.lock" "/tmp/skynet"
 					if [ -f "/opt/etc/syslog-ng.d/skynet" ]; then
 						rm -rf "/opt/etc/syslog-ng.d/skynet"
-						cp -p "/opt/share/syslog-ng.d/examples/firewall" "/opt/etc/syslog-ng.d"
+						cp -p "/opt/share/syslog-ng/examples/firewall" "/opt/etc/syslog-ng.d"
 						cp -p "/opt/share/logrotate/examples/firewall" "/opt/etc/logrotate"
 						killall -HUP syslog-ng
 					fi
