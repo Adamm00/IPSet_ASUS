@@ -5611,6 +5611,12 @@ case "$1" in
 					echo "[i] Deleting Skynet Files"
 					sed -i '\~ Skynet ~d' /jffs/scripts/firewall-start /jffs/scripts/services-stop /jffs/scripts/service-event
 					rm -rf "/jffs/addons/shared-whitelists/shared-Skynet-whitelist" "/jffs/addons/shared-whitelists/shared-Skynet2-whitelist" "/opt/bin/firewall" "${skynetloc}" "/jffs/scripts/firewall" "/tmp/skynet.lock" "/tmp/skynet"
+					if [ -f "/opt/etc/syslog-ng.d/skynet" ]; then
+						rm -rf "/opt/etc/syslog-ng.d/skynet"
+						cp -p "/opt/etc/syslog-ng.d/examples/firewall" "/opt/etc/syslog-ng.d"
+						cp -p "/opt/share/logrotate/examples/firewall" "/opt/etc/logrotate"
+						killall -HUP syslog-ng
+					fi
 					iptables -t raw -F
 					echo "[i] Restarting Firewall Service"
 					service restart_firewall
