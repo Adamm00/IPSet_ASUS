@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            14/03/2020 - v7.1.3                                            #
+#                                            15/03/2020 - v7.1.3                                            #
 #############################################################################################################
 
 
@@ -232,10 +232,10 @@ Check_Settings() {
 		logger -st Skynet "[i] Installing Scribe Plugin"
 		rm -rf "/opt/etc/syslog-ng.d/firewall" "/opt/etc/logrotate/firewall"
 		cp -p "/opt/share/syslog-ng/examples/skynet" "/opt/etc/syslog-ng.d"
-		syslogloc="/opt/var/log/skynet-0.log"
+		syslogloc="$(grep -m1 "file(" "/opt/etc/syslog-ng.d/skynet" | awk -F "\"" '{print $2}')"
 		killall -HUP syslog-ng
 	elif [ -f "/opt/bin/scribe" ] && [ -f "/opt/etc/syslog-ng.d/skynet" ] && [ "$syslogloc" = "/tmp/syslog.log" ]; then
-		syslogloc="/opt/var/log/skynet-0.log"
+		syslogloc="$(grep -m1 "file(" "/opt/etc/syslog-ng.d/skynet" | awk -F "\"" '{print $2}')"
 	fi
 }
 
