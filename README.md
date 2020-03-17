@@ -62,7 +62,7 @@ Example Ban Commands;
 ( sh /jffs/scripts/firewall ban ip 8.8.8.8 "Apples" ) This Bans The IP Specified With The Comment Apples
 ( sh /jffs/scripts/firewall ban range 8.8.8.8/24 "Apples" ) This Bans the CIDR Block Specified With The Comment Apples
 ( sh /jffs/scripts/firewall ban domain google.com ) This Bans the URL Specified
-( sh /jffs/scripts/firewall ban country "pk cn sa" ) This Bans The Known IPs For The Specified Countries (Accepts Single/Multiple Inputs If Quoted) http://www.ipdeny.com/ipblocks/data/countries/
+( sh /jffs/scripts/firewall ban country "pk cn sa" ) This Bans The Known IPs For The Specified Countries (Accepts Single/Multiple Inputs If Quoted) https://www.ipdeny.com/ipblocks/
 ( sh /jffs/scripts/firewall ban asn AS123456 ) This Bans the ASN Specified
 
 Example Banmalware Commands;
