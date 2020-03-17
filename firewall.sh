@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            15/03/2020 - v7.1.3                                            #
+#                                            17/03/2020 - v7.1.3                                            #
 #############################################################################################################
 
 
@@ -236,6 +236,10 @@ Check_Settings() {
 		killall -HUP syslog-ng
 	elif [ -f "/opt/bin/scribe" ] && [ -f "/opt/etc/syslog-ng.d/skynet" ] && [ "$syslogloc" = "/tmp/syslog.log" ]; then
 		syslogloc="$(grep -m1 "file(" "/opt/etc/syslog-ng.d/skynet" | awk -F "\"" '{print $2}')"
+	fi
+
+	if nvram get wan0_ipaddr | Is_PrivateIP; then
+		logger -st Skynet "[*] Private IP Detected - Please Put Your Modem In Bridge Mode / Disable CG-NAT"
 	fi
 }
 
@@ -747,6 +751,10 @@ Filter_IPLine() {
 
 Filter_OutIP() {
 	grep -vE '^([0-9]{1,3}\.){3}[0-9]{1,3}$'
+}
+
+Is_PrivateIP() {
+	grep -qE '(^127\.)|(^10\.)|(^172\.1[6-9]\.)|(^172\.2[0-9]\.)|(^172\.3[0-1]\.)|(^192\.168\.)|(^0.)|(^169\.254\.)|(^22[4-9]\.)|(^23[0-9]\.)|(^255\.255\.255\.255)'
 }
 
 Filter_PrivateIP() {
@@ -1357,7 +1365,7 @@ Load_Menu() {
 	echo "Skynet Version; $localver ($(Filter_Date < "$0")) ($(md5sum "$0" | awk '{print $1}'))"
 	echo "$(iptables --version) - ($iface @ $(nvram get lan_ipaddr))"
 	ipset -v
-	echo "IP Address; ($(nvram get wan0_ipaddr))$(if [ "$(nvram get ipv6_service)" != "disabled" ]; then echo " - ($(nvram get ipv6_prefix)/$(nvram get ipv6_prefix_length))"; fi)"
+	echo "IP Address; ($(if nvram get wan0_ipaddr | Is_PrivateIP; then Red "$(nvram get wan0_ipaddr)"; else nvram get wan0_ipaddr; fi))$(if [ "$(nvram get ipv6_service)" != "disabled" ]; then echo " - ($(nvram get ipv6_prefix)/$(nvram get ipv6_prefix_length))"; fi)"
 	echo "FW Version; $(nvram get buildno)_$(nvram get extendno) ($(uname -v | awk '{printf "%s %s %s\n", $5, $6, $9}')) ($(uname -r))"
 	echo "Install Dir; ${skynetloc} ($(df -h "${skynetloc}" | xargs | awk '{printf "%s / %s\n", $11, $9}') Space Available)"
 	if [ -n "$swaplocation" ]; then
@@ -4571,7 +4579,7 @@ case "$1" in
 				echo "Skynet Version; $localver ($(Filter_Date < "$0")) ($(md5sum "$0" | awk '{print $1}'))"
 				echo "$(iptables --version) - ($iface @ $(nvram get lan_ipaddr))"
 				ipset -v
-				echo "IP Address; ($(nvram get wan0_ipaddr))$(if [ "$(nvram get ipv6_service)" != "disabled" ]; then echo " - ($(nvram get ipv6_prefix)/$(nvram get ipv6_prefix_length))"; fi)"
+				echo "IP Address; ($(if nvram get wan0_ipaddr | Is_PrivateIP; then Red "$(nvram get wan0_ipaddr)"; else nvram get wan0_ipaddr; fi))$(if [ "$(nvram get ipv6_service)" != "disabled" ]; then echo " - ($(nvram get ipv6_prefix)/$(nvram get ipv6_prefix_length))"; fi)"
 				echo "FW Version; $(nvram get buildno)_$(nvram get extendno) ($(uname -v | awk '{printf "%s %s %s\n", $5, $6, $9}')) ($(uname -r))"
 				echo "Install Dir; ${skynetloc} ($(df -h "${skynetloc}" | xargs | awk '{printf "%s / %s\n", $11, $9}') Space Available)"
 				if [ -n "$swaplocation" ]; then
@@ -5325,7 +5333,11 @@ case "$1" in
 		fi
 		conflicting_scripts="(IPSet_Block.sh|malware-filter|privacy-filter|ipBLOCKer.sh|ya-malware-block.sh|iblocklist-loader.sh|firewall-reinstate.sh)$"
 		if find /jffs /tmp/mnt | grep -qE "$conflicting_scripts"; then
-			logger -st Skynet "[*] $(find /jffs /tmp/mnt | grep -E "$conflicting_scripts" | xargs) Detected - This Script Will Cause Conflicts! Please Remove Immediately."
+			echo "[*] $(find /jffs /tmp/mnt | grep -E "$conflicting_scripts" | xargs) Detected - This Script Will Cause Conflicts! Please Remove Immediately."
+			echo
+		fi
+		if nvram get wan0_ipaddr | Is_PrivateIP; then
+			echo "[*] Private IP Detected - Please Put Your Modem In Bridge Mode / Disable CG-NAT"
 			echo
 		fi
 		echo "[i] Installing Skynet $(Filter_Version < "$0")"
