@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            17/03/2020 - v7.1.3                                            #
+#                                            18/03/2020 - v7.1.3                                            #
 #############################################################################################################
 
 
@@ -4274,9 +4274,11 @@ case "$1" in
 							ipaddr="$(echo "$ip" | awk '{print $1}')"
 							macaddr="$(echo "$ip" | awk '{print $5}')"
 							localname="$(grep -F " $ipaddr " /var/lib/misc/dnsmasq.leases | awk '{print $4}')"
-							if [ -z "$localname" ]; then
-								localname="Unknown"
-							elif [ "${#localname}" -gt "40" ]; then
+							if [ -z "$localname" ] || [ "$localname" = "*" ]; then
+								localname="$(nvram get custom_clientlist | grep -ioE "<.*>$macaddr" | awk -F ">" '{print $(NF-1)}' | tr -d '<')"
+								if [ -z "$localname" ]; then localname="Unknown"; fi
+							fi
+							if [ "${#localname}" -gt "40" ]; then
 								localname="$(echo "$localname" | cut -c 1-40)"
 							fi
 							state="$(echo "$ip" | awk '{print $6}')"
@@ -4611,9 +4613,11 @@ case "$1" in
 					ipaddr="$(echo "$ip" | awk '{print $1}')"
 					macaddr="$(echo "$ip" | awk '{print $5}')"
 					localname="$(grep -F " $ipaddr " /var/lib/misc/dnsmasq.leases | awk '{print $4}')"
-					if [ -z "$localname" ]; then
-						localname="Unknown"
-					elif [ "${#localname}" -gt "40" ]; then
+					if [ -z "$localname" ] || [ "$localname" = "*" ]; then
+						localname="$(nvram get custom_clientlist | grep -ioE "<.*>$macaddr" | awk -F ">" '{print $(NF-1)}' | tr -d '<')"
+						if [ -z "$localname" ]; then localname="Unknown"; fi
+					fi
+					if [ "${#localname}" -gt "40" ]; then
 						localname="$(echo "$localname" | cut -c 1-40)"
 					fi
 					state="$(echo "$ip" | awk '{print $6}')"
@@ -5298,8 +5302,10 @@ case "$1" in
 					localname="$(grep -F "$ipaddr " /var/lib/misc/dnsmasq.leases | awk '{print $4}')"
 					if [ -z "$localname" ] && [ "$ipaddr" = "$(nvram get wan0_ipaddr)" ]; then
 						localname="$model"
-					elif [ -z "$localname" ]; then
-						localname="Unknown"
+					fi
+					if [ -z "$localname" ] || [ "$localname" = "*" ]; then
+						localname="$(nvram get custom_clientlist | grep -ioE "<.*>$macaddr" | awk -F ">" '{print $(NF-1)}' | tr -d '<')"
+						if [ -z "$localname" ]; then localname="Unknown"; fi
 					fi
 					printf '%-10s | %-16s | %-60s\n' "${hits}x" "${ipaddr}" "$localname"
 				done
