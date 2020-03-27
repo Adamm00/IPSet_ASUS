@@ -1018,8 +1018,8 @@ Generate_Stats() {
 			WriteStats_ToJS "$blacklist2count" "${skynetloc}/webui/stats.js" "SetBLCount2" "blcount2"
 			WriteStats_ToJS "$hits1" "${skynetloc}/webui/stats.js" "SetHits1" "hits1"
 			WriteStats_ToJS "$hits2" "${skynetloc}/webui/stats.js" "SetHits2" "hits2"
-			WriteStats_ToJS "Monitoring From $(grep -m1 -F "BLOCKED -" "$skynetlog" | awk '{printf "%s %s %s\n", $1, $2, $3}')" "${skynetloc}/webui/stats.js" "SetStatsDateStart" "statsdatestart"
-			WriteStats_ToJS "Last Updated - $(date +"%r") ($(du -h "$skynetlog" | awk '{print $1}')B)" "${skynetloc}/webui/stats.js" "SetStatsDate" "statsdate"
+			WriteStats_ToJS "Monitoring From $(grep -m1 -F "BLOCKED -" "$skynetlog" | awk '{printf "%s %s %s\n", $1, $2, $3}') To $(grep -F "BLOCKED -" "$skynetlog" | tail -1 | awk '{printf "%s %s %s\n", $1, $2, $3}')" "${skynetloc}/webui/stats.js" "SetStatsDate" "statsdate"
+			WriteStats_ToJS "Log Size - ($(du -h "$skynetlog" | awk '{print $1}')B)" "${skynetloc}/webui/stats.js" "SetStatsSize" "statssize"
 			# Inbound Ports
 			grep -F "INBOUND" "$skynetlog" | grep -oE 'DPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -10 | sed "s~^[ \t]*~~;s~ ~\~~g" > "${skynetloc}/webui/stats/iport.txt"
 			WriteData_ToJS "${skynetloc}/webui/stats/iport.txt" "${skynetloc}/webui/stats.js" "DataInPortHits" "LabelInPortHits"
