@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            18/03/2020 - v7.1.4                                            #
+#                                            28/03/2020 - v7.1.4                                            #
 #############################################################################################################
 
 
@@ -1018,6 +1018,7 @@ Generate_Stats() {
 			WriteStats_ToJS "$blacklist2count" "${skynetloc}/webui/stats.js" "SetBLCount2" "blcount2"
 			WriteStats_ToJS "$hits1" "${skynetloc}/webui/stats.js" "SetHits1" "hits1"
 			WriteStats_ToJS "$hits2" "${skynetloc}/webui/stats.js" "SetHits2" "hits2"
+			WriteStats_ToJS "Monitoring From $(grep -m1 -F "BLOCKED -" "$skynetlog" | awk '{printf "%s %s %s\n", $1, $2, $3}')" "${skynetloc}/webui/stats.js" "SetStatsDateStart" "statsdatestart"
 			WriteStats_ToJS "Last Updated - $(date +"%r") ($(du -h "$skynetlog" | awk '{print $1}')B)" "${skynetloc}/webui/stats.js" "SetStatsDate" "statsdate"
 			# Inbound Ports
 			grep -F "INBOUND" "$skynetlog" | grep -oE 'DPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -10 | sed "s~^[ \t]*~~;s~ ~\~~g" > "${skynetloc}/webui/stats/iport.txt"

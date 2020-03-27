@@ -377,6 +377,7 @@
 
             SetCurrentPage();
 
+            SetStatsDateStart();
             SetStatsDate();
             SetBLCount1();
             SetBLCount2();
@@ -839,6 +840,8 @@
                                                 <div style="line-height:10px;">&nbsp;</div>
 
                                                 <div class="formfonttitle" style="margin-bottom:0px;text-align:center;" id="statstitle">Skynet Statistics</div>
+                                                <div style="line-height:5px;">&nbsp;</div>
+                                                <div class="formfonttitle" style="margin-bottom:0px;text-align:center;" id="statsdatestart">Monitoring From - N/A</div>
                                                 <div style="line-height:5px;">&nbsp;</div>
                                                 <div class="formfonttitle" style="margin-bottom:0px;text-align:center;" id="statsdate">Last Updated - N/A</div>
                                                 <div style="line-height:5px;">&nbsp;</div>
