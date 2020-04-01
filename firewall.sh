@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            31/03/2020 - v7.1.4                                            #
+#                                            01/04/2020 - v7.1.4                                            #
 #############################################################################################################
 
 
@@ -211,15 +211,6 @@ Check_Settings() {
 		nvram set fw_enable_x=1
 		nvram commit
 		restartfirewall="1"
-	fi
-
-	if [ -f /opt/share/diversion/.conf/diversion.conf ]; then
-		divlocation="/opt/share/diversion"
-		if ! grep -qE "bfPlusHosts=on" "${divlocation}/.conf/diversion.conf"; then
-			if [ ! -f "${divlocation}/AddPlusHosts" ] && [ ! -f "${divlocation}/AddPlusHostsDismissed" ]; then
-				touch "${divlocation}/AddPlusHosts"
-			fi
-		fi
 	fi
 
 	if [ -f "/opt/var/log/dnsmasq.log" ]; then
@@ -4611,7 +4602,7 @@ case "$1" in
 					Ylow '[*] Locked Processes Generally Take A Few Minutes To Complete And May Result In Temporarily "Failed" Tests'
 				fi
 				passedtests="0"
-				totaltests="17"
+				totaltests="16"
 				Display_Header "6"
 				ip neigh | grep -E '^([0-9]{1,3}\.){3}[0-9]{1,3} ' | sort -n -t . -k 1,1 -k 2,2 -k 3,3 -k 4,4 | while IFS= read -r "ip"; do
 					ipaddr="$(echo "$ip" | awk '{print $1}')"
@@ -4700,22 +4691,6 @@ case "$1" in
 					printf '%-8s\n' "$result"
 				else
 					totaltests="$((totaltests - 3))"
-				fi
-				if [ -f /opt/share/diversion/.conf/diversion.conf ]; then
-					printf "%-35s | " "Diversion Plus Content"
-					divlocation="/opt/share/diversion"
-					if grep -qE "bfPlusHosts=on" "${divlocation}/.conf/diversion.conf"; then
-						result="$(Grn "[Passed]")"
-						passedtests="$((passedtests + 1))"
-					elif [ -f "${divlocation}/AddPlusHostsDismissed" ]; then
-						result="$(Ylow "[Dismissed]")"
-						passedtests="$((passedtests + 1))"
-					else
-						result="$(Red "[Failed]")"
-					fi
-					printf '%-8s\n' "$result"
-				else
-					totaltests="$((totaltests - 1))"
 				fi
 				Display_Header "8"
 				printf '%-35s | %-8s\n' "Skynet Auto-Updates" "$(if [ "$autoupdate" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
