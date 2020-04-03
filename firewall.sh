@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            02/04/2020 - v7.1.5                                            #
+#                                            03/04/2020 - v7.1.5                                            #
 #############################################################################################################
 
 
@@ -1992,7 +1992,7 @@ Load_Menu() {
 					printf '%-35s | %-40s\n' "[4]  --> Filter Traffic" "$(Grn "[$filtertraffic]")"
 					printf '%-35s | %-40s\n' "[5]  --> Unban PrivateIP" "$(if [ "$unbanprivateip" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
 					printf '%-35s | %-40s\n' "[6]  --> Log Invalid Packets" "$(if [ "$loginvalid" = "enabled" ]; then Grn "[Enabled]";else Grn "[Disabled]"; fi)"
-					printf '%-35s | %-40s\n' "[7]  --> Ban AiProtect" "$(if [ "$banaiprotect" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
+					printf '%-35s | %-40s\n' "[7]  --> Import AiProtect Data" "$(if [ "$banaiprotect" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
 					printf '%-35s | %-40s\n' "[8]  --> Secure Mode" "$(if [ "$securemode" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
 					printf '%-35s | %-40s\n' "[9]  --> Fast Switch List" "$(if [ "$fastswitch" = "enabled" ]; then Ylow "[Enabled]"; else Grn "[Disabled]"; fi)"
 					printf '%-35s | %-40s\n' "[10] --> Syslog Location" "$(if [ "$syslogloc" = "/tmp/syslog.log" ] && [ "$syslog1loc" = "/tmp/syslog.log-1" ]; then Grn "[Default]"; else Ylow "[Custom]"; fi)"
@@ -4115,7 +4115,7 @@ case "$1" in
 						if [ ! -f /opt/bin/opkg ]; then echo "[i] This Feature Requires Entware - Exiting"; echo; exit 0; fi
 						banaiprotect="enabled"
 						Refresh_AiProtect
-						echo "[i] Ban AiProtect Enabled"
+						echo "[i] Import AiProtect Data Enabled"
 					;;
 					disable)
 						Check_Lock "$@"
@@ -4123,7 +4123,7 @@ case "$1" in
 						Purge_Logs
 						banaiprotect="disabled"
 						sed '\~add Skynet-Blacklist ~!d;\~BanAiProtect~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
-						echo "[i] Ban AiProtect Disabled"
+						echo "[i] Import AiProtect Data Disabled"
 					;;
 					*)
 						echo "Command Not Recognized, Please Try Again"
@@ -4699,7 +4699,7 @@ case "$1" in
 				printf '%-35s | %-8s\n' "Filter Traffic" "$(if [ "$filtertraffic" = "all" ]; then Grn "[Enabled]"; else Ylow "[Selective]"; fi)"
 				printf '%-35s | %-8s\n' "Unban PrivateIP" "$(if [ "$unbanprivateip" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
 				printf '%-35s | %-8s\n' "Log Invalid Packets" "$(if [ "$loginvalid" = "enabled" ]; then Grn "[Enabled]"; else Grn "[Disabled]"; fi)"
-				printf '%-35s | %-8s\n' "Ban AiProtect" "$(if [ "$banaiprotect" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
+				printf '%-35s | %-8s\n' "Import AiProtect Data" "$(if [ "$banaiprotect" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
 				printf '%-35s | %-8s\n' "Secure Mode" "$(if [ "$securemode" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
 				printf '%-35s | %-8s\n' "Fast Switch List" "$(if [ "$fastswitch" = "enabled" ]; then Ylow "[Enabled]"; else Grn "[Disabled]"; fi)"
 				printf '%-35s | %-8s\n' "Syslog Location" "$(if [ "$syslogloc" = "/tmp/syslog.log" ] && [ "$syslog1loc" = "/tmp/syslog.log-1" ]; then Grn "[Default]"; else Ylow "[Custom]"; fi)"
