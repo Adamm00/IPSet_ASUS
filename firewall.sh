@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            03/04/2020 - v7.1.5                                            #
+#                                            04/04/2020 - v7.1.5                                            #
 #############################################################################################################
 
 
@@ -230,7 +230,7 @@ Check_Settings() {
 	fi
 
 	if nvram get wan0_ipaddr | Is_PrivateIP; then
-		logger -st Skynet "[*] Private IP Detected - Please Put Your Modem In Bridge Mode / Disable CG-NAT"
+		logger -st Skynet "[*] Private WAN IP Detected $(nvram get wan0_ipaddr) - Please Put Your Modem In Bridge Mode / Disable CG-NAT"
 	fi
 }
 
