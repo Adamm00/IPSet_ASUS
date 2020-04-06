@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            04/04/2020 - v7.1.5                                            #
+#                                            06/04/2020 - v7.1.5                                            #
 #############################################################################################################
 
 
@@ -633,9 +633,9 @@ Extended_DNSStats() {
 			if [ "$lookupcountry" = "enabled" ]; then
 				country="($(curl -fsL --retry 3 --connect-timeout 3 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://ipapi.co/$statdata/country/"))"
 			fi
-			banreason="$(grep -F " ${statdata} " "$skynetipset" | awk -F '"' '{print $2}')"
+			banreason="$(grep -F " ${statdata} " "$skynetipset" | grep -m1 -vF "Skynet-Whitelist" | awk -F '"' '{print $2}')"
 			if [ -z "$banreason" ]; then
-				banreason="$(grep -m1 -E "$(echo "$statdata" | cut -d '.' -f1-3)..*/" "$skynetipset" | awk -F '"' '{print $2}')*"
+				banreason="$(grep -E "$(echo "$statdata" | cut -d '.' -f1-3)..*/" "$skynetipset" | grep -m1 -vF "Skynet-Whitelist" | awk -F '"' '{print $2}')*"
 			fi
 			if [ "${#banreason}" -gt "45" ]; then banreason="$(echo "$banreason" | cut -c 1-45)"; fi
 			printf '%-15s %-4s | %-55s | %-45s | %-60s \n' "$statdata" "$country" "https://otx.alienvault.com/indicator/ip/${statdata}" "$banreason" "$(grep -F "$statdata" /tmp/skynet/skynetstats.txt | awk '{print $1}' | xargs)"
@@ -646,9 +646,9 @@ Extended_DNSStats() {
 			if [ "$lookupcountry" = "enabled" ]; then
 				country="($(curl -fsL --retry 3 --connect-timeout 3 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://ipapi.co/$ipaddr/country/"))"
 			fi
-			banreason="$(grep -F " ${ipaddr} " "$skynetipset" | awk -F '"' '{print $2}')"
+			banreason="$(grep -F " ${ipaddr} " "$skynetipset" | grep -m1 -vF "Skynet-Whitelist" | awk -F '"' '{print $2}')"
 			if [ -z "$banreason" ]; then
-				banreason="$(grep -m1 -E "$(echo "$ipaddr" | cut -d '.' -f1-3)..*/" "$skynetipset" | awk -F '"' '{print $2}')*"
+				banreason="$(grep -E "$(echo "$ipaddr" | cut -d '.' -f1-3)..*/" "$skynetipset" | grep -m1 -vF "Skynet-Whitelist" | awk -F '"' '{print $2}')*"
 			fi
 			if [ "${#banreason}" -gt "45" ]; then banreason="$(echo "$banreason" | cut -c 1-45)"; fi
 			printf '%-10s | %-15s %-4s | %-55s | %-45s | %-60s\n' "${hits}x" "${ipaddr}" "${country}" "https://otx.alienvault.com/indicator/ip/${ipaddr}" "$banreason" "$(grep -F "$ipaddr" /tmp/skynet/skynetstats.txt | awk '{print $1}' | xargs)"
