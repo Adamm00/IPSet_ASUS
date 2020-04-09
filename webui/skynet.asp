@@ -86,7 +86,6 @@
             border-right: none !important;
         }
     </style>
-    <script language="JavaScript" type="text/javascript" src="/js/jquery.js"></script>
     <script language="JavaScript" type="text/javascript" src="/ext/skynet/chart.js"></script>
     <script language="JavaScript" type="text/javascript" src="/ext/skynet/chartjs-plugin-zoom.js"></script>
     <script language="JavaScript" type="text/javascript" src="/ext/skynet/hammerjs.js"></script>
@@ -98,10 +97,21 @@
     <script language="JavaScript" type="text/javascript" src="/tmhist.js"></script>
     <script language="JavaScript" type="text/javascript" src="/tmmenu.js"></script>
     <script language="JavaScript" type="text/javascript" src="/client_function.js"></script>
-    <script language="JavaScript" type="text/javascript" src="/validator.js"></script>
+    <script>
+        (function() {
+            if (<% nvram_get("buildno"); %> == "374.43") {
+                document.write('<script src="/detect.js"><\/script>');
+                document.write('<script src="/jquery.js"><\/script>');
+            } else {
+                document.write('<script src="/validator.js"><\/script>');
+                document.write('<script src="/js/jquery.js"><\/script>');
+            }
+        })();
+    </script>
 
     <script>
         var ChartInPortHits;
+        var $j = jQuery.noConflict();
         Chart.defaults.global.defaultFontColor = "#CCC";
         Chart.Tooltip.positioners.cursor = function(chartElements, coordinates) {
             return coordinates;
@@ -126,8 +136,8 @@
             var objchartname = window["Chart" + txtchartname];
             var objdataname = GetDataDataset(txtchartname, multilabel);
             var objlabeldataname;
-            var charttype = getChartType($("#" + txtchartname + "_Type option:selected").val());
-            var chartcolour = getChartColour($("#" + txtchartname + "_Colour option:selected").val());
+            var charttype = getChartType($j("#" + txtchartname + "_Type option:selected").val());
+            var chartcolour = getChartColour($j("#" + txtchartname + "_Colour option:selected").val());
             if (typeof objdataname === 'undefined' || objdataname === null) {
                 Draw_Chart_NoData(txtchartname);
                 return;
@@ -246,7 +256,7 @@
                         urlprefix = "https://www.speedguide.net/port.php?port=";
                     } else if (txtchartname == "TCConnHits") {
                         urlprefix = "https://otx.alienvault.com/indicator/ip/";
-                    } else if ($("#" + txtchartname + "_Group option:selected").val() == 0) {
+                    } else if ($j("#" + txtchartname + "_Group option:selected").val() == 0) {
                         urlprefix = "https://otx.alienvault.com/indicator/ip/";
                     }
                     if (urlprefix != "") {
@@ -304,7 +314,7 @@
             var s;
             if ((s = cookie.get(cookiename)) != null) {
                 if (s.match(/^([0-2])$/)) {
-                    $("#" + cookiename).val(cookie.get(cookiename) * 1);
+                    $j("#" + cookiename).val(cookie.get(cookiename) * 1);
                 }
             }
         }
@@ -323,12 +333,12 @@
         }
 
         function SetCurrentPage() {
-            $("#next_page").val(window.location.pathname.substring(1));
-            $("#current_page").val(window.location.pathname.substring(1));
+            $j("#next_page").val(window.location.pathname.substring(1));
+            $j("#current_page").val(window.location.pathname.substring(1));
         }
 
         function AddEventHandlers() {
-            $(".collapsible").click(function() {
+            $j(".collapsible").click(function() {
                 if ($(this).hasClass("expanded")) {
                     $(this).removeClass("expanded").addClass("collapsed");
                     SetCookie($(this).attr("id"), "collapsed");
@@ -338,33 +348,33 @@
                 }
                 $(this).siblings().toggle("fast");
             });
-            $(".default-collapsed").trigger("click");
+            $j(".default-collapsed").trigger("click");
         }
 
         function SetExpanded() {
-            var coll = $(".collapsible");
+            var coll = $j(".collapsible");
             var i;
 
             for (i = 0; i < coll.length; i++) {
                 if (GetExpandedCookie(coll[i].id) == "collapsed") {
-                    $("#" + coll[i].id).trigger("click");
+                    $j("#" + coll[i].id).trigger("click");
                 }
             }
         }
 
         function initial() {
-            $("#skynet_table_keystats").after(BuildChartHtml("Top 10 Blocked Devices (Outbound)", "TCConnHits", "false"));
+            $j("#skynet_table_keystats").after(BuildChartHtml("Top 10 Blocked Devices (Outbound)", "TCConnHits", "false"));
 
-            $("#skynet_table_keystats").after(BuildChartHtml("Top 10 Blocks (Outbound)", "TOConnHits", "true"));
-            $("#skynet_table_keystats").after(BuildChartHtml("Top 10 Blocks (Inbound)", "TIConnHits", "true"));
-            $("#skynet_table_keystats").after(BuildChartHtml("Top 10 HTTP(s) Blocks (Outbound)", "THConnHits", "true"));
+            $j("#skynet_table_keystats").after(BuildChartHtml("Top 10 Blocks (Outbound)", "TOConnHits", "true"));
+            $j("#skynet_table_keystats").after(BuildChartHtml("Top 10 Blocks (Inbound)", "TIConnHits", "true"));
+            $j("#skynet_table_keystats").after(BuildChartHtml("Top 10 HTTP(s) Blocks (Outbound)", "THConnHits", "true"));
 
-            $("#skynet_table_keystats").after(BuildTableHtml("Last 10 Unique HTTP(s) Blocks (Outbound)", "HTTPConn"));
-            $("#skynet_table_keystats").after(BuildTableHtml("Last 10 Unique Connections Blocked (Outbound)", "OutConn"));
-            $("#skynet_table_keystats").after(BuildTableHtml("Last 10 Unique Connections Blocked (Inbound)", "InConn"));
+            $j("#skynet_table_keystats").after(BuildTableHtml("Last 10 Unique HTTP(s) Blocks (Outbound)", "HTTPConn"));
+            $j("#skynet_table_keystats").after(BuildTableHtml("Last 10 Unique Connections Blocked (Outbound)", "OutConn"));
+            $j("#skynet_table_keystats").after(BuildTableHtml("Last 10 Unique Connections Blocked (Inbound)", "InConn"));
 
-            $("#skynet_table_keystats").after(BuildChartHtml("Top 10 Source Ports (Inbound)", "SPortHits", "false"));
-            $("#skynet_table_keystats").after(BuildChartHtml("Top 10 Targeted Ports (Inbound)", "InPortHits", "false"));
+            $j("#skynet_table_keystats").after(BuildChartHtml("Top 10 Source Ports (Inbound)", "SPortHits", "false"));
+            $j("#skynet_table_keystats").after(BuildChartHtml("Top 10 Targeted Ports (Inbound)", "InPortHits", "false"));
 
             var charts = ["InPortHits", "SPortHits", "TCConnHits"];
             charts.forEach(ChartSetup, "false");
@@ -526,7 +536,7 @@
 
         function getAxisLabel(type, axis, txtchartname) {
             var axislabel = "";
-            var value = $("#" + txtchartname + "_Group option:selected").val();
+            var value = $j("#" + txtchartname + "_Group option:selected").val();
             if (axis == "x") {
                 if (type == "horizontalBar") axislabel = "Hits";
                 else if (type == "bar") {
@@ -560,7 +570,7 @@
 
         function getChartLegendTitle(type, txtchartname) {
             var chartlegendtitlelabel = "";
-            var value = $("#" + txtchartname + "_Group option:selected").val();
+            var value = $j("#" + txtchartname + "_Group option:selected").val();
             if (txtchartname.indexOf("Port") != -1) {
                 chartlegendtitlelabel = "Port Number";
             } else if (txtchartname == "TCConnHits") {
@@ -582,7 +592,7 @@
             if (multilabel == "false") {
                 return window["Data" + txtchartname];
             } else {
-                value = $("#" + txtchartname + "_Group option:selected").val();
+                value = $j("#" + txtchartname + "_Group option:selected").val();
                 if (value == 0) {
                     return window["Data" + txtchartname];
                 } else {
@@ -595,7 +605,7 @@
             if (multilabel == "false") {
                 return window["Label" + txtchartname];
             } else {
-                value = $("#" + txtchartname + "_Group option:selected").val();
+                value = $j("#" + txtchartname + "_Group option:selected").val();
                 if (value == 0) {
                     return window["Label" + txtchartname + "_IPs"];
                 } else {

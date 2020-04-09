@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            06/04/2020 - v7.1.5                                            #
+#                                            10/04/2020 - v7.1.5                                            #
 #############################################################################################################
 
 
@@ -984,7 +984,7 @@ WriteData_ToJS() {
 }
 
 Generate_Stats() {
-	if nvram get rc_support | grep -qF "am_addons" && [ "$(uname -o)" = "ASUSWRT-Merlin" ]; then
+	if nvram get rc_support | grep -qF "am_addons"; then
 		if [ "$displaywebui" = "enabled" ]; then
 			mkdir -p "${skynetloc}/webui/stats"
 			true > "${skynetloc}/webui/stats.js"
@@ -1099,7 +1099,7 @@ Generate_Stats() {
 }
 
 Get_WebUI_Page() {
-	if nvram get rc_support | grep -qF "am_addons" && [ "$(uname -o)" = "ASUSWRT-Merlin" ]; then
+	if nvram get rc_support | grep -qF "am_addons"; then
 		if [ "$displaywebui" = "enabled" ]; then
 			for i in 1 2 3 4 5 6 7 8 9 10; do
 				page="/www/user/user$i.asp"
@@ -1115,7 +1115,7 @@ Get_WebUI_Page() {
 
 Install_WebUI_Page() {
 	if [ "$logmode" = "enabled" ]; then
-		if nvram get rc_support | grep -qF "am_addons" && [ "$(uname -o)" = "ASUSWRT-Merlin" ]; then
+		if nvram get rc_support | grep -qF "am_addons"; then
 			if [ "$displaywebui" = "enabled" ]; then
 				Get_WebUI_Page "${skynetloc}/webui/skynet.asp"
 				if [ "$MyPage" = "none" ]; then
@@ -1123,13 +1123,18 @@ Install_WebUI_Page() {
 				else
 					logger -t Skynet "[i] Mounting Skynet Web Page As $MyPage" && echo "[i] Mounting Skynet Web Page As $MyPage"
 					cp -f "${skynetloc}/webui/skynet.asp" "/www/user/$MyPage"
-					if [ ! -f "/tmp/menuTree.js" ]; then
-						cp -f "/www/require/modules/menuTree.js" "/tmp/"
+					if [ "$(uname -o)" = "ASUSWRT-Merlin" ]; then
+						if [ ! -f "/tmp/menuTree.js" ]; then
+							cp -f "/www/require/modules/menuTree.js" "/tmp/"
+						fi
+						sed -i "\\~$MyPage~d" /tmp/menuTree.js
+						sed -i "/url: \"Advanced_Firewall_Content.asp\", tabName:/a {url: \"$MyPage\", tabName: \"Skynet\"}," /tmp/menuTree.js
+						umount /www/require/modules/menuTree.js 2>/dev/null
+						mount -o bind /tmp/menuTree.js /www/require/modules/menuTree.js
+					else
+						MyPageTitle="$(echo $MyPage | sed 's~.asp~~g').title"
+						echo "Skynet" > "/www/user/$MyPageTitle"
 					fi
-					sed -i "\\~$MyPage~d" /tmp/menuTree.js
-					sed -i "/url: \"Advanced_Firewall_Content.asp\", tabName:/a {url: \"$MyPage\", tabName: \"Skynet\"}," /tmp/menuTree.js
-					umount /www/require/modules/menuTree.js 2>/dev/null
-					mount -o bind /tmp/menuTree.js /www/require/modules/menuTree.js
 					mkdir -p "/www/user/skynet"
 					ln -s "${skynetloc}/webui/chart.js" "/www/user/skynet/chart.js" 2>/dev/null
 					ln -s "${skynetloc}/webui/chartjs-plugin-zoom.js" "/www/user/skynet/chartjs-plugin-zoom.js" 2>/dev/null
@@ -1147,10 +1152,15 @@ Install_WebUI_Page() {
 
 Uninstall_WebUI_Page() {
 	Get_WebUI_Page "${skynetloc}/webui/skynet.asp"
-	if [ -n "$MyPage" ] && [ "$MyPage" != "none" ] && [ -f "/tmp/menuTree.js" ]; then
-		sed -i "\\~$MyPage~d" /tmp/menuTree.js
-		umount /www/require/modules/menuTree.js
-		mount -o bind /tmp/menuTree.js /www/require/modules/menuTree.js
+	if [ -n "$MyPage" ] && [ "$MyPage" != "none" ]; then
+		if [ -f "/tmp/menuTree.js" ]; then
+			sed -i "\\~$MyPage~d" /tmp/menuTree.js
+			umount /www/require/modules/menuTree.js
+			mount -o bind /tmp/menuTree.js /www/require/modules/menuTree.js
+		else
+			MyPageTitle="$(echo $MyPage | sed 's~.asp~~g').title"
+			rm -rf "/www/user/$MyPageTitle"
+		fi
 		rm -rf "/www/user/$MyPage" "/www/user/skynet"
 		Unload_Cron "genstats"
 	fi
@@ -4429,7 +4439,7 @@ case "$1" in
 						Check_Lock "$@"
 						if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 						Purge_Logs
-						if nvram get rc_support | grep -qF "am_addons" && [ "$(uname -o)" = "ASUSWRT-Merlin" ]; then
+						if nvram get rc_support | grep -qF "am_addons"; then
 							displaywebui="enabled"
 							Install_WebUI_Page
 							echo "[i] WebUI Enabled"
@@ -4717,7 +4727,7 @@ case "$1" in
 			genstats)
 				Check_Lock "$@"
 				Purge_Logs "all"
-				if nvram get rc_support | grep -qF "am_addons" && [ "$(uname -o)" = "ASUSWRT-Merlin" ]; then
+				if nvram get rc_support | grep -qF "am_addons"; then
 					if [ "$displaywebui" = "enabled" ]; then
 						echo "[i] Generating Stats For WebUI"
 						Generate_Stats
