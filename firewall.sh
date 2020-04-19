@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            16/04/2020 - v7.1.6                                            #
+#                                            19/04/2020 - v7.1.6                                            #
 #############################################################################################################
 
 
@@ -1276,6 +1276,7 @@ Purge_Logs() {
 	sed '\~BLOCKED -~!d' "$syslog1loc" "$syslogloc" 2>/dev/null >> "$skynetlog"
 	sed -i '\~BLOCKED -~d' "$syslog1loc" "$syslogloc" 2>/dev/null
 	if [ "$(du "$skynetlog" | awk '{print $1}')" -ge "10240" ] || [ "$1" = "force" ]; then
+		Generate_Stats
 		sed -i '\~BLOCKED -~d' "$skynetlog"
 		sed -i '\~Skynet: \[#\] ~d' "$skynetevents"
 		iptables -Z PREROUTING -t raw
