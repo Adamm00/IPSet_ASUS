@@ -4617,7 +4617,7 @@ case "$1" in
 					Ylow '[*] Locked Processes Generally Take A Few Minutes To Complete And May Result In Temporarily "Failed" Tests'
 				fi
 				passedtests="0"
-				totaltests="16"
+				totaltests="17"
 				Display_Header "6"
 				ip neigh | grep -E '^([0-9]{1,3}\.){3}[0-9]{1,3} ' | sort -n -t . -k 1,1 -k 2,2 -k 3,3 -k 4,4 | while IFS= read -r "ip"; do
 					ipaddr="$(echo "$ip" | awk '{print $1}')"
