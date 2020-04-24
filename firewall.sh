@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            19/04/2020 - v7.1.6                                            #
+#                                            24/04/2020 - v7.1.6                                            #
 #############################################################################################################
 
 
@@ -135,7 +135,7 @@ Check_Settings() {
 				logger -st Skynet "[*] Restoring Missing Swap File Entry ( $swaplocation )"
 				sed -i '\~swapon ~d' /jffs/scripts/post-mount
 				if [ "$(wc -l < /jffs/scripts/post-mount)" -lt "2" ]; then echo >> /jffs/scripts/post-mount; fi
-				sed -i "2i swapon $swaplocation # Skynet Firewall Addition" /jffs/scripts/post-mount
+				sed -i "2i swapon $swaplocation # Skynet" /jffs/scripts/post-mount
 			fi
 		else
 			sleep 10
@@ -148,7 +148,7 @@ Check_Settings() {
 			logger -st Skynet "[*] Restoring Damaged Swap File Entry ( $findswap )"
 			sed -i '\~swapon ~d' /jffs/scripts/post-mount
 			if [ "$(wc -l < /jffs/scripts/post-mount)" -lt "2" ]; then echo >> /jffs/scripts/post-mount; fi
-			sed -i "2i swapon $findswap # Skynet Firewall Addition" /jffs/scripts/post-mount
+			sed -i "2i swapon $findswap # Skynet" /jffs/scripts/post-mount
 			if ! Check_Swap; then swapon "$findswap"; fi
 			swaplocation="$findswap"
 		elif Check_Swap; then
@@ -157,7 +157,7 @@ Check_Settings() {
 				logger -st Skynet "[*] Restoring Missing Swap File Entry ( $findswap )"
 				sed -i '\~swapon ~d' /jffs/scripts/post-mount
 				if [ "$(wc -l < /jffs/scripts/post-mount)" -lt "2" ]; then echo >> /jffs/scripts/post-mount; fi
-				sed -i "2i swapon $findswap # Skynet Firewall Addition" /jffs/scripts/post-mount
+				sed -i "2i swapon $findswap # Skynet" /jffs/scripts/post-mount
 				swaplocation="$findswap"
 			fi
 		fi
@@ -197,8 +197,12 @@ Check_Settings() {
 		Load_Cron "checkupdate"
 	fi
 
-	if [ -d "/opt/bin" ] && [ ! -L "/opt/bin/firewall" ]; then
-		ln -s /jffs/scripts/firewall /opt/bin
+	if [ -d "/opt/bin" ] && [ -L "/opt/bin/firewall" ]; then
+		rm -rf /opt/bin/firewall
+	fi
+
+	if ! grep -F "sh /jffs/scripts/firewall" /jffs/configs/profile.add; then
+		echo "alias firewall=\"sh /jffs/scripts/firewall\" # Skynet" >> /jffs/configs/profile.add
 	fi
 
 	if [ "$(nvram get jffs2_scripts)" != "1" ]; then
@@ -279,8 +283,8 @@ Check_Files() {
 		sed -i '1s~^~#!/bin/sh\n~' /jffs/scripts/service-event
 	fi
 	if ! grep -vE "^#" /jffs/scripts/service-event | grep -qF "sh /jffs/scripts/firewall debug genstats"; then
-		cmdline="if [ \"\$1\" = \"start\" ] && [ \"\$2\" = \"SkynetStats\" ]; then sh /jffs/scripts/firewall debug genstats; fi # Skynet Firewall Addition"
-		sed -i '\~# Skynet Firewall Addition~d' /jffs/scripts/service-event
+		cmdline="if [ \"\$1\" = \"start\" ] && [ \"\$2\" = \"SkynetStats\" ]; then sh /jffs/scripts/firewall debug genstats; fi # Skynet"
+		sed -i '\~# Skynet~d' /jffs/scripts/service-event
 		echo "$cmdline" >> /jffs/scripts/service-event
 	fi
 	if [ ! -f "/jffs/scripts/post-mount" ]; then
@@ -297,10 +301,10 @@ Check_Files() {
 	fi
 	if ! grep -qE "^swapoff " /jffs/scripts/unmount; then
 		sed -i '\~swapoff ~d' /jffs/scripts/unmount
-		echo "swapoff -a 2>/dev/null # Skynet Firewall Addition" >> /jffs/scripts/unmount
+		echo "swapoff -a 2>/dev/null # Skynet" >> /jffs/scripts/unmount
 	fi
 	if ! grep -vE "^#" /jffs/scripts/services-stop | grep -qF "sh /jffs/scripts/firewall save"; then
-		echo "sh /jffs/scripts/firewall save # Skynet Firewall Addition" >> /jffs/scripts/services-stop
+		echo "sh /jffs/scripts/firewall save # Skynet" >> /jffs/scripts/services-stop
 	fi
 	if [ "$(wc -l < /jffs/scripts/post-mount)" -lt "2" ]; then echo >> /jffs/scripts/post-mount; fi
 	chmod 755 "/jffs/scripts/firewall" "/jffs/scripts/firewall-start" "/jffs/scripts/services-stop" "/jffs/scripts/service-event" "/jffs/scripts/post-mount" "/jffs/scripts/unmount"
@@ -1262,10 +1266,10 @@ Create_Swap() {
 	swapon "$swaplocation"
 	sed -i '\~swapon ~d' /jffs/scripts/post-mount
 	if [ "$(wc -l < /jffs/scripts/post-mount)" -lt "2" ]; then echo >> /jffs/scripts/post-mount; fi
-	sed -i "2i swapon $swaplocation # Skynet Firewall Addition" /jffs/scripts/post-mount
+	sed -i "2i swapon $swaplocation # Skynet" /jffs/scripts/post-mount
 	if [ -f "/jffs/scripts/unmount" ] && ! grep -qE "^swapoff " /jffs/scripts/unmount; then
 		sed -i '\~swapoff ~d' /jffs/scripts/unmount
-		echo "swapoff -a 2>/dev/null # Skynet Firewall Addition" >> /jffs/scripts/unmount
+		echo "swapoff -a 2>/dev/null # Skynet" >> /jffs/scripts/unmount
 	fi
 	echo
 	echo "[i] SWAP File Located At $swaplocation"
@@ -4655,6 +4659,9 @@ case "$1" in
 				printf "%-35s | " "Service-Event Entry"
 				if grep -F "# Skynet" /jffs/scripts/service-event | grep -qvE "^#"; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
 				printf '%-8s\n' "$result"
+				printf "%-35s | " "Profile.add Entry"
+				if grep -F "# Skynet" /jffs/configs/profile.add | grep -qvE "^#"; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
+				printf '%-8s\n' "$result"
 				printf "%-35s | " "SWAP File"
 				if Check_Swap; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
 				printf '%-8s\n' "$result"
@@ -4774,7 +4781,7 @@ case "$1" in
 							echo "[*] Restoring Missing Swap File Entry ( $findswap )"
 							sed -i '\~swapon ~d' /jffs/scripts/post-mount
 							if [ "$(wc -l < /jffs/scripts/post-mount)" -lt "2" ]; then echo >> /jffs/scripts/post-mount; fi
-							sed -i "2i swapon $findswap # Skynet Firewall Addition" /jffs/scripts/post-mount
+							sed -i "2i swapon $findswap # Skynet" /jffs/scripts/post-mount
 							swapon "$findswap" 2>/dev/null
 							swaplocation="$findswap"
 							echo "[i] Saving Changes"
@@ -5523,13 +5530,13 @@ case "$1" in
 		if [ -z "$cdnwhitelist" ]; then cdnwhitelist="enabled"; fi
 		if [ -z "$displaywebui" ]; then displaywebui="enabled"; fi
 		Write_Config
-		cmdline="sh /jffs/scripts/firewall start skynetloc=${device}/skynet # Skynet Firewall Addition"
+		cmdline="sh /jffs/scripts/firewall start skynetloc=${device}/skynet # Skynet"
 		if grep -qE "^sh /jffs/scripts/firewall .* # Skynet" /jffs/scripts/firewall-start; then
 			sed -i "s~sh /jffs/scripts/firewall .* # Skynet .*~$cmdline~" /jffs/scripts/firewall-start
 		else
 			echo "$cmdline" >> /jffs/scripts/firewall-start
 		fi
-		cmdline="sh /jffs/scripts/firewall save # Skynet Firewall Addition"
+		cmdline="sh /jffs/scripts/firewall save # Skynet"
 		if grep -qE "^sh /jffs/scripts/firewall .* # Skynet" /jffs/scripts/services-stop; then
 			sed -i "s~sh /jffs/scripts/firewall .* # Skynet .*~$cmdline~" /jffs/scripts/services-stop
 		else
@@ -5618,8 +5625,8 @@ case "$1" in
 					nvram set fw_log_x=none
 					nvram commit
 					echo "[i] Deleting Skynet Files"
-					sed -i '\~ Skynet ~d' /jffs/scripts/firewall-start /jffs/scripts/services-stop /jffs/scripts/service-event
-					rm -rf "/jffs/addons/shared-whitelists/shared-Skynet-whitelist" "/jffs/addons/shared-whitelists/shared-Skynet2-whitelist" "/opt/bin/firewall" "${skynetloc}" "/jffs/scripts/firewall" "/tmp/skynet.lock" "/tmp/skynet"
+					sed -i '\~# Skynet~d' /jffs/scripts/firewall-start /jffs/scripts/services-stop /jffs/scripts/service-event /jffs/configs/profile.add
+					rm -rf "/jffs/addons/shared-whitelists/shared-Skynet-whitelist" "/jffs/addons/shared-whitelists/shared-Skynet2-whitelist" "${skynetloc}" "/jffs/scripts/firewall" "/tmp/skynet.lock" "/tmp/skynet"
 					if [ -f "/opt/etc/syslog-ng.d/skynet" ]; then
 						rm -rf "/opt/etc/syslog-ng.d/skynet"
 						cp -p "/opt/share/syslog-ng/examples/firewall" "/opt/etc/syslog-ng.d"
