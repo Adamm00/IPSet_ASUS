@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            24/04/2020 - v7.1.6                                            #
+#                                            26/04/2020 - v7.1.6                                            #
 #############################################################################################################
 
 
@@ -197,8 +197,8 @@ Check_Settings() {
 		Load_Cron "checkupdate"
 	fi
 
-	if [ -d "/opt/bin" ] && [ -L "/opt/bin/firewall" ]; then
-		rm -rf /opt/bin/firewall
+	if [ -d "/opt/bin" ] && [ ! -L "/opt/bin/firewall" ]; then
+		ln -s /jffs/scripts/firewall /opt/bin
 	fi
 
 	if ! grep -F "sh /jffs/scripts/firewall" /jffs/configs/profile.add; then
@@ -5626,7 +5626,7 @@ case "$1" in
 					nvram commit
 					echo "[i] Deleting Skynet Files"
 					sed -i '\~# Skynet~d' /jffs/scripts/firewall-start /jffs/scripts/services-stop /jffs/scripts/service-event /jffs/configs/profile.add
-					rm -rf "/jffs/addons/shared-whitelists/shared-Skynet-whitelist" "/jffs/addons/shared-whitelists/shared-Skynet2-whitelist" "${skynetloc}" "/jffs/scripts/firewall" "/tmp/skynet.lock" "/tmp/skynet"
+					rm -rf "/jffs/addons/shared-whitelists/shared-Skynet-whitelist" "/jffs/addons/shared-whitelists/shared-Skynet2-whitelist" "${skynetloc}" "/jffs/scripts/firewall" "/opt/bin/firewall" "/tmp/skynet.lock" "/tmp/skynet"
 					if [ -f "/opt/etc/syslog-ng.d/skynet" ]; then
 						rm -rf "/opt/etc/syslog-ng.d/skynet"
 						cp -p "/opt/share/syslog-ng/examples/firewall" "/opt/etc/syslog-ng.d"
