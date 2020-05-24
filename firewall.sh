@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            26/04/2020 - v7.1.6                                            #
+#                                            24/05/2020 - v7.1.6                                            #
 #############################################################################################################
 
 
@@ -131,7 +131,7 @@ Check_Settings() {
 	if grep -qE "^swapon " /jffs/scripts/post-mount; then
 		if Check_Swap; then
 			swaplocation="$(grep -m1 -F "file" "/proc/swaps" | awk '{print $1}')"
-			if [ "$(grep -E "^swapon " /jffs/scripts/post-mount | awk '{print $2}')" != "$swaplocation" ]; then
+			if [ "$(grep -E "^swapon " /jffs/scripts/post-mount | awk '{print $2}')" != "$swaplocation" ] && echo "$swaplocation" | grep -E "/..*/"; then
 				logger -st Skynet "[*] Restoring Missing Swap File Entry ( $swaplocation )"
 				sed -i '\~swapon ~d' /jffs/scripts/post-mount
 				if [ "$(wc -l < /jffs/scripts/post-mount)" -lt "2" ]; then echo >> /jffs/scripts/post-mount; fi
