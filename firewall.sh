@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            24/05/2020 - v7.1.6                                            #
+#                                            31/05/2020 - v7.1.7                                            #
 #############################################################################################################
 
 
@@ -635,7 +635,7 @@ Extended_DNSStats() {
 	case "$1" in
 		1)
 			if [ "$lookupcountry" = "enabled" ]; then
-				country="($(curl -fsL --retry 3 --connect-timeout 3 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://ipapi.co/$statdata/country/"))"
+				country="($(curl -fsL --retry 3 --connect-timeout 3 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${statdata}/countryCode/"))"
 			fi
 			banreason="$(grep -F " ${statdata} " "$skynetipset" | grep -m1 -vF "Skynet-Whitelist" | awk -F '"' '{print $2}')"
 			if [ -z "$banreason" ]; then
@@ -648,7 +648,7 @@ Extended_DNSStats() {
 			hits="$(echo "$statdata" | awk '{print $1}')"
 			ipaddr="$(echo "$statdata" | awk '{print $2}')"
 			if [ "$lookupcountry" = "enabled" ]; then
-				country="($(curl -fsL --retry 3 --connect-timeout 3 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://ipapi.co/$ipaddr/country/"))"
+				country="($(curl -fsL --retry 3 --connect-timeout 3 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${ipaddr}/countryCode/"))"
 			fi
 			banreason="$(grep -F " ${ipaddr} " "$skynetipset" | grep -m1 -vF "Skynet-Whitelist" | awk -F '"' '{print $2}')"
 			if [ -z "$banreason" ]; then
@@ -858,6 +858,7 @@ Refresh_MWhitelist() {
 Whitelist_Extra() {
 	echo "ipdeny.com
 	ipapi.co
+	api.db-ip.com
 	ipinfo.io
 	speedguide.net
 	otx.alienvault.com
@@ -1030,7 +1031,7 @@ Generate_Stats() {
 				fi
 				if [ "${#banreason}" -gt "45" ]; then banreason="$(echo "$banreason" | cut -c 1-45)"; fi
 				alienvault="https://otx.alienvault.com/indicator/ip/${statdata}"
-				if [ "$lookupcountry" = "enabled" ]; then country="$(curl -fsL --retry 3 --connect-timeout 3 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://ipapi.co/${statdata}/country/")"; else country="*"; fi
+				if [ "$lookupcountry" = "enabled" ]; then country="$(curl -fsL --retry 3 --connect-timeout 3 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${statdata}/countryCode/")"; else country="*"; fi
 				assdomains="$(grep -F "$statdata" "${skynetloc}/webui/stats/skynetstats.txt" | awk '{print $1}' | xargs)"
 				if [ -z "$assdomains" ]; then assdomains="*"; fi
 				echo "$statdata~$banreason~$alienvault~$country~$assdomains" >> "${skynetloc}/webui/stats/liconn.txt"
@@ -1045,7 +1046,7 @@ Generate_Stats() {
 				fi
 				if [ "${#banreason}" -gt "45" ]; then banreason="$(echo "$banreason" | cut -c 1-45)"; fi
 				alienvault="https://otx.alienvault.com/indicator/ip/${statdata}"
-				if [ "$lookupcountry" = "enabled" ]; then country="$(curl -fsL --retry 3 --connect-timeout 3 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://ipapi.co/${statdata}/country/")"; else country="*"; fi
+				if [ "$lookupcountry" = "enabled" ]; then country="$(curl -fsL --retry 3 --connect-timeout 3 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${statdata}/countryCode/")"; else country="*"; fi
 				assdomains="$(grep -F "$statdata" "${skynetloc}/webui/stats/skynetstats.txt" | awk '{print $1}' | xargs)"
 				if [ -z "$assdomains" ]; then assdomains="*"; fi
 				echo "$statdata~$banreason~$alienvault~$country~$assdomains" >> "${skynetloc}/webui/stats/loconn.txt"
@@ -1060,7 +1061,7 @@ Generate_Stats() {
 				fi
 				if [ "${#banreason}" -gt "45" ]; then banreason="$(echo "$banreason" | cut -c 1-45)"; fi
 				alienvault="https://otx.alienvault.com/indicator/ip/${statdata}"
-				if [ "$lookupcountry" = "enabled" ]; then country="$(curl -fsL --retry 3 --connect-timeout 3 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://ipapi.co/${statdata}/country/")"; else country="*"; fi
+				if [ "$lookupcountry" = "enabled" ]; then country="$(curl -fsL --retry 3 --connect-timeout 3 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${statdata}/countryCode/")"; else country="*"; fi
 				assdomains="$(grep -F "$statdata" "${skynetloc}/webui/stats/skynetstats.txt" | awk '{print $1}' | xargs)"
 				if [ -z "$assdomains" ]; then assdomains="*"; fi
 				echo "$statdata~$banreason~$alienvault~$country~$assdomains" >> "${skynetloc}/webui/stats/lhconn.txt"
@@ -1071,7 +1072,7 @@ Generate_Stats() {
 			grep -E 'DPT=80 |DPT=443 ' "$skynetlog" | grep -F "OUTBOUND" | grep -oE ' DST=[0-9,\.]*' | cut -c 6- | sort -n | uniq -c | sort -nr | head -10 | while IFS= read -r "statdata"; do
 				hits="$(echo "$statdata" | awk '{print $1}')"
 				ipaddr="$(echo "$statdata" | awk '{print $2}')"
-				if [ "$lookupcountry" = "enabled" ]; then country="$(curl -fsL --retry 3 --connect-timeout 3 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://ipapi.co/$ipaddr/country/")"; else country="*"; fi
+				if [ "$lookupcountry" = "enabled" ]; then country="$(curl -fsL --retry 3 --connect-timeout 3 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${ipaddr}/countryCode/")"; else country="*"; fi
 				echo "$hits~$ipaddr~$country" >> "${skynetloc}/webui/stats/thconn.txt"
 			done
 			WriteData_ToJS "${skynetloc}/webui/stats/thconn.txt" "${skynetloc}/webui/stats.js" "DataTHConnHits" "LabelTHConnHits_IPs" "LabelTHConnHits_Country"
@@ -1080,7 +1081,7 @@ Generate_Stats() {
 			grep -F "INBOUND" "$skynetlog" | grep -oE ' SRC=[0-9,\.]*' | cut -c 6- | sort -n | uniq -c | sort -nr | head -10 | while IFS= read -r "statdata"; do
 				hits="$(echo "$statdata" | awk '{print $1}')"
 				ipaddr="$(echo "$statdata" | awk '{print $2}')"
-				if [ "$lookupcountry" = "enabled" ]; then country="$(curl -fsL --retry 3 --connect-timeout 3 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://ipapi.co/$ipaddr/country/")"; else country="*"; fi
+				if [ "$lookupcountry" = "enabled" ]; then country="$(curl -fsL --retry 3 --connect-timeout 3 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${ipaddr}/countryCode/")"; else country="*"; fi
 				echo "$hits~$ipaddr~$country" >> "${skynetloc}/webui/stats/ticonn.txt"
 			done
 			WriteData_ToJS "${skynetloc}/webui/stats/ticonn.txt" "${skynetloc}/webui/stats.js" "DataTIConnHits" "LabelTIConnHits_IPs" "LabelTIConnHits_Country"
@@ -1089,7 +1090,7 @@ Generate_Stats() {
 			grep -F "OUTBOUND" "$skynetlog" | grep -vE 'DPT=80 |DPT=443 ' | grep -oE ' DST=[0-9,\.]*' | cut -c 6- | sort -n | uniq -c | sort -nr | head -10 | while IFS= read -r "statdata"; do
 				hits="$(echo "$statdata" | awk '{print $1}')"
 				ipaddr="$(echo "$statdata" | awk '{print $2}')"
-				if [ "$lookupcountry" = "enabled" ]; then country="$(curl -fsL --retry 3 --connect-timeout 3 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://ipapi.co/$ipaddr/country/")"; else country="*"; fi
+				if [ "$lookupcountry" = "enabled" ]; then country="$(curl -fsL --retry 3 --connect-timeout 3 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${ipaddr}/countryCode/")"; else country="*"; fi
 				echo "$hits~$ipaddr~$country" >> "${skynetloc}/webui/stats/toconn.txt"
 			done
 			WriteData_ToJS "${skynetloc}/webui/stats/toconn.txt" "${skynetloc}/webui/stats.js" "DataTOConnHits" "LabelTOConnHits_IPs" "LabelTOConnHits_Country"
@@ -5007,7 +5008,7 @@ case "$1" in
 							done
 							echo; echo
 						fi
-						echo "[i] IP Location - $(curl -fsL --retry 3 --connect-timeout 3 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://ipapi.co/${4}/country_name/") ($(curl -fsL --retry 3 --connect-timeout 3 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://ipapi.co/${4}/org/") / $(curl -fsL --retry 3 --connect-timeout 3 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://ipapi.co/${4}/asn/"))"
+						echo "[i] IP Location - $(curl -fsL --retry 3 --connect-timeout 3 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${4}/countryName/") ($(curl -fsL --retry 3 --connect-timeout 3 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://ipapi.co/${4}/org/") / $(curl -fsL --retry 3 --connect-timeout 3 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://ipapi.co/${4}/asn/"))"
 						echo
 						echo "[i] $4 First Tracked On $(grep -m1 -F "=$4 " "$skynetlog" | awk '{printf "%s %s %s\n", $1, $2, $3}')"
 						echo "[i] $4 Last Tracked On $(grep -F "=$4 " "$skynetlog" | tail -1 | awk '{printf "%s %s %s\n", $1, $2, $3}')"
