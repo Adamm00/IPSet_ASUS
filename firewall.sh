@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            31/05/2020 - v7.1.7                                            #
+#                                            03/06/2020 - v7.1.7                                            #
 #############################################################################################################
 
 
@@ -3360,7 +3360,7 @@ case "$1" in
 				echo "[i] Banning Known IP Ranges For (${3})"
 				echo "[i] Downloading Lists"
 				for country in $countrylinklist; do
-					curl -fsL --retry 3 --connect-timeout 3 https://ipdeny.com/ipblocks/data/aggregated/"$country"-aggregated.zone >> /tmp/skynet/countrylist.txt
+					curl -fskL --retry 3 --connect-timeout 3 https://ipdeny.com/ipblocks/data/aggregated/"$country"-aggregated.zone >> /tmp/skynet/countrylist.txt
 				done
 				echo "[i] Filtering IPv4 Ranges & Applying Blacklists"
 				grep -F "/" /tmp/skynet/countrylist.txt | sed -n "/^[0-9,\\.,\\/]*$/s/^/add Skynet-BlockedRanges /;s/$/& comment \"Country: $countrylist\"/p" | ipset restore -!
