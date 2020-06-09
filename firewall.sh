@@ -23,7 +23,7 @@ mkdir -p /tmp/skynet/lists
 mkdir -p /jffs/addons/shared-whitelists
 
 ntptimer="0"
-while [ "$(nvram get ntp_ready)" = "0" ] && [ "$ntptimer" -lt "300" ]; do
+while [ "$(nvram get ntp_ready)" = "0" ] && [ "$ntptimer" -lt "300" ] && ! echo "$1" | grep -qE "(uninstall|disable)"; do
 	ntptimer="$((ntptimer + 1))"
 	if [ "$ntptimer" = "60" ]; then echo; logger -st Skynet "[*] Waiting For NTP To Sync"; fi
 	sleep 1
