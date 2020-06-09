@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            03/06/2020 - v7.1.7                                            #
+#                                            10/06/2020 - v7.1.7                                            #
 #############################################################################################################
 
 
@@ -947,14 +947,9 @@ Whitelist_Shared() {
 		echo "add Skynet-Whitelist $ip comment \"nvram: $dotvar\""
 	done | ipset restore -!
 	if [ -f "/jffs/dnscrypt/public-resolvers.md" ] && [ -f "/jffs/dnscrypt/relays.md" ]; then
-		if [ -f /opt/bin/opkg ] && [ ! -f /opt/bin/base64 ]; then
-			opkg update && opkg install coreutils-base64
-		fi
-		if [ -f /opt/bin/opkg ] && [ -f /opt/bin/base64 ]; then
-			grep -hoE '^sdns:.*' /jffs/dnscrypt/public-resolvers.md /jffs/dnscrypt/relays.md | sed "s~'~~g;s~sdns://~~g" | while read -r stamp; do
-				echo "$stamp" | base64 -d 2>/dev/null
-			done | grep -aoE '([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{printf "add Skynet-Whitelist %s comment \"nvram: DNSCrypt Stamp\"\n", $1 }' | ipset restore -!
-		fi
+		grep -hoE '^sdns:.*' /jffs/dnscrypt/public-resolvers.md /jffs/dnscrypt/relays.md | sed "s~'~~g;s~sdns://~~g;s~-~+~g;s~_~/~g" | while read -r stamp; do
+			echo "$stamp" | openssl enc -a -d
+		done | strings | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{printf "add Skynet-Whitelist %s comment \"nvram: DNSCrypt Stamp\"\n", $1 }' | ipset restore -!
 	fi
 	if [ -f "/opt/var/lib/unbound/root.hints" ]; then
 		grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' /opt/var/lib/unbound/root.hints | while read -r roothint; do
