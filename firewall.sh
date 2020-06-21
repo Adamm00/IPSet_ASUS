@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            14/06/2020 - v7.1.8                                            #
+#                                            21/06/2020 - v7.1.8                                            #
 #############################################################################################################
 
 
@@ -1091,7 +1091,16 @@ Generate_Stats() {
 			WriteData_ToJS "${skynetloc}/webui/stats/toconn.txt" "${skynetloc}/webui/stats.js" "DataTOConnHits" "LabelTOConnHits_IPs" "LabelTOConnHits_Country"
 			# Top 10 Clients Blocked
 			grep -F "OUTBOUND" "$skynetlog" | grep -oE ' SRC=[0-9,\.]*' | cut -c 6- | sort -n | uniq -c | sort -nr | head -10 | sed "s~^[ \t]*~~;s~ ~\~~g" > "${skynetloc}/webui/stats/tcconn.txt"
-			WriteData_ToJS "${skynetloc}/webui/stats/tcconn.txt" "${skynetloc}/webui/stats.js" "DataTCConnHits" "LabelTCConnHits"
+			while IFS= read -r "line"; do
+				localname="$(grep -F " $(echo "$line" | awk -F "~" '{print $2}') " /var/lib/misc/dnsmasq.leases | awk '{print $4}')"
+				if [ -z "$localname" ] || [ "$localname" = "*" ]; then
+					macaddr="$(ip neigh | grep -E '^([0-9]{1,3}\.){3}[0-9]{1,3} ' | grep -F "$(echo "$line" | awk -F "~" '{print $2}')" | awk '{print $5}')"
+					localname="$(nvram get custom_clientlist | grep -ioE "<.*>$macaddr" | awk -F ">" '{print $(NF-1)}' | tr -d '<')"
+					if [ -z "$localname" ]; then localname="Unknown"; fi
+				fi
+				echo "$line ($localname)" >> "${skynetloc}/webui/stats/tcconn2.txt"
+			done < "${skynetloc}/webui/stats/tcconn.txt"
+			WriteData_ToJS "${skynetloc}/webui/stats/tcconn2.txt" "${skynetloc}/webui/stats.js" "DataTCConnHits" "LabelTCConnHits"
 
 			rm -rf "${skynetloc}/webui/stats"
 		fi
