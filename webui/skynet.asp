@@ -248,7 +248,7 @@
                     if (txtchartname == "InPortHits" || txtchartname == "SPortHits") {
                         urlprefix = "https://www.speedguide.net/port.php?port=";
                     } else if (txtchartname == "TCConnHits") {
-                        urlprefix = "https://otx.alienvault.com/indicator/ip/";
+                        return false;
                     } else if ($j("#" + txtchartname + "_Group option:selected").val() == 0) {
                         urlprefix = "https://otx.alienvault.com/indicator/ip/";
                     }
