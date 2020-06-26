@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            21/06/2020 - v7.1.8                                            #
+#                                            27/06/2020 - v7.1.9                                            #
 #############################################################################################################
 
 
@@ -347,6 +347,9 @@ Check_Security() {
 			tar -czf "${skynetloc}/vpnfilter.tar.gz" "/var/run/tor" "/var/run/torrc" "/var/run/tord" "/var/run/vpnfilterm" "/var/run/vpnfilterw" >/dev/null 2>&1
 			rm -rf "/var/run/tor" "/var/run/torrc" "/var/run/tord" "/var/run/vpnfilterm" "/var/run/vpnfilterw"
 			restartfirewall="1"
+		fi
+		if [ "$(nvram get apps_wget_timeout)" = "3O" ]; then
+			logger -st Skynet "[!] Warning! Router Malware Detected (apps_wget_timeout=3O) - Investigate Immediately! "
 		fi
 	fi
 }
