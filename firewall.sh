@@ -330,27 +330,27 @@ Check_Security() {
 			nvram commit
 			restartfirewall="1"
 		fi
-		if [ "$(nvram get pptpd_enable)" = "1" ] && nvram get pptpd_clientlist | grep -qE 'i[0-9]{7}|p[0-9]{7}'; then
-			logger -st Skynet "[!] PPTP VPN Server Shows Signs Of Compromise - Investigate Immediately!"
-			nvram set pptpd_enable="0"
-			nvram set pptpd_broadcast="0"
-			nvram commit
-			echo "[i] Stopping PPTP Service"
-			service stop_pptpd
-			echo "[i] Restarting Samba Service"
-			service restart_samba
-			restartfirewall="1"
-		fi
-		if [ -e "/var/run/tor" ] || [ -e "/var/run/torrc" ] || [ -e "/var/run/tord" ] || [ -e "/var/run/vpnfilterm" ] || [ -e "/var/run/vpnfilterw" ]; then
-			logger -st Skynet "[!] Suspected VPNFilter Malware Found - Investigate Immediately!"
-			logger -st Skynet "[!] Caching Potential VPNFilter Malware: ${skynetloc}/vpnfilter.tar.gz"
-			tar -czf "${skynetloc}/vpnfilter.tar.gz" "/var/run/tor" "/var/run/torrc" "/var/run/tord" "/var/run/vpnfilterm" "/var/run/vpnfilterw" >/dev/null 2>&1
-			rm -rf "/var/run/tor" "/var/run/torrc" "/var/run/tord" "/var/run/vpnfilterm" "/var/run/vpnfilterw"
-			restartfirewall="1"
-		fi
-		if [ "$(nvram get apps_wget_timeout)" = "3O" ]; then
-			logger -st Skynet "[!] Warning! Router Malware Detected (apps_wget_timeout=3O) - Investigate Immediately! "
-		fi
+	fi
+	if [ "$(nvram get pptpd_enable)" = "1" ] && nvram get pptpd_clientlist | grep -qE 'i[0-9]{7}|p[0-9]{7}'; then
+		logger -st Skynet "[!] PPTP VPN Server Shows Signs Of Compromise - Investigate Immediately!"
+		nvram set pptpd_enable="0"
+		nvram set pptpd_broadcast="0"
+		nvram commit
+		echo "[i] Stopping PPTP Service"
+		service stop_pptpd
+		echo "[i] Restarting Samba Service"
+		service restart_samba
+		restartfirewall="1"
+	fi
+	if [ -e "/var/run/tor" ] || [ -e "/var/run/torrc" ] || [ -e "/var/run/tord" ] || [ -e "/var/run/vpnfilterm" ] || [ -e "/var/run/vpnfilterw" ]; then
+		logger -st Skynet "[!] Suspected VPNFilter Malware Found - Investigate Immediately!"
+		logger -st Skynet "[!] Caching Potential VPNFilter Malware: ${skynetloc}/vpnfilter.tar.gz"
+		tar -czf "${skynetloc}/vpnfilter.tar.gz" "/var/run/tor" "/var/run/torrc" "/var/run/tord" "/var/run/vpnfilterm" "/var/run/vpnfilterw" >/dev/null 2>&1
+		rm -rf "/var/run/tor" "/var/run/torrc" "/var/run/tord" "/var/run/vpnfilterm" "/var/run/vpnfilterw"
+		restartfirewall="1"
+	fi
+	if [ "$(nvram get apps_wget_timeout)" = "3O" ]; then
+		logger -st Skynet "[!] Warning! Router Malware Detected (apps_wget_timeout=3O) - Investigate Immediately! "
 	fi
 }
 
