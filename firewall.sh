@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            27/06/2020 - v7.1.9                                            #
+#                                            11/07/2020 - v7.1.9                                            #
 #############################################################################################################
 
 
@@ -5673,3 +5673,4 @@ if [ "$nocfg" != "1" ]; then Write_Config; fi
 if [ "$lockskynet" = "true" ]; then rm -rf "/tmp/skynet.lock"; fi
 if [ "$restartfirewall" = "1" ]; then service restart_firewall; echo; fi
 if [ -n "$reloadmenu" ]; then echo; echo; printf "[i] Press Enter To Continue..."; read -r "continue"; exec "$0"; fi
+printf '\033[?7h'
