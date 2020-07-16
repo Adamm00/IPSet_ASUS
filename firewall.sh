@@ -1111,17 +1111,17 @@ Generate_Stats() {
 }
 
 Get_WebUI_Page() {
-	if nvram get rc_support | grep -qF "am_addons"; then
-		if [ "$displaywebui" = "enabled" ]; then
-			for i in 1 2 3 4 5 6 7 8 9 10; do
-				page="/www/user/user$i.asp"
-				if [ ! -f "$page" ] || [ "$(md5sum < "$1")" = "$(md5sum < "$page")" ]; then
-					MyPage="user$i.asp"
-					return
-				fi
-			done
-			MyPage="none"
-		fi
+	if nvram get rc_support | grep -qF "am_addons" && [ "$displaywebui" = "enabled" ]; then
+		MyPage="none"
+		for i in 1 2 3 4 5 6 7 8 9 10; do
+			page="/www/user/user$i.asp"
+			if [ -f "$page" ] && [ "$(md5sum < "$1")" = "$(md5sum < "$page")" ]; then
+				MyPage="user$i.asp"
+				return
+			elif [ "$MyPage" = "none" ] && [ ! -f "$page" ]; then
+				MyPage="user$i.asp"
+			fi
+		done
 	fi
 }
 
