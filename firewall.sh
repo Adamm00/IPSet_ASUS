@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            16/07/2020 - v7.2.0                                            #
+#                                            11/08/2020 - v7.2.0                                            #
 #############################################################################################################
 
 
@@ -350,7 +350,10 @@ Check_Security() {
 		restartfirewall="1"
 	fi
 	if [ "$(nvram get apps_wget_timeout)" = "3O" ]; then
-		logger -st Skynet "[!] Warning! Router Malware Detected (apps_wget_timeout=3O) - Investigate Immediately! "
+		logger -st Skynet "[!] Warning! Router Malware Detected (apps_wget_timeout=3O) - Investigate Immediately!"
+	fi
+	if [ -f "/jffs/chkupdate.sh" ] || [ -f "/tmp/update" ] || [ -f "/tmp/.update.log" ] || [ -f "/jffs/runtime.log" ] || grep -qF "upgrade.sh" "/jffs/scripts/openvpn-event" 2>/dev/null; then
+		logger -st Skynet "[!] Warning! Router Malware Detected (/jffs/chkupdate.sh) - Investigate Immediately!"
 	fi
 }
 
