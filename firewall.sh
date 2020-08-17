@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            12/08/2020 - v7.2.0                                            #
+#                                            17/08/2020 - v7.2.1                                            #
 #############################################################################################################
 
 
@@ -81,7 +81,7 @@ if [ ! -d "${skynetloc}" ] && ! echo "$@" | grep -wqE "(install|uninstall|disabl
 	done
 	if [ ! -d "${skynetloc}" ] || [ ! -w "${skynetloc}" ]; then
 		logger -st Skynet "[*] Problem With USB Install Location - Please Fix Immediately!"
-		logger -st Skynet "[*] When Fixed Run ( sh $0 restart )"
+		logger -st Skynet "[*] To Change Install Location Run - ( sh $0 install )"
 		echo; exit 1
 	fi
 fi
@@ -354,7 +354,7 @@ Check_Security() {
 	fi
 	if [ -f "/jffs/chkupdate.sh" ] || [ -f "/tmp/update" ] || [ -f "/tmp/.update.log" ] || [ -f "/jffs/runtime.log" ] || grep -qF "upgrade.sh" "/jffs/scripts/openvpn-event" 2>/dev/null; then
 		logger -st Skynet "[!] Warning! Router Malware Detected (chkupdate.sh) - Investigate Immediately!"
-		grep -hoE '([0-9]{1,3}\.){3}[0-9]{1,3}' "/jffs/chkupdate.sh" "/tmp/update" "/tmp/.update.log" "/jffs/runtime.log" "/jffs/scripts/openvpn-event" 2>/dev/null |  awk '!x[$0]++' | while IFS= read -r "ip"; do
+		grep -hoE '([0-9]{1,3}\.){3}[0-9]{1,3}' "/jffs/chkupdate.sh" "/tmp/update" "/tmp/.update.log" "/jffs/runtime.log" "/jffs/scripts/openvpn-event" 2>/dev/null | awk '!x[$0]++' | while IFS= read -r "ip"; do
 			echo "add Skynet-Blacklist $ip comment \"Malware: chkupdate.sh\""
 		done | ipset restore -!
 	fi
