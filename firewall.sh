@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            22/08/2020 - v7.2.1                                            #
+#                                            30/08/2020 - v7.2.1                                            #
 #############################################################################################################
 
 
@@ -5349,11 +5349,6 @@ case "$1" in
 		if [ "$(nvram get fw_log_x)" != "drop" ] && [ "$(nvram get fw_log_x)" != "both" ]; then
 			nvram set fw_log_x=drop
 			nvram commit
-		fi
-		conflicting_scripts="(IPSet_Block.sh|malware-filter|privacy-filter|ipBLOCKer.sh|ya-malware-block.sh|iblocklist-loader.sh|firewall-reinstate.sh)$"
-		if find /jffs /tmp/mnt | grep -qE "$conflicting_scripts"; then
-			echo "[*] $(find /jffs /tmp/mnt | grep -E "$conflicting_scripts" | xargs) Detected - This Script Will Cause Conflicts! Please Remove Immediately."
-			echo
 		fi
 		if nvram get wan0_ipaddr | Is_PrivateIP; then
 			echo "[*] Private IP Detected - Please Put Your Modem In Bridge Mode / Disable CG-NAT"
