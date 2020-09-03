@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            30/08/2020 - v7.2.1                                            #
+#                                            03/09/2020 - v7.2.1                                            #
 #############################################################################################################
 
 
@@ -4631,7 +4631,7 @@ case "$1" in
 					Ylow '[*] Locked Processes Generally Take A Few Minutes To Complete And May Result In Temporarily "Failed" Tests'
 				fi
 				passedtests="0"
-				totaltests="17"
+				totaltests="18"
 				Display_Header "6"
 				ip neigh | grep -E '^([0-9]{1,3}\.){3}[0-9]{1,3} ' | sort -n -t . -k 1,1 -k 2,2 -k 3,3 -k 4,4 | while IFS= read -r "ip"; do
 					ipaddr="$(echo "$ip" | awk '{print $1}')"
@@ -4663,6 +4663,9 @@ case "$1" in
 				printf '%-8s\n' "$result"
 				printf "%-35s | " "Write Permission"
 				if [ -w "${skynetloc}" ]; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
+				printf '%-8s\n' "$result"
+				printf "%-35s | " "Config File"
+				if [ -f "${skynetcfg}" ]; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
 				printf '%-8s\n' "$result"
 				printf "%-35s | " "Firewall-Start Entry"
 				if grep -E "start.* # Skynet" /jffs/scripts/firewall-start | grep -qvE "^#"; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
