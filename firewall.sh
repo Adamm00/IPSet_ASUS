@@ -1099,6 +1099,8 @@ Generate_Stats() {
 			done
 			WriteData_ToJS "${skynetloc}/webui/stats/toconn.txt" "${skynetloc}/webui/stats.js" "DataTOConnHits" "LabelTOConnHits_IPs" "LabelTOConnHits_Country"
 			# Top 10 Clients Blocked
+			true > "${skynetloc}/webui/stats/tcconn.txt"
+			true > "${skynetloc}/webui/stats/tcconn2.txt"
 			grep -F "OUTBOUND" "$skynetlog" | grep -oE ' SRC=[0-9,\.]*' | cut -c 6- | sort -n | uniq -c | sort -nr | head -10 | sed "s~^[ \t]*~~;s~ ~\~~g" > "${skynetloc}/webui/stats/tcconn.txt"
 			while IFS= read -r "line"; do
 				localname="$(grep -F " $(echo "$line" | awk -F "~" '{print $2}') " /var/lib/misc/dnsmasq.leases | awk '{print $4}')"
