@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            08/09/2020 - v7.2.2                                            #
+#                                            10/09/2020 - v7.2.2                                            #
 #############################################################################################################
 
 
@@ -868,7 +868,7 @@ Whitelist_Extra() {
 	echo "ipdeny.com
 	ipapi.co
 	api.db-ip.com
-	ipinfo.io
+	hackertarget.com
 	speedguide.net
 	otx.alienvault.com
 	raw.githubusercontent.com
@@ -889,7 +889,7 @@ Whitelist_CDN() {
 		{
 			# Apple AS714 | Akamai AS12222 AS16625 | HighWinds AS33438 AS20446 | Fastly AS54113
 			for asn in AS714 AS12222 AS16625 AS33438 AS20446 AS54113; do
-				curl -fsL --retry 3 --connect-timeout 3 "https://ipinfo.io/$asn" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}' | awk -v asn="$asn" '{printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: %s\"\n", $1, asn }' &
+				curl -fsL --retry 3 --connect-timeout 3 "https://api.hackertarget.com/aslookup/?q=$asn" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}' | awk -v asn="$asn" '{printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: %s\"\n", $1, asn }' &
 			done
 			wait
 			curl -fsL --retry 3 --connect-timeout 3 https://www.cloudflare.com/ips-v4 | grep -E '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}' | awk '{printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: CloudFlare\"\n", $1 }'
@@ -3386,7 +3386,7 @@ case "$1" in
 				if ! echo "$3" | Is_ASN; then echo "[*] $3 Is Not A Valid ASN"; echo; exit 2; fi
 				asnlist="$(echo "$3" | awk '{print toupper($0)}')"
 				echo "[i] Adding $asnlist To Blacklist"
-				curl -fsL --retry 3 --connect-timeout 3 "https://ipinfo.io/$asnlist" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}' | awk -v asn="$asnlist" '{printf "add Skynet-BlockedRanges %s comment \"ASN: %s \"\n", $1, asn }' | awk '!x[$0]++' | ipset restore -!
+				curl -fsL --retry 3 --connect-timeout 3 "https://api.hackertarget.com/aslookup/?q=$asnlist" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}' | awk -v asn="$asnlist" '{printf "add Skynet-BlockedRanges %s comment \"ASN: %s \"\n", $1, asn }' | awk '!x[$0]++' | ipset restore -!
 			;;
 			*)
 				echo "Command Not Recognized, Please Try Again"
@@ -3585,7 +3585,7 @@ case "$1" in
 				if ! echo "$3" | Is_ASN; then echo "[*] $3 Is Not A Valid ASN"; echo; exit 2; fi
 				asnlist="$(echo "$3" | awk '{print toupper($0)}')"
 				echo "[i] Adding $asnlist To Whitelist"
-				curl -fsL --retry 3 --connect-timeout 3 "https://ipinfo.io/$asnlist" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}' | awk -v asn="$asnlist" '{printf "add Skynet-Whitelist %s comment \"ASN: %s \"\n", $1, asn }' | awk '!x[$0]++' | ipset restore -!
+				curl -fsL --retry 3 --connect-timeout 3 "https://api.hackertarget.com/aslookup/?q=$asnlist" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}' | awk -v asn="$asnlist" '{printf "add Skynet-Whitelist %s comment \"ASN: %s \"\n", $1, asn }' | awk '!x[$0]++' | ipset restore -!
 			;;
 			remove)
 				case "$3" in
