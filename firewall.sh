@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            10/09/2020 - v7.2.2                                            #
+#                                            11/09/2020 - v7.2.2                                            #
 #############################################################################################################
 
 
@@ -870,7 +870,7 @@ Whitelist_Extra() {
 	echo "ipdeny.com
 	ipapi.co
 	api.db-ip.com
-	hackertarget.com
+	api.hackertarget.com
 	speedguide.net
 	otx.alienvault.com
 	raw.githubusercontent.com
