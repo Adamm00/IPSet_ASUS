@@ -2030,7 +2030,7 @@ Load_Menu() {
 					printf '%-35s | %-40s\n' "[3]  --> Logging" "$(if [ "$logmode" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
 					printf '%-35s | %-40s\n' "[4]  --> Filter Traffic" "$(Grn "[$filtertraffic]")"
 					printf '%-35s | %-40s\n' "[5]  --> Unban PrivateIP" "$(if [ "$unbanprivateip" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
-					printf '%-35s | %-40s\n' "[6]  --> Log Invalid Packets" "$(if [ "$loginvalid" = "enabled" ]; then Grn "[Enabled]";else Grn "[Disabled]"; fi)"
+					printf '%-35s | %-40s\n' "[6]  --> Log Invalid Packets" "$(if [ "$loginvalid" = "enabled" ]; then Grn "[Enabled]"; else Grn "[Disabled]"; fi)"
 					printf '%-35s | %-40s\n' "[7]  --> Import AiProtect Data" "$(if [ "$banaiprotect" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
 					printf '%-35s | %-40s\n' "[8]  --> Secure Mode" "$(if [ "$securemode" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
 					printf '%-35s | %-40s\n' "[9]  --> Fast Switch List" "$(if [ "$fastswitch" = "enabled" ]; then Ylow "[Enabled]"; else Grn "[Disabled]"; fi)"
@@ -3473,7 +3473,7 @@ case "$1" in
 		else
 			curl -fsL --retry 3 --connect-timeout 3 "$listurl" | dos2unix > /jffs/addons/shared-whitelists/shared-Skynet-whitelist && Display_Result
 		fi
-		sed -i "\\~^http[s]*://\\|^www.~!d;" /jffs/addons/shared-whitelists/shared-Skynet-whitelist
+		sed -i '\~^http[s]*://\|^www.~!d;' /jffs/addons/shared-whitelists/shared-Skynet-whitelist
 		Display_Message "[i] Refreshing Whitelists"
 		Whitelist_Extra
 		Whitelist_VPN
@@ -4619,7 +4619,7 @@ case "$1" in
 				echo "FW Version; $(nvram get buildno)_$(nvram get extendno) ($(uname -v | awk '{printf "%s %s %s\n", $5, $6, $9}')) ($(uname -r))"
 				echo "Install Dir; ${skynetloc} ($(df -h "${skynetloc}" | xargs | awk '{printf "%s / %s\n", $11, $9}') Space Available)"
 				if [ -n "$swaplocation" ]; then
-					echo "SWAP File; $swaplocation ($(du -h "$swaplocation" | awk '{print $1}'))";
+					echo "SWAP File; $swaplocation ($(du -h "$swaplocation" | awk '{print $1}'))"
 					if [ "$(du "$swaplocation" | awk '{print $1}')" -lt "1048576" ]; then
 						Red "SWAP File Too Small - 1GB Minimum Required - Please Fix Immediately!"
 					fi
