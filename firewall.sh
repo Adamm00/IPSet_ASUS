@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            19/11/2020 - v7.2.3                                            #
+#                                            01/12/2020 - v7.2.3                                            #
 #############################################################################################################
 
 
@@ -1398,7 +1398,7 @@ Load_Menu() {
 	echo "Router Model; $model"
 	echo "Skynet Version; $localver ($(Filter_Date < "$0")) ($(md5sum "$0" | awk '{print $1}'))"
 	echo "$(iptables --version) - ($iface @ $(nvram get lan_ipaddr))"
-	ipset -v
+	ipset -v 2>/dev/null
 	echo "IP Address; ($(if nvram get wan0_ipaddr | Is_PrivateIP; then Red "$(nvram get wan0_ipaddr)"; else nvram get wan0_ipaddr; fi))$(if [ "$(nvram get ipv6_service)" != "disabled" ]; then echo " - ($(nvram get ipv6_prefix)/$(nvram get ipv6_prefix_length))"; fi)"
 	echo "FW Version; $(nvram get buildno)_$(nvram get extendno) ($(uname -v | awk '{printf "%s %s %s\n", $5, $6, $9}')) ($(uname -r))"
 	echo "Install Dir; ${skynetloc} ($(df -h "${skynetloc}" | xargs | awk '{printf "%s / %s\n", $11, $9}') Space Available)"
@@ -4614,7 +4614,7 @@ case "$1" in
 				echo "Router Model; $model"
 				echo "Skynet Version; $localver ($(Filter_Date < "$0")) ($(md5sum "$0" | awk '{print $1}'))"
 				echo "$(iptables --version) - ($iface @ $(nvram get lan_ipaddr))"
-				ipset -v
+				ipset -v 2>/dev/null
 				echo "IP Address; ($(if nvram get wan0_ipaddr | Is_PrivateIP; then Red "$(nvram get wan0_ipaddr)"; else nvram get wan0_ipaddr; fi))$(if [ "$(nvram get ipv6_service)" != "disabled" ]; then echo " - ($(nvram get ipv6_prefix)/$(nvram get ipv6_prefix_length))"; fi)"
 				echo "FW Version; $(nvram get buildno)_$(nvram get extendno) ($(uname -v | awk '{printf "%s %s %s\n", $5, $6, $9}')) ($(uname -r))"
 				echo "Install Dir; ${skynetloc} ($(df -h "${skynetloc}" | xargs | awk '{printf "%s / %s\n", $11, $9}') Space Available)"
@@ -5342,7 +5342,7 @@ case "$1" in
 
 	install)
 		Check_Lock "$@"
-		if ! ipset -v | grep -qE 'v6|v7'; then
+		if ! ipset -v 2>/dev/null | grep -qE 'v6|v7'; then
 			echo "[*] IPSet Version Not Supported - Please Update To Latest Firmware"
 			echo; exit 1
 		fi
