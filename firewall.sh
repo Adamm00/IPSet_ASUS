@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            12/03/2021 - v7.2.4                                            #
+#                                            19/03/2021 - v7.2.4                                            #
 #############################################################################################################
 
 
@@ -862,6 +862,7 @@ Whitelist_Extra() {
 	api.bgpview.io
 	speedguide.net
 	otx.alienvault.com
+	github.com
 	raw.githubusercontent.com
 	iplists.firehol.org
 	astrill.com
