@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            19/03/2021 - v7.2.4                                            #
+#                                            10/05/2021 - v7.2.5                                            #
 #############################################################################################################
 
 
@@ -809,18 +809,13 @@ Unban_PrivateIP() {
 
 Refresh_AiProtect() {
 	if [ "$banaiprotect" = "enabled" ] && [ -f /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db ]; then
-		if [ -f /opt/bin/opkg ] && [ ! -f /opt/bin/sqlite3 ]; then
-			opkg update && opkg install sqlite3-cli
-		fi
-		if [ -f /opt/bin/opkg ] && [ -f /opt/bin/sqlite3 ]; then
-			sed '\~add Skynet-Blacklist ~!d;\~BanAiProtect~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
-			sqlite3 /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db "SELECT src FROM monitor;" | awk '!x[$0]++' | Filter_IP | Filter_PrivateIP | awk '{printf "add Skynet-Blacklist %s comment \"BanAiProtect\"\n", $1 }' | ipset restore -!
-			sqlite3 /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db "SELECT dst FROM monitor;" | awk '!x[$0]++' | Filter_OutIP | grep -v ":" | while IFS= read -r "domain"; do
-				for ip in $(Domain_Lookup "$domain" 2>/dev/null | Filter_PrivateIP); do
-					echo "add Skynet-Blacklist $ip comment \"BanAiProtect: $domain\""
-				done &
-			done | ipset restore -!
-		fi
+		sed '\~add Skynet-Blacklist ~!d;\~BanAiProtect~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
+		sqlite3 /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db "SELECT src FROM monitor;" | awk '!x[$0]++' | Filter_IP | Filter_PrivateIP | awk '{printf "add Skynet-Blacklist %s comment \"BanAiProtect\"\n", $1 }' | ipset restore -!
+		sqlite3 /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db "SELECT dst FROM monitor;" | awk '!x[$0]++' | Filter_OutIP | grep -v ":" | while IFS= read -r "domain"; do
+			for ip in $(Domain_Lookup "$domain" 2>/dev/null | Filter_PrivateIP); do
+				echo "add Skynet-Blacklist $ip comment \"BanAiProtect: $domain\""
+			done &
+		done | ipset restore -!
 	fi
 }
 
@@ -4141,7 +4136,6 @@ case "$1" in
 						if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 						if ! Check_Connection; then echo "[*] Connection Error Detected - Exiting"; echo; exit 1; fi
 						Purge_Logs
-						if [ ! -f /opt/bin/opkg ]; then echo "[i] This Feature Requires Entware - Exiting"; echo; exit 0; fi
 						banaiprotect="enabled"
 						Refresh_AiProtect
 						echo "[i] Import AiProtect Data Enabled"
@@ -5532,7 +5526,7 @@ case "$1" in
 		[ -z "$(nvram get odmpid)" ] && model="$(nvram get productid)" || model="$(nvram get odmpid)"
 		if [ -z "$loginvalid" ]; then loginvalid="disabled"; fi
 		if [ -z "$unbanprivateip" ]; then unbanprivateip="enabled"; fi
-		if [ -z "$banaiprotect" ] && [ -f /opt/bin/opkg ]; then banaiprotect="enabled"; fi
+		if [ -z "$banaiprotect" ]; then banaiprotect="enabled"; fi
 		if [ -z "$securemode" ]; then securemode="enabled"; fi
 		if [ -z "$fastswitch" ]; then fastswitch="disabled"; fi
 		if [ -z "$syslogloc" ]; then syslogloc="/tmp/syslog.log"; fi
