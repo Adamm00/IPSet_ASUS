@@ -22,7 +22,7 @@ To open the menu its as simple as;
 firewall
 ```
 
-[![Skynet GUI](https://i.imgur.com/q8AGBQp.png "Skynet GUI")](https://i.imgur.com/q8AGBQp.png "Skynet GUI")
+[![Skynet GUI](https://i.imgur.com/q8AGBQp.png "Skynet GUI")](https://i.imgur.com/EUdfli6.png "Skynet GUI")
 
 [![Skynet WebUI 1](https://i.imgur.com/OgWhLN5.png "Skynet WebUI 1")](https://i.imgur.com/OgWhLN5.png "Skynet WebUI 1")
 
