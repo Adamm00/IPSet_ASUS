@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            21/09/2021 - v7.2.6                                            #
+#                                            14/10/2021 - v7.2.7                                            #
 #############################################################################################################
 
 
@@ -874,13 +874,14 @@ Whitelist_CDN() {
 	sed '\~add Skynet-Whitelist ~!d;\~CDN-Whitelist~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
 	if [ "$cdnwhitelist" = "enabled" ]; then
 		{
-			# Apple AS714 | Akamai AS12222 AS16625 | HighWinds AS33438 AS20446 | Fastly AS54113 | GitHub AS36459
-			for asn in AS714 AS12222 AS16625 AS33438 AS20446 AS54113 AS36459; do
+			# Apple AS714 | Akamai AS12222 AS16625 | HighWinds AS33438 AS20446 | Fastly AS54113
+			for asn in AS714 AS12222 AS16625 AS33438 AS20446 AS54113; do
 				curl -fsL --retry 3 --connect-timeout 3 "https://api.bgpview.io/asn/$asn/prefixes" | grep -oE '.{20}([0-9]{1,3}\.){3}[0-9]{1,3}\\/[0-9]{1,2}' | grep -vF "parent" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}\\/[0-9]{1,2}' | tr -d "\\" | awk -v asn="$asn" '{printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: %s\"\n", $1, asn }' &
 			done
 			wait
 			curl -fsL --retry 3 --connect-timeout 3 https://www.cloudflare.com/ips-v4 | grep -E '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}' | awk '{printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: CloudFlare\"\n", $1 }'
 			curl -fsL --retry 3 --connect-timeout 3 https://ip-ranges.amazonaws.com/ip-ranges.json | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}' | awk '{printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: Amazon\"\n", $1 }'
+			curl -fsL --retry 3 --connect-timeout 3 https://api.github.com/meta | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}' | awk '{printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: Github\"\n", $1 }'
 		} | awk '!x[$0]++' | ipset restore -!
 	fi
 }
