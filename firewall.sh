@@ -518,6 +518,7 @@ Unload_IPSets() {
 	ipset -q destroy Skynet-Blacklist
 	ipset -q destroy Skynet-BlockedRanges
 	ipset -q destroy Skynet-Whitelist
+	ipset -q destroy Skynet-WhitelistDomains
 	ipset -q destroy Skynet-IOT
 }
 
