@@ -3452,7 +3452,7 @@ case "$1" in
 				listurl="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master/filter.list"
 			fi
 		fi
-		curl -fsI "$listurl" >/dev/null || { echo "[*] 404 Error Detected - Stopping Banmalware"; echo; exit 1; }
+		curl -fsSI "$listurl" >/dev/null || { echo; echo "[*] Stopping Banmalware"; echo; exit 1; }
 		Display_Message "[i] Downloading filter.list"
 		if [ -n "$excludelists" ]; then
 			curl -fsL --retry 3 --connect-timeout 3 "$listurl" | dos2unix | grep -vE "($excludelists)" > /jffs/addons/shared-whitelists/shared-Skynet-whitelist && Display_Result
