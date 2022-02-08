@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            03/02/2021 - v7.3.1                                            #
+#                                            08/02/2021 - v7.3.1                                            #
 #############################################################################################################
 
 
@@ -916,9 +916,9 @@ Whitelist_Shared() {
 	add Skynet-Whitelist 192.30.252.0/22 comment \"nvram: Github Content Server\"
 	add Skynet-Whitelist 127.0.0.0/8 comment \"nvram: Localhost\"" | tr -d "\t" | Filter_IPLine | ipset restore -! 2>/dev/null
 	if [ -n "$(find /jffs/addons/shared-whitelists -name 'shared-*-whitelist')" ]; then
-		sed '\~add Skynet-WhitelistDomains ~!d;\~Skynet-WhitelistDomains~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
+		sed '\~add Skynet-WhitelistDomains ~!d;\~Skynet-WhitelistDomains~!d;s~ timeout.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
 		sed -i '\~# Skynet~d' /jffs/configs/dnsmasq.conf.add
-		grep -hvF "#" /jffs/addons/shared-whitelists/shared-*-whitelist | Strip_Domain | xargs -n 10 | sed 's~^~ipset=/~g;s~ ~/~g;s~$~/Skynet-WhitelistDomains # Skynet~g' >> /jffs/configs/dnsmasq.conf.add
+		grep -hvF "#" /jffs/addons/shared-whitelists/shared-*-whitelist | Strip_Domain | xargs -n 25 | sed 's~^~ipset=/~g;s~ ~/~g;s~$~/Skynet-WhitelistDomains # Skynet~g' >> /jffs/configs/dnsmasq.conf.add
 		chmod +x /jffs/configs/dnsmasq.conf.add
 		service restart_dnsmasq >/dev/null 2>&1
 	fi
@@ -3809,7 +3809,7 @@ case "$1" in
 		modprobe xt_set
 		if [ -f "$skynetipset" ]; then ipset restore -! -f "$skynetipset"; else logger -st Skynet "[i] Setting Up Skynet"; touch "$skynetipset"; fi
 		if ! ipset -L -n Skynet-Whitelist >/dev/null 2>&1; then ipset -q create Skynet-Whitelist hash:net comment; fi
-		if ! ipset -L -n Skynet-WhitelistDomains >/dev/null 2>&1; then ipset -q create Skynet-WhitelistDomains hash:ip --maxelem 500000 comment; fi
+		if ! ipset -L -n Skynet-WhitelistDomains >/dev/null 2>&1; then ipset -q create Skynet-WhitelistDomains hash:ip --maxelem 500000 comment timeout 86400; fi
 		if ! ipset -L -n Skynet-Blacklist >/dev/null 2>&1; then ipset -q create Skynet-Blacklist hash:ip --maxelem 500000 comment; fi
 		if ! ipset -L -n Skynet-BlockedRanges >/dev/null 2>&1; then ipset -q create Skynet-BlockedRanges hash:net --maxelem 200000 comment; fi
 		if ! ipset -L -n Skynet-Master >/dev/null 2>&1; then ipset -q create Skynet-Master list:set; ipset -q -A Skynet-Master Skynet-Blacklist; ipset -q -A Skynet-Master Skynet-BlockedRanges; fi
