@@ -118,15 +118,6 @@ Check_Settings() {
 		echo; exit 1
 	fi
 
-	rm -rf "/jffs/shared-Skynet-whitelist" "/jffs/shared-Skynet2-whitelist"
-	if [ -z "$iotblocked" ]; then iotblocked="disabled"; fi
-	if [ -z "$displaywebui" ]; then displaywebui="enabled"; fi
-
-	if [ ! -f "${skynetloc}/webui/chart.js" ]; then
-		remotedir="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master"
-		Download_File "webui/chart.js" "${skynetloc}/webui/chart.js"
-	fi
-
 	unset "swaplocation"
 	if grep -qE "^swapon " /jffs/scripts/post-mount; then
 		if Check_Swap; then
@@ -915,13 +906,11 @@ Whitelist_Shared() {
 	add Skynet-Whitelist $(nvram get wan0_xdns | awk '{print $2}') comment \"nvram: wan0_xdns\"
 	add Skynet-Whitelist 192.30.252.0/22 comment \"nvram: Github Content Server\"
 	add Skynet-Whitelist 127.0.0.0/8 comment \"nvram: Localhost\"" | tr -d "\t" | Filter_IPLine | ipset restore -! 2>/dev/null
-	if [ -n "$(find /jffs/addons/shared-whitelists -name 'shared-*-whitelist')" ]; then
-		sed '\~add Skynet-WhitelistDomains ~!d;\~Skynet-WhitelistDomains~!d;s~ timeout.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
-		sed -i '\~# Skynet~d' /jffs/configs/dnsmasq.conf.add
-		grep -hvF "#" /jffs/addons/shared-whitelists/shared-*-whitelist | Strip_Domain | xargs -n 25 | sed 's~^~ipset=/~g;s~ ~/~g;s~$~/Skynet-WhitelistDomains # Skynet~g' >> /jffs/configs/dnsmasq.conf.add
-		chmod +x /jffs/configs/dnsmasq.conf.add
-		service restart_dnsmasq >/dev/null 2>&1
-	fi
+    ipset flush Skynet-WhitelistDomains
+    sed -i '\~# Skynet~d' /jffs/configs/dnsmasq.conf.add
+    grep -hvF "#" /jffs/addons/shared-whitelists/shared-*-whitelist | Strip_Domain | xargs -n 50 | sed 's~^~ipset=/~g;s~ ~/~g;s~$~/Skynet-WhitelistDomains # Skynet~g' >> /jffs/configs/dnsmasq.conf.add
+    chmod +x /jffs/configs/dnsmasq.conf.add
+    service restart_dnsmasq >/dev/null 2>&1
 	if [ "$(uname -o)" = "ASUSWRT-Merlin" ]; then dotvar="dnspriv_rulelist"; else dotvar="stubby_dns"; fi
 	for ip in $(nvram get "$dotvar" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}'); do
 		echo "add Skynet-Whitelist $ip comment \"nvram: $dotvar\""
@@ -3456,7 +3445,6 @@ case "$1" in
 		mkdir -p "${skynetloc}/lists"
 		cwd="$(pwd)"
 		cd "${skynetloc}/lists" || exit 1
-		if [ "$(nvram get dns_local_cache)" = "1" ] && [ "$(cat /jffs/addons/shared-whitelists/shared-*-whitelist | wc -l)" -gt "150" ]; then sleep 10; fi
 		awk -F / '{print $NF}' /jffs/addons/shared-whitelists/shared-Skynet-whitelist > /tmp/skynet/skynet.manifest
 		while IFS= read -r "list"; do
 			if [ ! -f "$list" ]; then
@@ -3464,24 +3452,7 @@ case "$1" in
 				break
 			fi
 		done < /tmp/skynet/skynet.manifest
-		if [ "$(/usr/sbin/curl --version | awk 'NR >= 1 && NR <= 1 {print $2}' | tr -d '.')" -lt "7660" ]; then
-			if [ "$(/opt/bin/curl --version | awk 'NR >= 1 && NR <= 1 {print $2}' | tr -d '.')" -ge "7660" ]; then
-				curlpath="/opt/bin/curl"
-			elif [ -f "/opt/bin/opkg" ] && [ ! -f "/opt/bin/curl" ]; then
-				opkg update
-				opkg install curl
-				curlpath="/opt/bin/curl"
-			elif [ "$(/opt/bin/curl --version | awk 'NR >= 1 && NR <= 1 {print $2}' | tr -d '.')" -lt "7660" ]; then
-				opkg update
-				opkg upgrade curl
-				curlpath="/opt/bin/curl"
-			elif [ ! -f "/opt/bin/opkg" ]; then
-				logger -st Skynet "[!] curl Version Outdated - Please Update Firmware Or Install Entware"
-			fi
-		else
-			curlpath="/usr/sbin/curl"
-		fi
-		awk -F/ '{print $0" -Oz "$NF}' /jffs/addons/shared-whitelists/shared-Skynet-whitelist | xargs "$curlpath" -fsLZ
+		awk -F/ '{print $0" -Oz "$NF}' /jffs/addons/shared-whitelists/shared-Skynet-whitelist | xargs "curl" -fsLZ
 		dos2unix "${skynetloc}"/lists/* 2>/dev/null
 		for file in *; do
 			grep -qF "$file" /tmp/skynet/skynet.manifest || rm -rf "$file"
