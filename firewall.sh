@@ -882,6 +882,7 @@ Whitelist_CDN() {
 			curl -fsL --retry 3 --connect-timeout 3 https://www.cloudflare.com/ips-v4 | grep -E '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}' | awk '{printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: CloudFlare\"\n", $1 }'
 			curl -fsL --retry 3 --connect-timeout 3 https://ip-ranges.amazonaws.com/ip-ranges.json | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}' | awk '{printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: Amazon\"\n", $1 }'
 			curl -fsL --retry 3 --connect-timeout 3 https://api.github.com/meta | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}' | awk '{printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: Github\"\n", $1 }'
+			curl -fsL --retry 3 --connect-timeout 3 https://endpoints.office.com/endpoints/worldwide?clientrequestid=$(cat /proc/sys/kernel/random/uuid) | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}' | awk '{printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: Microsoft365\"\n", $1 }'
 		} | awk '!x[$0]++' | ipset restore -!
 	fi
 }
