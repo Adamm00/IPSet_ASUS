@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            08/02/2021 - v7.3.1                                            #
+#                                            31/03/2021 - v7.3.1                                            #
 #############################################################################################################
 
 
@@ -925,6 +925,9 @@ Whitelist_Shared() {
 			echo "add Skynet-Whitelist $roothint comment \"nvram: Root DNS Server\""
 		done | ipset restore -!
 	fi
+	Strip_Domain < /jffs/addons/shared-whitelists/shared-Skynet2-whitelist | while IFS= read -r domain; do
+		nslookup "$domain" 127.0.0.1 >/dev/null 2>&1
+	done &
 }
 
 WriteStats_ToJS() {
