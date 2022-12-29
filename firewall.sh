@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            29/12/2022 - v7.3.2                                            #
+#                                            29/12/2022 - v7.3.3                                            #
 #############################################################################################################
 
 
@@ -214,6 +214,10 @@ Check_Settings() {
 		extendedstats="disabled"
 	fi
 
+	if ps ww | grep "/sbin/syslogd" | grep -qF /jffs/syslog.log && [ "$syslogloc" = "/tmp/syslog.log" ]; then
+		syslogloc="/jffs/syslog.log" # Fix syslog location on newer random models
+		syslog1loc="/jffs/syslog.log-1"
+	fi
 	if [ -f "/opt/bin/scribe" ] && [ ! -f "/opt/etc/syslog-ng.d/skynet" ] && [ -f "/opt/share/syslog-ng/examples/skynet" ]; then
 		logger -st Skynet "[i] Installing Scribe Plugin"
 		rm -rf "/opt/etc/syslog-ng.d/firewall" "/opt/etc/logrotate/firewall"
