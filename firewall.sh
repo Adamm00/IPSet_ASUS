@@ -214,7 +214,7 @@ Check_Settings() {
 		extendedstats="disabled"
 	fi
 
-	if ps ww | grep "/sbin/syslogd" | grep -qF /jffs/syslog.log && [ "$syslogloc" = "/tmp/syslog.log" ]; then
+	if ps | grep "/sbin/syslogd" | grep -qF "/jffs/syslog.log" && [ "$syslogloc" = "/tmp/syslog.log" ]; then
 		syslogloc="/jffs/syslog.log" # Fix syslog location on newer random models
 		syslog1loc="/jffs/syslog.log-1"
 	fi
