@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            19/10/2021 - v7.2.8                                            #
+#                                            31/03/2021 - v7.3.1                                            #
 #############################################################################################################
 
 
@@ -116,15 +116,6 @@ Check_Settings() {
 	if [ ! -f "$skynetcfg" ]; then
 		logger -st Skynet "[*] Configuration File Not Detected - Please Use ( sh $0 install ) To Continue"
 		echo; exit 1
-	fi
-
-	rm -rf "/jffs/shared-Skynet-whitelist" "/jffs/shared-Skynet2-whitelist"
-	if [ -z "$iotblocked" ]; then iotblocked="disabled"; fi
-	if [ -z "$displaywebui" ]; then displaywebui="enabled"; fi
-
-	if [ ! -f "${skynetloc}/webui/chart.js" ]; then
-		remotedir="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master"
-		Download_File "webui/chart.js" "${skynetloc}/webui/chart.js"
 	fi
 
 	unset "swaplocation"
@@ -366,9 +357,9 @@ Clean_Temp() {
 }
 
 Unload_IPTables() {
-	iptables -t raw -D PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j DROP 2>/dev/null
-	iptables -t raw -D PREROUTING -i br+ -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null
-	iptables -t raw -D OUTPUT -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null
+	iptables -t raw -D PREROUTING -i "$iface" -m set ! --match-set Skynet-MasterWL src -m set --match-set Skynet-Master src -j DROP 2>/dev/null
+	iptables -t raw -D PREROUTING -i br+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null
+	iptables -t raw -D OUTPUT -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null
 	iptables -D logdrop -m state --state NEW -j LOG --log-prefix "DROP " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 	ip6tables -D logdrop -m state --state NEW -j LOG --log-prefix "DROP " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 	iptables -D logdrop -m state --state NEW -m limit --limit 4/sec -j LOG --log-prefix "DROP " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
@@ -377,18 +368,18 @@ Unload_IPTables() {
 
 Load_IPTables() {
 	if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "inbound" ]; then
-		iptables -t raw -I PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j DROP 2>/dev/null
+		iptables -t raw -I PREROUTING -i "$iface" -m set ! --match-set Skynet-MasterWL src -m set --match-set Skynet-Master src -j DROP 2>/dev/null
 	fi
 	if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "outbound" ]; then
-		iptables -t raw -I PREROUTING -i br+ -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null
-		iptables -t raw -I OUTPUT -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null
+		iptables -t raw -I PREROUTING -i br+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null
+		iptables -t raw -I OUTPUT -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null
 	fi
 }
 
 Unload_LogIPTables() {
-	iptables -t raw -D PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
-	iptables -t raw -D PREROUTING -i br+ -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
-	iptables -t raw -D OUTPUT -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
+	iptables -t raw -D PREROUTING -i "$iface" -m set ! --match-set Skynet-MasterWL src -m set --match-set Skynet-Master src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
+	iptables -t raw -D PREROUTING -i br+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
+	iptables -t raw -D OUTPUT -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 	iptables -D logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - INVALID] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 	iptables -D FORWARD -i br+ -m set --match-set Skynet-IOT src ! -o tun2+ -j LOG --log-prefix "[BLOCKED - IOT] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 }
@@ -397,13 +388,13 @@ Load_LogIPTables() {
 	if [ "$logmode" = "enabled" ]; then
 		if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "inbound" ]; then
 			pos2="$(iptables --line -nL PREROUTING -t raw | grep -F "Skynet-Master src" | grep -F "DROP" | awk '{print $1}')"
-			iptables -t raw -I PREROUTING "$pos2" -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
+			iptables -t raw -I PREROUTING "$pos2" -i "$iface" -m set ! --match-set Skynet-MasterWL src -m set --match-set Skynet-Master src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 		fi
 		if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "outbound" ]; then
 			pos3="$(iptables --line -nL PREROUTING -t raw | grep -F "Skynet-Master dst" | grep -F "DROP" | awk '{print $1}')"
-			iptables -t raw -I PREROUTING "$pos3" -i br+ -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
+			iptables -t raw -I PREROUTING "$pos3" -i br+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 			pos4="$(iptables --line -nL OUTPUT -t raw | grep -F "Skynet-Master dst" | grep -F "DROP" | awk '{print $1}')"
-			iptables -t raw -I OUTPUT "$pos4" -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
+			iptables -t raw -I OUTPUT "$pos4" -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 		fi
 		if [ "$(nvram get fw_log_x)" = "drop" ] || [ "$(nvram get fw_log_x)" = "both" ] && [ "$loginvalid" = "enabled" ]; then
 			iptables -I logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - INVALID] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
@@ -460,7 +451,7 @@ Load_IOTTables() {
 }
 
 Check_IPSets() {
-	ipset -L -n Skynet-Whitelist >/dev/null 2>&1 || fail="${fail}#1 "
+	ipset -L -n Skynet-MasterWL >/dev/null 2>&1 || fail="${fail}#1 "
 	ipset -L -n Skynet-Blacklist >/dev/null 2>&1 || fail="${fail}#2 "
 	ipset -L -n Skynet-BlockedRanges >/dev/null 2>&1 || fail="${fail}#3 "
 	ipset -L -n Skynet-Master >/dev/null 2>&1 || fail="${fail}#4 "
@@ -470,11 +461,11 @@ Check_IPSets() {
 
 Check_IPTables() {
 	if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "inbound" ]; then
-		iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j DROP 2>/dev/null || fail="${fail}#6 "
+		iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-MasterWL src -m set --match-set Skynet-Master src -j DROP 2>/dev/null || fail="${fail}#6 "
 	fi
 	if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "outbound" ]; then
-		iptables -t raw -C PREROUTING -i br+ -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null || fail="${fail}#7 "
-		iptables -t raw -C OUTPUT -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null || fail="${fail}#8 "
+		iptables -t raw -C PREROUTING -i br+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null || fail="${fail}#7 "
+		iptables -t raw -C OUTPUT -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null || fail="${fail}#8 "
 	fi
 	if [ "$iotblocked" = "enabled" ]; then
 		iptables -C FORWARD -i br+ -m set --match-set Skynet-IOT src ! -o tun2+ -j DROP 2>/dev/null || fail="${fail}#9 "
@@ -496,11 +487,11 @@ Check_IPTables() {
 	fi
 	if [ "$logmode" = "enabled" ]; then
 		if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "inbound" ]; then
-			iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || fail="${fail}#14 "
+			iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-MasterWL src -m set --match-set Skynet-Master src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || fail="${fail}#14 "
 		fi
 		if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "outbound" ]; then
-			iptables -t raw -C PREROUTING -i br+ -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || fail="${fail}#15 "
-			iptables -t raw -C OUTPUT -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || fail="${fail}#16 "
+			iptables -t raw -C PREROUTING -i br+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || fail="${fail}#15 "
+			iptables -t raw -C OUTPUT -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || fail="${fail}#16 "
 		fi
 		if [ "$(nvram get fw_log_x)" = "drop" ] || [ "$(nvram get fw_log_x)" = "both" ] && [ "$loginvalid" = "enabled" ]; then
 			iptables -C logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - INVALID] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || fail="${fail}#17 "
@@ -514,9 +505,11 @@ Check_IPTables() {
 
 Unload_IPSets() {
 	ipset -q destroy Skynet-Master
+	ipset -q destroy Skynet-MasterWL
 	ipset -q destroy Skynet-Blacklist
 	ipset -q destroy Skynet-BlockedRanges
 	ipset -q destroy Skynet-Whitelist
+	ipset -q destroy Skynet-WhitelistDomains
 	ipset -q destroy Skynet-IOT
 }
 
@@ -612,7 +605,7 @@ Is_ASN() {
 }
 
 Strip_Domain() {
-	sed 's~http[s]*://~~;s~/.*~~;s~www\.~~g' | awk '!x[$0]++'
+	sed 's~http[s]*://~~;s~/.*~~;s~www\.~~g;\~^$~d' | awk '!x[$0]++'
 }
 
 Domain_Lookup() {
@@ -636,9 +629,9 @@ Extended_DNSStats() {
 				country="($(curl -fsL --retry 3 --connect-timeout 3 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${statdata}/countryCode/"))"
 				if [ -z "$country" ]; then country="*"; fi
 			fi
-			banreason="$(grep -F " ${statdata} " "$skynetipset" | grep -m1 -vF "Skynet-Whitelist" | awk -F '"' '{print $2}')"
+			banreason="$(grep -F " ${statdata} " "$skynetipset" | grep -m1 -vF "Skynet-MasterWL" | awk -F '"' '{print $2}')"
 			if [ -z "$banreason" ]; then
-				banreason="$(grep -E "$(echo "$statdata" | cut -d '.' -f1-3)..*/" "$skynetipset" | grep -m1 -vF "Skynet-Whitelist" | awk -F '"' '{print $2}')*"
+				banreason="$(grep -E "$(echo "$statdata" | cut -d '.' -f1-3)..*/" "$skynetipset" | grep -m1 -vF "Skynet-MasterWL" | awk -F '"' '{print $2}')*"
 			fi
 			if [ "${#banreason}" -gt "45" ]; then banreason="$(echo "$banreason" | cut -c 1-45)"; fi
 			printf '%-15s %-4s | %-55s | %-45s | %-60s \n' "$statdata" "$country" "https://otx.alienvault.com/indicator/ip/${statdata}" "$banreason" "$(grep -F "$statdata" /tmp/skynet/skynetstats.txt | awk '{print $1}' | xargs)"
@@ -650,9 +643,9 @@ Extended_DNSStats() {
 				country="($(curl -fsL --retry 3 --connect-timeout 3 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${ipaddr}/countryCode/"))"
 				if [ -z "$country" ]; then country="*"; fi
 			fi
-			banreason="$(grep -F " ${ipaddr} " "$skynetipset" | grep -m1 -vF "Skynet-Whitelist" | awk -F '"' '{print $2}')"
+			banreason="$(grep -F " ${ipaddr} " "$skynetipset" | grep -m1 -vF "Skynet-MasterWL" | awk -F '"' '{print $2}')"
 			if [ -z "$banreason" ]; then
-				banreason="$(grep -E "$(echo "$ipaddr" | cut -d '.' -f1-3)..*/" "$skynetipset" | grep -m1 -vF "Skynet-Whitelist" | awk -F '"' '{print $2}')*"
+				banreason="$(grep -E "$(echo "$ipaddr" | cut -d '.' -f1-3)..*/" "$skynetipset" | grep -m1 -vF "Skynet-MasterWL" | awk -F '"' '{print $2}')*"
 			fi
 			if [ "${#banreason}" -gt "45" ]; then banreason="$(echo "$banreason" | cut -c 1-45)"; fi
 			printf '%-10s | %-15s %-4s | %-55s | %-45s | %-60s\n' "${hits}x" "${ipaddr}" "${country}" "https://otx.alienvault.com/indicator/ip/${ipaddr}" "$banreason" "$(grep -F "$ipaddr" /tmp/skynet/skynetstats.txt | awk '{print $1}' | xargs)"
@@ -790,7 +783,7 @@ Spinner_Start() {
 
 Save_IPSets() {
 	if Check_IPSets; then
-		{ ipset save Skynet-Whitelist; ipset save Skynet-Blacklist; ipset save Skynet-BlockedRanges; ipset save Skynet-Master; ipset save Skynet-IOT; } > "$skynetipset" 2>/dev/null
+		{ ipset save Skynet-Whitelist; ipset save Skynet-WhitelistDomains; ipset save Skynet-Blacklist; ipset save Skynet-BlockedRanges; ipset save Skynet-Master; ipset save Skynet-MasterWL; ipset save Skynet-IOT; } > "$skynetipset" 2>/dev/null
 	fi
 }
 
@@ -914,32 +907,11 @@ Whitelist_Shared() {
 	add Skynet-Whitelist $(nvram get wan0_xdns | awk '{print $2}') comment \"nvram: wan0_xdns\"
 	add Skynet-Whitelist 192.30.252.0/22 comment \"nvram: Github Content Server\"
 	add Skynet-Whitelist 127.0.0.0/8 comment \"nvram: Localhost\"" | tr -d "\t" | Filter_IPLine | ipset restore -! 2>/dev/null
-	if [ -n "$(find /jffs/addons/shared-whitelists -name 'shared-*-whitelist')" ]; then
-		sed '\~add Skynet-Whitelist ~!d;\~Shared-Whitelist~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
-		swapsize="$(du "$swaplocation" | awk '{print $1}')"
-		if [ "$(cat /jffs/addons/shared-whitelists/shared-*-whitelist | wc -l)" -gt "150" ] && [ "$swapsize" -lt "1048576" ] ||
-			{ [ "$(cat /jffs/addons/shared-whitelists/shared-*-whitelist | wc -l)" -gt "150" ] && [ "$swapsize" -lt "2097152" ] && [ "$(nvram get dns_local_cache)" = "1" ]; }; then
-			Clean_Temp
-			cwd="$(pwd)"
-			cd /tmp/skynet/lists || exit 1
-			grep -hvF "#" /jffs/addons/shared-whitelists/shared-*-whitelist | Strip_Domain | split -l 150
-			for listname in *; do
-				while IFS= read -r "domain"; do
-					for ip in $(Domain_Lookup "$domain" 2> /dev/null); do
-						echo "add Skynet-Whitelist $ip comment \"Shared-Whitelist: $domain\""
-					done &
-				done < "$listname"
-				wait
-			done | ipset restore -!
-			cd "$cwd" || exit 1
-		else
-			grep -hvF "#" /jffs/addons/shared-whitelists/shared-*-whitelist | Strip_Domain | while IFS= read -r "domain"; do
-				for ip in $(Domain_Lookup "$domain" 2> /dev/null); do
-					echo "add Skynet-Whitelist $ip comment \"Shared-Whitelist: $domain\""
-				done &
-			done | ipset restore -!
-		fi
-	fi
+    ipset flush Skynet-WhitelistDomains
+    sed -i '\~# Skynet~d' /jffs/configs/dnsmasq.conf.add
+    grep -hvF "#" /jffs/addons/shared-whitelists/shared-*-whitelist | Strip_Domain | xargs -n 50 | sed 's~^~ipset=/~g;s~ ~/~g;s~$~/Skynet-WhitelistDomains # Skynet~g' >> /jffs/configs/dnsmasq.conf.add
+    chmod +x /jffs/configs/dnsmasq.conf.add
+    service restart_dnsmasq >/dev/null 2>&1
 	if [ "$(uname -o)" = "ASUSWRT-Merlin" ]; then dotvar="dnspriv_rulelist"; else dotvar="stubby_dns"; fi
 	for ip in $(nvram get "$dotvar" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}'); do
 		echo "add Skynet-Whitelist $ip comment \"nvram: $dotvar\""
@@ -954,6 +926,9 @@ Whitelist_Shared() {
 			echo "add Skynet-Whitelist $roothint comment \"nvram: Root DNS Server\""
 		done | ipset restore -!
 	fi
+	Strip_Domain < /jffs/addons/shared-whitelists/shared-Skynet2-whitelist | while IFS= read -r domain; do
+		nslookup "$domain" 127.0.0.1 >/dev/null 2>&1
+	done &
 }
 
 WriteStats_ToJS() {
@@ -992,12 +967,12 @@ Generate_Stats() {
 				touch "${skynetloc}/webui/stats/skynetstats.txt"
 			fi
 
-			if iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-Whitelist src -m set --match-set Skynet-Master src -j DROP 2>/dev/null; then
+			if iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-MasterWL src -m set --match-set Skynet-Master src -j DROP 2>/dev/null; then
 				hits1="$(iptables -xnvL PREROUTING -t raw | grep -Fv "LOG" | grep -F "Skynet-Master src" | awk '{print $1}')"
 			else
 				hits1="0"
 			fi
-			if iptables -t raw -C PREROUTING -i br+ -m set ! --match-set Skynet-Whitelist dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null; then
+			if iptables -t raw -C PREROUTING -i br+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null; then
 				hits2="$(($(iptables -xnvL PREROUTING -t raw | grep -Fv "LOG" | grep -F "Skynet-Master dst" | awk '{print $1}') + $(iptables -xnvL OUTPUT -t raw | grep -Fv "LOG" | grep -F "Skynet-Master dst" | awk '{print $1}')))"
 			else
 				hits2="0"
@@ -3474,7 +3449,6 @@ case "$1" in
 		mkdir -p "${skynetloc}/lists"
 		cwd="$(pwd)"
 		cd "${skynetloc}/lists" || exit 1
-		if [ "$(nvram get dns_local_cache)" = "1" ] && [ "$(cat /jffs/addons/shared-whitelists/shared-*-whitelist | wc -l)" -gt "150" ]; then sleep 10; fi
 		awk -F / '{print $NF}' /jffs/addons/shared-whitelists/shared-Skynet-whitelist > /tmp/skynet/skynet.manifest
 		while IFS= read -r "list"; do
 			if [ ! -f "$list" ]; then
@@ -3482,24 +3456,7 @@ case "$1" in
 				break
 			fi
 		done < /tmp/skynet/skynet.manifest
-		if [ "$(/usr/sbin/curl --version | awk 'NR >= 1 && NR <= 1 {print $2}' | tr -d '.')" -lt "7660" ]; then
-			if [ "$(/opt/bin/curl --version | awk 'NR >= 1 && NR <= 1 {print $2}' | tr -d '.')" -ge "7660" ]; then
-				curlpath="/opt/bin/curl"
-			elif [ -f "/opt/bin/opkg" ] && [ ! -f "/opt/bin/curl" ]; then
-				opkg update
-				opkg install curl
-				curlpath="/opt/bin/curl"
-			elif [ "$(/opt/bin/curl --version | awk 'NR >= 1 && NR <= 1 {print $2}' | tr -d '.')" -lt "7660" ]; then
-				opkg update
-				opkg upgrade curl
-				curlpath="/opt/bin/curl"
-			elif [ ! -f "/opt/bin/opkg" ]; then
-				logger -st Skynet "[!] curl Version Outdated - Please Update Firmware Or Install Entware"
-			fi
-		else
-			curlpath="/usr/sbin/curl"
-		fi
-		awk -F/ '{print $0" -Oz "$NF}' /jffs/addons/shared-whitelists/shared-Skynet-whitelist | xargs "$curlpath" -fsLZ
+		awk -F/ '{print $0" -Oz "$NF}' /jffs/addons/shared-whitelists/shared-Skynet-whitelist | xargs "curl" -fsLZ
 		dos2unix "${skynetloc}"/lists/* 2>/dev/null
 		for file in *; do
 			grep -qF "$file" /tmp/skynet/skynet.manifest || rm -rf "$file"
@@ -3816,7 +3773,6 @@ case "$1" in
 	;;
 
 	start)
-		sed -i '\~# Skynet~d' /jffs/configs/dnsmasq.conf.add
 		Check_Lock "$@"
 		logger -t Skynet "[i] Startup Initiated... ( $(echo "$@" | sed 's~start ~~g') )"; echo "[i] Startup Initiated... ( $(echo "$@" | sed 's~start ~~g') )"
 		Unload_Cron "all"
@@ -3828,9 +3784,11 @@ case "$1" in
 		modprobe xt_set
 		if [ -f "$skynetipset" ]; then ipset restore -! -f "$skynetipset"; else logger -st Skynet "[i] Setting Up Skynet"; touch "$skynetipset"; fi
 		if ! ipset -L -n Skynet-Whitelist >/dev/null 2>&1; then ipset -q create Skynet-Whitelist hash:net comment; fi
+		if ! ipset -L -n Skynet-WhitelistDomains >/dev/null 2>&1; then ipset -q create Skynet-WhitelistDomains hash:ip --maxelem 500000 comment timeout 86400; fi
 		if ! ipset -L -n Skynet-Blacklist >/dev/null 2>&1; then ipset -q create Skynet-Blacklist hash:ip --maxelem 500000 comment; fi
 		if ! ipset -L -n Skynet-BlockedRanges >/dev/null 2>&1; then ipset -q create Skynet-BlockedRanges hash:net --maxelem 200000 comment; fi
 		if ! ipset -L -n Skynet-Master >/dev/null 2>&1; then ipset -q create Skynet-Master list:set; ipset -q -A Skynet-Master Skynet-Blacklist; ipset -q -A Skynet-Master Skynet-BlockedRanges; fi
+		if ! ipset -L -n Skynet-MasterWL >/dev/null 2>&1; then ipset -q create Skynet-MasterWL list:set; ipset -q -A Skynet-MasterWL Skynet-Whitelist; ipset -q -A Skynet-MasterWL Skynet-WhitelistDomains; fi
 		if ! ipset -L -n Skynet-IOT >/dev/null 2>&1; then ipset -q create Skynet-IOT hash:net comment; fi
 		Unban_PrivateIP
 		Purge_Logs "all"
