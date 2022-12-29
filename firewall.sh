@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            29/12/2022 - v7.3.3                                            #
+#                                            30/12/2022 - v7.3.4                                            #
 #############################################################################################################
 
 
@@ -214,7 +214,7 @@ Check_Settings() {
 		extendedstats="disabled"
 	fi
 
-	if ps | grep "/sbin/syslogd" | grep -qF "/jffs/syslog.log" && [ "$syslogloc" = "/tmp/syslog.log" ]; then
+	if ps | grep "/sbin/syslogd" | grep -qF /jffs/syslog.log && [ "$syslogloc" = "/tmp/syslog.log" ]; then
 		syslogloc="/jffs/syslog.log" # Fix syslog location on newer random models
 		syslog1loc="/jffs/syslog.log-1"
 	fi
@@ -913,7 +913,7 @@ Whitelist_Shared() {
 	add Skynet-Whitelist 127.0.0.0/8 comment \"nvram: Localhost\"" | tr -d "\t" | Filter_IPLine | ipset restore -! 2>/dev/null
     ipset flush Skynet-WhitelistDomains
     sed -i '\~# Skynet~d' /jffs/configs/dnsmasq.conf.add
-    grep -hvF "#" /jffs/addons/shared-whitelists/shared-*-whitelist | Strip_Domain | xargs -n 50 | sed 's~^~ipset=/~g;s~ ~/~g;s~$~/Skynet-WhitelistDomains # Skynet~g' >> /jffs/configs/dnsmasq.conf.add
+    grep -hvF "#" /jffs/addons/shared-whitelists/shared-*-whitelist | Strip_Domain | xargs -n 20 | sed 's~^~ipset=/~g;s~ ~/~g;s~$~/Skynet-WhitelistDomains # Skynet~g' >> /jffs/configs/dnsmasq.conf.add
     chmod +x /jffs/configs/dnsmasq.conf.add
     service restart_dnsmasq >/dev/null 2>&1
 	if [ "$(uname -o)" = "ASUSWRT-Merlin" ]; then dotvar="dnspriv_rulelist"; else dotvar="stubby_dns"; fi
