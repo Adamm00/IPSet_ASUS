@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            30/12/2022 - v7.3.4                                            #
+#                                            03/01/2023 - v7.3.4                                            #
 #############################################################################################################
 
 
@@ -214,7 +214,7 @@ Check_Settings() {
 		extendedstats="disabled"
 	fi
 
-	if ps | grep "/sbin/syslogd" | grep -qF /jffs/syslog.log && [ "$syslogloc" = "/tmp/syslog.log" ]; then
+	if ps | grep -F "/sbin/syslogd" | grep -qF "/jffs/syslog.log" && [ "$syslogloc" = "/tmp/syslog.log" ]; then
 		syslogloc="/jffs/syslog.log" # Fix syslog location on newer random models
 		syslog1loc="/jffs/syslog.log-1"
 	fi
