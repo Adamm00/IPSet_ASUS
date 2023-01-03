@@ -14,7 +14,7 @@
 #############################################################################################################
 
 
-export PATH=/sbin:/bin:/usr/sbin:/usr/bin:$PATH
+export PATH="/sbin:/bin:/usr/sbin:/usr/bin:$PATH"
 printf '\033[?7l'
 clear
 sed -n '2,14p' "$0"
@@ -911,11 +911,11 @@ Whitelist_Shared() {
 	add Skynet-Whitelist $(nvram get wan0_xdns | awk '{print $2}') comment \"nvram: wan0_xdns\"
 	add Skynet-Whitelist 192.30.252.0/22 comment \"nvram: Github Content Server\"
 	add Skynet-Whitelist 127.0.0.0/8 comment \"nvram: Localhost\"" | tr -d "\t" | Filter_IPLine | ipset restore -! 2>/dev/null
-    ipset flush Skynet-WhitelistDomains
-    sed -i '\~# Skynet~d' /jffs/configs/dnsmasq.conf.add
-    grep -hvF "#" /jffs/addons/shared-whitelists/shared-*-whitelist | Strip_Domain | xargs -n 20 | sed 's~^~ipset=/~g;s~ ~/~g;s~$~/Skynet-WhitelistDomains # Skynet~g' >> /jffs/configs/dnsmasq.conf.add
-    chmod +x /jffs/configs/dnsmasq.conf.add
-    service restart_dnsmasq >/dev/null 2>&1
+	ipset flush Skynet-WhitelistDomains
+	sed -i '\~# Skynet~d' /jffs/configs/dnsmasq.conf.add
+	grep -hvF "#" /jffs/addons/shared-whitelists/shared-*-whitelist | Strip_Domain | xargs -n 20 | sed 's~^~ipset=/~g;s~ ~/~g;s~$~/Skynet-WhitelistDomains # Skynet~g' >> /jffs/configs/dnsmasq.conf.add
+	chmod +x /jffs/configs/dnsmasq.conf.add
+	service restart_dnsmasq >/dev/null 2>&1
 	if [ "$(uname -o)" = "ASUSWRT-Merlin" ]; then dotvar="dnspriv_rulelist"; else dotvar="stubby_dns"; fi
 	for ip in $(nvram get "$dotvar" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}'); do
 		echo "add Skynet-Whitelist $ip comment \"nvram: $dotvar\""
@@ -1126,7 +1126,7 @@ Install_WebUI_Page() {
 						umount /www/require/modules/menuTree.js 2>/dev/null
 						mount -o bind /tmp/menuTree.js /www/require/modules/menuTree.js
 					else
-						MyPageTitle="$(echo $MyPage | sed 's~.asp~~g').title"
+						MyPageTitle="$(echo "$MyPage" | sed 's~.asp~~g').title"
 						echo "Skynet" > "/www/user/$MyPageTitle"
 					fi
 					mkdir -p "/www/user/skynet"
@@ -1152,7 +1152,7 @@ Uninstall_WebUI_Page() {
 			umount /www/require/modules/menuTree.js
 			mount -o bind /tmp/menuTree.js /www/require/modules/menuTree.js
 		else
-			MyPageTitle="$(echo $MyPage | sed 's~.asp~~g').title"
+			MyPageTitle="$(echo "$MyPage" | sed 's~.asp~~g').title"
 			rm -rf "/www/user/$MyPageTitle"
 		fi
 		rm -rf "/www/user/$MyPage" "/www/user/skynet"
