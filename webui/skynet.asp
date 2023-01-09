@@ -539,7 +539,7 @@
                     } else if (value == 0) {
                         axislabel = "IP Address";
                     } else if (value == 1) {
-                        axislabel = "Country Code";
+                        axislabel = "Country";
                     }
                 } else if (type == "pie") axislabel = "";
                 return axislabel;
@@ -552,7 +552,7 @@
                     } else if (value == 0) {
                         axislabel = "IP Address";
                     } else if (value == 1) {
-                        axislabel = "Country Code";
+                        axislabel = "Country";
                     }
                 } else if (type == "bar") axislabel = "Hits";
                 else if (type == "pie") axislabel = "";
@@ -570,7 +570,7 @@
             } else if (value == 0) {
                 chartlegendtitlelabel = "IP Address";
             } else if (value == 1) {
-                chartlegendtitlelabel = "Country Code";
+                chartlegendtitlelabel = "Country";
             }
 
             for (i = 0; i < 350 - chartlegendtitlelabel.length; i++) {

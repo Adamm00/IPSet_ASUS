@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            03/01/2023 - v7.3.4                                            #
+#                                            09/01/2023 - v7.3.5                                            #
 #############################################################################################################
 
 
@@ -1003,7 +1003,7 @@ Generate_Stats() {
 				fi
 				if [ "${#banreason}" -gt "45" ]; then banreason="$(echo "$banreason" | cut -c 1-45)"; fi
 				alienvault="https://otx.alienvault.com/indicator/ip/${statdata}"
-				if [ "$lookupcountry" = "enabled" ]; then country="$(curl -fsL --retry 3 --connect-timeout 3 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${statdata}/countryCode/")"; else country="*"; fi
+				if [ "$lookupcountry" = "enabled" ]; then country="$(curl -fsL --retry 3 --connect-timeout 3 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${statdata}/countryName/")"; else country="*"; fi
 				if [ -z "$country" ]; then country="*"; fi
 				assdomains="$(grep -F "$statdata" "${skynetloc}/webui/stats/skynetstats.txt" | awk '{print $1}' | xargs)"
 				if [ -z "$assdomains" ]; then assdomains="*"; fi
@@ -1019,7 +1019,7 @@ Generate_Stats() {
 				fi
 				if [ "${#banreason}" -gt "45" ]; then banreason="$(echo "$banreason" | cut -c 1-45)"; fi
 				alienvault="https://otx.alienvault.com/indicator/ip/${statdata}"
-				if [ "$lookupcountry" = "enabled" ]; then country="$(curl -fsL --retry 3 --connect-timeout 3 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${statdata}/countryCode/")"; else country="*"; fi
+				if [ "$lookupcountry" = "enabled" ]; then country="$(curl -fsL --retry 3 --connect-timeout 3 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${statdata}/countryName/")"; else country="*"; fi
 				if [ -z "$country" ]; then country="*"; fi
 				assdomains="$(grep -F "$statdata" "${skynetloc}/webui/stats/skynetstats.txt" | awk '{print $1}' | xargs)"
 				if [ -z "$assdomains" ]; then assdomains="*"; fi
@@ -1035,7 +1035,7 @@ Generate_Stats() {
 				fi
 				if [ "${#banreason}" -gt "45" ]; then banreason="$(echo "$banreason" | cut -c 1-45)"; fi
 				alienvault="https://otx.alienvault.com/indicator/ip/${statdata}"
-				if [ "$lookupcountry" = "enabled" ]; then country="$(curl -fsL --retry 3 --connect-timeout 3 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${statdata}/countryCode/")"; else country="*"; fi
+				if [ "$lookupcountry" = "enabled" ]; then country="$(curl -fsL --retry 3 --connect-timeout 3 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${statdata}/countryName/")"; else country="*"; fi
 				if [ -z "$country" ]; then country="*"; fi
 				assdomains="$(grep -F "$statdata" "${skynetloc}/webui/stats/skynetstats.txt" | awk '{print $1}' | xargs)"
 				if [ -z "$assdomains" ]; then assdomains="*"; fi
@@ -1047,7 +1047,7 @@ Generate_Stats() {
 			grep -E 'DPT=80 |DPT=443 ' "$skynetlog" | grep -F "OUTBOUND" | grep -oE ' DST=[0-9,\.]*' | cut -c 6- | sort -n | uniq -c | sort -nr | head -10 | while IFS= read -r "statdata"; do
 				hits="$(echo "$statdata" | awk '{print $1}')"
 				ipaddr="$(echo "$statdata" | awk '{print $2}')"
-				if [ "$lookupcountry" = "enabled" ]; then country="$(curl -fsL --retry 3 --connect-timeout 3 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${ipaddr}/countryCode/")"; else country="*"; fi
+				if [ "$lookupcountry" = "enabled" ]; then country="$(curl -fsL --retry 3 --connect-timeout 3 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${ipaddr}/countryName/")"; else country="*"; fi
 				if [ -z "$country" ]; then country="*"; fi
 				echo "$hits~$ipaddr~$country" >> "${skynetloc}/webui/stats/thconn.txt"
 			done
@@ -1057,7 +1057,7 @@ Generate_Stats() {
 			grep -F "INBOUND" "$skynetlog" | grep -oE ' SRC=[0-9,\.]*' | cut -c 6- | sort -n | uniq -c | sort -nr | head -10 | while IFS= read -r "statdata"; do
 				hits="$(echo "$statdata" | awk '{print $1}')"
 				ipaddr="$(echo "$statdata" | awk '{print $2}')"
-				if [ "$lookupcountry" = "enabled" ]; then country="$(curl -fsL --retry 3 --connect-timeout 3 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${ipaddr}/countryCode/")"; else country="*"; fi
+				if [ "$lookupcountry" = "enabled" ]; then country="$(curl -fsL --retry 3 --connect-timeout 3 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${ipaddr}/countryName/")"; else country="*"; fi
 				if [ -z "$country" ]; then country="*"; fi
 				echo "$hits~$ipaddr~$country" >> "${skynetloc}/webui/stats/ticonn.txt"
 			done
@@ -1067,7 +1067,7 @@ Generate_Stats() {
 			grep -F "OUTBOUND" "$skynetlog" | grep -vE 'DPT=80 |DPT=443 ' | grep -oE ' DST=[0-9,\.]*' | cut -c 6- | sort -n | uniq -c | sort -nr | head -10 | while IFS= read -r "statdata"; do
 				hits="$(echo "$statdata" | awk '{print $1}')"
 				ipaddr="$(echo "$statdata" | awk '{print $2}')"
-				if [ "$lookupcountry" = "enabled" ]; then country="$(curl -fsL --retry 3 --connect-timeout 3 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${ipaddr}/countryCode/")"; else country="*"; fi
+				if [ "$lookupcountry" = "enabled" ]; then country="$(curl -fsL --retry 3 --connect-timeout 3 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${ipaddr}/countryName/")"; else country="*"; fi
 				if [ -z "$country" ]; then country="*"; fi
 				echo "$hits~$ipaddr~$country" >> "${skynetloc}/webui/stats/toconn.txt"
 			done
