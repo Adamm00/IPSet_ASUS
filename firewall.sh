@@ -3473,7 +3473,10 @@ case "$1" in
 			result="1"
 		fi
 		if [ "$result" != "1" ]; then
-			awk '{print $1 " " FILENAME}' -- * | grep -E '^([0-9]{1,3}\.){3}[0-9]{1,3}(/[0-9]{1,2})? .*' | awk '!x[$0]++' | Filter_PrivateIP > /tmp/skynet/malwarelist.txt
+			#old way
+			#awk '{print $1 " " FILENAME}' -- * | grep -E '^([0-9]{1,3}\.){3}[0-9]{1,3}(/[0-9]{1,2})? .*' | awk '!x[$0]++' | Filter_PrivateIP > /tmp/skynet/malwarelist.txt
+			#cleaner way
+			awk 'BEGIN{RS="(([0-9]{1,3}\\.){3}(1?[0-9][0-9]?|2[0-4][0-9]|25[0-5])(\\/(1?[0-9]|2?[0-9]|3?[0-2]))?)"}{if(RT && !seen[RT]++)printf "%s %s\n", RT, FILENAME}' -- * | Filter_PrivateIP > /tmp/skynet/malwarelist.txt
 			cd "$cwd" || exit 1
 			Display_Result
 			Display_Message "[i] Filtering IPv4 Addresses"
