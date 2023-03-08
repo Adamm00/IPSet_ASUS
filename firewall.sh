@@ -852,6 +852,7 @@ Whitelist_Extra() {
 	ipapi.co
 	api.db-ip.com
 	api.bgpview.io
+	asn.ipinfo.app
 	speedguide.net
 	otx.alienvault.com
 	github.com
@@ -3359,7 +3360,7 @@ case "$1" in
 				if ! echo "$3" | Is_ASN; then echo "[*] $3 Is Not A Valid ASN"; echo; exit 2; fi
 				asnlist="$(echo "$3" | awk '{print toupper($0)}')"
 				echo "[i] Adding $asnlist To Blacklist"
-				curl -fsL --retry 3 --connect-timeout 3 "https://api.bgpview.io/asn/$asnlist/prefixes" | grep -oE '.{20}([0-9]{1,3}\.){3}[0-9]{1,3}\\/[0-9]{1,2}' | grep -vF "parent" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}\\/[0-9]{1,2}' | tr -d "\\" | awk -v asn="$asnlist" '{printf "add Skynet-BlockedRanges %s comment \"ASN: %s \"\n", $1, asn }' | awk '!x[$0]++' | ipset restore -!
+				curl -fsL --retry 3 --connect-timeout 3 "https://asn.ipinfo.app/api/text/list/$asnlist" | awk -v asn="$asnlist" '/^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)([[:space:]]|$)/{printf "add Skynet-BlockedRanges %s comment \"ASN: %s \"\n", $1, asn }' | awk '!x[$0]++' | ipset restore -!
 			;;
 			*)
 				echo "Command Not Recognized, Please Try Again"
@@ -3540,7 +3541,7 @@ case "$1" in
 				if ! echo "$3" | Is_ASN; then echo "[*] $3 Is Not A Valid ASN"; echo; exit 2; fi
 				asnlist="$(echo "$3" | awk '{print toupper($0)}')"
 				echo "[i] Adding $asnlist To Whitelist"
-				curl -fsL --retry 3 --connect-timeout 3 "https://api.bgpview.io/asn/$asnlist/prefixes" | grep -oE '.{20}([0-9]{1,3}\.){3}[0-9]{1,3}\\/[0-9]{1,2}' | grep -vF "parent" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}\\/[0-9]{1,2}' | tr -d "\\" | awk -v asn="$asnlist" '{printf "add Skynet-Whitelist %s comment \"ASN: %s \"\n", $1, asn }' | awk '!x[$0]++' | ipset restore -!
+				curl -fsL --retry 3 --connect-timeout 3 "https://asn.ipinfo.app/api/text/list/$asnlist" | awk -v asn="$asnlist" '/^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)([[:space:]]|$)/{printf "add Skynet-Whitelist %s comment \"ASN: %s \"\n", $1, asn }'| awk '!x[$0]++' | ipset restore -!
 			;;
 			remove)
 				case "$3" in
