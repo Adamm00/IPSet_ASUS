@@ -3465,7 +3465,7 @@ case "$1" in
 		for file in *; do
 			grep -qF "$file" /tmp/skynet/skynet.manifest || rm -rf "$file"
 		done
-		if ! grep -qE '^([0-9]{1,3}\.){3}[0-9]{1,3}(/[0-9]{1,2})?$' "${skynetloc}"/lists/* 2>/dev/null; then
+		if ! grep -qE '^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)$' "${skynetloc}"/lists/* 2>/dev/null; then
 			result="$(Red "[$(($(date +%s) - btime))s]")"
 			printf '%-8s\n' "$result"
 			printf '%-35s\n' "[*] List Content Error Detected - Stopping Banmalware"
@@ -3629,10 +3629,10 @@ case "$1" in
 				echo "[i] This Function Extracts All IPs And Adds Them ALL To Blacklist"
 				if [ -f "$3" ]; then
 					echo "[i] Local Custom List Detected: $3"
-					grep -E '^([0-9]{1,3}\.){3}[0-9]{1,3}(/[0-9]{1,2})?$' "$3" > /tmp/skynet/iplist-unfiltered.txt
+					grep -E '^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)$' "$3" > /tmp/skynet/iplist-unfiltered.txt
 				elif [ -n "$3" ]; then
 					echo "[i] Remote Custom List Detected: $3"
-					curl -fsL --retry 3 --connect-timeout 3 "$3" | dos2unix | grep -E '^([0-9]{1,3}\.){3}[0-9]{1,3}(/[0-9]{1,2})?$' > /tmp/skynet/iplist-unfiltered.txt || { echo "[*] 404 Error Detected - Stopping Import"; rm -rf /tmp/skynet/iplist-unfiltered.txt; echo; exit 1; }
+					curl -fsL --retry 3 --connect-timeout 3 "$3" | dos2unix | grep -E '^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)$' > /tmp/skynet/iplist-unfiltered.txt || { echo "[*] 404 Error Detected - Stopping Import"; rm -rf /tmp/skynet/iplist-unfiltered.txt; echo; exit 1; }
 				else
 					echo "[*] URL/File Field Can't Be Empty - Please Try Again"
 					echo; exit 2
@@ -3662,10 +3662,10 @@ case "$1" in
 				echo "[i] This Function Extracts All IPs And Adds Them ALL To Whitelist"
 				if [ -f "$3" ]; then
 					echo "[i] Local Custom List Detected: $3"
-					grep -E '^([0-9]{1,3}\.){3}[0-9]{1,3}(/[0-9]{1,2})?$' "$3" > /tmp/skynet/iplist-unfiltered.txt
+					grep -E '^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)$' "$3" > /tmp/skynet/iplist-unfiltered.txt
 				elif [ -n "$3" ]; then
 					echo "[i] Remote Custom List Detected: $3"
-					curl -fsL --retry 3 --connect-timeout 3 "$3" | dos2unix | grep -E '^([0-9]{1,3}\.){3}[0-9]{1,3}(/[0-9]{1,2})?$' > /tmp/skynet/iplist-unfiltered.txt || { echo "[*] 404 Error Detected - Stopping Import"; rm -rf /tmp/skynet/iplist-unfiltered.txt; echo; exit 1; }
+					curl -fsL --retry 3 --connect-timeout 3 "$3" | dos2unix | grep -E '^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)$' > /tmp/skynet/iplist-unfiltered.txt || { echo "[*] 404 Error Detected - Stopping Import"; rm -rf /tmp/skynet/iplist-unfiltered.txt; echo; exit 1; }
 				else
 					echo "[*] URL/File Field Can't Be Empty - Please Try Again"
 					echo; exit 2
@@ -3705,10 +3705,10 @@ case "$1" in
 				echo "[i] This Function Extracts All IPs And Removes Them ALL From Blacklist"
 				if [ -f "$3" ]; then
 					echo "[i] Local Custom List Detected: $3"
-					grep -E '^([0-9]{1,3}\.){3}[0-9]{1,3}(/[0-9]{1,2})?$' "$3" > /tmp/skynet/iplist-unfiltered.txt
+					grep -E '^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)$' "$3" > /tmp/skynet/iplist-unfiltered.txt
 				elif [ -n "$3" ]; then
 					echo "[i] Remote Custom List Detected: $3"
-					curl -fsL --retry 3 --connect-timeout 3 "$3" | dos2unix | grep -E '^([0-9]{1,3}\.){3}[0-9]{1,3}(/[0-9]{1,2})?$' > /tmp/skynet/iplist-unfiltered.txt || { echo "[*] 404 Error Detected - Stopping Import"; rm -rf /tmp/skynet/iplist-unfiltered.txt; echo; exit 1; }
+					curl -fsL --retry 3 --connect-timeout 3 "$3" | dos2unix | grep -E '^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)$' > /tmp/skynet/iplist-unfiltered.txt || { echo "[*] 404 Error Detected - Stopping Import"; rm -rf /tmp/skynet/iplist-unfiltered.txt; echo; exit 1; }
 				else
 					echo "[*] URL/File Field Can't Be Empty - Please Try Again"
 					echo; exit 2
@@ -3733,10 +3733,10 @@ case "$1" in
 				echo "[i] This Function Extracts All IPs And Removes Them ALL From Whitelist"
 				if [ -f "$3" ]; then
 					echo "[i] Local Custom List Detected: $3"
-					grep -E '^([0-9]{1,3}\.){3}[0-9]{1,3}(/[0-9]{1,2})?$' "$3" > /tmp/skynet/iplist-unfiltered.txt
+					grep -E '^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)([[:space:]]|$)$' "$3" > /tmp/skynet/iplist-unfiltered.txt
 				elif [ -n "$3" ]; then
 					echo "[i] Remote Custom List Detected: $3"
-					curl -fsL --retry 3 --connect-timeout 3 "$3" | dos2unix | grep -E '^([0-9]{1,3}\.){3}[0-9]{1,3}(/[0-9]{1,2})?$' > /tmp/skynet/iplist-unfiltered.txt || { echo "[*] 404 Error Detected - Stopping Import"; rm -rf /tmp/skynet/iplist-unfiltered.txt; echo; exit 1; }
+					curl -fsL --retry 3 --connect-timeout 3 "$3" | dos2unix | grep -E '^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)$' > /tmp/skynet/iplist-unfiltered.txt || { echo "[*] 404 Error Detected - Stopping Import"; rm -rf /tmp/skynet/iplist-unfiltered.txt; echo; exit 1; }
 				else
 					echo "[*] URL/File Field Can't Be Empty - Please Try Again"
 					echo; exit 2
