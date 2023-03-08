@@ -5597,7 +5597,7 @@ case "$1" in
 					nvram set fw_log_x=none
 					nvram commit
 					echo "[i] Deleting Skynet Files"
-					sed -i '\~# Skynet~d' /jffs/scripts/firewall-start /jffs/scripts/services-stop /jffs/scripts/service-event /jffs/configs/profile.add
+					sed -i '\~# Skynet~d' /jffs/scripts/firewall-start /jffs/scripts/services-stop /jffs/scripts/service-event /jffs/configs/profile.add /jffs/configs/dnsmasq.conf.add
 					rm -rf "/jffs/addons/shared-whitelists/shared-Skynet-whitelist" "/jffs/addons/shared-whitelists/shared-Skynet2-whitelist" "${skynetloc}" "/jffs/scripts/firewall" "/opt/bin/firewall" "/tmp/skynet.lock" "/tmp/skynet"
 					if [ -f "/opt/etc/syslog-ng.d/skynet" ]; then
 						rm -rf "/opt/etc/syslog-ng.d/skynet"
