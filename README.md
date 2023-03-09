@@ -6,7 +6,7 @@ Skynet is the first comprehensive IP banning and security tool exclusively for A
 
 The goal of this tool is to enhance the firmware's built in functionality such as the SPI Firewall, Brute Force Detection and AiProtect while adding easy to use tools for users to implement custom firewall rules they desire. Skynet has a range of feature from banning single IPs, domains, entire countries or pulling predefined malware lists from reputable providers. Skynet can also be used to secure IOT device and prevent them from phoning home. It is the one stop shop for router security and the first line of defense in your home network.
 
-Skynet fully supports OpenVPN implementations from providers like [Private Internet Access](https://www.privateinternetaccess.com/), along with various user scripts such as [Diversion](https://www.snbforums.com/threads/diversion-the-router-adblocker.48538/) & [Scribe](https://www.snbforums.com/threads/scribe-syslog-ng-and-logrotate-installer.55853/). Extensive testing has also been done with home security products like the [Annke DW81KE](https://www.amazon.com/dp/B07L4R4YNP) and NAS systems including the [QNAP TVS-672XT](https://www.amazon.com/dp/B07JNLNHD1).
+Skynet fully supports OpenVPN implementations from providers like [Private Internet Access](https://www.privateinternetaccess.com/), along with various user scripts such as [Diversion](https://www.snbforums.com/threads/diversion-the-router-adblocker.48538/) & [Scribe](https://www.snbforums.com/threads/scribe-syslog-ng-and-logrotate-installer.55853/).
 
 ## Donate
 
