@@ -1,12 +1,12 @@
 # Skynet - Firewall & Security Enhancements   [![Build Status](https://travis-ci.com/Adamm00/IPSet_ASUS.svg?branch=master)](https://travis-ci.com/Adamm00/IPSet_ASUS)
 
-Are you concerned about the security of your home network? Look no further than Skynet - a powerful firewall and security tool designed exclusively for ASUS routers running the AsusWRT-Merlin firmware.
+Are you concerned about the security of your home network? Look no further than Skynet - a powerful firewall and security tool designed exclusively for ASUS routers running the [AsusWRT-Merlin firmware](https://github.com/RMerl/asuswrt-merlin.ng).
 
-Skynet is a lightweight firewall addition that uses IPSet and has been featured on SmallNetBuilder. Its goal is to enhance the firmware's built-in functionality, including SPI Firewall, Brute Force Detection, and AiProtect. With Skynet, you can easily implement custom firewall rules that meet your specific needs and preferences.
+Skynet is a lightweight firewall addition that uses IPSet and has been featured on [SmallNetBuilder](https://www.snbforums.com/threads/release-skynet-router-firewall-security-enhancements.16798/). Its goal is to enhance the firmware's built-in functionality, including SPI Firewall, Brute Force Detection, and AiProtect. With Skynet, you can easily implement custom firewall rules that meet your specific needs and preferences.
 
 But Skynet is much more than just a firewall. It's a comprehensive security tool that can ban single IPs, domains, or entire countries. It can also pull predefined malware lists from reputable providers and even secure IoT devices to prevent unauthorized connections. Skynet serves as the one-stop-shop for all your router security needs and is the first line of defense for your home network.
 
-Moreover, Skynet is fully compatible with OpenVPN implementations from popular providers like Private Internet Access. It also supports various user scripts such as Diversion and Scribe.
+Moreover, Skynet is fully compatible with OpenVPN implementations from popular providers like [Private Internet Access](https://www.privateinternetaccess.com/). It also supports various user scripts such as [Diversion](https://www.snbforums.com/threads/diversion-the-router-adblocker.48538/) & [Scribe](https://www.snbforums.com/threads/scribe-syslog-ng-and-logrotate-installer.55853/).
 
 With Skynet and AsusWRT-Merlin, you can rest assured that your router is fully protected against potential security threats. It's the perfect solution for ASUS router users looking for a reliable and easy-to-use security tool.
 
@@ -14,7 +14,7 @@ In conclusion, if you're an ASUS router user running the AsusWRT-Merlin firmware
 
 ## Donate
 
-This script will always be open source and free to use, but if you want to support future development you can do so by [Donating With PayPal.](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=BPN4LTRZKDTML)
+You can use this script for free as it will always remain open source. However, if you would like to contribute to future development efforts, you have the option to support us by [Donating With PayPal.](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=BPN4LTRZKDTML)
 
 ## Usage
 
