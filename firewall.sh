@@ -3744,7 +3744,7 @@ case "$1" in
 				dos2unix /tmp/skynet/iplist-unfiltered.txt
 				if ! Is_IPRange < /tmp/skynet/iplist-unfiltered.txt; then echo "[*] No Content Detected - Stopping Deport"; rm -rf /tmp/skynet/iplist-unfiltered.txt; echo; exit 1; fi
 				echo "[i] Processing IPv4 Addresses"
-				Filter_PrivateIP < /tmp/skynet/iplist-unfiltered.txt | awk '{print "del Skynet-Whitelist %s\n", $1}' > /tmp/skynet/iplist-filtered.txt
+				Filter_PrivateIP < /tmp/skynet/iplist-unfiltered.txt | awk '{printf "del Skynet-Whitelist %s\n", $1}' > /tmp/skynet/iplist-filtered.txt
 				echo "[i] Removing IPs From Whitelist"
 				ipset restore -! -f "/tmp/skynet/iplist-filtered.txt"
 				rm -rf /tmp/skynet/iplist-unfiltered.txt /tmp/skynet/iplist-filtered.txt
