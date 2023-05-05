@@ -3588,6 +3588,11 @@ case "$1" in
 				Whitelist_Shared
 				Refresh_MWhitelist
 			;;
+			refresh-shared-whitelists)
+    				if ! Check_Connection; then echo "[*] Connection Error Detected - Exiting"; echo; exit 1; fi
+    				echo "[i] Refreshing Shared Whitelist Files"
+    				Whitelist_Shared
+			;;
 			view)
 				case "$3" in
 					ips)
