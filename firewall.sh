@@ -3584,15 +3584,12 @@ case "$1" in
 				echo "[i] Refreshing Shared Whitelist Files"
 				Whitelist_Extra
 				case "$3" in
-					"")
+					"all")
 						Whitelist_CDN
 						Whitelist_VPN
-						Whitelist_Shared
-					;;
-					Diversion)
-						Whitelist_Shared
 					;;
 				esac
+				Whitelist_Shared
 				Refresh_MWhitelist
 			;;
 			view)
