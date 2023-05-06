@@ -3582,18 +3582,18 @@ case "$1" in
 			refresh)
 				if ! Check_Connection; then echo "[*] Connection Error Detected - Exiting"; echo; exit 1; fi
 				echo "[i] Refreshing Shared Whitelist Files"
+				Whitelist_Extra
 				case "$3" in
 					"")
-						Whitelist_Extra
 						Whitelist_CDN
 						Whitelist_VPN
 						Whitelist_Shared
-						Refresh_MWhitelist
 					;;
 					Diversion)
 						Whitelist_Shared
 					;;
 				esac
+				Refresh_MWhitelist
 			;;
 			view)
 				case "$3" in
