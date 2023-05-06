@@ -794,12 +794,20 @@ Save_IPSets() {
 Unban_PrivateIP() {
 	if [ "$unbanprivateip" = "enabled" ] && [ "$logmode" = "enabled" ]; then
 		grep -F "INBOUND" "$syslogloc" | Filter_PrivateSRC | grep -oE 'SRC=[0-9,\.]*' | cut -c 5- | awk '!x[$0]++' | while IFS= read -r "ip"; do
-			echo "add Skynet-Whitelist $ip comment \"Private IP\""
-			echo "del Skynet-Blacklist $ip"
+			if [ "${ip%%.*}" = "0" ] || [ -z "${ip}" ]; then
+				continue
+			else
+				echo "add Skynet-Whitelist $ip comment \"Private IP\""
+				echo "del Skynet-Blacklist $ip"
+			fi
 		done | ipset restore -!
 		grep -F "OUTBOUND" "$syslogloc" | Filter_PrivateDST | grep -oE 'DST=[0-9,\.]*' | cut -c 5- | awk '!x[$0]++' | while IFS= read -r "ip"; do
-			echo "add Skynet-Whitelist $ip comment \"Private IP\""
-			echo "del Skynet-Blacklist $ip"
+			if [ "${ip%%.*}" = "0" ] || [ -z "${ip}" ]; then
+				continue
+			else
+				echo "add Skynet-Whitelist $ip comment \"Private IP\""
+				echo "del Skynet-Blacklist $ip"
+			fi
 		done | ipset restore -!
 	fi
 }
@@ -809,9 +817,14 @@ Refresh_AiProtect() {
 		sed '\~add Skynet-Blacklist ~!d;\~BanAiProtect~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
 		sqlite3 /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db "SELECT src FROM monitor;" | awk '!x[$0]++' | Filter_IP | Filter_PrivateIP | awk '{printf "add Skynet-Blacklist %s comment \"BanAiProtect\"\n", $1 }' | ipset restore -!
 		sqlite3 /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db "SELECT dst FROM monitor;" | awk '!x[$0]++' | Filter_OutIP | grep -v ":" | while IFS= read -r "domain"; do
-			for ip in $(Domain_Lookup "$domain" 2>/dev/null | Filter_PrivateIP); do
-				echo "add Skynet-Blacklist $ip comment \"BanAiProtect: $domain\""
-			done &
+			[ -z "$domain" ] && continue
+			for ip in $(Domain_Lookup "$domain" | Filter_PrivateIP); do
+				if [ "${ip%%.*}" = "0" ] || [ -z "${ip}" ]; then
+					continue
+				else
+					echo "add Skynet-Blacklist $ip comment \"BanAiProtect: $domain\""
+				fi
+			done
 		done | ipset restore -!
 	fi
 }
@@ -824,7 +837,7 @@ Refresh_MBans() {
 		while IFS= read -r "domain"; do
 			[ -z "$domain" ] && continue
 			for ip in $(Domain_Lookup "$domain" | Filter_PrivateIP); do
-				if [ "${ip%%.*}" = "0" ]; then
+				if [ "${ip%%.*}" = "0" ] || [ -z "${ip}" ]; then
 					continue
 				else
 					echo "add Skynet-Blacklist $ip comment \"ManualBanD: $domain\""
@@ -844,7 +857,7 @@ Refresh_MWhitelist() {
 		while IFS= read -r "domain"; do
 			[ -z "$domain" ] && continue
 			for ip in $(Domain_Lookup "$domain"); do
-				if [ "${ip%%.*}" = "0" ]; then
+				if [ "${ip%%.*}" = "0" ] || [ -z "${ip}" ]; then
 					continue
 				else
 					echo "add Skynet-Whitelist $ip comment \"ManualWlistD: $domain\""
