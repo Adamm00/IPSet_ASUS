@@ -3264,9 +3264,13 @@ case "$1" in
 				domain="$(echo "$3" | Strip_Domain)"
 				echo "[i] Removing $domain From Blacklist"
 				for ip in $(Domain_Lookup "$domain"); do
-					echo "[i] Unbanning $ip"
-					ipset -D Skynet-Blacklist "$ip"
-					sed -i "\\~\\(BLOCKED.*=$ip \\|Manual Ban.*=$ip \\)~d" "$skynetlog" "$skynetevents"
+					if [ "${ip%%.*}" = "0" ] || [ -z "${ip}" ]; then
+						continue
+					else
+						echo "[i] Unbanning $ip"
+						ipset -D Skynet-Blacklist "$ip"
+						sed -i "\\~\\(BLOCKED.*=$ip \\|Manual Ban.*=$ip \\)~d" "$skynetlog" "$skynetevents"
+					fi
 				done
 			;;
 			comment)
@@ -3354,8 +3358,12 @@ case "$1" in
 				domain="$(echo "$3" | Strip_Domain)"
 				echo "[i] Adding $domain To Blacklist"
 				for ip in $(Domain_Lookup "$domain" | Filter_PrivateIP); do
-					echo "[i] Banning $ip"
-					ipset -A Skynet-Blacklist "$ip" comment "ManualBanD: $domain" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$domain " >> "$skynetevents"
+					if [ "${ip%%.*}" = "0" ] || [ -z "${ip}" ]; then
+						continue
+					else
+						echo "[i] Banning $ip"
+						ipset -A Skynet-Blacklist "$ip" comment "ManualBanD: $domain" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$domain " >> "$skynetevents"
+					fi
 				done
 			;;
 			country)
@@ -3547,9 +3555,13 @@ case "$1" in
 				domain="$(echo "$3" | Strip_Domain)"
 				echo "[i] Adding $domain To Whitelist"
 				for ip in $(Domain_Lookup "$domain"); do
-					echo "[i] Whitelisting $ip"
-					ipset -A Skynet-Whitelist "$ip" comment "ManualWlistD: $domain" && sed -i "\\~=$ip ~d" "$skynetlog" "$skynetevents" && echo "$(date +"%b %d %T") Skynet: [Manual Whitelist] TYPE=Domain SRC=$ip Host=$domain " >> "$skynetevents"
-					ipset -q -D Skynet-Blacklist "$ip"
+					if [ "${ip%%.*}" = "0" ] || [ -z "${ip}" ]; then
+						continue
+					else
+						echo "[i] Whitelisting $ip"
+						ipset -A Skynet-Whitelist "$ip" comment "ManualWlistD: $domain" && sed -i "\\~=$ip ~d" "$skynetlog" "$skynetevents" && echo "$(date +"%b %d %T") Skynet: [Manual Whitelist] TYPE=Domain SRC=$ip Host=$domain " >> "$skynetevents"
+						ipset -q -D Skynet-Blacklist "$ip"
+					fi
 				done
 				if [ "$?" = "1" ]; then echo "$domain" >> /jffs/addons/shared-whitelists/shared-Skynet2-whitelist; fi
 			;;
