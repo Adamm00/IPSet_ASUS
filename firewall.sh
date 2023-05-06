@@ -613,7 +613,7 @@ Strip_Domain() {
 }
 
 Domain_Lookup() {
-	nslookup "$1" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' | awk 'NR>2'
+	nslookup "$1" 2>/dev/null | awk '/^Address[[:space:]][0-9]*\:[[:space:]]/{if($3 ~ /^([0-9]{1,3}\.){3}[0-9]{1,3}/ && NR > 2)print $3}'
 }
 
 LAN_CIDR_Lookup() {
@@ -818,13 +818,18 @@ Refresh_AiProtect() {
 
 Refresh_MBans() {
 	if grep -qF "[Manual Ban] TYPE=Domain" "$skynetevents"; then
-		grep -F "[Manual Ban] TYPE=Domain" "$skynetevents" | awk '{print $9}' | awk '!x[$0]++' | sed 's~Host=~~g' > /tmp/skynet/mbans.list
+		awk '/\[Manual Ban\] TYPE=Domain/{if(!x[$9]++)print $9}' "$skynetevents" | sed 's~Host=~~g' > /tmp/skynet/mbans.list
 		sed -i '\~\[Manual Ban\] TYPE=Domain~d;' "$skynetevents"
 		sed '\~add Skynet-Blacklist ~!d;\~ManualBanD~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
 		while IFS= read -r "domain"; do
+			[ -z "$domain" ] && continue
 			for ip in $(Domain_Lookup "$domain" | Filter_PrivateIP); do
-				echo "add Skynet-Blacklist $ip comment \"ManualBanD: $domain\""
-				echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$domain " >> "$skynetevents"
+				if [ "${ip%%.*}" = "0" ]; then
+					continue
+				else
+					echo "add Skynet-Blacklist $ip comment \"ManualBanD: $domain\""
+					echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$domain " >> "$skynetevents"
+				fi
 			done
 		done < /tmp/skynet/mbans.list | ipset restore -!
 		rm -rf /tmp/skynet/mbans.list
@@ -833,13 +838,18 @@ Refresh_MBans() {
 
 Refresh_MWhitelist() {
 	if grep -qE "Manual Whitelist.* TYPE=Domain" "$skynetevents"; then
-		grep -E "Manual Whitelist.* TYPE=Domain" "$skynetevents" | awk '{print $9}' | awk '!x[$0]++' | sed 's~Host=~~g' > /tmp/skynet/mwhitelist.list
+		awk '/Manual Whitelist.* TYPE=Domain/{if(!x[$9]++)print $9}' "$skynetevents" | sed 's~Host=~~g' > /tmp/skynet/mwhitelist.list
 		sed -i '\~\[Manual Whitelist\] TYPE=Domain~d;' "$skynetevents"
 		sed '\~add Skynet-Whitelist ~!d;\~ManualWlistD~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
 		while IFS= read -r "domain"; do
+			[ -z "$domain" ] && continue
 			for ip in $(Domain_Lookup "$domain"); do
-				echo "add Skynet-Whitelist $ip comment \"ManualWlistD: $domain\""
-				echo "$(date +"%b %d %T") Skynet: [Manual Whitelist] TYPE=Domain SRC=$ip Host=$domain " >> "$skynetevents"
+				if [ "${ip%%.*}" = "0" ]; then
+					continue
+				else
+					echo "add Skynet-Whitelist $ip comment \"ManualWlistD: $domain\""
+					echo "$(date +"%b %d %T") Skynet: [Manual Whitelist] TYPE=Domain SRC=$ip Host=$domain " >> "$skynetevents"
+				fi
 			done
 		done < /tmp/skynet/mwhitelist.list | ipset restore -!
 		cat /tmp/skynet/mwhitelist.list >> /jffs/addons/shared-whitelists/shared-Skynet2-whitelist
@@ -3583,12 +3593,8 @@ case "$1" in
 				if ! Check_Connection; then echo "[*] Connection Error Detected - Exiting"; echo; exit 1; fi
 				echo "[i] Refreshing Shared Whitelist Files"
 				Whitelist_Extra
-				case "$3" in
-					"all")
-						Whitelist_CDN
-						Whitelist_VPN
-					;;
-				esac
+				Whitelist_CDN
+				Whitelist_VPN
 				Whitelist_Shared
 				Refresh_MWhitelist
 			;;
