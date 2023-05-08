@@ -3476,10 +3476,10 @@ case "$1" in
 			Display_Result
 			Display_Message "[i] Filtering IPv4 Addresses"
 			sed -i '\~comment \"BanMalware: ~d' "$skynetipset"
-			awk '/^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)([[:space:]]|$)/{if($1 !~ /.*(\/(1?[0-9]|2?[0-9]|3?[0-1])){1}.*/)printf "add Skynet-Blacklist %s comment \"BanMalware: %s\"\n", $1, $2 }' /tmp/skynet/malwarelist.txt >> "$skynetipset"
+			awk '/^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(32))?)([[:space:]]|$)/{printf "add Skynet-Blacklist %s comment \"BanMalware: %s\"\n", $1, $2 }' /tmp/skynet/malwarelist.txt >> "$skynetipset"
 			Display_Result
 			Display_Message "[i] Filtering IPv4 Ranges"
-			awk '/^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)([[:space:]]|$)/{if($1 ~ /.*(\/(1?[0-9]|2?[0-9]|3?[0-1])){1}.*/)printf "add Skynet-BlockedRanges %s comment \"BanMalware: %s\"\n", $1, $2 }' /tmp/skynet/malwarelist.txt >> "$skynetipset"
+			awk '/^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-1])){1})([[:space:]]|$)/{printf "add Skynet-BlockedRanges %s comment \"BanMalware: %s\"\n", $1, $2 }' /tmp/skynet/malwarelist.txt >> "$skynetipset"
 			Display_Result
 			Display_Message "[i] Applying New Blacklist"
 			ipset flush Skynet-Blacklist; ipset flush Skynet-BlockedRanges
@@ -3639,12 +3639,12 @@ case "$1" in
 				if ! Is_IPRange < /tmp/skynet/iplist-unfiltered.txt; then echo "[*] No Content Detected - Stopping Import"; rm -rf /tmp/skynet/iplist-unfiltered.txt; echo; exit 1; fi
 				echo "[i] Processing List"
 				if [ -n "$4" ] && [ "${#4}" -le "245" ]; then
-					Filter_PrivateIP < /tmp/skynet/iplist-unfiltered.txt | awk -v desc="Imported: $4" '/^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)$/{if($1 !~ /.*(\/(1?[0-9]|2?[0-9]|3?[0-1])){1}.*/)printf "add Skynet-Blacklist %s comment \"%s\"\n", $1, desc }' > /tmp/skynet/iplist-filtered.txt
-					Filter_PrivateIP < /tmp/skynet/iplist-unfiltered.txt | awk -v desc="Imported: $4" '/^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)$/{if($1 ~ /.*(\/(1?[0-9]|2?[0-9]|3?[0-1])){1}.*/)printf "add Skynet-BlockedRanges %s comment \"%s\"\n", $1, desc }' >> /tmp/skynet/iplist-filtered.txt
+					Filter_PrivateIP < /tmp/skynet/iplist-unfiltered.txt | awk -v desc="Imported: $4" '/^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(32))?)$/{printf "add Skynet-Blacklist %s comment \"%s\"\n", $1, desc }' > /tmp/skynet/iplist-filtered.txt
+					Filter_PrivateIP < /tmp/skynet/iplist-unfiltered.txt | awk -v desc="Imported: $4" '/^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-1])){1})$/{printf "add Skynet-BlockedRanges %s comment \"%s\"\n", $1, desc }' >> /tmp/skynet/iplist-filtered.txt
 				else
 					imptime="$(date +"%b %d %T")"
-					Filter_PrivateIP < /tmp/skynet/iplist-unfiltered.txt | awk -v desc="Imported: $imptime" '/^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)$/{if($1 !~ /.*(\/(1?[0-9]|2?[0-9]|3?[0-1])){1}.*/)printf "add Skynet-Blacklist %s comment \"%s\"\n", $1, desc }' > /tmp/skynet/iplist-filtered.txt
-					Filter_PrivateIP < /tmp/skynet/iplist-unfiltered.txt | awk -v desc="Imported: $imptime" '/^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)$/{if($1 ~ /.*(\/(1?[0-9]|2?[0-9]|3?[0-1])){1}.*/)printf "add Skynet-BlockedRanges %s comment \"%s\"\n", $1, desc }' >> /tmp/skynet/iplist-filtered.txt
+					Filter_PrivateIP < /tmp/skynet/iplist-unfiltered.txt | awk -v desc="Imported: $imptime" '/^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(32))?)$/{printf "add Skynet-Blacklist %s comment \"%s\"\n", $1, desc }' > /tmp/skynet/iplist-filtered.txt
+					Filter_PrivateIP < /tmp/skynet/iplist-unfiltered.txt | awk -v desc="Imported: $imptime" '/^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-1])){1})$/{printf "add Skynet-BlockedRanges %s comment \"%s\"\n", $1, desc }' >> /tmp/skynet/iplist-filtered.txt
 				fi
 				echo "[i] Adding IPs To Blacklist"
 				ipset restore -! -f "/tmp/skynet/iplist-filtered.txt"
@@ -3714,9 +3714,9 @@ case "$1" in
 				dos2unix /tmp/skynet/iplist-unfiltered.txt
 				if ! Is_IPRange < /tmp/skynet/iplist-unfiltered.txt; then echo "[*] No Content Detected - Stopping Deport"; rm -rf /tmp/skynet/iplist-unfiltered.txt; echo; exit 1; fi
 				echo "[i] Processing IPv4 Addresses"
-				Filter_PrivateIP < /tmp/skynet/iplist-unfiltered.txt | awk '/^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)$/{if($1 !~ /.*(\/(1?[0-9]|2?[0-9]|3?[0-1])){1}.*/)printf "del Skynet-Blacklist %s\n", $1}' > /tmp/skynet/iplist-filtered.txt
+				Filter_PrivateIP < /tmp/skynet/iplist-unfiltered.txt | awk '/^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(32))?)$/{printf "del Skynet-Blacklist %s\n", $1}' > /tmp/skynet/iplist-filtered.txt
 				echo "[i] Processing IPv4 Ranges"
-				Filter_PrivateIP < /tmp/skynet/iplist-unfiltered.txt | awk '/^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)$/{if($1 ~ /.*(\/(1?[0-9]|2?[0-9]|3?[0-1])){1}.*/)printf "del Skynet-BlockedRanges %s\n", $1}' >> /tmp/skynet/iplist-filtered.txt
+				Filter_PrivateIP < /tmp/skynet/iplist-unfiltered.txt | awk '/^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-1])){1})$/{printf "del Skynet-BlockedRanges %s\n", $1}' >> /tmp/skynet/iplist-filtered.txt
 				echo "[i] Removing IPs From Blacklist"
 				ipset restore -! -f "/tmp/skynet/iplist-filtered.txt"
 				rm -rf /tmp/skynet/iplist-unfiltered.txt /tmp/skynet/iplist-filtered.txt
