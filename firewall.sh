@@ -3716,7 +3716,7 @@ case "$1" in
 				echo "[i] Processing IPv4 Addresses"
 				Filter_PrivateIP < /tmp/skynet/iplist-unfiltered.txt | awk '!/^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-1])){1})$/{printf "del Skynet-Blacklist %s\n", $1}' > /tmp/skynet/iplist-filtered.txt
 				echo "[i] Processing IPv4 Ranges"
-				Filter_PrivateIP < /tmp/skynet/iplist-unfiltered.txt | awk '/^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-1])){1})$/{printf "del Skynet-BlockedRanges %s\n", $1}' >> /tmp/skynet/iplist-filtered.txt >> /tmp/skynet/iplist-filtered.txt
+				Filter_PrivateIP < /tmp/skynet/iplist-unfiltered.txt | awk '/^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-1])){1})$/{printf "del Skynet-BlockedRanges %s\n", $1}' >> /tmp/skynet/iplist-filtered.txt
 				echo "[i] Removing IPs From Blacklist"
 				ipset restore -! -f "/tmp/skynet/iplist-filtered.txt"
 				rm -rf /tmp/skynet/iplist-unfiltered.txt /tmp/skynet/iplist-filtered.txt
