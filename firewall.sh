@@ -613,7 +613,7 @@ Strip_Domain() {
 }
 
 Domain_Lookup() {
-	nslookup "$1" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' | awk 'NR>2'
+	nslookup "$1" 2>/dev/null | awk '/^Address[[:space:]][0-9]*\:[[:space:]]/{if($3 ~ /^([0-9]{1,3}\.){3}[0-9]{1,3}/ && NR > 2)print $3}'
 }
 
 LAN_CIDR_Lookup() {
@@ -809,7 +809,7 @@ Refresh_AiProtect() {
 		sed '\~add Skynet-Blacklist ~!d;\~BanAiProtect~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
 		sqlite3 /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db "SELECT src FROM monitor;" | awk '!x[$0]++' | Filter_IP | Filter_PrivateIP | awk '{printf "add Skynet-Blacklist %s comment \"BanAiProtect\"\n", $1 }' | ipset restore -!
 		sqlite3 /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db "SELECT dst FROM monitor;" | awk '!x[$0]++' | Filter_OutIP | grep -v ":" | while IFS= read -r "domain"; do
-			for ip in $(Domain_Lookup "$domain" 2>/dev/null | Filter_PrivateIP); do
+			for ip in $(Domain_Lookup "$domain" | Filter_PrivateIP); do
 				echo "add Skynet-Blacklist $ip comment \"BanAiProtect: $domain\""
 			done &
 		done | ipset restore -!
@@ -818,7 +818,7 @@ Refresh_AiProtect() {
 
 Refresh_MBans() {
 	if grep -qF "[Manual Ban] TYPE=Domain" "$skynetevents"; then
-		grep -F "[Manual Ban] TYPE=Domain" "$skynetevents" | awk '{print $9}' | awk '!x[$0]++' | sed 's~Host=~~g' > /tmp/skynet/mbans.list
+		awk '/\[Manual Ban\] TYPE=Domain/{if(!x[$9]++)print $9}' "$skynetevents" | sed 's~Host=~~g' > /tmp/skynet/mbans.list
 		sed -i '\~\[Manual Ban\] TYPE=Domain~d;' "$skynetevents"
 		sed '\~add Skynet-Blacklist ~!d;\~ManualBanD~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
 		while IFS= read -r "domain"; do
@@ -833,7 +833,7 @@ Refresh_MBans() {
 
 Refresh_MWhitelist() {
 	if grep -qE "Manual Whitelist.* TYPE=Domain" "$skynetevents"; then
-		grep -E "Manual Whitelist.* TYPE=Domain" "$skynetevents" | awk '{print $9}' | awk '!x[$0]++' | sed 's~Host=~~g' > /tmp/skynet/mwhitelist.list
+		awk '/Manual Whitelist.* TYPE=Domain/{if(!x[$9]++)print $9}' "$skynetevents" | sed 's~Host=~~g' > /tmp/skynet/mwhitelist.list
 		sed -i '\~\[Manual Whitelist\] TYPE=Domain~d;' "$skynetevents"
 		sed '\~add Skynet-Whitelist ~!d;\~ManualWlistD~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
 		while IFS= read -r "domain"; do
@@ -873,9 +873,7 @@ Whitelist_CDN() {
 	if [ "$cdnwhitelist" = "enabled" ]; then
 		{
 			# Apple AS714 | Akamai AS12222 AS16625 | HighWinds AS33438 AS20446 | Fastly AS54113 | GitHub AS36459
-			for asn in AS714 AS12222 AS16625 AS33438 AS20446 AS54113 AS36459; do
-				curl -fsL --retry 3 --connect-timeout 3 "https://asn.ipinfo.app/api/text/list/$asn" | awk -v asn="$asn" '/^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)([[:space:]]|$)/{printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: %s\"\n", $1, asn }'
-			done
+			printf "AS714\nAS12222\nAS16625\nAS33438\nAS20446\nAS54113\nAS36459" | xargs -I {} sh -c 'curl -fsL --retry 3 --connect-timeout 3 https://asn.ipinfo.app/api/text/list/{} | awk -v asn={} '\''/^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)([[:space:]]|$)/{printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: %s\"\n", $1, asn }'\'''
 			curl -fsL --retry 3 --connect-timeout 3 https://www.cloudflare.com/ips-v4 | awk '/^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)([[:space:]]|$)/{printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: CloudFlare\"\n", $1 }'
 			curl -fsL --retry 3 --connect-timeout 3 https://ip-ranges.amazonaws.com/ip-ranges.json | awk 'BEGIN{RS="(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\\/(1?[0-9]|2?[0-9]|3?[0-2]))?)"}{if(RT)printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: Amazon\"\n", RT }'
 			curl -fsL --retry 3 --connect-timeout 3 https://api.github.com/meta | awk 'BEGIN{RS="(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\\/(1?[0-9]|2?[0-9]|3?[0-2]))?)"}{if(RT)printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: Github\"\n", RT }'
@@ -3473,15 +3471,15 @@ case "$1" in
 			result="1"
 		fi
 		if [ "$result" != "1" ]; then
-			awk '{print $1 " " FILENAME}' -- * | grep -E '^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)([[:space:]]|$)' | awk '!x[$0]++' | Filter_PrivateIP > /tmp/skynet/malwarelist.txt
+			awk '/^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)([[:space:]]|$)/{if(!x[$1]++)print $1 " " FILENAME}' -- * | Filter_PrivateIP > /tmp/skynet/malwarelist.txt
 			cd "$cwd" || exit 1
 			Display_Result
 			Display_Message "[i] Filtering IPv4 Addresses"
 			sed -i '\~comment \"BanMalware: ~d' "$skynetipset"
-			grep -vF "/" /tmp/skynet/malwarelist.txt | awk '{printf "add Skynet-Blacklist %s comment \"BanMalware: %s\"\n", $1, $2 }' >> "$skynetipset"
+			awk '/^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(32))?)([[:space:]]|$)/{printf "add Skynet-Blacklist %s comment \"BanMalware: %s\"\n", $1, $2 }' /tmp/skynet/malwarelist.txt >> "$skynetipset"
 			Display_Result
 			Display_Message "[i] Filtering IPv4 Ranges"
-			grep -F "/" /tmp/skynet/malwarelist.txt | awk '{printf "add Skynet-BlockedRanges %s comment \"BanMalware: %s\"\n", $1, $2 }' >> "$skynetipset"
+			awk '/^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-1])){1})([[:space:]]|$)/{printf "add Skynet-BlockedRanges %s comment \"BanMalware: %s\"\n", $1, $2 }' /tmp/skynet/malwarelist.txt >> "$skynetipset"
 			Display_Result
 			Display_Message "[i] Applying New Blacklist"
 			ipset flush Skynet-Blacklist; ipset flush Skynet-BlockedRanges
@@ -3641,12 +3639,12 @@ case "$1" in
 				if ! Is_IPRange < /tmp/skynet/iplist-unfiltered.txt; then echo "[*] No Content Detected - Stopping Import"; rm -rf /tmp/skynet/iplist-unfiltered.txt; echo; exit 1; fi
 				echo "[i] Processing List"
 				if [ -n "$4" ] && [ "${#4}" -le "245" ]; then
-					grep -vF "/" /tmp/skynet/iplist-unfiltered.txt | Filter_PrivateIP | awk -v desc="Imported: $4" '{printf "add Skynet-Blacklist %s comment \"%s\"\n", $1, desc }' > /tmp/skynet/iplist-filtered.txt
-					grep -F "/" /tmp/skynet/iplist-unfiltered.txt | Filter_PrivateIP | awk -v desc="Imported: $4" '{printf "add Skynet-BlockedRanges %s comment \"%s\"\n", $1, desc }' >> /tmp/skynet/iplist-filtered.txt
+					Filter_PrivateIP < /tmp/skynet/iplist-unfiltered.txt | awk -v desc="Imported: $4" '/^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(32))?)$/{printf "add Skynet-Blacklist %s comment \"%s\"\n", $1, desc }' > /tmp/skynet/iplist-filtered.txt
+					Filter_PrivateIP < /tmp/skynet/iplist-unfiltered.txt | awk -v desc="Imported: $4" '/^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-1])){1})$/{printf "add Skynet-BlockedRanges %s comment \"%s\"\n", $1, desc }' >> /tmp/skynet/iplist-filtered.txt
 				else
 					imptime="$(date +"%b %d %T")"
-					grep -vF "/" /tmp/skynet/iplist-unfiltered.txt | Filter_PrivateIP | awk -v desc="Imported: $imptime" '{printf "add Skynet-Blacklist %s comment \"%s\"\n", $1, desc }' > /tmp/skynet/iplist-filtered.txt
-					grep -F "/" /tmp/skynet/iplist-unfiltered.txt | Filter_PrivateIP | awk -v desc="Imported: $imptime" '{printf "add Skynet-BlockedRanges %s comment \"%s\"\n", $1, desc }' >> /tmp/skynet/iplist-filtered.txt
+					Filter_PrivateIP < /tmp/skynet/iplist-unfiltered.txt | awk -v desc="Imported: $imptime" '/^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(32))?)$/{printf "add Skynet-Blacklist %s comment \"%s\"\n", $1, desc }' > /tmp/skynet/iplist-filtered.txt
+					Filter_PrivateIP < /tmp/skynet/iplist-unfiltered.txt | awk -v desc="Imported: $imptime" '/^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-1])){1})$/{printf "add Skynet-BlockedRanges %s comment \"%s\"\n", $1, desc }' >> /tmp/skynet/iplist-filtered.txt
 				fi
 				echo "[i] Adding IPs To Blacklist"
 				ipset restore -! -f "/tmp/skynet/iplist-filtered.txt"
@@ -3716,9 +3714,9 @@ case "$1" in
 				dos2unix /tmp/skynet/iplist-unfiltered.txt
 				if ! Is_IPRange < /tmp/skynet/iplist-unfiltered.txt; then echo "[*] No Content Detected - Stopping Deport"; rm -rf /tmp/skynet/iplist-unfiltered.txt; echo; exit 1; fi
 				echo "[i] Processing IPv4 Addresses"
-				grep -vF "/" /tmp/skynet/iplist-unfiltered.txt | Filter_PrivateIP | awk '{printf "del Skynet-Blacklist %s\n", $1}' > /tmp/skynet/iplist-filtered.txt
+				Filter_PrivateIP < /tmp/skynet/iplist-unfiltered.txt | awk '/^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(32))?)$/{printf "del Skynet-Blacklist %s\n", $1}' > /tmp/skynet/iplist-filtered.txt
 				echo "[i] Processing IPv4 Ranges"
-				grep -F "/" /tmp/skynet/iplist-unfiltered.txt | Filter_PrivateIP | awk '{printf "del Skynet-BlockedRanges %s\n", $1}' >> /tmp/skynet/iplist-filtered.txt
+				Filter_PrivateIP < /tmp/skynet/iplist-unfiltered.txt | awk '/^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-1])){1})$/{printf "del Skynet-BlockedRanges %s\n", $1}' >> /tmp/skynet/iplist-filtered.txt
 				echo "[i] Removing IPs From Blacklist"
 				ipset restore -! -f "/tmp/skynet/iplist-filtered.txt"
 				rm -rf /tmp/skynet/iplist-unfiltered.txt /tmp/skynet/iplist-filtered.txt
@@ -3787,13 +3785,13 @@ case "$1" in
 		Load_Cron "save"
 		modprobe xt_set
 		if [ -f "$skynetipset" ]; then ipset restore -! -f "$skynetipset"; else logger -st Skynet "[i] Setting Up Skynet"; touch "$skynetipset"; fi
-		if ! ipset -L -n Skynet-Whitelist >/dev/null 2>&1; then ipset -q create Skynet-Whitelist hash:net comment; fi
-		if ! ipset -L -n Skynet-WhitelistDomains >/dev/null 2>&1; then ipset -q create Skynet-WhitelistDomains hash:ip --maxelem 500000 comment timeout 86400; fi
-		if ! ipset -L -n Skynet-Blacklist >/dev/null 2>&1; then ipset -q create Skynet-Blacklist hash:ip --maxelem 500000 comment; fi
-		if ! ipset -L -n Skynet-BlockedRanges >/dev/null 2>&1; then ipset -q create Skynet-BlockedRanges hash:net --maxelem 200000 comment; fi
+		if ! ipset -L -n Skynet-Whitelist >/dev/null 2>&1; then ipset -q create Skynet-Whitelist hash:net hashsize 64 maxelem "$((65536 * 6))" comment; fi
+		if ! ipset -L -n Skynet-WhitelistDomains >/dev/null 2>&1; then ipset -q create Skynet-WhitelistDomains hash:ip hashsize 64 maxelem "$((65536 * 8))" comment timeout 86400; fi
+		if ! ipset -L -n Skynet-Blacklist >/dev/null 2>&1; then ipset -q create Skynet-Blacklist hash:ip hashsize 64 maxelem "$((65536 * 8))" comment; fi
+		if ! ipset -L -n Skynet-BlockedRanges >/dev/null 2>&1; then ipset -q create Skynet-BlockedRanges hash:net hashsize 64 maxelem "$((65536 * 6))" comment; fi
 		if ! ipset -L -n Skynet-Master >/dev/null 2>&1; then ipset -q create Skynet-Master list:set; ipset -q -A Skynet-Master Skynet-Blacklist; ipset -q -A Skynet-Master Skynet-BlockedRanges; fi
 		if ! ipset -L -n Skynet-MasterWL >/dev/null 2>&1; then ipset -q create Skynet-MasterWL list:set; ipset -q -A Skynet-MasterWL Skynet-Whitelist; ipset -q -A Skynet-MasterWL Skynet-WhitelistDomains; fi
-		if ! ipset -L -n Skynet-IOT >/dev/null 2>&1; then ipset -q create Skynet-IOT hash:net comment; fi
+		if ! ipset -L -n Skynet-IOT >/dev/null 2>&1; then ipset -q create Skynet-IOT hash:net hashsize 64 maxelem "$((65536 * 6))" comment; fi
 		Unban_PrivateIP
 		Purge_Logs "all"
 		Whitelist_Extra
