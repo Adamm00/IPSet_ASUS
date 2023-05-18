@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            10/05/2023 - v7.4.0                                            #
+#                                            14/05/2023 - v7.4.1                                            #
 #############################################################################################################
 
 
@@ -630,7 +630,7 @@ Extended_DNSStats() {
 	case "$1" in
 		1)
 			if [ "$lookupcountry" = "enabled" ]; then
-				country="($(curl -fsL --retry 3 --connect-timeout 3 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${statdata}/countryCode/"))"
+				country="($(curl -fsL --retry 3 --connect-timeout 3 --max-time 6 --retry-delay 1 --retry-all-errors -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${statdata}/countryCode/"))"
 				if [ -z "$country" ]; then country="*"; fi
 			fi
 			banreason="$(grep -F " ${statdata} " "$skynetipset" | grep -m1 -vF "Skynet-MasterWL" | awk -F '"' '{print $2}')"
@@ -644,7 +644,7 @@ Extended_DNSStats() {
 			hits="$(echo "$statdata" | awk '{print $1}')"
 			ipaddr="$(echo "$statdata" | awk '{print $2}')"
 			if [ "$lookupcountry" = "enabled" ]; then
-				country="($(curl -fsL --retry 3 --connect-timeout 3 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${ipaddr}/countryCode/"))"
+				country="($(curl -fsL --retry 3 --connect-timeout 3 --max-time 6 --retry-delay 1 --retry-all-errors -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${ipaddr}/countryCode/"))"
 				if [ -z "$country" ]; then country="*"; fi
 			fi
 			banreason="$(grep -F " ${ipaddr} " "$skynetipset" | grep -m1 -vF "Skynet-MasterWL" | awk -F '"' '{print $2}')"
@@ -873,11 +873,11 @@ Whitelist_CDN() {
 	if [ "$cdnwhitelist" = "enabled" ]; then
 		{
 			# Apple AS714 | Akamai AS12222 AS16625 | HighWinds AS33438 AS20446 | Fastly AS54113 | GitHub AS36459
-			printf "AS714\nAS12222\nAS16625\nAS33438\nAS20446\nAS54113\nAS36459" | xargs -I {} sh -c 'curl -fsL --retry 3 --connect-timeout 3 https://asn.ipinfo.app/api/text/list/{} | awk -v asn={} '\''/^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)([[:space:]]|$)/{printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: %s\"\n", $1, asn }'\'''
-			curl -fsL --retry 3 --connect-timeout 3 https://www.cloudflare.com/ips-v4 | awk '/^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)([[:space:]]|$)/{printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: CloudFlare\"\n", $1 }'
-			curl -fsL --retry 3 --connect-timeout 3 https://ip-ranges.amazonaws.com/ip-ranges.json | awk 'BEGIN{RS="(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\\/(1?[0-9]|2?[0-9]|3?[0-2]))?)"}{if(RT)printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: Amazon\"\n", RT }'
-			curl -fsL --retry 3 --connect-timeout 3 https://api.github.com/meta | awk 'BEGIN{RS="(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\\/(1?[0-9]|2?[0-9]|3?[0-2]))?)"}{if(RT)printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: Github\"\n", RT }'
-			curl -fsL --retry 3 --connect-timeout 3 https://endpoints.office.com/endpoints/worldwide?clientrequestid="$(cat /proc/sys/kernel/random/uuid)" | awk 'BEGIN{RS="(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\\/(1?[0-9]|2?[0-9]|3?[0-2]))?)"}{if(RT)printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: Microsoft365\"\n", RT }'
+			printf "AS714\nAS12222\nAS16625\nAS33438\nAS20446\nAS54113\nAS36459" | xargs -I {} sh -c 'curl -fsL --retry 3 --connect-timeout 3 --max-time 6 --retry-delay 1 --retry-all-errors https://asn.ipinfo.app/api/text/list/{} | awk -v asn={} '\''/^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)([[:space:]]|$)/{printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: %s\"\n", $1, asn }'\'''
+			curl -fsL --retry 3 --connect-timeout 3 --max-time 6 --retry-delay 1 --retry-all-errors https://www.cloudflare.com/ips-v4 | awk '/^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)([[:space:]]|$)/{printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: CloudFlare\"\n", $1 }'
+			curl -fsL --retry 3 --connect-timeout 3 --max-time 6 --retry-delay 1 --retry-all-errors https://ip-ranges.amazonaws.com/ip-ranges.json | awk 'BEGIN{RS="(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\\/(1?[0-9]|2?[0-9]|3?[0-2]))?)"}{if(RT)printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: Amazon\"\n", RT }'
+			curl -fsL --retry 3 --connect-timeout 3 --max-time 6 --retry-delay 1 --retry-all-errors https://api.github.com/meta | awk 'BEGIN{RS="(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\\/(1?[0-9]|2?[0-9]|3?[0-2]))?)"}{if(RT)printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: Github\"\n", RT }'
+			curl -fsL --retry 3 --connect-timeout 3 --max-time 6 --retry-delay 1 --retry-all-errors https://endpoints.office.com/endpoints/worldwide?clientrequestid="$(awk '{printf "%s", $1}' /proc/sys/kernel/random/uuid)" | awk 'BEGIN{RS="(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\\/(1?[0-9]|2?[0-9]|3?[0-2]))?)"}{if(RT)printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: Microsoft365\"\n", RT }'
 		} | awk '!x[$0]++' | ipset restore -!
 	fi
 }
@@ -1001,7 +1001,7 @@ Generate_Stats() {
 				fi
 				if [ "${#banreason}" -gt "45" ]; then banreason="$(echo "$banreason" | cut -c 1-45)"; fi
 				alienvault="https://otx.alienvault.com/indicator/ip/${statdata}"
-				if [ "$lookupcountry" = "enabled" ]; then country="$(curl -fsL --retry 3 --connect-timeout 3 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${statdata}/countryName/")"; else country="*"; fi
+				if [ "$lookupcountry" = "enabled" ]; then country="$(curl -fsL --retry 3 --connect-timeout 3 --max-time 6 --retry-delay 1 --retry-all-errors -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${statdata}/countryName/")"; else country="*"; fi
 				if [ -z "$country" ]; then country="*"; fi
 				assdomains="$(grep -F "$statdata" "${skynetloc}/webui/stats/skynetstats.txt" | awk '{print $1}' | xargs)"
 				if [ -z "$assdomains" ]; then assdomains="*"; fi
@@ -1017,7 +1017,7 @@ Generate_Stats() {
 				fi
 				if [ "${#banreason}" -gt "45" ]; then banreason="$(echo "$banreason" | cut -c 1-45)"; fi
 				alienvault="https://otx.alienvault.com/indicator/ip/${statdata}"
-				if [ "$lookupcountry" = "enabled" ]; then country="$(curl -fsL --retry 3 --connect-timeout 3 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${statdata}/countryName/")"; else country="*"; fi
+				if [ "$lookupcountry" = "enabled" ]; then country="$(curl -fsL --retry 3 --connect-timeout 3 --max-time 6 --retry-delay 1 --retry-all-errors -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${statdata}/countryName/")"; else country="*"; fi
 				if [ -z "$country" ]; then country="*"; fi
 				assdomains="$(grep -F "$statdata" "${skynetloc}/webui/stats/skynetstats.txt" | awk '{print $1}' | xargs)"
 				if [ -z "$assdomains" ]; then assdomains="*"; fi
@@ -1033,7 +1033,7 @@ Generate_Stats() {
 				fi
 				if [ "${#banreason}" -gt "45" ]; then banreason="$(echo "$banreason" | cut -c 1-45)"; fi
 				alienvault="https://otx.alienvault.com/indicator/ip/${statdata}"
-				if [ "$lookupcountry" = "enabled" ]; then country="$(curl -fsL --retry 3 --connect-timeout 3 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${statdata}/countryName/")"; else country="*"; fi
+				if [ "$lookupcountry" = "enabled" ]; then country="$(curl -fsL --retry 3 --connect-timeout 3 --max-time 6 --retry-delay 1 --retry-all-errors -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${statdata}/countryName/")"; else country="*"; fi
 				if [ -z "$country" ]; then country="*"; fi
 				assdomains="$(grep -F "$statdata" "${skynetloc}/webui/stats/skynetstats.txt" | awk '{print $1}' | xargs)"
 				if [ -z "$assdomains" ]; then assdomains="*"; fi
@@ -1045,7 +1045,7 @@ Generate_Stats() {
 			grep -E 'DPT=80 |DPT=443 ' "$skynetlog" | grep -F "OUTBOUND" | grep -oE ' DST=[0-9,\.]*' | cut -c 6- | sort -n | uniq -c | sort -nr | head -10 | while IFS= read -r "statdata"; do
 				hits="$(echo "$statdata" | awk '{print $1}')"
 				ipaddr="$(echo "$statdata" | awk '{print $2}')"
-				if [ "$lookupcountry" = "enabled" ]; then country="$(curl -fsL --retry 3 --connect-timeout 3 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${ipaddr}/countryName/")"; else country="*"; fi
+				if [ "$lookupcountry" = "enabled" ]; then country="$(curl -fsL --retry 3 --connect-timeout 3 --max-time 6 --retry-delay 1 --retry-all-errors -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${ipaddr}/countryName/")"; else country="*"; fi
 				if [ -z "$country" ]; then country="*"; fi
 				echo "$hits~$ipaddr~$country" >> "${skynetloc}/webui/stats/thconn.txt"
 			done
@@ -1055,7 +1055,7 @@ Generate_Stats() {
 			grep -F "INBOUND" "$skynetlog" | grep -oE ' SRC=[0-9,\.]*' | cut -c 6- | sort -n | uniq -c | sort -nr | head -10 | while IFS= read -r "statdata"; do
 				hits="$(echo "$statdata" | awk '{print $1}')"
 				ipaddr="$(echo "$statdata" | awk '{print $2}')"
-				if [ "$lookupcountry" = "enabled" ]; then country="$(curl -fsL --retry 3 --connect-timeout 3 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${ipaddr}/countryName/")"; else country="*"; fi
+				if [ "$lookupcountry" = "enabled" ]; then country="$(curl -fsL --retry 3 --connect-timeout 3 --max-time 6 --retry-delay 1 --retry-all-errors -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${ipaddr}/countryName/")"; else country="*"; fi
 				if [ -z "$country" ]; then country="*"; fi
 				echo "$hits~$ipaddr~$country" >> "${skynetloc}/webui/stats/ticonn.txt"
 			done
@@ -1065,7 +1065,7 @@ Generate_Stats() {
 			grep -F "OUTBOUND" "$skynetlog" | grep -vE 'DPT=80 |DPT=443 ' | grep -oE ' DST=[0-9,\.]*' | cut -c 6- | sort -n | uniq -c | sort -nr | head -10 | while IFS= read -r "statdata"; do
 				hits="$(echo "$statdata" | awk '{print $1}')"
 				ipaddr="$(echo "$statdata" | awk '{print $2}')"
-				if [ "$lookupcountry" = "enabled" ]; then country="$(curl -fsL --retry 3 --connect-timeout 3 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${ipaddr}/countryName/")"; else country="*"; fi
+				if [ "$lookupcountry" = "enabled" ]; then country="$(curl -fsL --retry 3 --connect-timeout 3 --max-time 6 --retry-delay 1 --retry-all-errors -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${ipaddr}/countryName/")"; else country="*"; fi
 				if [ -z "$country" ]; then country="*"; fi
 				echo "$hits~$ipaddr~$country" >> "${skynetloc}/webui/stats/toconn.txt"
 			done
@@ -1159,8 +1159,8 @@ Uninstall_WebUI_Page() {
 }
 
 Download_File() {
-	if [ "$(curl -fsL --retry 3 --connect-timeout 3 "${remotedir}/${1}" | md5sum | awk '{print $1}')" != "$(md5sum "$2" 2>/dev/null | awk '{print $1}')" ] || [ "$3" = "-f" ]; then
-		if curl -fsL --retry 3 --connect-timeout 3 "${remotedir}/${1}" -o "$2"; then
+	if [ "$(curl -fsL --retry 3 --connect-timeout 3 --max-time 6 --retry-delay 1 --retry-all-errors "${remotedir}/${1}" | md5sum | awk '{print $1}')" != "$(md5sum "$2" 2>/dev/null | awk '{print $1}')" ] || [ "$3" = "-f" ]; then
+		if curl -fsL --retry 3 --connect-timeout 3 --max-time 6 --retry-delay 1 --retry-all-errors "${remotedir}/${1}" -o "$2"; then
 			echo "[i] Updated $(echo "$1" | awk -F / '{print $NF}')"
 		else
 			logger -t Skynet "[*] Updating $(echo "$1" | awk -F / '{print $NF}') Failed"; echo "[*] Updating $(echo "$1" | awk -F / '{print $NF}') Failed"
@@ -3347,7 +3347,7 @@ case "$1" in
 				echo "[i] Banning Known IP Ranges For (${3})"
 				echo "[i] Downloading Lists"
 				for country in $countrylinklist; do
-					curl -fskL --retry 3 --connect-timeout 3 https://ipdeny.com/ipblocks/data/aggregated/"$country"-aggregated.zone >> /tmp/skynet/countrylist.txt
+					curl -fskL --retry 3 --connect-timeout 3 --max-time 6 --retry-delay 1 --retry-all-errors https://ipdeny.com/ipblocks/data/aggregated/"$country"-aggregated.zone >> /tmp/skynet/countrylist.txt
 				done
 				echo "[i] Filtering IPv4 Ranges & Applying Blacklists"
 				grep -F "/" /tmp/skynet/countrylist.txt | sed -n "/^[0-9,\\.,\\/]*$/s/^/add Skynet-BlockedRanges /;s/$/& comment \"Country: $countrylist\"/p" | ipset restore -!
@@ -3358,7 +3358,7 @@ case "$1" in
 				if ! echo "$3" | Is_ASN; then echo "[*] $3 Is Not A Valid ASN"; echo; exit 2; fi
 				asnlist="$(echo "$3" | awk '{print toupper($0)}')"
 				echo "[i] Adding $asnlist To Blacklist"
-				curl -fsL --retry 3 --connect-timeout 3 "https://asn.ipinfo.app/api/text/list/$asnlist" | awk -v asn="$asnlist" '/^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)([[:space:]]|$)/{printf "add Skynet-BlockedRanges %s comment \"ASN: %s \"\n", $1, asn }' | awk '!x[$0]++' | ipset restore -!
+				curl -fsL --retry 3 --connect-timeout 3 --max-time 6 --retry-delay 1 --retry-all-errors "https://asn.ipinfo.app/api/text/list/$asnlist" | awk -v asn="$asnlist" '/^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)([[:space:]]|$)/{printf "add Skynet-BlockedRanges %s comment \"ASN: %s \"\n", $1, asn }' | awk '!x[$0]++' | ipset restore -!
 			;;
 			*)
 				echo "Command Not Recognized, Please Try Again"
@@ -3433,9 +3433,9 @@ case "$1" in
 		curl -fsSI "$listurl" >/dev/null || { echo "[*] Stopping Banmalware"; echo; exit 1; }
 		Display_Message "[i] Downloading filter.list"
 		if [ -n "$excludelists" ]; then
-			curl -fsL --retry 3 --connect-timeout 3 "$listurl" | dos2unix | grep -vE "($excludelists)" > /jffs/addons/shared-whitelists/shared-Skynet-whitelist && Display_Result
+			curl -fsL --retry 3 --connect-timeout 3 --max-time 6 --retry-delay 1 --retry-all-errors "$listurl" | dos2unix | grep -vE "($excludelists)" > /jffs/addons/shared-whitelists/shared-Skynet-whitelist && Display_Result
 		else
-			curl -fsL --retry 3 --connect-timeout 3 "$listurl" | dos2unix > /jffs/addons/shared-whitelists/shared-Skynet-whitelist && Display_Result
+			curl -fsL --retry 3 --connect-timeout 3 --max-time 6 --retry-delay 1 --retry-all-errors "$listurl" | dos2unix > /jffs/addons/shared-whitelists/shared-Skynet-whitelist && Display_Result
 		fi
 		sed -i '\~^http[s]*://\|^www.~!d;' /jffs/addons/shared-whitelists/shared-Skynet-whitelist
 		Display_Message "[i] Refreshing Whitelists"
@@ -3539,7 +3539,7 @@ case "$1" in
 				if ! echo "$3" | Is_ASN; then echo "[*] $3 Is Not A Valid ASN"; echo; exit 2; fi
 				asnlist="$(echo "$3" | awk '{print toupper($0)}')"
 				echo "[i] Adding $asnlist To Whitelist"
-				curl -fsL --retry 3 --connect-timeout 3 "https://asn.ipinfo.app/api/text/list/$asnlist" | awk -v asn="$asnlist" '/^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)([[:space:]]|$)/{printf "add Skynet-Whitelist %s comment \"ASN: %s \"\n", $1, asn }'| awk '!x[$0]++' | ipset restore -!
+				curl -fsL --retry 3 --connect-timeout 3 --max-time 6 --retry-delay 1 --retry-all-errors "https://asn.ipinfo.app/api/text/list/$asnlist" | awk -v asn="$asnlist" '/^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)([[:space:]]|$)/{printf "add Skynet-Whitelist %s comment \"ASN: %s \"\n", $1, asn }'| awk '!x[$0]++' | ipset restore -!
 			;;
 			remove)
 				case "$3" in
@@ -3630,7 +3630,7 @@ case "$1" in
 					grep -E '^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)$' "$3" > /tmp/skynet/iplist-unfiltered.txt
 				elif [ -n "$3" ]; then
 					echo "[i] Remote Custom List Detected: $3"
-					curl -fsL --retry 3 --connect-timeout 3 "$3" | dos2unix | grep -E '^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)$' > /tmp/skynet/iplist-unfiltered.txt || { echo "[*] 404 Error Detected - Stopping Import"; rm -rf /tmp/skynet/iplist-unfiltered.txt; echo; exit 1; }
+					curl -fsL --retry 3 --connect-timeout 3 --max-time 6 --retry-delay 1 --retry-all-errors "$3" | dos2unix | grep -E '^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)$' > /tmp/skynet/iplist-unfiltered.txt || { echo "[*] 404 Error Detected - Stopping Import"; rm -rf /tmp/skynet/iplist-unfiltered.txt; echo; exit 1; }
 				else
 					echo "[*] URL/File Field Can't Be Empty - Please Try Again"
 					echo; exit 2
@@ -3663,7 +3663,7 @@ case "$1" in
 					grep -E '^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)$' "$3" > /tmp/skynet/iplist-unfiltered.txt
 				elif [ -n "$3" ]; then
 					echo "[i] Remote Custom List Detected: $3"
-					curl -fsL --retry 3 --connect-timeout 3 "$3" | dos2unix | grep -E '^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)$' > /tmp/skynet/iplist-unfiltered.txt || { echo "[*] 404 Error Detected - Stopping Import"; rm -rf /tmp/skynet/iplist-unfiltered.txt; echo; exit 1; }
+					curl -fsL --retry 3 --connect-timeout 3 --max-time 6 --retry-delay 1 --retry-all-errors "$3" | dos2unix | grep -E '^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)$' > /tmp/skynet/iplist-unfiltered.txt || { echo "[*] 404 Error Detected - Stopping Import"; rm -rf /tmp/skynet/iplist-unfiltered.txt; echo; exit 1; }
 				else
 					echo "[*] URL/File Field Can't Be Empty - Please Try Again"
 					echo; exit 2
@@ -3706,7 +3706,7 @@ case "$1" in
 					grep -E '^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)$' "$3" > /tmp/skynet/iplist-unfiltered.txt
 				elif [ -n "$3" ]; then
 					echo "[i] Remote Custom List Detected: $3"
-					curl -fsL --retry 3 --connect-timeout 3 "$3" | dos2unix | grep -E '^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)$' > /tmp/skynet/iplist-unfiltered.txt || { echo "[*] 404 Error Detected - Stopping Import"; rm -rf /tmp/skynet/iplist-unfiltered.txt; echo; exit 1; }
+					curl -fsL --retry 3 --connect-timeout 3 --max-time 6 --retry-delay 1 --retry-all-errors "$3" | dos2unix | grep -E '^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)$' > /tmp/skynet/iplist-unfiltered.txt || { echo "[*] 404 Error Detected - Stopping Import"; rm -rf /tmp/skynet/iplist-unfiltered.txt; echo; exit 1; }
 				else
 					echo "[*] URL/File Field Can't Be Empty - Please Try Again"
 					echo; exit 2
@@ -3734,7 +3734,7 @@ case "$1" in
 					grep -E '^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)$' "$3" > /tmp/skynet/iplist-unfiltered.txt
 				elif [ -n "$3" ]; then
 					echo "[i] Remote Custom List Detected: $3"
-					curl -fsL --retry 3 --connect-timeout 3 "$3" | dos2unix | grep -E '^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)$' > /tmp/skynet/iplist-unfiltered.txt || { echo "[*] 404 Error Detected - Stopping Import"; rm -rf /tmp/skynet/iplist-unfiltered.txt; echo; exit 1; }
+					curl -fsL --retry 3 --connect-timeout 3 --max-time 6 --retry-delay 1 --retry-all-errors "$3" | dos2unix | grep -E '^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)$' > /tmp/skynet/iplist-unfiltered.txt || { echo "[*] 404 Error Detected - Stopping Import"; rm -rf /tmp/skynet/iplist-unfiltered.txt; echo; exit 1; }
 				else
 					echo "[*] URL/File Field Can't Be Empty - Please Try Again"
 					echo; exit 2
@@ -3858,9 +3858,9 @@ case "$1" in
 		Check_Lock "$@"
 		if ! Check_Connection; then echo "[*] Connection Error Detected - Exiting"; echo; exit 1; fi
 		remotedir="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master"
-		remotever="$(curl -fsL --retry 3 --connect-timeout 3 "${remotedir}/firewall.sh" | Filter_Version)"
+		remotever="$(curl -fsL --retry 3 --connect-timeout 3 --max-time 6 --retry-delay 1 --retry-all-errors "${remotedir}/firewall.sh" | Filter_Version)"
 		localmd5="$(md5sum "$0" | awk '{print $1}')"
-		remotemd5="$(curl -fsL --retry 3 --connect-timeout 3 "${remotedir}/firewall.sh" | md5sum | awk '{print $1}')"
+		remotemd5="$(curl -fsL --retry 3 --connect-timeout 3 --max-time 6 --retry-delay 1 --retry-all-errors "${remotedir}/firewall.sh" | md5sum | awk '{print $1}')"
 		if [ "$localmd5" = "$remotemd5" ] && [ "$2" != "-f" ]; then
 			logger -t Skynet "[i] Skynet Up To Date - $localver (${localmd5})"; echo "[i] Skynet Up To Date - $localver (${localmd5})"
 			nolog="2"
@@ -4982,7 +4982,7 @@ case "$1" in
 							done
 							echo; echo
 						fi
-						echo "[i] IP Location - $(curl -fsL --retry 3 --connect-timeout 3 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${4}/countryName/") ($(curl -fsL --retry 3 --connect-timeout 3 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://ipapi.co/${4}/org/") / $(curl -fsL --retry 3 --connect-timeout 3 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://ipapi.co/${4}/asn/"))"
+						echo "[i] IP Location - $(curl -fsL --retry 3 --connect-timeout 3 --max-time 6 --retry-delay 1 --retry-all-errors -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${4}/countryName/") ($(curl -fsL --retry 3 --connect-timeout 3 --max-time 6 --retry-delay 1 --retry-all-errors -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://ipapi.co/${4}/org/") / $(curl -fsL --retry 3 --connect-timeout 3 --max-time 6 --retry-delay 1 --retry-all-errors -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://ipapi.co/${4}/asn/"))"
 						echo
 						echo "[i] $4 First Tracked On $(grep -m1 -F "=$4 " "$skynetlog" | awk '{printf "%s %s %s\n", $1, $2, $3}')"
 						echo "[i] $4 Last Tracked On $(grep -F "=$4 " "$skynetlog" | tail -1 | awk '{printf "%s %s %s\n", $1, $2, $3}')"
