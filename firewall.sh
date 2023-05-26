@@ -868,8 +868,7 @@ Whitelist_Extra() {
 	$(nvram get "ntp_server1")" | tr -d "\t" > /jffs/addons/shared-whitelists/shared-Skynet2-whitelist
 }
 
-Whitelist_CDN() {
-	
+Whitelist_CDN() {	
 	if [ "$cdnwhitelist" = "enabled" ]; then
 		{
 			awk '/CDN-Whitelist/{print $0}' "$skynetipset"
