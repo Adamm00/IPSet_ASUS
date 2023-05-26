@@ -3798,8 +3798,8 @@ case "$1" in
 		Purge_Logs "all"
 		Whitelist_Extra
 		Whitelist_CDN
-		Whitelist_VPN
 		sed '\~add Skynet-Whitelist ~!d;\~nvram: ~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
+		Whitelist_VPN
 		Whitelist_Shared
 		Refresh_MWhitelist
 		Refresh_MBans
