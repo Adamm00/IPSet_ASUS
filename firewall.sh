@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            28/05/2023 - v7.4.2                                            #
+#                                            28/05/2023 - v7.4.3                                            #
 #############################################################################################################
 
 
@@ -353,12 +353,12 @@ Check_Security() {
 			echo "add Skynet-Blacklist $ip comment \"Malware: chkupdate.sh\""
 		done | ipset restore -!
 	fi
-	if [ -f "/jffs/updater" ] || nvram get "jffs2_exec" | grep -qF "/jffs/updater" || nvram get "script_usbmount" | grep -qF "/jffs/updater" || nvram get "script_usbumount" | grep -qF "/jffs/updater" || nvram get "vpn_server_custom" | grep -qF "/jffs/updater" || nvram get "vpn_server1_custom" | grep -qF "/jffs/updater" || cru l | grep -qF "/jffs/updater" 2>/dev/null; then
+	if [ -f "/jffs/updater" ] || [ -f "/tmp/pawns-cli" ] || [ -f "/tmp/updateservice" ] || nvram get "jffs2_exec" | grep -qF "/jffs/updater" || nvram get "script_usbmount" | grep -qF "/jffs/updater" || nvram get "script_usbumount" | grep -qF "/jffs/updater" || nvram get "vpn_server_custom" | grep -qF "/jffs/updater" || nvram get "vpn_server1_custom" | grep -qF "/jffs/updater" || cru l | grep -qF "/jffs/updater" 2>/dev/null; then
 		logger -st Skynet "[!] Warning! Router Malware Detected (/jffs/updater) - Investigate Immediately!"
 		logger -st Skynet "[!] Caching Potential Updater Malware: ${skynetloc}/malwareupdater.tar.gz"
 		nvram savefile "/tmp/nvramoutput.txt"
-		tar -czf "${skynetloc}/malwareupdater.tar.gz" "/jffs/updater" "/tmp/updateservice" "/tmp/nvramoutput.txt" "/root/.profile" >/dev/null 2>&1
-		rm -rf "/jffs/updater" "/tmp/updateservice" "/tmp/nvramoutput.txt"
+		tar -czf "${skynetloc}/malwareupdater.tar.gz" "/jffs/updater" "/tmp/pawns-cli" "/tmp/updateservice" "/tmp/nvramoutput.txt" "/root/.profile" >/dev/null 2>&1
+		rm -rf "/jffs/updater" "/tmp/updateservice" "/tmp/nvramoutput.txt" "/tmp/pawns-cli"
 		echo > "/root/.profile"
 		cru d updater
 		nvram unset jffs2_exec
@@ -366,7 +366,9 @@ Check_Security() {
 		nvram unset script_usbumount
 		nvram unset vpn_server_custom
 		nvram unset vpn_server1_custom
-		nvram save
+		nvram set vpn_server_state=0
+		nvram set vpn_server1_state=0
+		nvram commit
 		restartfirewall="1"
 	fi
 }
