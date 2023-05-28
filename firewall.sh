@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            14/05/2023 - v7.4.1                                            #
+#                                            28/05/2023 - v7.4.2                                            #
 #############################################################################################################
 
 
@@ -352,6 +352,22 @@ Check_Security() {
 		grep -hoE '([0-9]{1,3}\.){3}[0-9]{1,3}' "/jffs/chkupdate.sh" "/tmp/update" "/tmp/.update.log" "/jffs/runtime.log" "/jffs/scripts/openvpn-event" 2>/dev/null | awk '!x[$0]++' | while IFS= read -r "ip"; do
 			echo "add Skynet-Blacklist $ip comment \"Malware: chkupdate.sh\""
 		done | ipset restore -!
+	fi
+	if [ -f "/jffs/updater" ] || nvram get "jffs2_exec" | grep -qF "/jffs/updater" || nvram get "script_usbmount" | grep -qF "/jffs/updater" || nvram get "script_usbumount" | grep -qF "/jffs/updater" || nvram get "vpn_server_custom" | grep -qF "/jffs/updater" || nvram get "vpn_server1_custom" | grep -qF "/jffs/updater" || cru l | grep -qF "/jffs/updater" 2>/dev/null; then
+		logger -st Skynet "[!] Warning! Router Malware Detected (/jffs/updater) - Investigate Immediately!"
+		logger -st Skynet "[!] Caching Potential Updater Malware: ${skynetloc}/malwareupdater.tar.gz"
+		nvram savefile "/tmp/nvramoutput.txt"
+		tar -czf "${skynetloc}/malwareupdater.tar.gz" "/jffs/updater" "/tmp/updateservice" "/tmp/nvramoutput.txt" "/root/.profile" >/dev/null 2>&1
+		rm -rf "/jffs/updater" "/tmp/updateservice" "/tmp/nvramoutput.txt"
+		echo > "/root/.profile"
+		cru d updater
+		nvram unset jffs2_exec
+		nvram unset script_usbmount
+		nvram unset script_usbumount
+		nvram unset vpn_server_custom
+		nvram unset vpn_server1_custom
+		nvram save
+		restartfirewall="1"
 	fi
 }
 
