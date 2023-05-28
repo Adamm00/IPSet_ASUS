@@ -366,7 +366,7 @@ Check_Security() {
 		nvram unset script_usbumount
 		nvram unset vpn_server_custom
 		nvram unset vpn_server1_custom
-		nvram save
+		nvram commit
 		restartfirewall="1"
 	fi
 }
