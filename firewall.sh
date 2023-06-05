@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            28/05/2023 - v7.4.3                                            #
+#                                            05/06/2023 - v7.4.4                                            #
 #############################################################################################################
 
 
@@ -886,7 +886,7 @@ Whitelist_Extra() {
 	$(nvram get "ntp_server1")" | tr -d "\t" > /jffs/addons/shared-whitelists/shared-Skynet2-whitelist
 }
 
-Whitelist_CDN() {	
+Whitelist_CDN() {
 	if [ "$cdnwhitelist" = "enabled" ]; then
 		{
 			# Apple AS714 | Akamai AS12222 AS16625 | HighWinds AS33438 AS20446 | Fastly AS54113 | GitHub AS36459
@@ -895,12 +895,12 @@ Whitelist_CDN() {
 			curl -fsL --retry 3 --connect-timeout 3 --max-time 6 --retry-delay 1 --retry-all-errors https://ip-ranges.amazonaws.com/ip-ranges.json | awk 'BEGIN{RS="(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\\/(1?[0-9]|2?[0-9]|3?[0-2]))?)"}{if(RT)printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: Amazon\"\n", RT }'
 			curl -fsL --retry 3 --connect-timeout 3 --max-time 6 --retry-delay 1 --retry-all-errors https://api.github.com/meta | awk 'BEGIN{RS="(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\\/(1?[0-9]|2?[0-9]|3?[0-2]))?)"}{if(RT)printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: Github\"\n", RT }'
 			curl -fsL --retry 3 --connect-timeout 3 --max-time 6 --retry-delay 1 --retry-all-errors https://endpoints.office.com/endpoints/worldwide?clientrequestid="$(awk '{printf "%s", $1}' /proc/sys/kernel/random/uuid)" | awk 'BEGIN{RS="(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\\/(1?[0-9]|2?[0-9]|3?[0-2]))?)"}{if(RT)printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: Microsoft365\"\n", RT }'
-		} | awk '!x[$0]++' > /tmp/skynet/CDNwhitelist.list
+		} | awk '!x[$0]++' > /tmp/skynet/cdnwhitelist.list
 	fi
 	sed '\~add Skynet-Whitelist ~!d;\~CDN-Whitelist~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
-	if [ -f "/tmp/skynet/CDNwhitelist.list" ]; then
-		awk '{print $0}' /tmp/skynet/CDNwhitelist.list | ipset restore -!
-		rm -rf /tmp/skynet/CDNwhitelist.list
+	if [ -f "/tmp/skynet/cdnwhitelist.list" ]; then
+		awk '{print $0}' /tmp/skynet/cdnwhitelist.list | ipset restore -!
+		rm -rf "/tmp/skynet/cdnwhitelist.list"
 	fi
 }
 
