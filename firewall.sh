@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            20/06/2023 - v7.4.5                                            #
+#                                            18/09/2023 - v7.4.6                                            #
 #############################################################################################################
 
 
@@ -651,9 +651,9 @@ Extended_DNSStats() {
 				country="($(curl -fsL --retry 3 --connect-timeout 3 --max-time 6 --retry-delay 1 --retry-all-errors -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${statdata}/countryCode/"))"
 				if [ -z "$country" ]; then country="*"; fi
 			fi
-			banreason="$(grep -F " ${statdata} " "$skynetipset" | grep -m1 -vF "Skynet-MasterWL" | awk -F '"' '{print $2}')"
+			banreason="$(grep -F " ${statdata} " "$skynetipset" | grep -vE "(Skynet-Whitelist){1}(Domains){0,1}" | awk -F '"' '{print $2}')"
 			if [ -z "$banreason" ]; then
-				banreason="$(grep -E "$(echo "$statdata" | cut -d '.' -f1-3)..*/" "$skynetipset" | grep -m1 -vF "Skynet-MasterWL" | awk -F '"' '{print $2}')*"
+				banreason="$(grep -E "$(echo "$statdata" | cut -d '.' -f1-3)\..*/" "$skynetipset" | grep -vE "(Skynet-Whitelist){1}(Domains){0,1}" | awk -F '"' '{print $2}')*"
 			fi
 			if [ "${#banreason}" -gt "45" ]; then banreason="$(echo "$banreason" | cut -c 1-45)"; fi
 			printf '%-15s %-4s | %-55s | %-45s | %-60s \n' "$statdata" "$country" "https://otx.alienvault.com/indicator/ip/${statdata}" "$banreason" "$(grep -F "$statdata" /tmp/skynet/skynetstats.txt | awk '{print $1}' | xargs)"
@@ -665,9 +665,9 @@ Extended_DNSStats() {
 				country="($(curl -fsL --retry 3 --connect-timeout 3 --max-time 6 --retry-delay 1 --retry-all-errors -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${ipaddr}/countryCode/"))"
 				if [ -z "$country" ]; then country="*"; fi
 			fi
-			banreason="$(grep -F " ${ipaddr} " "$skynetipset" | grep -m1 -vF "Skynet-MasterWL" | awk -F '"' '{print $2}')"
+			banreason="$(grep -F " ${ipaddr} " "$skynetipset" | grep -vE "(Skynet-Whitelist){1}(Domains){0,1}" | awk -F '"' '{print $2}')"
 			if [ -z "$banreason" ]; then
-				banreason="$(grep -E "$(echo "$ipaddr" | cut -d '.' -f1-3)..*/" "$skynetipset" | grep -m1 -vF "Skynet-MasterWL" | awk -F '"' '{print $2}')*"
+				banreason="$(grep -E "$(echo "$ipaddr" | cut -d '.' -f1-3)\..*/" "$skynetipset" | grep -vE "(Skynet-Whitelist){1}(Domains){0,1}" | awk -F '"' '{print $2}')*"
 			fi
 			if [ "${#banreason}" -gt "45" ]; then banreason="$(echo "$banreason" | cut -c 1-45)"; fi
 			printf '%-10s | %-15s %-4s | %-55s | %-45s | %-60s\n' "${hits}x" "${ipaddr}" "${country}" "https://otx.alienvault.com/indicator/ip/${ipaddr}" "$banreason" "$(grep -F "$ipaddr" /tmp/skynet/skynetstats.txt | awk '{print $1}' | xargs)"
