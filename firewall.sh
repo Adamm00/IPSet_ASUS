@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            10/01/2024 - v7.5.1                                            #
+#                                            15/01/2024 - v7.5.2                                            #
 #############################################################################################################
 
 
@@ -1099,18 +1099,7 @@ Generate_Stats() {
 			while IFS= read -r "line"; do
 				ipaddr="$(echo "$line" | awk -F "~" '{print $2}')"
 				macaddr="$(ip neigh | grep -E '^([0-9]{1,3}\.){3}[0-9]{1,3} ' | grep -F "$ipaddr " | awk '{print $5}')"
-				localname="$(nvram get custom_clientlist | grep -ioE "<.*>$macaddr" | awk -F ">" '{print $(NF-1)}' | tr -d '<')"
-				if [ "$ipaddr" = "$(nvram get wan0_ipaddr)" ]; then
-						localname="$model"
-				fi
-				if [ -z "$localname" ]; then localname="$(grep -F " $(echo "$line" | awk -F "~" '{print $2}') " /var/lib/misc/dnsmasq.leases | awk '{print $4}')"; fi
-				if [ -z "$localname" ] || [ "$localname" = "*" ]; then
-					if [ ! -z "$macaddr" ]; then
-						macaddr2="$(echo "$macaddr" | sed 'y/abcdefghijklmnopqrstuvwxyz/ABCDEFGHIJKLMNOPQRSTUVWXYZ/' | tr -d ':' | cut -c 1-6)"
-						localname="$(grep "$macaddr2" /www/ajax/ouiDB.json | sed 's/.*"\([^"]*\)".*/\1/')" # Local OUI Method
-					fi
-					if [ -z "$localname" ] || [ "$localname" = "*" ]; then localname="Unknown"; fi
-				fi
+				Get_LocalName
 				if [ "${#localname}" -gt "20" ]; then
 					localname="$(echo "$localname" | cut -c 1-20)"
 				fi
@@ -1198,6 +1187,21 @@ Download_File() {
 		else
 			logger -t Skynet "[*] Updating $(echo "$1" | awk -F / '{print $NF}') Failed"; echo "[*] Updating $(echo "$1" | awk -F / '{print $NF}') Failed"
 		fi
+	fi
+}
+
+Get_LocalName() {
+	localname="$(nvram get custom_clientlist | grep -ioE "<.*>$macaddr" | awk -F ">" '{print $(NF-1)}' | tr -d '<')"
+	if [ -z "$localname" ]; then localname="$(grep -F "$ipaddr " /var/lib/misc/dnsmasq.leases | awk '{print $4}')"; fi
+	if [ -z "$localname" ] || [ "$localname" = "*" ]; then
+		if [ ! -z "$macaddr" ]; then
+			macaddr2="$(echo "$macaddr" | sed 'y/abcdefghijklmnopqrstuvwxyz/ABCDEFGHIJKLMNOPQRSTUVWXYZ/' | tr -d ':' | cut -c 1-6)"
+			localname="$(grep "$macaddr2" /www/ajax/ouiDB.json | sed 's/.*"\([^"]*\)".*/\1/')" 
+		fi
+		if [ -z "$localname" ] || [ "$localname" = "*" ]; then localname="Unknown"; fi
+	fi
+	if [ "${#localname}" -gt "40" ]; then
+		localname="$(echo "$localname" | cut -c 1-40)"
 	fi
 }
 
@@ -4287,18 +4291,7 @@ case "$1" in
 						ip neigh | grep -E '^([0-9]{1,3}\.){3}[0-9]{1,3} ' | sort -n -t . -k 1,1 -k 2,2 -k 3,3 -k 4,4 | while IFS= read -r "ip"; do
 							ipaddr="$(echo "$ip" | awk '{print $1}')"
 							macaddr="$(echo "$ip" | awk '{print $5}')"
-							localname="$(nvram get custom_clientlist | grep -ioE "<.*>$macaddr" | awk -F ">" '{print $(NF-1)}' | tr -d '<')"
-							if [ -z "$localname" ]; then  localname="$(grep -F " $ipaddr " /var/lib/misc/dnsmasq.leases | awk '{print $4}')"; fi
-							if [ -z "$localname" ] || [ "$localname" = "*" ]; then
-								if [ ! -z "$macaddr" ]; then
-									macaddr2="$(echo "$macaddr" | sed 'y/abcdefghijklmnopqrstuvwxyz/ABCDEFGHIJKLMNOPQRSTUVWXYZ/' | tr -d ':' | cut -c 1-6)"
-									localname="$(grep "$macaddr2" /www/ajax/ouiDB.json | sed 's/.*"\([^"]*\)".*/\1/')" # Local OUI Method
-								fi
-								if [ -z "$localname" ] || [ "$localname" = "*" ]; then localname="Unknown"; fi
-							fi
-							if [ "${#localname}" -gt "40" ]; then
-								localname="$(echo "$localname" | cut -c 1-40)"
-							fi
+							Get_LocalName
 							state="$(echo "$ip" | awk '{print $6}')"
 							if ! echo "$macaddr" | Is_MAC; then
 								macaddr="Unknown"
@@ -4630,19 +4623,7 @@ case "$1" in
 				ip neigh | grep -E '^([0-9]{1,3}\.){3}[0-9]{1,3} ' | sort -n -t . -k 1,1 -k 2,2 -k 3,3 -k 4,4 | while IFS= read -r "ip"; do
 					ipaddr="$(echo "$ip" | awk '{print $1}')"
 					macaddr="$(echo "$ip" | awk '{print $5}')"
-					localname="$(nvram get custom_clientlist | grep -ioE "<.*>$macaddr" | awk -F ">" '{print $(NF-1)}' | tr -d '<')"
-					if [ -z "$localname" ]; then localname="$(grep -F " $ipaddr " /var/lib/misc/dnsmasq.leases | awk '{print $4}')"; fi
-					if [ -z "$localname" ] || [ "$localname" = "*" ]; then
-						if [ ! -z "$macaddr" ]; then
-							macaddr2="$(echo "$macaddr" | sed 'y/abcdefghijklmnopqrstuvwxyz/ABCDEFGHIJKLMNOPQRSTUVWXYZ/' | tr -d ':' | cut -c 1-6)"
-							localname="$(grep "$macaddr2" /www/ajax/ouiDB.json | sed 's/.*"\([^"]*\)".*/\1/')" # Local OUI Method
-							# localname="$(grep "$macaddr2" /opt/tmp/oui.txt | cut -d')' -f2 | sed 's/[^[:alpha:] ]//g')" # Remote file OUI Method
-						fi
-						if [ -z "$localname" ] || [ "$localname" = "*" ]; then localname="Unknown"; fi
-					fi
-					if [ "${#localname}" -gt "40" ]; then
-						localname="$(echo "$localname" | cut -c 1-40)"
-					fi
+					Get_LocalName
 					state="$(echo "$ip" | awk '{print $6}')"
 					if ! echo "$macaddr" | Is_MAC; then
 						macaddr="Unknown"
@@ -5314,21 +5295,8 @@ case "$1" in
 					hits="$(echo "$statdata" | awk '{print $1}')"
 					ipaddr="$(echo "$statdata" | awk '{print $2}')"
 					macaddr="$(ip neigh | grep -F "$ipaddr" | awk '{print $5}')"
-					localname="$(nvram get custom_clientlist | grep -ioE "<.*>$macaddr" | awk -F ">" '{print $(NF-1)}' | tr -d '<')"
-					if [ "$ipaddr" = "$(nvram get wan0_ipaddr)" ]; then
-						localname="$model (Router)"
-					fi
-					if [ -z "$localname" ]; then localname="$(grep -F "$ipaddr " /var/lib/misc/dnsmasq.leases | awk '{print $4}')"; fi
-					if [ -z "$localname" ] || [ "$localname" = "*" ]; then
-						if [ ! -z "$macaddr" ]; then
-							macaddr2="$(echo "$macaddr" | sed 'y/abcdefghijklmnopqrstuvwxyz/ABCDEFGHIJKLMNOPQRSTUVWXYZ/' | tr -d ':' | cut -c 1-6)"
-							localname="$(grep "$macaddr2" /www/ajax/ouiDB.json | sed 's/.*"\([^"]*\)".*/\1/')" # Local OUI Method
-						fi
-						if [ -z "$localname" ] || [ "$localname" = "*" ]; then localname="Unknown"; fi
-					fi
-					if [ "${#localname}" -gt "40" ]; then
-						localname="$(echo "$localname" | cut -c 1-40)"
-					fi
+					Get_LocalName
+					if [ "$ipaddr" = "$(nvram get wan0_ipaddr)" ]; then localname="$model"; fi
 					printf '%-10s | %-16s | %-60s\n' "${hits}x" "${ipaddr}" "$localname"
 				done
 			;;
