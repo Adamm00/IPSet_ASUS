@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            15/01/2024 - v7.5.2                                            #
+#                                            16/01/2024 - v7.5.3                                            #
 #############################################################################################################
 
 
@@ -379,6 +379,7 @@ Clean_Temp() {
 }
 
 Unload_IPTables() {
+	iptables -t raw -D PREROUTING -i tun2+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null
 	iptables -t raw -D PREROUTING -i "$iface" -m set ! --match-set Skynet-MasterWL src -m set --match-set Skynet-Master src -j DROP 2>/dev/null
 	iptables -t raw -D PREROUTING -i br+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null
 	iptables -t raw -D OUTPUT -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null
@@ -389,6 +390,9 @@ Unload_IPTables() {
 }
 
 Load_IPTables() {
+	if [ "$(nvram get vpn_server1_state)" != "0" ] || [ "$(nvram get vpn_server2_state)" != "0" ]; then
+		iptables -t raw -I PREROUTING -i tun2+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null
+	fi
 	if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "inbound" ]; then
 		iptables -t raw -I PREROUTING -i "$iface" -m set ! --match-set Skynet-MasterWL src -m set --match-set Skynet-Master src -j DROP 2>/dev/null
 	fi
@@ -399,6 +403,7 @@ Load_IPTables() {
 }
 
 Unload_LogIPTables() {
+	iptables -t raw -D PREROUTING -i tun2+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 	iptables -t raw -D PREROUTING -i "$iface" -m set ! --match-set Skynet-MasterWL src -m set --match-set Skynet-Master src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 	iptables -t raw -D PREROUTING -i br+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 	iptables -t raw -D OUTPUT -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
@@ -408,12 +413,16 @@ Unload_LogIPTables() {
 
 Load_LogIPTables() {
 	if [ "$logmode" = "enabled" ]; then
+		if [ "$(nvram get vpn_server1_state)" != "0" ] || [ "$(nvram get vpn_server2_state)" != "0" ]; then
+			pos1="$(iptables --line -vnL PREROUTING -t raw | grep -F "Skynet-Master dst" | grep -F "DROP" | grep -F "tun" | awk '{print $1}')"
+			iptables -t raw -I PREROUTING "$pos1" -i tun2+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
+		fi
 		if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "inbound" ]; then
 			pos2="$(iptables --line -nL PREROUTING -t raw | grep -F "Skynet-Master src" | grep -F "DROP" | awk '{print $1}')"
 			iptables -t raw -I PREROUTING "$pos2" -i "$iface" -m set ! --match-set Skynet-MasterWL src -m set --match-set Skynet-Master src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 		fi
 		if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "outbound" ]; then
-			pos3="$(iptables --line -nL PREROUTING -t raw | grep -F "Skynet-Master dst" | grep -F "DROP" | awk '{print $1}')"
+			pos3="$(iptables --line -vnL PREROUTING -t raw | grep -F "Skynet-Master dst" | grep -F "DROP" | grep -vF "tun" | awk '{print $1}')"
 			iptables -t raw -I PREROUTING "$pos3" -i br+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 			pos4="$(iptables --line -nL OUTPUT -t raw | grep -F "Skynet-Master dst" | grep -F "DROP" | awk '{print $1}')"
 			iptables -t raw -I OUTPUT "$pos4" -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
@@ -482,44 +491,50 @@ Check_IPSets() {
 }
 
 Check_IPTables() {
+	if [ "$(nvram get vpn_server1_state)" != "0" ] || [ "$(nvram get vpn_server2_state)" != "0" ]; then
+		iptables -t raw -C PREROUTING -i tun2+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null || fail="${fail}#6 "
+	fi
 	if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "inbound" ]; then
-		iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-MasterWL src -m set --match-set Skynet-Master src -j DROP 2>/dev/null || fail="${fail}#6 "
+		iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-MasterWL src -m set --match-set Skynet-Master src -j DROP 2>/dev/null || fail="${fail}#7 "
 	fi
 	if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "outbound" ]; then
-		iptables -t raw -C PREROUTING -i br+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null || fail="${fail}#7 "
-		iptables -t raw -C OUTPUT -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null || fail="${fail}#8 "
+		iptables -t raw -C PREROUTING -i br+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null || fail="${fail}#8 "
+		iptables -t raw -C OUTPUT -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null || fail="${fail}#9 "
 	fi
 	if [ "$iotblocked" = "enabled" ]; then
-		iptables -C FORWARD -i br+ -m set --match-set Skynet-IOT src ! -o tun2+ -j DROP 2>/dev/null || fail="${fail}#9 "
+		iptables -C FORWARD -i br+ -m set --match-set Skynet-IOT src ! -o tun2+ -j DROP 2>/dev/null || fail="${fail}#10 "
 		if [ -n "$iotports" ]; then
 			if [ "$iotproto" = "all" ] || [ "$iotproto" = "udp" ]; then
-				iptables -C FORWARD -i br+ -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp -m multiport --dports "$iotports" -j ACCEPT 2>/dev/null || fail="${fail}#10 "
+				iptables -C FORWARD -i br+ -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp -m multiport --dports "$iotports" -j ACCEPT 2>/dev/null || fail="${fail}#11 "
 			fi
 			if [ "$iotproto" = "all" ] || [ "$iotproto" = "tcp" ]; then
-				iptables -C FORWARD -i br+ -m set --match-set Skynet-IOT src -o "$iface" -p tcp -m tcp -m multiport --dports "$iotports" -j ACCEPT 2>/dev/null || fail="${fail}#11 "
+				iptables -C FORWARD -i br+ -m set --match-set Skynet-IOT src -o "$iface" -p tcp -m tcp -m multiport --dports "$iotports" -j ACCEPT 2>/dev/null || fail="${fail}#12 "
 			fi
 		else
 			if [ "$iotproto" = "all" ] || [ "$iotproto" = "udp" ]; then
-				iptables -C FORWARD -i br+ -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp --dport 123 -j ACCEPT 2>/dev/null || fail="${fail}#12 "
+				iptables -C FORWARD -i br+ -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp --dport 123 -j ACCEPT 2>/dev/null || fail="${fail}#13 "
 			fi
 			if [ "$iotproto" = "all" ] || [ "$iotproto" = "tcp" ]; then
-				iptables -C FORWARD -i br+ -m set --match-set Skynet-IOT src -o "$iface" -p tcp -m tcp --dport 123 -j ACCEPT 2>/dev/null || fail="${fail}#13 "
+				iptables -C FORWARD -i br+ -m set --match-set Skynet-IOT src -o "$iface" -p tcp -m tcp --dport 123 -j ACCEPT 2>/dev/null || fail="${fail}#14 "
 			fi
 		fi
 	fi
 	if [ "$logmode" = "enabled" ]; then
+		if [ "$(nvram get vpn_server1_state)" != "0" ] || [ "$(nvram get vpn_server2_state)" != "0" ]; then
+			iptables -t raw -C PREROUTING -i tun2+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || fail="${fail}#15 "
+		fi
 		if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "inbound" ]; then
-			iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-MasterWL src -m set --match-set Skynet-Master src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || fail="${fail}#14 "
+			iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-MasterWL src -m set --match-set Skynet-Master src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || fail="${fail}#16 "
 		fi
 		if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "outbound" ]; then
-			iptables -t raw -C PREROUTING -i br+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || fail="${fail}#15 "
-			iptables -t raw -C OUTPUT -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || fail="${fail}#16 "
+			iptables -t raw -C PREROUTING -i br+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || fail="${fail}#17 "
+			iptables -t raw -C OUTPUT -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || fail="${fail}#18 "
 		fi
 		if [ "$(nvram get fw_log_x)" = "drop" ] || [ "$(nvram get fw_log_x)" = "both" ] && [ "$loginvalid" = "enabled" ]; then
-			iptables -C logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - INVALID] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || fail="${fail}#17 "
+			iptables -C logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - INVALID] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || fail="${fail}#19 "
 		fi
 		if [ "$iotblocked" = "enabled" ]; then
-			iptables -C FORWARD -i br+ -m set --match-set Skynet-IOT src ! -o tun2+ -j LOG --log-prefix "[BLOCKED - IOT] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || fail="${fail}#18 "
+			iptables -C FORWARD -i br+ -m set --match-set Skynet-IOT src ! -o tun2+ -j LOG --log-prefix "[BLOCKED - IOT] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || fail="${fail}#20 "
 		fi
 	fi
 	if [ -n "$fail" ]; then return 1; fi
@@ -997,7 +1012,10 @@ Generate_Stats() {
 				hits1="0"
 			fi
 			if iptables -t raw -C PREROUTING -i br+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null; then
-				hits2="$(($(iptables -xnvL PREROUTING -t raw | grep -Fv "LOG" | grep -F "Skynet-Master dst" | awk '{print $1}') + $(iptables -xnvL OUTPUT -t raw | grep -Fv "LOG" | grep -F "Skynet-Master dst" | awk '{print $1}')))"
+				hits2="$(($(iptables -xnvL PREROUTING -t raw | grep -Fv "LOG" | grep -F "Skynet-Master dst" | grep -vF "tun" | awk '{print $1}') + $(iptables -xnvL OUTPUT -t raw | grep -Fv "LOG" | grep -F "Skynet-Master dst" | awk '{print $1}')))"
+				if iptables -t raw -C PREROUTING -i tun2+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null; then
+					hits2=$((hits2 + $(iptables -xnvL PREROUTING -t raw | grep -Fv "LOG" | grep -F "Skynet-Master dst" | grep -F "tun" | awk '{print $1}')))
+				fi
 			else
 				hits2="0"
 			fi
@@ -1198,6 +1216,8 @@ Get_LocalName() {
 			macaddr2="$(echo "$macaddr" | sed 'y/abcdefghijklmnopqrstuvwxyz/ABCDEFGHIJKLMNOPQRSTUVWXYZ/' | tr -d ':' | cut -c 1-6)"
 			localname="$(grep "$macaddr2" /www/ajax/ouiDB.json | sed 's/.*"\([^"]*\)".*/\1/')" 
 		fi
+		if [ "$ipaddr" = "$(nvram get wan0_ipaddr)" ]; then localname="$model"; fi
+		if [ "$ipaddr" = "$(nvram get vpn_server1_remote)" ] || [ "$ipaddr" = "$(nvram get vpn_server2_remote)" ]; then localname="OpenVPN Server"; fi
 		if [ -z "$localname" ] || [ "$localname" = "*" ]; then localname="Unknown"; fi
 	fi
 	if [ "${#localname}" -gt "40" ]; then
@@ -1333,7 +1353,10 @@ Print_Log() {
 			hits1="0"
 		fi
 		if [ "$filtertraffic" != "inbound" ]; then
-			hits2="$(($(iptables -xnvL PREROUTING -t raw | grep -Fv "LOG" | grep -F "Skynet-Master dst" | awk '{print $1}') + $(iptables -xnvL OUTPUT -t raw | grep -Fv "LOG" | grep -F "Skynet-Master dst" | awk '{print $1}')))"
+			hits2="$(($(iptables -xnvL PREROUTING -t raw | grep -Fv "LOG" | grep -F "Skynet-Master dst" | grep -vF "tun" | awk '{print $1}') + $(iptables -xnvL OUTPUT -t raw | grep -Fv "LOG" | grep -F "Skynet-Master dst" | awk '{print $1}')))"
+			if iptables -t raw -C PREROUTING -i tun2+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null; then
+				hits2=$((hits2 + $(iptables -xnvL PREROUTING -t raw | grep -Fv "LOG" | grep -F "Skynet-Master dst" | grep -F "tun" | awk '{print $1}')))
+			fi
 		else
 			hits2="0"
 		fi
@@ -5294,9 +5317,8 @@ case "$1" in
 				grep -E "OUTBOUND.*$proto" "$skynetlog" | grep -oE ' SRC=[0-9,\.]*' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | while IFS= read -r "statdata"; do
 					hits="$(echo "$statdata" | awk '{print $1}')"
 					ipaddr="$(echo "$statdata" | awk '{print $2}')"
-					macaddr="$(ip neigh | grep -F "$ipaddr" | awk '{print $5}')"
+					macaddr="$(ip neigh | grep -F "$ipaddr " | awk '{print $5}')"
 					Get_LocalName
-					if [ "$ipaddr" = "$(nvram get wan0_ipaddr)" ]; then localname="$model"; fi
 					printf '%-10s | %-16s | %-60s\n' "${hits}x" "${ipaddr}" "$localname"
 				done
 			;;
