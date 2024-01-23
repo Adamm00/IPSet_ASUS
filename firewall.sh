@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            22/01/2024 - v7.5.4                                            #
+#                                            23/01/2024 - v7.5.5                                            #
 #############################################################################################################
 
 
@@ -433,7 +433,7 @@ Load_LogIPTables() {
 			iptables -t raw -I OUTPUT "$pos5" -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 		fi
 		if [ "$(nvram get fw_log_x)" = "drop" ] || [ "$(nvram get fw_log_x)" = "both" ] && [ "$loginvalid" = "enabled" ]; then
-			pos6="$(iptables --line -nL logdrop | grep -F "NEW" | grep -F "LOG" | awk '{print $1}')"
+			pos6="$(iptables --line -nL logdrop | grep -F "DROP" | awk '{print $1}')"
 			iptables -I logdrop "$pos6" -m state --state NEW -j LOG --log-prefix "[BLOCKED - INVALID] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 		fi
 		if [ "$iotblocked" = "enabled" ]; then
