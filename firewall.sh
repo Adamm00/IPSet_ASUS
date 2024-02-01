@@ -340,9 +340,6 @@ Check_Security() {
 		rm -rf "/var/run/tor" "/var/run/torrc" "/var/run/tord" "/var/run/vpnfilterm" "/var/run/vpnfilterw"
 		restartfirewall="1"
 	fi
-	if [ "$(nvram get apps_wget_timeout)" = "3O" ]; then
-		logger -st Skynet "[!] Warning! Router Malware Detected (apps_wget_timeout=3O) - Investigate Immediately!"
-	fi
 	if [ -f "/jffs/chkupdate.sh" ] || [ -f "/tmp/update" ] || [ -f "/tmp/.update.log" ] || [ -f "/jffs/runtime.log" ] || grep -qF "upgrade.sh" "/jffs/scripts/openvpn-event" 2>/dev/null; then
 		logger -st Skynet "[!] Warning! Router Malware Detected (chkupdate.sh) - Investigate Immediately!"
 		grep -hoE '([0-9]{1,3}\.){3}[0-9]{1,3}' "/jffs/chkupdate.sh" "/tmp/update" "/tmp/.update.log" "/jffs/runtime.log" "/jffs/scripts/openvpn-event" 2>/dev/null | awk '!x[$0]++' | while IFS= read -r "ip"; do
