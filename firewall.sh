@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            23/01/2024 - v7.5.6                                            #
+#                                            06/02/2024 - v7.5.7                                            #
 #############################################################################################################
 
 
@@ -214,6 +214,10 @@ Check_Settings() {
 		extendedstats="disabled"
 	fi
 
+	if [ -z "$iotlogging" ]; then
+		iotlogging="enabled"
+	fi
+
 	if ps | grep -F "/sbin/syslogd" | grep -qF "/jffs/syslog.log" && [ "$syslogloc" = "/tmp/syslog.log" ]; then
 		syslogloc="/jffs/syslog.log" # Fix syslog location on newer random models
 		syslog1loc="/jffs/syslog.log-1"
@@ -406,7 +410,7 @@ Unload_LogIPTables() {
 	iptables -t raw -D PREROUTING -i br+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 	iptables -t raw -D OUTPUT -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 	iptables -D logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - INVALID] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
-	iptables -D FORWARD -i br+ -m set --match-set Skynet-IOT src ! -o tun2+ -j LOG --log-prefix "[BLOCKED - IOT] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
+	iptables -D FORWARD -i br+ -m set --match-set Skynet-IOT src -j LOG --log-prefix "[BLOCKED - IOT] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 }
 
 Load_LogIPTables() {
@@ -433,7 +437,7 @@ Load_LogIPTables() {
 			pos6="$(iptables --line -nL logdrop | grep -F "DROP" | awk '{print $1}')"
 			iptables -I logdrop "$pos6" -m state --state NEW -j LOG --log-prefix "[BLOCKED - INVALID] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 		fi
-		if [ "$iotblocked" = "enabled" ]; then
+		if [ "$iotblocked" = "enabled" ] && [ "$iotlogging" = "enabled" ]; then
 			pos7="$(iptables --line -nL FORWARD | grep -F "Skynet-IOT" | grep -F "DROP" | awk '{print $1}')"
 			iptables -I FORWARD "$pos7" -i br+ -m set --match-set Skynet-IOT src -j LOG --log-prefix "[BLOCKED - IOT] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 		fi
@@ -546,7 +550,7 @@ Check_IPTables() {
 		if [ "$(nvram get wgs_enable)" = "1" ]; then
 			iptables -t raw -C PREROUTING -i wgs+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || fail="${fail}#19 "
 		fi
-		if [ "$iotblocked" = "enabled" ]; then
+		if [ "$iotblocked" = "enabled" ] && [ "$iotlogging" = "enabled" ]; then
 			iptables -C FORWARD -i br+ -m set --match-set Skynet-IOT src -j LOG --log-prefix "[BLOCKED - IOT] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || fail="${fail}#20 "
 		fi
 		if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "inbound" ]; then
@@ -1437,6 +1441,7 @@ Write_Config() {
 		printf '%s="%s"\n' "syslogloc" "$syslogloc"
 		printf '%s="%s"\n' "syslog1loc" "$syslog1loc"
 		printf '%s="%s"\n' "iotblocked" "$iotblocked"
+		printf '%s="%s"\n' "iotlogging" "$iotlogging"
 		printf '%s="%s"\n' "iotports" "$iotports"
 		printf '%s="%s"\n' "iotproto" "$iotproto"
 		printf '%s="%s"\n' "lookupcountry" "$lookupcountry"
@@ -2092,13 +2097,14 @@ Load_Menu() {
 					printf '%-35s | %-40s\n' "[7]  --> Import AiProtect Data" "$(if [ "$banaiprotect" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
 					printf '%-35s | %-40s\n' "[8]  --> Secure Mode" "$(if [ "$securemode" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
 					printf '%-35s | %-40s\n' "[9]  --> Fast Switch List" "$(if [ "$fastswitch" = "enabled" ]; then Ylow "[Enabled]"; else Grn "[Disabled]"; fi)"
-					printf '%-35s | %-40s\n' "[10] --> Syslog Location" "$(if [ "$syslogloc" = "/tmp/syslog.log" ] && [ "$syslog1loc" = "/tmp/syslog.log-1" ]; then Grn "[Default]"; else Ylow "[Custom]"; fi)"
+					printf '%-35s | %-40s\n' "[10] --> Syslog Location" "$(if { [ "$syslogloc" = "/tmp/syslog.log" ] && [ "$syslog1loc" = "/tmp/syslog.log-1" ]; } || { [ "$syslogloc" = "/jffs/syslog.log" ] && [ "$syslog1loc" = "/jffs/syslog.log-1" ]; } then Grn "[Default]"; else Ylow "[Custom]"; fi)"
 					printf '%-35s | %-40s\n' "[11] --> IOT Blocking" "$(if [ "$iotblocked" != "enabled" ]; then Grn "[Disabled]"; else Ylow "[Enabled]"; fi)"
-					printf '%-35s | %-40s\n' "[12] --> Stats Country Lookup" "$(if [ "$lookupcountry" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
-					printf '%-35s | %-40s\n' "[13] --> CDN Whitelisting" "$(if [ "$cdnwhitelist" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
-					printf '%-35s | %-40s\n' "[14] --> Display WebUI" "$(if [ "$displaywebui" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
+					printf '%-35s | %-40s\n' "[12] --> IOT Logging" "$(if [ "$iotlogging" != "enabled" ]; then Red "[Disabled]"; else Grn "[Enabled]"; fi)"
+					printf '%-35s | %-40s\n' "[13] --> Stats Country Lookup" "$(if [ "$lookupcountry" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
+					printf '%-35s | %-40s\n' "[14] --> CDN Whitelisting" "$(if [ "$cdnwhitelist" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
+					printf '%-35s | %-40s\n' "[15] --> Display WebUI" "$(if [ "$displaywebui" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
 					echo
-					printf "[1-14]: "
+					printf "[1-15]: "
 					read -r "menu2"
 					echo
 					case "$menu2" in
@@ -2657,6 +2663,40 @@ Load_Menu() {
 						;;
 						12)
 							if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
+							option2="iotlogging"
+							while true; do
+								echo "Select IOT Logging Option:"
+								echo "[1]  --> Enable"
+								echo "[2]  --> Disable"
+								echo
+								printf "[1-2]: "
+								read -r "menu3"
+								echo
+								case "$menu3" in
+									1)
+										option3="enable"
+										break
+									;;
+									2)
+										option3="disable"
+										break
+									;;
+									e|exit|back|menu)
+										unset "option1" "option2" "option3" "option4" "option5"
+										clear
+										Load_Menu
+										break
+									;;
+									*)
+										echo "[*] $menu3 Isn't An Option!"
+										echo
+									;;
+								esac
+							done
+							break
+						;;
+						13)
+							if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 							option2="lookupcountry"
 							while true; do
 								echo "Select Country Lookup For Stats Option:"
@@ -2689,7 +2729,7 @@ Load_Menu() {
 							done
 							break
 						;;
-						13)
+						14)
 							if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 							option2="cdnwhitelist"
 							while true; do
@@ -2723,7 +2763,7 @@ Load_Menu() {
 							done
 							break
 						;;
-						14)
+						15)
 							if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 							option2="webui"
 							while true; do
@@ -4446,6 +4486,34 @@ case "$1" in
 					Save_IPSets
 				fi
 			;;
+			iotlogging)
+				case "$3" in
+					enable)
+						Check_Lock "$@"
+						if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
+						Purge_Logs
+						iotlogging="enabled"
+						Unload_LogIPTables
+						Load_LogIPTables
+						echo "[i] IOT Logging For Protected Devices Enabled"
+					;;
+					disable)
+						Check_Lock "$@"
+						if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
+						Purge_Logs
+						iotlogging="disabled"
+						Unload_LogIPTables
+						Load_LogIPTables
+						echo "[i] IOT Logging For Protected Devices Disabled"
+					;;
+					*)
+						echo "Command Not Recognized, Please Try Again"
+						echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
+						echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
+						echo; exit 2
+					;;
+				esac
+			;;
 			lookupcountry)
 				case "$3" in
 					enable)
@@ -4776,6 +4844,7 @@ case "$1" in
 				printf '%-35s | %-8s\n' "Fast Switch List" "$(if [ "$fastswitch" = "enabled" ]; then Ylow "[Enabled]"; else Grn "[Disabled]"; fi)"
 				printf '%-35s | %-8s\n' "Syslog Location" "$(if { [ "$syslogloc" = "/tmp/syslog.log" ] && [ "$syslog1loc" = "/tmp/syslog.log-1" ]; } || { [ "$syslogloc" = "/jffs/syslog.log" ] && [ "$syslog1loc" = "/jffs/syslog.log-1" ]; } then Grn "[Default]"; else Ylow "[Custom]"; fi)"
 				printf '%-35s | %-8s\n' "IOT Blocking" "$(if [ "$iotblocked" != "enabled" ]; then Grn "[Disabled]"; else Ylow "[Enabled]"; fi)"
+				printf '%-35s | %-8s\n' "IOT Logging" "$(if [ "$iotlogging" != "enabled" ]; then Grn "[Disabled]"; else Ylow "[Enabled]"; fi)"
 				printf '%-35s | %-8s\n' "Country Lookup For Stats" "$(if [ "$lookupcountry" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
 				printf '%-35s | %-8s\n' "CDN Whitelisting" "$(if [ "$cdnwhitelist" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
 				printf '%-35s | %-8s\n' "Display WebUI" "$(if [ "$displaywebui" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
@@ -5448,11 +5517,13 @@ case "$1" in
 				1)
 					echo "[i] Logging Enabled"
 					logmode="enabled"
+					iotlogging="enabled"
 					break
 				;;
 				2)
 					echo "[i] Logging Disabled"
 					logmode="disabled"
+					iotlogging="disabled"
 					break
 				;;
 				e|exit)

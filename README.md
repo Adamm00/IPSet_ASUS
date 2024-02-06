@@ -117,6 +117,7 @@ Example Settings Commands;
 ( firewall settings iot ports 123,124,125 ) Allow Port(s) To Access WAN (Use Comma As Separator)
 ( firewall settings iot ports reset ) Reset Allowed Port List To Default
 ( firewall settings iot proto udp|tcp|all ) Select IOT Allowed Port Protocol
+( firewall settings iotlogging enable|disable ) Enabled/Disable IOT Logging For Protected Devices
 ( firewall settings lookupcountry enable|disable ) Enable/Disable Country Lookup For Stat Data
 ( firewall settings cdnwhitelist enable|disable ) Enable/Disable CDN Whitelisting
 ( firewall settings webui enable|disable ) Enable/Disable WebUI
