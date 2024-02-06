@@ -1,3 +1,0 @@
-language: shell
-script:
-  - bash -c 'shopt -s globstar; shellcheck -e SC1090,SC2009 firewall.sh'
