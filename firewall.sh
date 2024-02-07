@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            06/02/2024 - v7.5.7                                            #
+#                                            07/02/2024 - v7.5.8                                            #
 #############################################################################################################
 
 
@@ -538,9 +538,9 @@ Check_IPTables() {
 			if [ "$iotproto" = "all" ] || [ "$iotproto" = "udp" ]; then
 				iptables -C FORWARD -i br+ -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp --dport 123 -j ACCEPT 2>/dev/null || fail="${fail}#16 "
 			fi
-		fi
-		if [ "$iotproto" = "all" ] || [ "$iotproto" = "tcp" ]; then
-			iptables -C FORWARD -i br+ -m set --match-set Skynet-IOT src -o "$iface" -p tcp -m tcp --dport 123 -j ACCEPT 2>/dev/null || fail="${fail}#17 "
+			if [ "$iotproto" = "all" ] || [ "$iotproto" = "tcp" ]; then
+				iptables -C FORWARD -i br+ -m set --match-set Skynet-IOT src -o "$iface" -p tcp -m tcp --dport 123 -j ACCEPT 2>/dev/null || fail="${fail}#17 "
+			fi
 		fi
 	fi
 	if [ "$logmode" = "enabled" ]; then
