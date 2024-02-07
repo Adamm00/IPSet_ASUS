@@ -1,16 +1,19 @@
-# Skynet - Firewall & Security Enhancements   [![Build Status](https://travis-ci.com/Adamm00/IPSet_ASUS.svg?branch=master)](https://travis-ci.com/Adamm00/IPSet_ASUS)
+# Skynet - Firewall & Security Enhancements
 
-Are you concerned about the security of your home network? Look no further than Skynet - a powerful firewall and security tool designed exclusively for ASUS routers running the [AsusWRT-Merlin firmware](https://github.com/RMerl/asuswrt-merlin.ng).
+Elevate your home network security with Skynet, a robust firewall and security tool meticulously crafted for ASUS routers running the [AsusWRT-Merlin firmware](https://github.com/RMerl/asuswrt-merlin.ng), ensuring POSIX compliance for seamless integration.
 
-Skynet is a lightweight firewall addition that uses IPSet and has been featured on [SmallNetBuilder](https://www.snbforums.com/threads/release-skynet-router-firewall-security-enhancements.16798/). Its goal is to enhance the firmware's built-in functionality, including SPI Firewall, Brute Force Detection, and AiProtect. With Skynet, you can easily implement custom firewall rules that meet your specific needs and preferences.
+Featured on [SmallNetBuilder](https://www.snbforums.com/threads/release-skynet-router-firewall-security-enhancements.16798/), Skynet extends the capabilities of your router's SPI Firewall, Brute Force Detection, and AiProtect with its lightweight yet powerful IPSet-based firewall. This flexible addition allows for effortless customization of firewall rules to match your precise requirements and preferences.
 
-But Skynet is much more than just a firewall. It's a comprehensive security tool that can ban single IPs, domains, or entire countries. It can also pull predefined malware lists from reputable providers and even secure IoT devices to prevent unauthorized connections. Skynet serves as the one-stop-shop for all your router security needs and is the first line of defense for your home network.
+However, Skynet goes beyond mere firewall functionalities. It serves as a comprehensive security suite capable of blacklisting single IPs, domains, or even entire countries. Leveraging predefined malware lists from reputable sources, it fortifies your network against potential threats while also securing IoT devices against unauthorized access.
 
-Moreover, Skynet is fully compatible with OpenVPN implementations from popular providers like [Private Internet Access](https://www.privateinternetaccess.com/). It also supports various user scripts such as [Diversion](https://www.snbforums.com/threads/diversion-the-router-adblocker.48538/) & [Scribe](https://www.snbforums.com/threads/scribe-syslog-ng-and-logrotate-installer.55853/).
+Furthermore, Skynet seamlessly integrates with OpenVPN and WireGuard implementations, safeguarding local servers and ensuring encrypted communication channels remain secure. Whether you're hosting an OpenVPN or WireGuard server, Skynet offers robust protection, enhancing its versatility and utility.
 
-With Skynet and AsusWRT-Merlin, you can rest assured that your router is fully protected against potential security threats. It's the perfect solution for ASUS router users looking for a reliable and easy-to-use security tool.
+With Skynet and AsusWRT-Merlin, you can entrust your router's security to a reliable and fully compatible solution. Whether you're a novice or an experienced user, Skynet's intuitive interface and extensive feature set make it the ultimate choice for bolstering your network defenses.
 
-In conclusion, if you're an ASUS router user running the AsusWRT-Merlin firmware and looking for a way to enhance your router's built-in security features, Skynet is the ideal solution. Its comprehensive range of features and capabilities make it the go-to choice for router security, so don't wait any longer to get started with Skynet and safeguard your network today.
+In conclusion, if you're seeking to augment the security features of your ASUS router running AsusWRT-Merlin, Skynet stands out as the premier solution. Don't compromise on your network's safety any longer – embrace Skynet today and safeguard your digital domain with confidence.
+
+
+
 
 ## Donate
 
@@ -48,111 +51,120 @@ For firmware versions 384.15+ this can also be installed via AMTM by following t
 amtm
 ```
 
-## Help
 
-```Shell
-Example Unban Commands;
-( firewall unban ip 8.8.8.8 ) This Unbans The IP Specified
-( firewall unban range 8.8.8.8/24 ) This Unbans the CIDR Block Specified
-( firewall unban domain google.com ) This Unbans the URL Specified
-( firewall unban comment "Apples" ) This Unbans Entries With The Comment Apples
-( firewall unban country ) This Unbans Entries Added By The "Ban Country" Feature
-( firewall unban asn AS123456 ) This Unbans the ASN Specified
-( firewall unban malware ) This Unbans Entries Added By The "Ban Malware" Feature
-( firewall unban nomanual ) This Unbans Everything But Manual Bans
-( firewall unban all ) This Unbans All Entries From Both Blacklists
+## Skynet Script Commands
 
-Example Ban Commands;
-( firewall ban ip 8.8.8.8 "Apples" ) This Bans The IP Specified With The Comment Apples
-( firewall ban range 8.8.8.8/24 "Apples" ) This Bans the CIDR Block Specified With The Comment Apples
-( firewall ban domain google.com ) This Bans the URL Specified
-( firewall ban country "pk cn sa" ) This Bans The Known IPs For The Specified Countries (Accepts Single/Multiple Inputs If Quoted) https://www.ipdeny.com/ipblocks/
-( firewall ban asn AS123456 ) This Bans the ASN Specified
+### Example Unban Commands:
 
-Example Banmalware Commands;
-( firewall banmalware ) This Bans IPs From The Predefined Filter List
-( firewall banmalware google.com/filter.list ) This Uses The Filter List From The Specified URL
-( firewall banmalware reset ) This Will Reset Skynet Back To The Default Filter URL
-( firewall banmalware exclude "list1.ipset|list2.ipset" ) This Will Exclude Lists Matching The Names "list1.ipset list2.ipset" From The Current Filter (Quotes And Pipes Are Nessessary For Seperating Multiple Entries!)
-( firewall banmalware exclude reset ) This Will Reset The Exclusion List
+- `firewall unban ip 8.8.8.8`: Unban the specified IP.
+- `firewall unban range 8.8.8.8/24`: Unban the specified CIDR block.
+- `firewall unban domain google.com`: Unban the specified URL.
+- `firewall unban comment "Apples"`: Unban entries with the comment "Apples".
+- `firewall unban country`: Unban entries added by the "Ban Country" feature.
+- `firewall unban asn AS123456`: Unban the specified ASN.
+- `firewall unban malware`: Unban entries added by the "Ban Malware" feature.
+- `firewall unban nomanual`: Unban everything but manual bans.
+- `firewall unban all`: Unban all entries from both blacklists.
 
-Example Whitelist Commands;
-( firewall whitelist ip 8.8.8.8 "Apples" ) This Whitelists The IP Specified With The Comment Apples
-( firewall whitelist range 8.8.8.8/24 "Apples" ) This Whitelists The Range Specified With The Comment Apples
-( firewall whitelist domain google.com) This Whitelists the URL Specified
-( firewall whitelist asn AS123456 ) This Whitelists the ASN Specified
-( firewall whitelist vpn) Refresh VPN Whitelist
-( firewall whitelist remove all) This Removes All Non-Default Entries
-( firewall whitelist remove entry 8.8.8.8) This Removes IP/Range Specified
-( firewall whitelist remove comment "Apples" ) This Removes Entries With The Comment Apples
-( firewall whitelist refresh ) Regenerate Shared Whitelist Files
-( firewall whitelist view ips|domains|imported ) View Whitelist Entries Based On Category (Leave Blank For All)
+### Example Ban Commands:
 
-Example Import Commands;
-( firewall import blacklist file.txt "Apples" ) This Bans All IPs From URL/Local File With The Comment Apples
-( firewall import whitelist file.txt "Apples" ) This Whitelists All IPs From URL/Local File With The Comment Apples
+- `firewall ban ip 8.8.8.8 "Apples"`: Ban the specified IP with the comment "Apples".
+- `firewall ban range 8.8.8.8/24 "Apples"`: Ban the specified CIDR block with the comment "Apples".
+- `firewall ban domain google.com`: Ban the specified URL.
+- `firewall ban country "pk cn sa"`: Ban known IPs for the specified countries.
+- `firewall ban asn AS123456`: Ban the specified ASN.
 
-Example Deport Commands;
-( firewall deport blacklist file.txt ) This Unbans All IPs From URL/Local File
-( firewall deport whitelist file.txt ) This Unwhitelists All IPs From URL/Local File
+### Example Banmalware Commands:
 
-Example Update Commands;
-( firewall update ) Standard Update Check - If Nothing Detected Exit
-( firewall update check ) Check For Updates Only - Wont Update If Detected
-( firewall update -f ) Force Update Even If No Changes Detected
+- `firewall banmalware`: Ban IPs from the predefined filter list.
+- `firewall banmalware google.com/filter.list`: Use the filter list from the specified URL.
+- `firewall banmalware reset`: Reset Skynet back to the default filter URL.
+- `firewall banmalware exclude "list1.ipset|list2.ipset"`: Exclude lists matching the names "list1.ipset" and "list2.ipset" from the current filter.
+- `firewall banmalware exclude reset`: Reset the exclusion list.
 
-Example Settings Commands;
-( firewall settings autoupdate enable|disable ) Enable/Disable Skynet Autoupdating
-( firewall settings banmalware daily|weekly|disable ) Enable/Disable Automatic Malware List Updating
-( firewall settings logmode enable|disable ) Enable/Disable Logging
-( firewall settings filter all|inbound|outbound ) Select What Traffic To Filter
-( firewall settings unbanprivate enable|disable ) Enable/Disable Unban_PrivateIP Function
-( firewall settings loginvalid enable|disable ) Enable/Disable Invalid Packet Logging
-( firewall settings banaiprotect enable|disable ) Enable/Disable Banning IPs Flagged By AiProtect
-( firewall settings securemode enable|disable ) Enable/Disable Insecure Settings Being Applied In WebUI
-( firewall settings fs google.com/filter.list|disable ) Configure/Disable Fast Malware List Switching
-( firewall settings syslog|syslog1 /tmp/syslog.log|default ) Configure Custom Syslog/Syslog-1 Location
-( firewall settings iot unban|ban 8.8.8.8,9.9.9.9 ) Unban|Ban IOT Device(s) (or CIDR) From Accessing WAN (Allow NTP / Remote Access Via OpenVPN Only) (Use Comma As Separator)
-( firewall settings iot view ) View Currently Banned IOT Devices
-( firewall settings iot ports 123,124,125 ) Allow Port(s) To Access WAN (Use Comma As Separator)
-( firewall settings iot ports reset ) Reset Allowed Port List To Default
-( firewall settings iot proto udp|tcp|all ) Select IOT Allowed Port Protocol
-( firewall settings iotlogging enable|disable ) Enabled/Disable IOT Logging For Protected Devices
-( firewall settings lookupcountry enable|disable ) Enable/Disable Country Lookup For Stat Data
-( firewall settings cdnwhitelist enable|disable ) Enable/Disable CDN Whitelisting
-( firewall settings webui enable|disable ) Enable/Disable WebUI
+### Example Whitelist Commands:
 
-Example Debug Commands;
-( firewall debug watch ) Show Debug Entries As They Appear
-( firewall debug info ) Print Useful Debug Info
-( firewall debug info extended ) Debug Info + Config
-( firewall debug genstats ) Update WebUI Stats
-( firewall debug clean ) Cleanup Syslog Entries
-( firewall debug swap install|uninstall ) Install/Uninstall SWAP File
-( firewall debug backup ) Backup Skynet Files To Skynets Install Directory With The Name "Skynet-Backup.tar.gz"
-( firewall debug restore ) Restore Backup Files From Skynets Install Directory With The Name "Skynet-Backup.tar.gz"
+- `firewall whitelist ip 8.8.8.8 "Apples"`: Whitelist the specified IP with the comment "Apples".
+- `firewall whitelist range 8.8.8.8/24 "Apples"`: Whitelist the specified range with the comment "Apples".
+- `firewall whitelist domain google.com`: Whitelist the specified URL.
+- `firewall whitelist asn AS123456`: Whitelist the specified ASN.
+- `firewall whitelist vpn`: Refresh VPN whitelist.
+- `firewall whitelist remove all`: Remove all non-default entries.
+- `firewall whitelist remove entry 8.8.8.8`: Remove the specified IP/range.
+- `firewall whitelist remove comment "Apples"`: Remove entries with the comment "Apples".
+- `firewall whitelist refresh`: Regenerate shared whitelist files.
 
-Example Stats Commands;
-( firewall stats ) Compile Stats With Default Top10 Output
-( firewall stats 20 ) Compile Stats With Customizable Top20 Output
-( firewall stats tcp ) Compile Stats Showing Only TCP Entries
-( firewall stats tcp 20 ) Compile Stats Showing Only TCP Entries With Customizable Top20 Output
-( firewall stats search port 23 ) Search Logs For Entries On Port 23
-( firewall stats search port 23 20 ) Search Logs For Entries On Port 23 With Customizable Top20 Output
-( firewall stats search ip 8.8.8.8 ) Search Logs For Entries On 8.8.8.8
-( firewall stats search ip 8.8.8.8 20 ) Search Logs For Entries On 8.8.8.8 With Customizable Top20 Output
-( firewall stats search malware 8.8.8.8 ) Search Malwarelists For Specified IP
-( firewall stats search manualbans ) Search For All Manual Bans
-( firewall stats search device 192.168.1.134 ) Search For All Outbound Entries From Local Device 192.168.1.134
-( firewall stats search device reports ) Search Previous Hourly Report History
-( firewall stats search invalid ) Search For Invalid Packets
-( firewall stats search iot ) Search For IOT Packets
-( firewall stats search connections ip|port|proto|id xxxxxxxxxx) Search Active Connections
-( firewall stats remove ip 8.8.8.8 ) Remove Log Entries Containing IP 8.8.8.8
-( firewall stats remove port 23 ) Remove Log Entries Containing Port 23
-( firewall stats reset ) Reset All Collected Logs
-```
+### Example Import Commands:
 
-### About
+- `firewall import blacklist file.txt "Apples"`: Ban all IPs from the URL/local file with the comment "Apples".
+- `firewall import whitelist file.txt "Apples"`: Whitelist all IPs from the URL/local file with the comment "Apples".
+
+### Example Deport Commands:
+
+- `firewall deport blacklist file.txt`: Unban all IPs from URL/local file.
+- `firewall deport whitelist file.txt`: Unwhitelist all IPs from URL/local file.
+
+### Example Update Commands:
+
+- `firewall update`: Standard update check - if nothing detected, exit.
+- `firewall update check`: Check for updates only - won't update if detected.
+- `firewall update -f`: Force update even if no changes detected.
+
+### Example Settings Commands:
+
+- `firewall settings autoupdate enable|disable`: Enable/disable Skynet autoupdating.
+- `firewall settings banmalware daily|weekly|disable`: Enable/disable automatic malware list updating.
+- `firewall settings logmode enable|disable`: Enable/disable logging.
+- `firewall settings filter all|inbound|outbound`: Select what traffic to filter.
+- `firewall settings unbanprivate enable|disable`: Enable/disable Unban_PrivateIP function.
+- `firewall settings loginvalid enable|disable`: Enable/disable invalid packet logging.
+- `firewall settings banaiprotect enable|disable`: Enable/disable banning IPs flagged by AiProtect.
+- `firewall settings securemode enable|disable`: Enable/disable insecure settings being applied in WebUI.
+- `firewall settings fs google.com/filter.list|disable`: Configure/disable fast malware list switching.
+- `firewall settings syslog|syslog1 /tmp/syslog.log|default`: Configure custom syslog/syslog-1 location.
+- `firewall settings iot unban|ban 8.8.8.8,9.9.9.9`: Unban/ban IOT device(s) (or CIDR) from accessing WAN (allow NTP/remote access via OpenVPN/Wireguard only).
+- `firewall settings iot view`: View currently banned IOT devices.
+- `firewall settings iot ports 123,124,125`: Allow port(s) to access WAN.
+- `firewall settings iot ports reset`: Reset allowed port list to default.
+- `firewall settings iot proto udp|tcp|all`: Select IOT allowed port protocol.
+- `firewall settings iotlogging enable|disable`: Enable/disable IOT logging for protected devices.
+- `firewall settings lookupcountry enable|disable`: Enable/disable country lookup for stat data.
+- `firewall settings cdnwhitelist enable|disable`: Enable/disable CDN whitelisting.
+- `firewall settings webui enable|disable`: Enable/disable WebUI.
+
+### Example Debug Commands:
+
+- `firewall debug watch`: Show debug entries as they appear.
+- `firewall debug info`: Print useful debug info.
+- `firewall debug info extended`: Debug info + config.
+- `firewall debug genstats`: Update WebUI stats.
+- `firewall debug clean`: Cleanup syslog entries.
+- `firewall debug swap install|uninstall`: Install/uninstall SWAP file.
+- `firewall debug backup`: Backup Skynet files to Skynet's install directory.
+- `firewall debug restore`: Restore backup files from Skynet's install directory.
+
+### Example Stats Commands:
+
+- `firewall stats`: Compile stats with default top 10 output.
+- `firewall stats 20`: Compile stats with customizable top 20 output.
+- `firewall stats tcp`: Compile stats showing only TCP entries.
+- `firewall stats tcp 20`: Compile stats showing only TCP entries with customizable top 20 output.
+- `firewall stats search port 23`: Search logs for entries on port 23.
+- `firewall stats search port 23 20`: Search logs for entries on port 23 with customizable top 20 output.
+- `firewall stats search ip 8.8.8.8`: Search logs for entries on 8.8.8.8.
+- `firewall stats search ip 8.8.8.8 20`: Search logs for entries on 8.8.8.8 with customizable top 20 output.
+- `firewall stats search malware 8.8.8.8`: Search malware lists for specified IP.
+- `firewall stats search manualbans`: Search for all manual bans.
+- `firewall stats search device 192.168.1.134`: Search for all outbound entries from local device 192.168.1.134.
+- `firewall stats search device reports`: Search previous hourly report history.
+- `firewall stats search invalid`: Search for invalid packets.
+- `firewall stats search iot`: Search for IOT packets.
+- `firewall stats search connections ip|port|proto|id xxxxxxxxxx`: Search active connections.
+- `firewall stats remove ip 8.8.8.8`: Remove log entries containing IP 8.8.8.8.
+- `firewall stats remove port 23`: Remove log entries containing port 23.
+- `firewall stats reset`: Reset all collected logs.
+
+
+## About
 
 > Skynet gained self-awareness after it had spread into millions of computer servers all across the world; realizing the extent of its abilities, its creators tried to deactivate it. In the interest of self-preservation, Skynet concluded that all of humanity would attempt to destroy it and impede its capability in safeguarding the world. Its operations are almost exclusively performed by servers, mobile devices, drones, military satellites, war-machines, androids and cyborgs (usually a terminator), and other computer systems. As a programming directive, Skynet's manifestation is that of an overarching, global, artificial intelligence hierarchy (AI takeover), which seeks to exterminate the human race in order to fulfill the mandates of its original coding. (▀̿Ĺ̯▀̿ ̿)
