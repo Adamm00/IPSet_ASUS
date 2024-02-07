@@ -2588,6 +2588,7 @@ Load_Menu() {
 									;;
 									4)
 										option3="ports"
+										if [ -n "$iotports" ]; then echo "Current Custom Ports Allowed: $(Grn "$iotports")"; echo; fi
 										echo "Input Custom Ports(s) To Allow:"
 										echo "Seperate Multiple Ports With A Comma"
 										echo
@@ -4401,6 +4402,13 @@ case "$1" in
 							fi
 							printf '%-40s | %-16s | %-20s | %-15s\n' "$localname" "$ipaddr" "$macaddr" "$state"
 						done
+						echo;echo
+						echo "Allowed Traffic Protocols: $(Grn "$iotproto")"
+						if [ -z "$iotports" ]; then
+							echo "Allowed Ports: $(Grn 123)"
+						else
+							echo "Allowed Ports: $(Grn "123,${iotports}")"
+						fi
 					;;
 					ports)
 						if [ -z "$4" ]; then echo "[*] Ports(s) Not Specified - Exiting"; echo; exit 1; fi
