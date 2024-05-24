@@ -5715,7 +5715,7 @@ case "$1" in
 							case "$removeswap" in
 								1)
 									echo "[i] Removing Skynet Generated SWAP File"
-									sed -i '\~ Skynet ~d' /jffs/scripts/post-mount /jffs/scripts/unmount
+									sed -i '\~# Skynet~d' /jffs/scripts/post-mount /jffs/scripts/unmount
 									sync; echo 3 > /proc/sys/vm/drop_caches
 									swapoff -a
 									rm -rf "$swaplocation"
