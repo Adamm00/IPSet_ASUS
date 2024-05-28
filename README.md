@@ -19,6 +19,12 @@ In conclusion, if you're seeking to augment the security features of your ASUS r
 
 You can use this script for free as it will always remain open source. However, if you would like to contribute to future development efforts, you have the option to support us by [Donating With PayPal.](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=BPN4LTRZKDTML)
 
+
+## Requirement
+
+All that's required is a USB drive that's at-least 2GB (so there is room for a SWAP file). After downloading it just works.
+
+
 ## Usage
 
 Skynet provides both a user interactive menu, and command line interface for those who prefer it.
