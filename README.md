@@ -152,13 +152,14 @@ amtm
 ### Example Stats Commands:
 
 - `firewall stats`: Compile stats with default top 10 output.
-- `firewall stats 20`: Compile stats with customizable top 20 output.
+- `firewall stats 20`: Compile stats with customizable/optional top 20 output.
 - `firewall stats tcp`: Compile stats showing only TCP entries.
-- `firewall stats tcp 20`: Compile stats showing only TCP entries with customizable top 20 output.
+- `firewall stats tcp 20`: Compile stats showing only TCP entries with customizable/optional top 20 output.
 - `firewall stats search port 23`: Search logs for entries on port 23.
-- `firewall stats search port 23 20`: Search logs for entries on port 23 with customizable top 20 output.
+- `firewall stats search port 23 20`: Search logs for entries on port 23 with customizable/optional top 20 output.
 - `firewall stats search ip 8.8.8.8`: Search logs for entries on 8.8.8.8.
-- `firewall stats search ip 8.8.8.8 20`: Search logs for entries on 8.8.8.8 with customizable top 20 output.
+- `firewall stats search ip 8.8.8.8 20`: Search logs for entries on 8.8.8.8 with customizable/optional top 20 output.
+- `firewall stats search domain google.com 20`: Search logs for entries IP's resolving to domain with customizable/optional top 20 output.
 - `firewall stats search malware 8.8.8.8`: Search malware lists for specified IP.
 - `firewall stats search manualbans`: Search for all manual bans.
 - `firewall stats search device 192.168.1.134`: Search for all outbound entries from local device 192.168.1.134.

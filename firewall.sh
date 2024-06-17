@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            17/04/2024 - v7.5.9                                            #
+#                                            17/06/2024 - v7.6.0                                            #
 #############################################################################################################
 
 
@@ -3046,15 +3046,16 @@ Load_Menu() {
 								echo "Search Options:"
 								echo "[1]  --> Based On Port x"
 								echo "[2]  --> Entries From Specific IP"
-								echo "[3]  --> Search Malwarelists For IP"
-								echo "[4]  --> Search Manualbans"
-								echo "[5]  --> Search For Outbound Entries From Local Device"
-								echo "[6]  --> Hourly Reports"
-								echo "[7]  --> Invalid Packets"
-								echo "[8]  --> Active Connections"
-								echo "[9]  --> IOT Packets"
+								echo "[3]  --> Entries From Specific Domain"
+								echo "[4]  --> Search Malwarelists For IP"
+								echo "[5]  --> Search Manualbans"
+								echo "[6]  --> Search For Outbound Entries From Local Device"
+								echo "[7]  --> Hourly Reports"
+								echo "[8]  --> Invalid Packets"
+								echo "[9]  --> Active Connections"
+								echo "[10] --> IOT Packets"
 								echo
-								printf "[1-9]: "
+								printf "[1-10]: "
 								read -r "menu4"
 								echo
 								case "$menu4" in
@@ -3075,6 +3076,14 @@ Load_Menu() {
 										break
 									;;
 									3)
+										option3="domain"
+										printf "[Domain]: "
+										read -r "option4"
+										echo
+										if [ -z "$option4" ]; then echo "[*] Domain Field Can't Be Empty - Please Try Again"; echo; unset "option3" "option4"; continue; fi
+										break
+									;;
+									4)
 										option3="malware"
 										printf "[IP]: "
 										read -r "option4"
@@ -3082,11 +3091,11 @@ Load_Menu() {
 										if ! echo "$option4" | Is_IPRange; then echo "[*] $option4 Is Not A Valid IP/Range"; echo; unset "option3" "option4"; continue; fi
 										break
 									;;
-									4)
+									5)
 										option3="manualbans"
 										break
 									;;
-									5)
+									6)
 										option3="device"
 										printf "[Local IP]: "
 										read -r "option4"
@@ -3094,15 +3103,15 @@ Load_Menu() {
 										if ! echo "$option4" | Is_IP; then echo "[*] $option4 Is Not A Valid IP"; echo; unset "option3" "option4"; continue; fi
 										break
 									;;
-									6)
+									7)
 										option3="reports"
 										break
 									;;
-									7)
+									8)
 										option3="invalid"
 										break
 									;;
-									8)
+									9)
 										option3="connections"
 										while true; do
 											echo "Search Options:"
@@ -3164,7 +3173,7 @@ Load_Menu() {
 										done
 										break
 									;;
-									9)
+									10)
 										option3="iot"
 										break
 									;;
@@ -4774,6 +4783,9 @@ case "$1" in
 				printf "%-35s | " "Internet-Connectivity"
 				if Check_Connection >/dev/null 2>&1; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
 				printf '%-8s\n' "$result"
+				printf "%-35s | " "Public IP Address"
+				if [ ! "$(nvram get wan0_ipaddr | Is_PrivateIP)" ]; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
+				printf '%-8s\n' "$result"
 				printf "%-35s | " "Write Permission"
 				if [ -w "${skynetloc}" ]; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
 				printf '%-8s\n' "$result"
@@ -4800,9 +4812,6 @@ case "$1" in
 				printf '%-8s\n' "$result"
 				printf "%-35s | " "NTP Sync"
 				if [ "$(nvram get ntp_ready)" = "1" ]; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
-				printf '%-8s\n' "$result"
-				printf "%-35s | " "IPSet Comment Support"
-				if [ -f /lib/modules/"$(uname -r)"/kernel/net/netfilter/ipset/ip_set_hash_ipmac.ko ]; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
 				printf '%-8s\n' "$result"
 				printf "%-35s | " "Log Level $(nvram get message_loglevel) Settings"
 				if [ "$(nvram get message_loglevel)" -le "$(nvram get log_level)" ]; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
@@ -5163,6 +5172,61 @@ case "$1" in
 						grep -E "INBOUND.*SRC=$4 " "$skynetlog" | grep -oE 'SPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{printf "%-10s | %-10s | %-60s\n", $1 "x", $2, "https://www.speedguide.net/port.php?port=" $2 }'
 						echo
 					;;
+					domain)
+						if ! Check_Connection; then echo "[*] Connection Error Detected - Exiting"; echo; exit 1; fi
+						if [ -z "$4" ]; then echo "[*] Domain Field Can't Be Empty - Please Try Again"; echo; exit 2; fi
+						domain="$(echo "$4" | Strip_Domain)"
+						for ip in $(Domain_Lookup "$domain"); do
+							ipset test Skynet-Whitelist "$ip" && found1=true
+							ipset test Skynet-Blacklist "$ip" && found2=true
+							ipset test Skynet-BlockedRanges "$ip" && found3=true
+							echo
+							if [ -n "$found1" ]; then Red "Whitelist Reason;"; grep -F "add Skynet-Whitelist $(echo "$ip" | cut -d '.' -f1-3)." "$skynetipset" | awk '{$1=$2=$4=""; print $0}' | tr -s " "; echo; fi
+							if [ -n "$found2" ]; then Red "Blacklist Reason;"; grep -F "add Skynet-Blacklist $ip " "$skynetipset" | awk '{$1=$2=$3=$4=""; print $0}' | tr -s " "; echo; fi
+							if [ -n "$found3" ]; then Red "BlockedRanges Reason;"; grep -F "add Skynet-BlockedRanges $(echo "$ip" | cut -d '.' -f1-3)." "$skynetipset" | awk '{$1=$2=$4=""; print $0}' | tr -s " "; fi
+							echo
+							ip2="$(echo "$ip" | sed 's~\.~\\.~g')"
+							if [ "$extendedstats" = "enabled" ] && grep -qE "reply.* is $ip2" /opt/var/log/dnsmasq*; then
+								Red "Associated Domain(s);"
+								assdomains="$(grep -E "reply.* is $ip2" /opt/var/log/dnsmasq* | awk '{print $(NF-2)}' | Strip_Domain | Filter_OutIP)"
+								for domain in $assdomains; do
+									if grep -qE " (www.)?${domain}$| (www.)?${domain} " /opt/share/diversion/list/blockinglist /opt/share/diversion/list/blacklist 2>/dev/null; then
+										echo "$domain (Flagged By Diversion)"
+									else
+										echo "$domain"
+									fi
+								done
+							fi
+							echo; echo
+							if [ -n "$found2" ] || [ -n "$found3" ]; then
+								echo "[i] IP Location - $(curl -fsL --retry 3 --connect-timeout 3 --max-time 6 --retry-delay 1 --retry-all-errors -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${ip}/countryName/") ($(curl -fsL --retry 3 --connect-timeout 3 --max-time 6 --retry-delay 1 --retry-all-errors -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://ipapi.co/${ip}/org/") / $(curl -fsL --retry 3 --connect-timeout 3 --max-time 6 --retry-delay 1 --retry-all-errors -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://ipapi.co/${ip}/asn/"))"
+								echo
+								echo "[i] $ip First Tracked On $(grep -m1 -F "=$ip " "$skynetlog" | awk '{printf "%s %s %s\n", $1, $2, $3}')"
+								echo "[i] $ip Last Tracked On $(grep -F "=$ip " "$skynetlog" | tail -1 | awk '{printf "%s %s %s\n", $1, $2, $3}')"
+								echo "[i] $(grep -Foc "=$ip " "$skynetlog") Blocks Total"
+								echo
+								Red "Event Log Entries From $ip;"
+								grep -F "=$ip " "$skynetevents"
+								echo
+								Red "First Block Tracked From $ip;"
+								grep -m1 -F "=$ip " "$skynetlog"
+								echo
+								Red "$counter Most Recent Blocks From $ip;"
+								grep -F "=$ip " "$skynetlog" | tail -"$counter"
+								echo; echo
+								Red "Top $counter Targeted Ports From $ip (Inbound);"
+								Display_Header "3"
+								grep -E "INBOUND.*SRC=$ip " "$skynetlog" | grep -oE 'DPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{printf "%-10s | %-10s | %-60s\n", $1 "x", $2, "https://www.speedguide.net/port.php?port=" $2 }'
+								echo; echo
+								Red "Top $counter Sourced Ports From $ip (Inbound);"
+								Display_Header "3"
+								grep -E "INBOUND.*SRC=$ip " "$skynetlog" | grep -oE 'SPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{printf "%-10s | %-10s | %-60s\n", $1 "x", $2, "https://www.speedguide.net/port.php?port=" $2 }'
+								echo
+							fi
+							echo
+						done
+						if [ "$5" -eq "$5" ] 2>/dev/null; then counter="$5"; fi
+					;;
 					malware)
 						Check_Lock "$@"
 						if ! Check_Connection; then echo "[*] Connection Error Detected - Exiting"; echo; exit 1; fi
@@ -5441,10 +5505,6 @@ case "$1" in
 		Check_Lock "$@"
 		if ! ipset -v 2>/dev/null | grep -qE 'v6|v7'; then
 			echo "[*] IPSet Version Not Supported - Please Update To Latest Firmware"
-			echo; exit 1
-		fi
-		if [ ! -f /lib/modules/"$(uname -r)"/kernel/net/netfilter/ipset/ip_set_hash_ipmac.ko ]; then
-			echo "[*] IPSet Extensions Not Supported - Please Update To Latest Firmware"
 			echo; exit 1
 		fi
 		if [ "$(nvram get jffs2_scripts)" != "1" ]; then
