@@ -87,7 +87,8 @@
         }
     </style>
     <script language="JavaScript" type="text/javascript" src="/js/jquery.js"></script>
-    <script language="JavaScript" type="text/javascript" src="/jquery.js"></script>
+    <script language="JavaScript" type="text/javascript" src="/js/httpApi.js"></script>
+    <script language="JavaScript" type="text/javascript" src="/client_function.js"></script>
     <script language="JavaScript" type="text/javascript" src="/ext/skynet/chart.js"></script>
     <script language="JavaScript" type="text/javascript" src="/ext/skynet/chartjs-plugin-zoom.js"></script>
     <script language="JavaScript" type="text/javascript" src="/ext/skynet/hammerjs.js"></script>
@@ -99,9 +100,7 @@
     <script language="JavaScript" type="text/javascript" src="/detect.js"></script>
     <script language="JavaScript" type="text/javascript" src="/tmhist.js"></script>
     <script language="JavaScript" type="text/javascript" src="/tmmenu.js"></script>
-    <script language="JavaScript" type="text/javascript" src="/client_function.js"></script>
     <script language="JavaScript" type="text/javascript" src="/validator.js"></script>
-
     <script>
         var ChartInPortHits;
         var $j = jQuery.noConflict();
