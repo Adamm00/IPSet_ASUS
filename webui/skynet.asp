@@ -354,7 +354,25 @@
             }
         }
 
-        function initial() {
+        /**-------------------------------------**/
+        /** Added by Martinski W. [2023-Jul-26] **/
+        /**-------------------------------------**/
+        resetOverflowCount = 0;
+        function ResetBodyStyleOverflow()
+        {
+            resetOverflowCount += 1;
+            let resetOverflowTimeout = (resetOverflowCount <= 10) ? 125 : 5000;
+
+            if (document.getElementById('TopDocBody').style.overflow != "auto")
+            { document.getElementById('TopDocBody').style.overflow = "auto"; }
+            setTimeout(ResetBodyStyleOverflow, resetOverflowTimeout);
+        }
+
+        /**----------------------------------------**/
+        /** Modified by Martinski W. [2023-Jul-26] **/
+        /**----------------------------------------**/
+        function initial()
+        {
             show_menu();
             $j("#skynet_table_keystats").after(BuildChartHtml("Top 10 Blocked Devices (Outbound)", "TCConnHits", "false"));
 
@@ -386,6 +404,8 @@
             SetBLCount2();
             SetHits1();
             SetHits2();
+
+            setTimeout(ResetBodyStyleOverflow, 200);
         }
 
         Array.prototype.getDuplicates = function() {
@@ -807,7 +827,7 @@
     </script>
 </head>
 
-<body onload="initial();">
+<body onload="initial();" id="TopDocBody">
     <div id="TopBanner"></div>
     <div id="Loading" class="popup_bg"></div>
     <iframe name="hidden_frame" id="hidden_frame" src="about:blank" width="0" height="0" frameborder="0"></iframe>
