@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            05/11/2024 - v7.6.4                                            #
+#                                            27/07/2024 - v7.6.3                                            #
 #############################################################################################################
 
 
@@ -562,9 +562,6 @@ Check_IPTables() {
 		fi
 		if [ "$(nvram get fw_log_x)" = "drop" ] || [ "$(nvram get fw_log_x)" = "both" ] && [ "$loginvalid" = "enabled" ]; then
 			iptables -C logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - INVALID] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || fail="${fail}#24 "
-		fi
-		if [ "$(nvram get fw_log_x)" = "drop" ] || [ "$(nvram get fw_log_x)" = "both" ]; then
-			iptables -C logdrop -m state --state NEW -j LOG --log-prefix "DROP " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || fail="${fail}#25 "
 		fi
 	fi
 	if [ -n "$fail" ]; then return 1; fi
