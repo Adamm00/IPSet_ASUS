@@ -163,7 +163,7 @@ amtm
 - `firewall stats search malware 8.8.8.8`: Search malware lists for specified IP.
 - `firewall stats search manualbans`: Search for all manual bans.
 - `firewall stats search device 192.168.1.134`: Search for all outbound entries from local device 192.168.1.134.
-- `firewall stats search device reports`: Search previous hourly report history.
+- `firewall stats search reports`: Search previous hourly report history.
 - `firewall stats search invalid`: Search for invalid packets.
 - `firewall stats search iot`: Search for IOT packets.
 - `firewall stats search connections ip|port|proto|id xxxxxxxxxx`: Search active connections.
