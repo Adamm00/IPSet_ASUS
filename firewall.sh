@@ -1243,7 +1243,8 @@ Download_File() {
 }
 
 Get_LocalName() {
-	localname="$(nvram get custom_clientlist | grep -ioE "<.*>$macaddr" | sed -E 's/.*<([^>]+)>[^<]*$/\1/; s/[^a-zA-Z0-9.-]//g')"
+	localname=""
+	if [ -n "$macaddr" ]; then localname="$(nvram get custom_clientlist | grep -ioE "<.*>$macaddr" | sed -E 's/.*<([^>]+)>[^<]*$/\1/; s/[^a-zA-Z0-9.-]//g')"; fi
 	if [ -z "$localname" ]; then localname="$(grep -F "$ipaddr " /var/lib/misc/dnsmasq.leases | awk '{print $4}')"; fi
 	if [ -z "$localname" ] || [ "$localname" = "*" ]; then
 		if [ -n "$macaddr" ]; then
