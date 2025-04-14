@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            30/12/2024 - v7.6.4                                            #
+#                                            13/04/2025 - v8.0.0                                            #
 #############################################################################################################
 
 
@@ -373,6 +373,74 @@ Check_Security() {
 Clean_Temp() {
 	rm -rf /tmp/skynet/*
 	mkdir -p /tmp/skynet/lists
+}
+
+IPSet_Wrapper() {
+	mode="$1"       # add | del | import | flush | deport
+	setname="$2"
+	input="$3"      # IP, file, or -
+	comment="$4"
+	filtermode="$5"   # --filtermode or auto-detect
+
+	# Validate allowed sets
+	case "$setname" in
+		Skynet-Whitelist|Skynet-Blacklist|Skynet-IOT|Skynet-BlockedRanges) ;;
+		*) echo "[✘] Invalid IPSet: $setname" >&2; return 1 ;;
+	esac
+
+	# Validate mode
+	case "$mode" in
+		add|del|import|flush|deport) ;;
+		*) echo "[✘] Invalid mode: $mode" >&2; return 1 ;;
+	esac
+
+	# Fast flush path
+	if [ "$mode" = "flush" ]; then
+		ipset flush "$setname"
+		return 0
+	fi
+
+	# Input source
+	if [ "$input" = "-" ]; then
+		data="$(cat)"
+	elif [ -f "$input" ]; then
+		data="$(cat "$input")"
+	else
+		data="$input"
+	fi
+
+	#  Auto-detect if input is raw ipset format (restore-ready)
+	if [ "$mode" = "import" ] && echo "$data" | head -n 1 | grep -qE '^(add|del) '; then
+		echo "$data" | ipset restore -!
+		return 0
+	fi
+
+	#  Filter unless disabled
+    case "$filtermode" in
+      --nofilter) ;;  # Skip all filtering
+      --skip-filter-ip) data="$(echo "$data" | Filter_PrivateIP)" ;;
+      *) data="$(echo "$data" | Filter_IP | Filter_PrivateIP)" ;;
+    esac
+
+	#  DEPORT: selective delete only
+	if [ "$mode" = "deport" ]; then
+		echo "$data" | awk -v set="$setname" '{ printf "del %s %s\n", set, $1 }' | ipset restore -!
+		return 0
+	fi
+
+	#  ADD / DEL / IMPORT
+	echo "$data" | awk -v mode="$mode" -v set="$setname" -v comment="$comment" '
+	{
+		ip = $1
+		if (mode == "add" || mode == "import") {
+			if (comment != "")
+				printf "add %s %s comment \"%s\"\n", set, ip, comment
+			else
+				printf "add %s %s\n", set, ip
+		} else if (mode == "del") {
+			printf "del %s %s\n", set, ip
+		}
+	}' | ipset restore -!
 }
 
 Unload_IPTables() {
@@ -3371,13 +3439,13 @@ case "$1" in
 			ip)
 				if ! echo "$3" | Is_IP; then echo "[*] $3 Is Not A Valid IP"; echo; exit 2; fi
 				echo "[i] Unbanning $3"
-				ipset -D Skynet-Blacklist "$3"
+				IPSet_Wrapper del Skynet-Blacklist $3 --nofilter
 				sed -i "\\~\\(BLOCKED.*=$3 \\|Manual Ban.*=$3 \\)~d" "$skynetlog" "$skynetevents"
 			;;
 			range)
 				if ! echo "$3" | Is_Range; then echo "[*] $3 Is Not A Valid Range"; echo; exit 2; fi
 				echo "[i] Unbanning $3"
-				ipset -D Skynet-BlockedRanges "$3"
+				IPSet_Wrapper del Skynet-BlockedRanges $3 --nofilter
 				sed -i "\\~\\(BLOCKED.*=$3 \\|Manual Ban.*=$3 \\)~d" "$skynetlog" "$skynetevents"
 			;;
 			domain)
@@ -3387,7 +3455,7 @@ case "$1" in
 				echo "[i] Removing $domain From Blacklist"
 				for ip in $(Domain_Lookup "$domain"); do
 					echo "[i] Unbanning $ip"
-					ipset -D Skynet-Blacklist "$ip"
+					IPSet_Wrapper del Skynet-Blacklist $ip --nofilter
 					sed -i "\\~\\(BLOCKED.*=$ip \\|Manual Ban.*=$ip \\)~d" "$skynetlog" "$skynetevents"
 				done
 			;;
@@ -3459,7 +3527,8 @@ case "$1" in
 				if [ -z "$4" ]; then
 					desc="$(date +"%b %d %T")"
 				fi
-				ipset -A Skynet-Blacklist "$3" comment "ManualBan: $desc" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Single SRC=$3 COMMENT=$desc " >> "$skynetevents"
+				IPSet_Wrapper add Skynet-Blacklist $3 "ManualBan: $desc" --skip-filter-ip
+				echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Single SRC=$3 COMMENT=$desc " >> "$skynetevents"
 			;;
 			range)
 				if ! echo "$3" | Is_Range; then echo "[*] $3 Is Not A Valid Range"; echo; exit 2; fi
@@ -3469,7 +3538,8 @@ case "$1" in
 				if [ -z "$4" ]; then
 					desc="$(date +"%b %d %T")"
 				fi
-				ipset -A Skynet-BlockedRanges "$3" comment "ManualRBan: $desc" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Range SRC=$3 COMMENT=$desc " >> "$skynetevents"
+				IPSet_Wrapper add Skynet-BlockedRanges $3 "ManualRBan: $desc" --skip-filter-ip
+				echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Range SRC=$3 COMMENT=$desc " >> "$skynetevents"
 			;;
 			domain)
 				if [ -z "$3" ]; then echo "[*] Domain Field Can't Be Empty - Please Try Again"; echo; exit 2; fi
@@ -3477,7 +3547,8 @@ case "$1" in
 				echo "[i] Adding $domain To Blacklist"
 				for ip in $(Domain_Lookup "$domain" | Filter_PrivateIP); do
 					echo "[i] Banning $ip"
-					ipset -A Skynet-Blacklist "$ip" comment "ManualBanD: $domain" && echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$domain " >> "$skynetevents"
+					IPSet_Wrapper add Skynet-Blacklist $ip "ManualBanD: $domain" --nofilter
+					echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$domain " >> "$skynetevents"
 				done
 			;;
 			country)
@@ -3659,7 +3730,8 @@ case "$1" in
 				if [ -z "$4" ]; then
 					desc="$(date +"%b %d %T")"
 				fi
-				ipset -A Skynet-Whitelist "$3" comment "ManualWlist: $desc" && sed -i "\\~=$3 ~d" "$skynetlog" "$skynetevents" && echo "$(date +"%b %d %T") Skynet: [Manual Whitelist] TYPE=Single SRC=$3 COMMENT=$desc " >> "$skynetevents"
+				IPSet_Wrapper add Skynet-Whitelist $3 "ManualWlist: $desc" --nofilter
+				sed -i "\\~=$3 ~d" "$skynetlog" "$skynetevents" && echo "$(date +"%b %d %T") Skynet: [Manual Whitelist] TYPE=Single SRC=$3 COMMENT=$desc " >> "$skynetevents"
 				ipset -q -D Skynet-Blacklist "$3"
 				ipset -q -D Skynet-BlockedRanges "$3"
 			;;
@@ -3670,7 +3742,8 @@ case "$1" in
 				echo "[i] Adding $domain To Whitelist"
 				for ip in $(Domain_Lookup "$domain"); do
 					echo "[i] Whitelisting $ip"
-					ipset -A Skynet-Whitelist "$ip" comment "ManualWlistD: $domain" && sed -i "\\~=$ip ~d" "$skynetlog" "$skynetevents" && echo "$(date +"%b %d %T") Skynet: [Manual Whitelist] TYPE=Domain SRC=$ip Host=$domain " >> "$skynetevents"
+					IPSet_Wrapper add Skynet-Whitelist $ip "ManualWlistD: $domain" --nofilter
+					sed -i "\\~=$ip ~d" "$skynetlog" "$skynetevents" && echo "$(date +"%b %d %T") Skynet: [Manual Whitelist] TYPE=Domain SRC=$ip Host=$domain " >> "$skynetevents"
 					ipset -q -D Skynet-Blacklist "$ip"
 				done
 				if [ "$?" = "1" ]; then echo "$domain" >> /jffs/addons/shared-whitelists/shared-Skynet2-whitelist; fi
@@ -3691,7 +3764,7 @@ case "$1" in
 					entry)
 						if ! echo "$4" | Is_IPRange; then echo "[*] $4 Is Not A Valid IP/Range"; echo; exit 2; fi
 						echo "[i] Removing $4 From Whitelist"
-						ipset -D Skynet-Whitelist "$4"
+						IPSet_Wrapper del Skynet-Whitelist $4 --nofilter
 						sed -i "\\~=$4 ~d" "$skynetlog" "$skynetevents"
 					;;
 					comment)
@@ -4333,7 +4406,7 @@ case "$1" in
 										echo "[*] $ip Is Not A Valid IP/Range"
 										echo
 									else
-										ipset -D Skynet-IOT "$ip"
+										IPSet_Wrapper del Skynet-IOT $ip --nofilter
 									fi
 							done
 						else
@@ -4341,7 +4414,7 @@ case "$1" in
 								echo "[*] $4 Is Not A Valid IP/Range"
 								echo
 							else
-								ipset -D Skynet-IOT "$4"
+								IPSet_Wrapper del Skynet-IOT $4 --nofilter
 								sed -i "\\~BLOCKED - IOT.*=$4 ~d" "$skynetlog"
 							fi
 						fi
@@ -4369,7 +4442,7 @@ case "$1" in
 										echo "[*] $ip Is Not A Valid IP/Range"
 										echo
 									else
-										ipset -A Skynet-IOT "$ip" comment "IOTBan: $desc"
+										IPSet_Wrapper add Skynet-IOT $ip "IOTBan: $desc" --skip-filter-ip
 									fi
 							done
 						else
@@ -4377,7 +4450,7 @@ case "$1" in
 								echo "[*] $4 Is Not A Valid IP/Range"
 								echo
 							else
-								ipset -A Skynet-IOT "$4" comment "IOTBan: $desc"
+								IPSet_Wrapper add Skynet-IOT $4 "IOTBan: $desc" --skip-filter-ip
 							fi
 						fi
 						if [ "$(ipset -L -t Skynet-IOT | tail -1 | awk '{print $4}')" -gt "0" ]; then
