@@ -897,24 +897,26 @@ Filter_PrivateDST() {
 }
 
 Spinner_End() {
-	if [ -f /tmp/skynet/spinstart ]; then
-		pider="$(cat /tmp/skynet/spinstart)"
-		rm -rf /tmp/skynet/spinstart
-		if [ -d "/proc/$pider" ]; then kill "$pider"; fi
-	fi
+    if [ -f /tmp/skynet/spinstart ]; then
+        kill "$(cat /tmp/skynet/spinstart)" 2>/dev/null
+        rm -f /tmp/skynet/spinstart
+    fi
 }
 
 Spinner_Start() {
-	Spinner_End
-	touch "/tmp/skynet/spinstart"
-	{ while [ -f "/tmp/skynet/spinstart" ]; do
-		for c in \*-- -\*- --\*; do
-			printf '\033[1;32m%s\033[0m\b\b\b' "$c"
-			usleep 250000
-		done
-		printf '   \b\b\b'
-	done; } &
-	echo "$!" > /tmp/skynet/spinstart
+    touch /tmp/skynet/spinstart
+    {
+        chars='|/-\\'
+        while [ -f /tmp/skynet/spinstart ]; do
+            for i in 1 2 3 4; do
+                char="$(echo "$chars" | cut -c $i)"
+                printf '\033[1;32m%s\033[0m\b' "$char"
+                usleep 100000
+            done
+        done
+        printf ' \b'
+    } &
+    echo "$!" > /tmp/skynet/spinstart
 }
 
 Save_IPSets() {
@@ -944,6 +946,7 @@ Refresh_AiProtect() {
 			for ip in $(Domain_Lookup "$domain" | Filter_PrivateIP); do
 				echo "add Skynet-Blacklist $ip comment \"BanAiProtect: $domain\""
 			done &
+			wait
 		done | ipset restore -!
 	fi
 }
@@ -1067,6 +1070,7 @@ Whitelist_Shared() {
 	Strip_Domain < /jffs/addons/shared-whitelists/shared-Skynet2-whitelist | while IFS= read -r domain; do
 		nslookup "$domain" 127.0.0.1 >/dev/null 2>&1
 	done &
+	wait
 }
 
 WriteStats_ToJS() {
@@ -3417,7 +3421,7 @@ if [ -n "$option1" ]; then
 	echo "[$] $0 $*" | tr -s " "
 fi
 
-trap 'Spinner_End' EXIT
+trap Spinner_End INT TERM
 
 if [ -f "$skynetcfg" ]; then
 	. "$skynetcfg"
@@ -3657,11 +3661,9 @@ case "$1" in
 		Display_Message "[i] Refreshing Whitelists"
 		Whitelist_Extra
 		Whitelist_VPN
-		Spinner_End
 		Whitelist_CDN
 		Whitelist_Shared
 		Refresh_MWhitelist
-		Spinner_Start
 		Display_Result
 		Display_Message "[i] Consolidating Blacklist"
 		mkdir -p "${skynetloc}/lists"
@@ -3704,7 +3706,6 @@ case "$1" in
 			Display_Message "[i] Refreshing AiProtect Bans"
 			Spinner_End
 			Refresh_AiProtect
-			Spinner_Start
 			Display_Result
 			Display_Message "[i] Saving Changes"
 			Save_IPSets
