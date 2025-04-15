@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            13/04/2025 - v8.0.0                                            #
+#                                            16/04/2025 - v8.0.0                                            #
 #############################################################################################################
 
 
@@ -897,26 +897,45 @@ Filter_PrivateDST() {
 }
 
 Spinner_End() {
-    if [ -f /tmp/skynet/spinstart ]; then
-        kill "$(cat /tmp/skynet/spinstart)" 2>/dev/null
-        rm -f /tmp/skynet/spinstart
-    fi
+	touch /tmp/skynet/spinstart
+    # if [ -f /tmp/skynet/spinstart ]; then
+    #     kill "$(cat /tmp/skynet/spinstart)" 2>/dev/null
+    #     rm -f /tmp/skynet/spinstart
+    # fi
 }
 
 Spinner_Start() {
-    touch /tmp/skynet/spinstart
-    {
-        chars='|/-\\'
-        while [ -f /tmp/skynet/spinstart ]; do
-            for i in 1 2 3 4; do
-                char="$(echo "$chars" | cut -c $i)"
-                printf '\033[1;32m%s\033[0m\b' "$char"
-                usleep 100000
-            done
-        done
-        printf ' \b'
-    } &
-    echo "$!" > /tmp/skynet/spinstart
+	touch /tmp/skynet/spinstart
+    # touch /tmp/skynet/spinstart
+    # {
+    #     chars='|/-\\'
+    #     while [ -f /tmp/skynet/spinstart ]; do
+    #         for i in 1 2 3 4; do
+    #             char="$(echo "$chars" | cut -c $i)"
+    #             printf '\033[1;32m%s\033[0m\b' "$char"
+    #             usleep 100000
+    #         done
+    #     done
+    #     printf ' \b'
+    # } &
+    # echo "$!" > /tmp/skynet/spinstart
+}
+
+TimeoutLookup() {
+    domain="$1"
+    timeout="$2"
+    result_file="/tmp/skynet/ns.$$.$(echo "$domain" | tr -c '[:alnum:]' '_').tmp"
+
+    (
+        nslookup "$domain" > "$result_file" 2>/dev/null
+    ) &
+    lookup_pid=$!
+    sleep "$timeout" && kill "$lookup_pid" 2>/dev/null >/dev/null & watchdog_pid=$!
+    wait "$lookup_pid" 2>/dev/null
+    kill "$watchdog_pid" 2>/dev/null >/dev/null
+
+    [ -s "$result_file" ] && awk '/^Address: / { print $2 }' "$result_file"
+    rm -f "$result_file"
 }
 
 Save_IPSets() {
@@ -943,11 +962,13 @@ Refresh_AiProtect() {
 		sed '\~add Skynet-Blacklist ~!d;\~BanAiProtect~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
 		sqlite3 /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db "SELECT src FROM monitor;" | awk '!x[$0]++' | Filter_IP | Filter_PrivateIP | awk '{printf "add Skynet-Blacklist %s comment \"BanAiProtect\"\n", $1 }' | ipset restore -!
 		sqlite3 /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db "SELECT dst FROM monitor;" | awk '!x[$0]++' | Filter_OutIP | grep -v ":" | while IFS= read -r "domain"; do
-			for ip in $(Domain_Lookup "$domain" | Filter_PrivateIP); do
-				echo "add Skynet-Blacklist $ip comment \"BanAiProtect: $domain\""
-			done &
-			wait
-		done | ipset restore -!
+		{
+			for ip in $(TimeoutLookup "$domain" 3 | Filter_PrivateIP); do
+			echo "add Skynet-Blacklist $ip comment \"BanAiProtect: $domain\""
+			done
+		} &
+		done
+		wait | ipset restore -!
 	fi
 }
 
@@ -957,11 +978,14 @@ Refresh_MBans() {
 		sed -i '\~\[Manual Ban\] TYPE=Domain~d;' "$skynetevents"
 		sed '\~add Skynet-Blacklist ~!d;\~ManualBanD~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
 		while IFS= read -r "domain"; do
-			for ip in $(Domain_Lookup "$domain" | Filter_PrivateIP); do
-				echo "add Skynet-Blacklist $ip comment \"ManualBanD: $domain\""
-				echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$domain " >> "$skynetevents"
+		{
+			for ip in $(TimeoutLookup "$domain" 3 | Filter_PrivateIP); do
+			echo "add Skynet-Blacklist $ip comment \"ManualBanD: $domain\""
+			echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$domain " >> "$skynetevents"
 			done
-		done < /tmp/skynet/mbans.list | ipset restore -!
+		} &
+		done < /tmp/skynet/mbans.list
+		wait
 		rm -rf /tmp/skynet/mbans.list
 	fi
 }
@@ -971,12 +995,15 @@ Refresh_MWhitelist() {
 		awk '/Manual Whitelist.* TYPE=Domain/{if(!x[$9]++)print $9}' "$skynetevents" | sed 's~Host=~~g' > /tmp/skynet/mwhitelist.list
 		sed -i '\~\[Manual Whitelist\] TYPE=Domain~d;' "$skynetevents"
 		sed '\~add Skynet-Whitelist ~!d;\~ManualWlistD~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
-		while IFS= read -r "domain"; do
-			for ip in $(Domain_Lookup "$domain"); do
-				echo "add Skynet-Whitelist $ip comment \"ManualWlistD: $domain\""
-				echo "$(date +"%b %d %T") Skynet: [Manual Whitelist] TYPE=Domain SRC=$ip Host=$domain " >> "$skynetevents"
-			done
+		while IFS= read -r domain; do
+			{
+				for ip in $(TimeoutLookup "$domain" 3 | Filter_PrivateIP); do
+					echo "add Skynet-Whitelist $ip comment \"ManualWlistD: $domain\""
+					echo "$(date +"%b %d %T") Skynet: [Manual Whitelist] TYPE=Domain SRC=$ip Host=$domain " >> "$skynetevents"
+				done
+			} &
 		done < /tmp/skynet/mwhitelist.list | ipset restore -!
+		wait
 		cat /tmp/skynet/mwhitelist.list >> /jffs/addons/shared-whitelists/shared-Skynet2-whitelist
 		rm -rf /tmp/skynet/mwhitelist.list
 	fi
@@ -3666,55 +3693,86 @@ case "$1" in
 		Refresh_MWhitelist
 		Display_Result
 		Display_Message "[i] Consolidating Blacklist"
+
 		mkdir -p "${skynetloc}/lists"
 		cwd="$(pwd)"
 		cd "${skynetloc}/lists" || exit 1
+
+		# Extract just the filenames from URLs (e.g. file.txt)
 		awk -F / '{print $NF}' /jffs/addons/shared-whitelists/shared-Skynet-whitelist > /tmp/skynet/skynet.manifest
-		while IFS= read -r "list"; do
-			if [ ! -f "$list" ]; then
-				rm -rf "${skynetloc}"/lists/*
-				break
-			fi
+
+		# Download all feeds in parallel
+		while IFS= read -r list; do
+			(
+				url=$(grep "$list" /jffs/addons/shared-whitelists/shared-Skynet-whitelist)
+				if [ -n "$url" ]; then
+					curl -fsLZ --retry 2 --connect-timeout 5 --max-time 15 "$url" -o "${skynetloc}/lists/$list" \
+					|| echo "[✘] Failed to fetch: $url"
+				fi
+			) &
 		done < /tmp/skynet/skynet.manifest
-		awk -F/ '{print $0" -Oz "$NF}' /jffs/addons/shared-whitelists/shared-Skynet-whitelist | xargs "curl" -fsLZ
-		dos2unix "${skynetloc}"/lists/* 2>/dev/null
-		for file in *; do
-			grep -qF "$file" /tmp/skynet/skynet.manifest || rm -rf "$file"
+		wait
+
+		# Clean and validate downloads
+		dos2unix "${skynetloc}/lists/"* 2>/dev/null
+		for file in "${skynetloc}/lists/"*; do
+			basefile="$(basename "$file")"
+			if ! grep -qF "$basefile" /tmp/skynet/skynet.manifest; then
+				rm -f "$file"
+			fi
 		done
-		if ! grep -qE '^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)$' "${skynetloc}"/lists/* 2>/dev/null; then
-			result="$(Red "[$(($(date +%s) - btime))s]")"
-			printf '%-8s\n' "$result"
-			printf '%-35s\n' "[*] List Content Error Detected - Stopping Banmalware"
-			nocfg="1"
-			result="1"
-		fi
+
 		if [ "$result" != "1" ]; then
-			awk '/^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)([[:space:]]|$)/{if(!x[$1]++)print $1 " " FILENAME}' -- * | Filter_PrivateIP > /tmp/skynet/malwarelist.txt
-			cd "$cwd" || exit 1
-			Display_Result
-			Display_Message "[i] Filtering IPv4 Addresses"
 			sed -i '\~comment \"BanMalware: ~d' "$skynetipset"
-			awk '/^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(32))?)([[:space:]]|$)/{printf "add Skynet-Blacklist %s comment \"BanMalware: %s\"\n", $1, $2 }' /tmp/skynet/malwarelist.txt >> "$skynetipset"
-			Display_Result
-			Display_Message "[i] Filtering IPv4 Ranges"
-			awk '/^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-1])){1})([[:space:]]|$)/{printf "add Skynet-BlockedRanges %s comment \"BanMalware: %s\"\n", $1, $2 }' /tmp/skynet/malwarelist.txt >> "$skynetipset"
-			Display_Result
-			Display_Message "[i] Applying New Blacklist"
-			ipset flush Skynet-Blacklist; ipset flush Skynet-BlockedRanges
-			ipset restore -! -f "$skynetipset" >/dev/null 2>&1
-			Display_Result
-			Display_Message "[i] Refreshing AiProtect Bans"
-			Spinner_End
-			Refresh_AiProtect
-			Display_Result
-			Display_Message "[i] Saving Changes"
-			Save_IPSets
-			Display_Result
-			unset "forcebanmalwareupdate"
-			echo
-			echo "[i] For Whitelisting Assistance -"
-			echo "[i] https://www.snbforums.com/threads/release-skynet-router-firewall-security-enhancements.16798/#post-115872"
+			if [ -d "${skynetloc}/lists" ] && ls "${skynetloc}/lists/"* 1>/dev/null 2>&1; then
+				if ! awk '
+					BEGIN { valid_entries=0 }
+					{
+						if ($1 ~ /^([0-9]{1,3}\.){3}[0-9]{1,3}(\/([0-9]|[1-2][0-9]|3[0-2]))?([[:space:]]|$)/) {
+							ip = $1
+							src = FILENAME
+							gsub(".*/", "", src)
+							if (!x[ip]++) {
+								valid_entries++
+								if (ip ~ /^([0-9]{1,3}\.){3}[0-9]{1,3}\/32$/ || ip !~ /\//) {
+									print "add Skynet-Blacklist " ip " comment \"BanMalware: " src "\""
+								} else if (ip ~ /^([0-9]{1,3}\.){3}[0-9]{1,3}\/([0-9]|[1-2][0-9]|3[0-1])$/) {
+									print "add Skynet-BlockedRanges " ip " comment \"BanMalware: " src "\""
+								}
+							}
+						}
+					}
+					END {
+						if (valid_entries == 0) exit 1
+					}
+				' "${skynetloc}/lists/"* | Filter_PrivateIP >> "$skynetipset"; then
+					result="$(Red "[$(($(date +%s) - btime))s]")"
+					printf '%-8s\n' "$result"
+					printf '%-35s\n' "[✘] No usable malware entries found in feeds"
+					nocfg="1"
+				fi
+			else
+				printf '%-35s\n' "[✘] No malware feeds found — skipping consolidation"
+				nocfg="1"
+			fi
 		fi
+
+		Display_Result
+		Display_Message "[i] Applying New Blacklist"
+		ipset flush Skynet-Blacklist; ipset flush Skynet-BlockedRanges
+		ipset restore -! -f "$skynetipset" >/dev/null 2>&1
+		Display_Result
+		Display_Message "[i] Refreshing AiProtect Bans"
+		Spinner_End
+		Refresh_AiProtect
+		Display_Result
+		Display_Message "[i] Saving Changes"
+		Save_IPSets
+		Display_Result
+		unset "forcebanmalwareupdate"
+		echo
+		echo "[i] For Whitelisting Assistance -"
+		echo "[i] https://www.snbforums.com/threads/release-skynet-router-firewall-security-enhancements.16798/#post-115872"
 		Clean_Temp
 	;;
 
