@@ -922,20 +922,20 @@ Spinner_Start() {
 }
 
 TimeoutLookup() {
-    domain="$1"
-    timeout="$2"
-    result_file="/tmp/skynet/ns.$$.$(echo "$domain" | tr -c '[:alnum:]' '_').tmp"
+	domain="$1"
+	timeout="$2"
+	result_file="/tmp/skynet/ns.$$.$(echo "$domain" | tr -c '[:alnum:]' '_').tmp"
 
-    (
-        nslookup "$domain" > "$result_file" 2>/dev/null
-    ) &
-    lookup_pid=$!
-    sleep "$timeout" && kill "$lookup_pid" 2>/dev/null >/dev/null & watchdog_pid=$!
-    wait "$lookup_pid" 2>/dev/null
-    kill "$watchdog_pid" 2>/dev/null >/dev/null
+	(
+		nslookup "$domain" > "$result_file" 2>/dev/null
+	) &
+	lookup_pid=$!
+	sleep "$timeout" && kill "$lookup_pid" 2>/dev/null >/dev/null & watchdog_pid=$!
+	wait "$lookup_pid" 2>/dev/null
+	kill "$watchdog_pid" 2>/dev/null >/dev/null
 
-    [ -s "$result_file" ] && awk '/^Address: / { print $2 }' "$result_file"
-    rm -f "$result_file"
+	[ -s "$result_file" ] && awk '/Address/ && $NF ~ /^([0-9]{1,3}\.){3}[0-9]{1,3}$/ { print $NF }' "$result_file"
+	rm -f "$result_file"
 }
 
 Save_IPSets() {
@@ -959,18 +959,34 @@ Unban_PrivateIP() {
 
 Refresh_AiProtect() {
 	if [ "$banaiprotect" = "enabled" ] && [ -s /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db ]; then
+
+		# Remove previous AiProtect entries
 		sed '\~add Skynet-Blacklist ~!d;\~BanAiProtect~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
-		sqlite3 /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db "SELECT src FROM monitor;" | awk '!x[$0]++' | Filter_IP | Filter_PrivateIP | awk '{printf "add Skynet-Blacklist %s comment \"BanAiProtect\"\n", $1 }' | ipset restore -!
-		sqlite3 /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db "SELECT dst FROM monitor;" | awk '!x[$0]++' | Filter_OutIP | grep -v ":" | while IFS= read -r "domain"; do
-		{
-			for ip in $(TimeoutLookup "$domain" 3 | Filter_PrivateIP); do
-			echo "add Skynet-Blacklist $ip comment \"BanAiProtect: $domain\""
-			done
-		} &
-		done
-		wait | ipset restore -!
+
+		# Add static IPs from SRC field
+		sqlite3 /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db "SELECT src FROM monitor;" \
+			| awk '!x[$0]++' \
+			| Filter_IP | Filter_PrivateIP \
+			| awk '{printf "add Skynet-Blacklist %s comment \"BanAiProtect\"\n", $1 }' \
+			| ipset restore -!
+
+		# Collect DST domain resolutions in parallel, write directly to ipset
+		(
+			sqlite3 /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db "SELECT dst FROM monitor;" \
+				| awk '!x[$0]++' | Filter_OutIP | grep -v ":" \
+				| while IFS= read -r domain; do
+					{
+						for ip in $(TimeoutLookup "$domain" 3 | Filter_PrivateIP); do
+							echo "add Skynet-Blacklist $ip comment \"BanAiProtect: $domain\""
+						done
+					} &
+				done
+			wait
+		) | ipset restore -!
+
 	fi
 }
+
 
 Refresh_MBans() {
 	if grep -qF "[Manual Ban] TYPE=Domain" "$skynetevents"; then
