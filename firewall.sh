@@ -896,29 +896,6 @@ Filter_PrivateDST() {
 	grep -E 'DST=(0\.|10\.|100\.(6[4-9]|[7-9][0-9]|1[0-1][0-9]|12[0-7])\.|127\.|169\.254\.|172\.1[6-9]\.|172\.2[0-9]\.|172\.3[0-1]\.|192\.0\.0\.|192\.0\.2\.|192\.168\.|198\.(1[8-9])\.|198\.51\.100\.|203\.0\.113\.|2(2[4-9]|[3-4][0-9]|5[0-5])\.)'
 }
 
-Spinner_End() {
-	if [ -f /tmp/skynet/spinstart ]; then
-		kill "$(cat /tmp/skynet/spinstart)" 2>/dev/null
-		rm -f /tmp/skynet/spinstart
-	fi
-}
-
-Spinner_Start() {
-	touch /tmp/skynet/spinstart
-	{
-		chars='|/-\\'
-		while [ -f /tmp/skynet/spinstart ]; do
-			for i in 1 2 3 4; do
-				char="$(echo "$chars" | cut -c $i)"
-				printf '\033[1;32m%s\033[0m\b' "$char"
-				usleep 100000
-			done
-		done
-		printf ' \b'
-	} &
-	echo "$!" > /tmp/skynet/spinstart
-}
-
 TimeoutLookup() {
 	domain="$1"
 	timeout="$2"
@@ -1140,8 +1117,7 @@ WriteData_ToJS() {
 }
 
 Run_Stats() {
-			Purge_Logs
-		Spinner_Start
+		Purge_Logs
 		nocfg="1"
 		if [ "$logmode" = "disabled" ]; then
 			echo
@@ -3912,7 +3888,7 @@ if [ -n "$option1" ]; then
 	echo "[$] $0 $*" | tr -s " "
 fi
 
-trap Spinner_End INT TERM
+trap EXIT
 
 if [ -f "$skynetcfg" ]; then
 	. "$skynetcfg"
@@ -4086,7 +4062,6 @@ case "$1" in
 		Check_Lock "$@"
 		if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 		if ! Check_Connection; then echo "[*] Connection Error Detected - Exiting"; echo; exit 1; fi
-		Spinner_Start
 		Purge_Logs
 		if [ "$2" = "disable" ] && [ "$fastswitch" = "disabled" ] && [ "$1" = "fs" ]; then
 			echo "[*] Fast Switch List Already Disabled - Stopping Banmalware"
@@ -4227,7 +4202,6 @@ case "$1" in
 		ipset restore -! -f "$skynetipset" >/dev/null 2>&1
 		Display_Result
 		Display_Message "[i] Refreshing AiProtect Bans"
-		Spinner_End
 		Refresh_AiProtect
 		Display_Result
 		Display_Message "[i] Saving Changes"
@@ -4358,7 +4332,6 @@ case "$1" in
 	;;
 
 	import)
-		Spinner_Start
 		case "$2" in
 			blacklist)
 				Check_Lock "$@"
@@ -4434,7 +4407,6 @@ case "$1" in
 	;;
 
 	deport)
-		Spinner_Start
 		case "$2" in
 			blacklist)
 				Check_Lock "$@"
@@ -5222,10 +5194,9 @@ case "$1" in
 	debug)
 		case "$2" in
 			watch)
-				Spinner_Start
 				if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 				if [ "$logmode" = "disabled" ]; then echo "[*] Logging Is Disabled - Exiting!"; echo; exit 2; fi
-				trap 'echo;echo; echo "[*] Stopping Log Monitoring"; Purge_Logs; Spinner_End' 2
+				trap 'echo;echo; echo "[*] Stopping Log Monitoring"; Purge_Logs' 2
 				echo "[i] Watching Syslog For Log Entries (ctrl +c) To Stop"
 				echo
 				Purge_Logs
@@ -5992,7 +5963,6 @@ case "$1" in
 	;;
 esac
 
-Spinner_End
 Display_Header "9"
 if [ "$nolog" != "2" ]; then Print_Log "$@"; echo; fi
 if [ "$nocfg" != "1" ]; then Write_Config; fi
