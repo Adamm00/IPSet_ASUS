@@ -218,10 +218,21 @@ Check_Settings() {
 		iotlogging="enabled"
 	fi
 
-	if ps | grep -F "/sbin/syslogd" | grep -qF "/jffs/syslog.log" && [ "$syslogloc" = "/tmp/syslog.log" ]; then
-		syslogloc="/jffs/syslog.log" # Fix syslog location on newer random models
-		syslog1loc="/jffs/syslog.log-1"
-	fi
+	# If syslogd was started from /sbin/syslogd with /jffs/syslog.log, fix syslogloc
+	pids=$(pidof syslogd) || pids=
+	for pid in $pids; do
+		# 1) Confirm the binary path
+		exe_path=$(readlink "/proc/$pid/exe") || continue
+		[ "$exe_path" != "/sbin/syslogd" ] && continue
+
+		# 2) Check its cmdline for the jffs logfile argument
+		if grep -qF "/jffs/syslog.log" "/proc/$pid/cmdline"; then
+			syslogloc="/jffs/syslog.log"
+			syslog1loc="/jffs/syslog.log-1"
+			break
+		fi
+	done
+
 	if [ -f "/opt/bin/scribe" ] && [ ! -f "/opt/etc/syslog-ng.d/skynet" ] && [ -f "/opt/share/syslog-ng/examples/skynet" ]; then
 		logger -st Skynet "[i] Installing Scribe Plugin"
 		rm -rf "/opt/etc/syslog-ng.d/firewall" "/opt/etc/logrotate/firewall"
@@ -236,26 +247,31 @@ Check_Settings() {
 		logger -st Skynet "[*] Private WAN IP Detected $(nvram get wan0_ipaddr) - Please Put Your Modem In Bridge Mode / Disable CG-NAT"
 	fi
 }
-
 Check_Connection() {
-	livecheck="0"
-	websites="google.com github.com snbforums.com"
+    # 1) Grab the numeric gateway IP from the routing table
+    gw=$(route -n | awk '$1=="0.0.0.0"{print $2; exit}')
+    [ -n "$gw" ] || {
+        echo "[*] No Default Route"
+        return 1
+    }
 
-	while [ "$livecheck" -lt 4 ]; do
-		for website in $websites; do
-			if ping -q -w3 -c1 "$website" >/dev/null 2>&1; then
-				return 0
-			fi
-		done
+    # 2) Quick ping gateway (1 s timeout)
+    if ping -c1 -W1 "$gw" >/dev/null 2>&1; then
+        return 0
+    fi
 
-		livecheck=$((livecheck + 1))
-		if [ "$livecheck" -lt 4 ]; then
-			echo "[*] Internet Connectivity Error"
-			sleep 10
-		else
-			return 1
-		fi
-	done
+    # 3) Quick ping a reliable public IP (1 s timeout)
+    if ping -c1 -W1 1.1.1.1 >/dev/null 2>&1; then
+        return 0
+    fi
+
+    # 4) ARP fallback on the known $iface (1 s timeout)
+    if arping -c1 -w1 -I "$iface" "$gw" >/dev/null 2>&1; then
+        return 0
+    fi
+
+    echo "[*] Connectivity Check Failed"
+    return 1
 }
 
 Check_Files() {
