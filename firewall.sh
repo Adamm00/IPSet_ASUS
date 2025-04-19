@@ -275,50 +275,49 @@ Check_Connection() {
 }
 
 Check_Files() {
-	if [ ! -f "/jffs/scripts/firewall-start" ]; then
-		echo "#!/bin/sh" > /jffs/scripts/firewall-start
-		echo >> /jffs/scripts/firewall-start
-	elif [ -f "/jffs/scripts/firewall-start" ] && ! head -1 /jffs/scripts/firewall-start | grep -qE "^#!/bin/sh"; then
-		sed -i '1s~^~#!/bin/sh\n~' /jffs/scripts/firewall-start
-	fi
-	if [ ! -f "/jffs/scripts/services-stop" ]; then
-		echo "#!/bin/sh" > /jffs/scripts/services-stop
-		echo >> /jffs/scripts/services-stop
-	elif [ -f "/jffs/scripts/services-stop" ] && ! head -1 /jffs/scripts/services-stop | grep -qE "^#!/bin/sh"; then
-		sed -i '1s~^~#!/bin/sh\n~' /jffs/scripts/services-stop
-	fi
-	if [ ! -f "/jffs/scripts/service-event" ]; then
-		echo "#!/bin/sh" > /jffs/scripts/service-event
-		echo >> /jffs/scripts/service-event
-	elif [ -f "/jffs/scripts/service-event" ] && ! head -1 /jffs/scripts/service-event | grep -qE "^#!/bin/sh"; then
-		sed -i '1s~^~#!/bin/sh\n~' /jffs/scripts/service-event
-	fi
-	if ! grep -vE "^#" /jffs/scripts/service-event | grep -qF "sh /jffs/scripts/firewall debug genstats"; then
-		cmdline="if [ \"\$1\" = \"start\" ] && [ \"\$2\" = \"SkynetStats\" ]; then sh /jffs/scripts/firewall debug genstats; fi # Skynet"
-		sed -i '\~# Skynet~d' /jffs/scripts/service-event
-		echo "$cmdline" >> /jffs/scripts/service-event
-	fi
-	if [ ! -f "/jffs/scripts/post-mount" ]; then
-		echo "#!/bin/sh" > /jffs/scripts/post-mount
-		echo >> /jffs/scripts/post-mount
-	elif [ -f "/jffs/scripts/post-mount" ] && ! head -1 /jffs/scripts/post-mount | grep -qE "^#!/bin/sh"; then
-		sed -i '1s~^~#!/bin/sh\n~' /jffs/scripts/post-mount
-	fi
-	if [ ! -f "/jffs/scripts/unmount" ]; then
-		echo "#!/bin/sh" > /jffs/scripts/unmount
-		echo >> /jffs/scripts/unmount
-	elif [ -f "/jffs/scripts/unmount" ] && ! head -1 /jffs/scripts/unmount | grep -qE "^#!/bin/sh"; then
-		sed -i '1s~^~#!/bin/sh\n~' /jffs/scripts/unmount
-	fi
-	if ! grep -qE "^swapoff " /jffs/scripts/unmount; then
-		sed -i '\~swapoff ~d' /jffs/scripts/unmount
-		echo "swapoff -a 2>/dev/null # Skynet" >> /jffs/scripts/unmount
-	fi
-	if ! grep -vE "^#" /jffs/scripts/services-stop | grep -qF "sh /jffs/scripts/firewall save"; then
-		echo "sh /jffs/scripts/firewall save # Skynet" >> /jffs/scripts/services-stop
-	fi
-	if [ "$(wc -l < /jffs/scripts/post-mount)" -lt "2" ]; then echo >> /jffs/scripts/post-mount; fi
-	chmod 755 "/jffs/scripts/firewall" "/jffs/scripts/firewall-start" "/jffs/scripts/services-stop" "/jffs/scripts/service-event" "/jffs/scripts/post-mount" "/jffs/scripts/unmount"
+    # 1) Ensure each script has a proper shebang
+    scripts="firewall-start services-stop service-event post-mount unmount"
+    for name in $scripts; do
+        path="/jffs/scripts/$name"
+        if [ ! -f "$path" ]; then
+            echo '#!/bin/sh' > "$path"
+            echo >> "$path"
+        elif ! head -n1 "$path" | grep -q '^#!/bin/sh'; then
+            sed -i '1s~^~#!/bin/sh\n~' "$path"
+        fi
+    done
+
+    # service-event: inject debug‑genstats if missing
+    if ! grep -vE '^#' /jffs/scripts/service-event | grep -qF 'sh /jffs/scripts/firewall debug genstats'; then
+        sed -i '\~# Skynet~d' /jffs/scripts/service-event
+        echo "if [ \"\$1\" = \"start\" ] && [ \"\$2\" = \"SkynetStats\" ]; then sh /jffs/scripts/firewall debug genstats; fi # Skynet" \
+             >> /jffs/scripts/service-event
+    fi
+
+
+    # 3) unmount: ensure swapoff entry
+    if ! grep -qE '^swapoff ' /jffs/scripts/unmount; then
+        sed -i '\~swapoff ~d' /jffs/scripts/unmount
+        echo 'swapoff -a 2>/dev/null # Skynet' >> /jffs/scripts/unmount
+    fi
+
+    # 4) services-stop: ensure firewall‑save alias
+    if ! grep -vE '^#' /jffs/scripts/services-stop | grep -qF 'sh /jffs/scripts/firewall save'; then
+        echo 'sh /jffs/scripts/firewall save # Skynet' >> /jffs/scripts/services-stop
+    fi
+
+    # 5) post-mount: ensure at least one blank line
+    if [ "$(wc -l < /jffs/scripts/post-mount)" -lt 2 ]; then
+        echo >> /jffs/scripts/post-mount
+    fi
+
+    # 6) final perms
+    chmod 755 /jffs/scripts/firewall \
+                 /jffs/scripts/firewall-start \
+                 /jffs/scripts/services-stop \
+                 /jffs/scripts/service-event \
+                 /jffs/scripts/post-mount \
+                 /jffs/scripts/unmount
 }
 
 Check_Security() {
