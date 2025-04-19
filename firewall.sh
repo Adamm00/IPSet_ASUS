@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            16/04/2025 - v8.0.0                                            #
+#                                            19/04/2025 - v8.0.0                                            #
 #############################################################################################################
 
 
@@ -248,30 +248,30 @@ Check_Settings() {
 	fi
 }
 Check_Connection() {
-    # 1) Grab the numeric gateway IP from the routing table
-    gw=$(route -n | awk '$1=="0.0.0.0"{print $2; exit}')
-    [ -n "$gw" ] || {
-        echo "[*] No Default Route"
-        return 1
-    }
+	# 1) Grab the numeric gateway IP from the routing table
+	gw=$(route -n | awk '$1=="0.0.0.0"{print $2; exit}')
+	[ -n "$gw" ] || {
+		echo "[*] No Default Route"
+		return 1
+	}
 
-    # 2) Quick ping gateway (1 s timeout)
-    if ping -c1 -W1 "$gw" >/dev/null 2>&1; then
-        return 0
-    fi
+	# 2) Quick ping gateway (1 s timeout)
+	if ping -c1 -W1 "$gw" >/dev/null 2>&1; then
+		return 0
+	fi
 
-    # 3) Quick ping a reliable public IP (1 s timeout)
-    if ping -c1 -W1 1.1.1.1 >/dev/null 2>&1; then
-        return 0
-    fi
+	# 3) Quick ping a reliable public IP (1 s timeout)
+	if ping -c1 -W1 1.1.1.1 >/dev/null 2>&1; then
+		return 0
+	fi
 
-    # 4) ARP fallback on the known $iface (1 s timeout)
-    if arping -c1 -w1 -I "$iface" "$gw" >/dev/null 2>&1; then
-        return 0
-    fi
+	# 4) ARP fallback on the known $iface (1 s timeout)
+	if arping -c1 -w1 -I "$iface" "$gw" >/dev/null 2>&1; then
+		return 0
+	fi
 
-    echo "[*] Connectivity Check Failed"
-    return 1
+	echo "[*] Connectivity Check Failed"
+	return 1
 }
 
 Check_Files() {
@@ -590,65 +590,103 @@ Check_IPSets() {
 }
 
 Check_IPTables() {
+	raw_rules=$(iptables-save -t raw)
+	filter_rules=$(iptables-save -t filter)
+	fail=""
+
+	#6: WireGuard DROP
 	if [ "$(nvram get wgs_enable)" = "1" ]; then
-		iptables -t raw -C PREROUTING -i wgs+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null || fail="${fail}#6 "
+		echo "$raw_rules" | grep -Fq -- '-A PREROUTING -i wgs+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP' \
+			|| fail="${fail}#6 "
 	fi
+
+	#7: OpenVPN DROP
 	if [ "$(nvram get vpn_server1_state)" != "0" ] || [ "$(nvram get vpn_server2_state)" != "0" ]; then
-		iptables -t raw -C PREROUTING -i tun2+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null || fail="${fail}#7 "
+		echo "$raw_rules" | grep -Fq -- '-A PREROUTING -i tun2+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP' \
+			|| fail="${fail}#7 "
 	fi
+
+	#8: Inbound on $iface
 	if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "inbound" ]; then
-		iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-MasterWL src -m set --match-set Skynet-Master src -j DROP 2>/dev/null || fail="${fail}#8 "
+		echo "$raw_rules" | grep -Fq -- "-A PREROUTING -i $iface -m set ! --match-set Skynet-MasterWL src -m set --match-set Skynet-Master src -j DROP" \
+			|| fail="${fail}#8 "
 	fi
+
+	#9 & #10: Outbound on br+ and OUTPUT
 	if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "outbound" ]; then
-		iptables -t raw -C PREROUTING -i br+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null || fail="${fail}#9 "
-		iptables -t raw -C OUTPUT -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null || fail="${fail}#10 "
+		echo "$raw_rules" | grep -Fq -- '-A PREROUTING -i br+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP' \
+			|| fail="${fail}#9 "
+		echo "$raw_rules" | grep -Fq -- '-A OUTPUT -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP' \
+			|| fail="${fail}#10 "
 	fi
+
+	#11–17: IOT blocking
 	if [ "$iotblocked" = "enabled" ]; then
-		if [ "$(nvram get wgs_enable)" = "1" ]; then
-			iptables -C FORWARD -i br+ -m set --match-set Skynet-IOT src -o wgs+ -j ACCEPT 2>/dev/null || fail="${fail}#11 "
-		fi
-		if [ "$(nvram get vpn_server1_state)" != "0" ] || [ "$(nvram get vpn_server2_state)" != "0" ]; then
-			iptables -C FORWARD -i br+ -m set --match-set Skynet-IOT src -o tun2+ -j ACCEPT 2>/dev/null || fail="${fail}#12 "
-		fi
-		iptables -C FORWARD -i br+ -m set --match-set Skynet-IOT src -j DROP 2>/dev/null || fail="${fail}#13 "
+		[ "$(nvram get wgs_enable)" = "1" ] && echo "$filter_rules" | grep -Fq -- '-A FORWARD -i br+ -m set --match-set Skynet-IOT src -o wgs+ -j ACCEPT' || fail="${fail}#11 "
+		{ [ "$(nvram get vpn_server1_state)" != "0" ] || [ "$(nvram get vpn_server2_state)" != "0" ]; } && echo "$filter_rules" | grep -Fq -- '-A FORWARD -i br+ -m set --match-set Skynet-IOT src -o tun2+ -j ACCEPT' || fail="${fail}#12 "
+		echo "$filter_rules" | grep -Fq -- '-A FORWARD -i br+ -m set --match-set Skynet-IOT src -j DROP' || fail="${fail}#13 "
 		if [ -n "$iotports" ]; then
-			if [ "$iotproto" = "all" ] || [ "$iotproto" = "udp" ]; then
-				iptables -C FORWARD -i br+ -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp -m multiport --dports "$iotports" -j ACCEPT 2>/dev/null || fail="${fail}#14 "
-			fi
-			if [ "$iotproto" = "all" ] || [ "$iotproto" = "tcp" ]; then
-				iptables -C FORWARD -i br+ -m set --match-set Skynet-IOT src -o "$iface" -p tcp -m tcp -m multiport --dports "$iotports" -j ACCEPT 2>/dev/null || fail="${fail}#15 "
-			fi
+			{ [ "$iotproto" = "all" ] || [ "$iotproto" = "udp" ]; } && echo "$filter_rules" | grep -Fq -- "-A FORWARD -i br+ -m set --match-set Skynet-IOT src -o $iface -p udp -m udp -m multiport --dports $iotports -j ACCEPT" || fail="${fail}#14 "
+			{ [ "$iotproto" = "all" ] || [ "$iotproto" = "tcp" ]; } && echo "$filter_rules" | grep -Fq -- "-A FORWARD -i br+ -m set --match-set Skynet-IOT src -o $iface -p tcp -m tcp -m multiport --dports $iotports -j ACCEPT" || fail="${fail}#15 "
 		else
-			if [ "$iotproto" = "all" ] || [ "$iotproto" = "udp" ]; then
-				iptables -C FORWARD -i br+ -m set --match-set Skynet-IOT src -o "$iface" -p udp -m udp --dport 123 -j ACCEPT 2>/dev/null || fail="${fail}#16 "
-			fi
-			if [ "$iotproto" = "all" ] || [ "$iotproto" = "tcp" ]; then
-				iptables -C FORWARD -i br+ -m set --match-set Skynet-IOT src -o "$iface" -p tcp -m tcp --dport 123 -j ACCEPT 2>/dev/null || fail="${fail}#17 "
-			fi
+			{ [ "$iotproto" = "all" ] || [ "$iotproto" = "udp" ]; } && echo "$filter_rules" | grep -Fq -- "-A FORWARD -i br+ -m set --match-set Skynet-IOT src -o $iface -p udp -m udp --dport 123 -j ACCEPT" || fail="${fail}#16 "
+			{ [ "$iotproto" = "all" ] || [ "$iotproto" = "tcp" ]; } && echo "$filter_rules" | grep -Fq -- "-A FORWARD -i br+ -m set --match-set Skynet-IOT src -o $iface -p tcp -m tcp --dport 123 -j ACCEPT" || fail="${fail}#17 "
 		fi
 	fi
+
+	#18–24: LOG rules
 	if [ "$logmode" = "enabled" ]; then
-		if [ "$(nvram get vpn_server1_state)" != "0" ] || [ "$(nvram get vpn_server2_state)" != "0" ]; then
-			iptables -t raw -C PREROUTING -i tun2+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || fail="${fail}#18 "
+		#18: OpenVPN LOG
+		if { [ "$(nvram get vpn_server1_state)" != "0" ] || [ "$(nvram get vpn_server2_state)" != "0" ]; }; then
+			echo "$raw_rules" \
+			  | grep -Fq -- '-A PREROUTING -i tun2+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] "' \
+			  || fail="${fail}#18 "
 		fi
+
+		#19: WireGuard LOG
 		if [ "$(nvram get wgs_enable)" = "1" ]; then
-			iptables -t raw -C PREROUTING -i wgs+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || fail="${fail}#19 "
+			echo "$raw_rules" \
+			  | grep -Fq -- '-A PREROUTING -i wgs+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] "' \
+			  || fail="${fail}#19 "
 		fi
+
+		#20: IoT LOG
 		if [ "$iotblocked" = "enabled" ] && [ "$iotlogging" = "enabled" ]; then
-			iptables -C FORWARD -i br+ -m set --match-set Skynet-IOT src -j LOG --log-prefix "[BLOCKED - IOT] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || fail="${fail}#20 "
+			echo "$filter_rules" \
+			  | grep -Fq -- '-A FORWARD -i br+ -m set --match-set Skynet-IOT src -j LOG --log-prefix "[BLOCKED - IOT] "' \
+			  || fail="${fail}#20 "
 		fi
+
+		#21: Inbound LOG
 		if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "inbound" ]; then
-			iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-MasterWL src -m set --match-set Skynet-Master src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || fail="${fail}#21 "
+			echo "$raw_rules" \
+			  | grep -Fq -- "-A PREROUTING -i $iface -m set ! --match-set Skynet-MasterWL src -m set --match-set Skynet-Master src -j LOG --log-prefix \"[BLOCKED - INBOUND] \"" \
+			  || fail="${fail}#21 "
 		fi
+
+		#22: Outbound PREROUTING LOG
 		if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "outbound" ]; then
-			iptables -t raw -C PREROUTING -i br+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || fail="${fail}#22 "
-			iptables -t raw -C OUTPUT -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || fail="${fail}#23 "
+			echo "$raw_rules" \
+			  | grep -Fq -- '-A PREROUTING -i br+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] "' \
+			  || fail="${fail}#22 "
 		fi
-		if [ "$(nvram get fw_log_x)" = "drop" ] || [ "$(nvram get fw_log_x)" = "both" ] && [ "$loginvalid" = "enabled" ]; then
-			iptables -C logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - INVALID] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || fail="${fail}#24 "
+
+		#23: Outbound OUTPUT LOG
+		if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "outbound" ]; then
+			echo "$raw_rules" \
+			  | grep -Fq -- '-A OUTPUT -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] "' \
+			  || fail="${fail}#23 "
+		fi
+
+		#24: Invalid LOG
+		if [ "$(nvram get fw_log_x)" != "off" ] && [ "$loginvalid" = "enabled" ]; then
+			echo "$raw_rules" \
+			  | grep -Fq -- '-A logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - INVALID] "' \
+			  || fail="${fail}#24 "
 		fi
 	fi
-	if [ -n "$fail" ]; then return 1; fi
+
+	[ -n "$fail" ] && return 1 || return 0
 }
 
 Unload_IPSets() {
@@ -758,10 +796,6 @@ Is_ASN() {
 
 Strip_Domain() {
 	sed 's~http[s]*://~~;s~/.*~~;s~www\.~~g;\~^$~d' | awk '!x[$0]++'
-}
-
-Domain_Lookup() {
-	nslookup "$1" 2>/dev/null | awk '/^Address[[:space:]][0-9]*\:[[:space:]]/{if($3 ~ /^([0-9]{1,3}\.){3}[0-9]{1,3}/ && NR > 2)print $3}'
 }
 
 LAN_CIDR_Lookup() {
@@ -912,13 +946,17 @@ Filter_PrivateDST() {
 	grep -E 'DST=(0\.|10\.|100\.(6[4-9]|[7-9][0-9]|1[0-1][0-9]|12[0-7])\.|127\.|169\.254\.|172\.1[6-9]\.|172\.2[0-9]\.|172\.3[0-1]\.|192\.0\.0\.|192\.0\.2\.|192\.168\.|198\.(1[8-9])\.|198\.51\.100\.|203\.0\.113\.|2(2[4-9]|[3-4][0-9]|5[0-5])\.)'
 }
 
-TimeoutLookup() {
+Domain_Lookup() {
 	domain="$1"
 	timeout="$2"
 	result_file="/tmp/skynet/ns.$$.$(echo "$domain" | tr -c '[:alnum:]' '_').tmp"
 
 	(
-		nslookup "$domain" > "$result_file" 2>/dev/null
+		if [ -n "$3" ]; then
+			nslookup "$domain" "$3" > "$result_file" 2>/dev/null
+		else
+			nslookup "$domain" > "$result_file" 2>/dev/null
+		fi
 	) &
 	lookup_pid=$!
 	sleep "$timeout" && kill "$lookup_pid" 2>/dev/null >/dev/null & watchdog_pid=$!
@@ -967,7 +1005,7 @@ Refresh_AiProtect() {
 				| awk '!x[$0]++' | Filter_OutIP | grep -v ":" \
 				| while IFS= read -r domain; do
 					{
-						for ip in $(TimeoutLookup "$domain" 3 | Filter_PrivateIP); do
+						for ip in $(Domain_Lookup "$domain" 3 | Filter_PrivateIP); do
 							echo "add Skynet-Blacklist $ip comment \"BanAiProtect: $domain\""
 						done
 					} &
@@ -986,7 +1024,7 @@ Refresh_MBans() {
 		sed '\~add Skynet-Blacklist ~!d;\~ManualBanD~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
 		while IFS= read -r "domain"; do
 		{
-			for ip in $(TimeoutLookup "$domain" 3 | Filter_PrivateIP); do
+			for ip in $(Domain_Lookup "$domain" 3 | Filter_PrivateIP); do
 			echo "add Skynet-Blacklist $ip comment \"ManualBanD: $domain\""
 			echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$domain " >> "$skynetevents"
 			done
@@ -1004,7 +1042,7 @@ Refresh_MWhitelist() {
 		sed '\~add Skynet-Whitelist ~!d;\~ManualWlistD~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
 		while IFS= read -r domain; do
 			{
-				for ip in $(TimeoutLookup "$domain" 3 | Filter_PrivateIP); do
+				for ip in $(Domain_Lookup "$domain" 3 | Filter_PrivateIP); do
 					echo "add Skynet-Whitelist $ip comment \"ManualWlistD: $domain\""
 					echo "$(date +"%b %d %T") Skynet: [Manual Whitelist] TYPE=Domain SRC=$ip Host=$domain " >> "$skynetevents"
 				done
@@ -1102,7 +1140,7 @@ Whitelist_Shared() {
 		done | ipset restore -!
 	fi
 	Strip_Domain < /jffs/addons/shared-whitelists/shared-Skynet2-whitelist | while IFS= read -r domain; do
-		nslookup "$domain" 127.0.0.1 >/dev/null 2>&1
+		Domain_Lookup "$domain" 3 127.0.0.1 >/dev/null 2>&1
 	done &
 	wait
 }
@@ -1256,7 +1294,7 @@ Run_Stats() {
 						if ! Check_Connection; then echo "[*] Connection Error Detected - Exiting"; echo; exit 1; fi
 						if [ -z "$4" ]; then echo "[*] Domain Field Can't Be Empty - Please Try Again"; echo; exit 2; fi
 						domain="$(echo "$4" | Strip_Domain)"
-						for ip in $(Domain_Lookup "$domain"); do
+						for ip in $(Domain_Lookup "$domain" 3); do
 							ipset test Skynet-Whitelist "$ip" && found1=true
 							ipset test Skynet-Blacklist "$ip" && found2=true
 							ipset test Skynet-BlockedRanges "$ip" && found3=true
@@ -3926,13 +3964,13 @@ case "$1" in
 			ip)
 				if ! echo "$3" | Is_IP; then echo "[*] $3 Is Not A Valid IP"; echo; exit 2; fi
 				echo "[i] Unbanning $3"
-				IPSet_Wrapper del Skynet-Blacklist $3 --nofilter
+				IPSet_Wrapper del Skynet-Blacklist "$3" --nofilter
 				sed -i "\\~\\(BLOCKED.*=$3 \\|Manual Ban.*=$3 \\)~d" "$skynetlog" "$skynetevents"
 			;;
 			range)
 				if ! echo "$3" | Is_Range; then echo "[*] $3 Is Not A Valid Range"; echo; exit 2; fi
 				echo "[i] Unbanning $3"
-				IPSet_Wrapper del Skynet-BlockedRanges $3 --nofilter
+				IPSet_Wrapper del Skynet-BlockedRanges "$3" --nofilter
 				sed -i "\\~\\(BLOCKED.*=$3 \\|Manual Ban.*=$3 \\)~d" "$skynetlog" "$skynetevents"
 			;;
 			domain)
@@ -3940,9 +3978,9 @@ case "$1" in
 				if [ -z "$3" ]; then echo "[*] Domain Field Can't Be Empty - Please Try Again"; echo; exit 2; fi
 				domain="$(echo "$3" | Strip_Domain)"
 				echo "[i] Removing $domain From Blacklist"
-				for ip in $(Domain_Lookup "$domain"); do
+				for ip in $(Domain_Lookup "$domain" 3); do
 					echo "[i] Unbanning $ip"
-					IPSet_Wrapper del Skynet-Blacklist $ip --nofilter
+					IPSet_Wrapper del Skynet-Blacklist "$ip" --nofilter
 					sed -i "\\~\\(BLOCKED.*=$ip \\|Manual Ban.*=$ip \\)~d" "$skynetlog" "$skynetevents"
 				done
 			;;
@@ -4014,7 +4052,7 @@ case "$1" in
 				if [ -z "$4" ]; then
 					desc="$(date +"%b %d %T")"
 				fi
-				IPSet_Wrapper add Skynet-Blacklist $3 "ManualBan: $desc" --skip-filter-ip
+				IPSet_Wrapper add Skynet-Blacklist "$3" "ManualBan: $desc" --nofilter
 				echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Single SRC=$3 COMMENT=$desc " >> "$skynetevents"
 			;;
 			range)
@@ -4025,16 +4063,16 @@ case "$1" in
 				if [ -z "$4" ]; then
 					desc="$(date +"%b %d %T")"
 				fi
-				IPSet_Wrapper add Skynet-BlockedRanges $3 "ManualRBan: $desc" --skip-filter-ip
+				IPSet_Wrapper add Skynet-BlockedRanges "$3" "ManualRBan: $desc" --nofilter
 				echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Range SRC=$3 COMMENT=$desc " >> "$skynetevents"
 			;;
 			domain)
 				if [ -z "$3" ]; then echo "[*] Domain Field Can't Be Empty - Please Try Again"; echo; exit 2; fi
 				domain="$(echo "$3" | Strip_Domain)"
 				echo "[i] Adding $domain To Blacklist"
-				for ip in $(Domain_Lookup "$domain" | Filter_PrivateIP); do
+				for ip in $(Domain_Lookup "$domain" 3 | Filter_PrivateIP); do
 					echo "[i] Banning $ip"
-					IPSet_Wrapper add Skynet-Blacklist $ip "ManualBanD: $domain" --nofilter
+					IPSet_Wrapper add Skynet-Blacklist "$ip" "ManualBanD: $domain" --nofilter
 					echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$domain " >> "$skynetevents"
 				done
 			;;
@@ -4243,7 +4281,7 @@ case "$1" in
 				if [ -z "$4" ]; then
 					desc="$(date +"%b %d %T")"
 				fi
-				IPSet_Wrapper add Skynet-Whitelist $3 "ManualWlist: $desc" --nofilter
+				IPSet_Wrapper add Skynet-Whitelist "$3" "ManualWlist: $desc" --nofilter
 				sed -i "\\~=$3 ~d" "$skynetlog" "$skynetevents" && echo "$(date +"%b %d %T") Skynet: [Manual Whitelist] TYPE=Single SRC=$3 COMMENT=$desc " >> "$skynetevents"
 				ipset -q -D Skynet-Blacklist "$3"
 				ipset -q -D Skynet-BlockedRanges "$3"
@@ -4253,9 +4291,9 @@ case "$1" in
 				if [ -z "$3" ]; then echo "[*] Domain Field Can't Be Empty - Please Try Again"; echo; exit 2; fi
 				domain="$(echo "$3" | Strip_Domain)"
 				echo "[i] Adding $domain To Whitelist"
-				for ip in $(Domain_Lookup "$domain"); do
+				for ip in $(Domain_Lookup "$domain" 3); do
 					echo "[i] Whitelisting $ip"
-					IPSet_Wrapper add Skynet-Whitelist $ip "ManualWlistD: $domain" --nofilter
+					IPSet_Wrapper add Skynet-Whitelist "$ip" "ManualWlistD: $domain" --nofilter
 					sed -i "\\~=$ip ~d" "$skynetlog" "$skynetevents" && echo "$(date +"%b %d %T") Skynet: [Manual Whitelist] TYPE=Domain SRC=$ip Host=$domain " >> "$skynetevents"
 					ipset -q -D Skynet-Blacklist "$ip"
 				done
@@ -4277,7 +4315,7 @@ case "$1" in
 					entry)
 						if ! echo "$4" | Is_IPRange; then echo "[*] $4 Is Not A Valid IP/Range"; echo; exit 2; fi
 						echo "[i] Removing $4 From Whitelist"
-						IPSet_Wrapper del Skynet-Whitelist $4 --nofilter
+						IPSet_Wrapper del Skynet-Whitelist "$4" --nofilter
 						sed -i "\\~=$4 ~d" "$skynetlog" "$skynetevents"
 					;;
 					comment)
@@ -4917,7 +4955,7 @@ case "$1" in
 										echo "[*] $ip Is Not A Valid IP/Range"
 										echo
 									else
-										IPSet_Wrapper del Skynet-IOT $ip --nofilter
+										IPSet_Wrapper del Skynet-IOT "$ip" --nofilter
 									fi
 							done
 						else
@@ -4925,7 +4963,7 @@ case "$1" in
 								echo "[*] $4 Is Not A Valid IP/Range"
 								echo
 							else
-								IPSet_Wrapper del Skynet-IOT $4 --nofilter
+								IPSet_Wrapper del Skynet-IOT "$4" --nofilter
 								sed -i "\\~BLOCKED - IOT.*=$4 ~d" "$skynetlog"
 							fi
 						fi
@@ -4953,7 +4991,7 @@ case "$1" in
 										echo "[*] $ip Is Not A Valid IP/Range"
 										echo
 									else
-										IPSet_Wrapper add Skynet-IOT $ip "IOTBan: $desc" --skip-filter-ip
+										IPSet_Wrapper add Skynet-IOT "$ip" "IOTBan: $desc" --skip-filter-ip
 									fi
 							done
 						else
@@ -4961,7 +4999,7 @@ case "$1" in
 								echo "[*] $4 Is Not A Valid IP/Range"
 								echo
 							else
-								IPSet_Wrapper add Skynet-IOT $4 "IOTBan: $desc" --skip-filter-ip
+								IPSet_Wrapper add Skynet-IOT "$4" "IOTBan: $desc" --skip-filter-ip
 							fi
 						fi
 						if [ "$(ipset -L -t Skynet-IOT | tail -1 | awk '{print $4}')" -gt "0" ]; then
