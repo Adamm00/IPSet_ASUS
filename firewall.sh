@@ -1852,13 +1852,27 @@ Uninstall_WebUI_Page() {
 }
 
 Download_File() {
-	if [ "$(curl -fsSL --retry 3 --max-time 6 "${remotedir}/${1}" | md5sum | awk '{print $1}')" != "$(md5sum "$2" 2>/dev/null | awk '{print $1}')" ] || [ "$3" = "-f" ]; then
-		if curl -fsSL --retry 3 --max-time 6 "${remotedir}/${1}" -o "$2"; then
-			echo "[i] Updated $(echo "$1" | awk -F / '{print $NF}')"
-		else
-			logger -t Skynet "[*] Updating $(echo "$1" | awk -F / '{print $NF}') Failed"; echo "[*] Updating $(echo "$1" | awk -F / '{print $NF}') Failed"
-		fi
-	fi
+    file="$1"
+    dest="$2"
+    force="$3"
+
+    fullurl="${remotedir}/${file}"
+    filename="$(basename "$file")"
+
+    # Only re-download if file changed or forced
+    remote_md5="$(curl -fsSL --retry 3 --connect-timeout 3 --max-time 6 --retry-delay 1 --retry-all-errors "$fullurl" | md5sum | awk '{print $1}')"
+    local_md5="$(md5sum "$dest" 2>/dev/null | awk '{print $1}')"
+
+    if [ "$remote_md5" != "$local_md5" ] || [ "$force" = "-f" ]; then
+        if curl -fsSL --retry 3 --connect-timeout 3 --max-time 6 --retry-delay 1 --retry-all-errors "$fullurl" -o "$dest"; then
+            echo "[i] Updated $filename"
+        else
+            logger -t Skynet "[✘] Failed to update $filename"
+            echo "[✘] Failed to fetch $filename"
+        fi
+    else
+        echo "[i] No change to $filename (MD5 matched)"
+    fi
 }
 
 Get_LocalName() {
@@ -4651,9 +4665,9 @@ case "$1" in
 		Check_Lock "$@"
 		if ! Check_Connection; then echo "[*] Connection Error Detected - Exiting"; echo; exit 1; fi
 		remotedir="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master"
-		remotever="$(curl -fsSL --retry 3 --max-time 6 "${remotedir}/firewall.sh" | Filter_Version)"
+		remotever="$(curl -fsL --retry 3 --max-time 6 "$remotedir/firewall.sh" | Filter_Version)"
 		localmd5="$(md5sum "$0" | awk '{print $1}')"
-		remotemd5="$(curl -fsSL --retry 3 --max-time 6 "${remotedir}/firewall.sh" | md5sum | awk '{print $1}')"
+		remotemd5="$(curl -fsL --retry 3 --max-time 6 "${remotedir}/firewall.sh" | md5sum | awk '{print $1}')"
 		if [ "$localmd5" = "$remotemd5" ] && [ "$2" != "-f" ]; then
 			logger -t Skynet "[i] Skynet Up To Date - $localver (${localmd5})"; echo "[i] Skynet Up To Date - $localver (${localmd5})"
 			nolog="2"
