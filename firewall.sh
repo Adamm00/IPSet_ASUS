@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            19/04/2025 - v8.0.0                                            #
+#                                            20/04/2025 - v8.0.0                                            #
 #############################################################################################################
 
 
@@ -22,13 +22,25 @@ export LC_ALL=C
 mkdir -p /tmp/skynet/lists
 mkdir -p /jffs/addons/shared-whitelists
 
-ntptimer="0"
-while [ "$(nvram get ntp_ready)" = "0" ] && [ "$ntptimer" -lt "300" ] && ! echo "$1" | grep -qE "(uninstall|disable)"; do
-	ntptimer="$((ntptimer + 1))"
-	if [ "$ntptimer" = "60" ]; then echo; logger -st Skynet "[*] Waiting For NTP To Sync"; fi
-	sleep 1
-done
-if [ "$ntptimer" -ge "300" ]; then logger -st Skynet "[*] NTP Failed To Start After 5 Minutes - Please Fix Immediately!"; echo; exit 1; fi
+ntptimer=0
+case "$1" in
+	uninstall|disable) ;;  # skip NTP check for these modes
+	*)
+		while [ "$(nvram get ntp_ready)" != "1" ] && [ "$ntptimer" -lt 300 ]; do
+			ntptimer=$((ntptimer + 1))
+			[ "$ntptimer" -eq 60 ] && {
+				echo
+				logger -st Skynet "[*] Waiting For NTP To Sync"
+			}
+			sleep 1
+		done
+		[ "$ntptimer" -ge 300 ] && {
+			logger -st Skynet "[*] NTP Failed To Sync After 5 Minutes - Please Fix Immediately!"
+			echo
+			exit 1
+		}
+	;;
+esac
 
 skynetloc="$(grep -ow "skynetloc=.* # Skynet" /jffs/scripts/firewall-start 2>/dev/null | grep -vE "^#" | awk '{print $1}' | cut -c 11-)"
 skynetcfg="${skynetloc}/skynet.cfg"
