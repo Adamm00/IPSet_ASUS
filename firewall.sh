@@ -274,6 +274,7 @@ Check_Settings() {
 		logger -st Skynet "[*] Private WAN IP Detected $(nvram get wan0_ipaddr) - Please Put Your Modem In Bridge Mode / Disable CG-NAT"
 	fi
 }
+
 Check_Connection() {
 	# 1) Grab the numeric gateway IP from the routing table
 	gw=$(route -n | awk '$1=="0.0.0.0"{print $2; exit}')
@@ -1924,7 +1925,7 @@ Manage_Device() {
 		elif [ "$partitionNumber" -eq "$partitionNumber" ] 2>/dev/null; then
 			true
 		else
-			echo "[*] $partitionNumber Isn't An Option!"
+			Invalid_Option "$partitionNumber"
 			Select_Device
 		fi
 	}
@@ -1965,8 +1966,7 @@ Create_Swap() {
 				echo; exit 0
 			;;
 			*)
-				echo "[*] $menu Isn't An Option!"
-				echo
+				Invalid_Option "$menu"
 			;;
 		esac
 	done
@@ -1988,6 +1988,27 @@ Create_Swap() {
 	echo
 	echo "[i] SWAP File Located At $swaplocation"
 	echo
+}
+
+Return_To_Menu() {
+    unset "option1" "option2" "option3" "option4" "option5"
+    clear
+    Load_Menu
+}
+
+Invalid_Option() {
+    echo "[*] $1 Isn't An Option!"
+    echo
+}
+
+Ensure_Running() {
+    if ! Check_IPSets || ! Check_IPTables; then
+        echo "[*] Skynet Not Running - Exiting"
+        echo
+        Load_Menu
+        return 1   # indicate failure
+    fi
+    return 0       # Skynet is running
 }
 
 Purge_Logs() {
@@ -2168,7 +2189,7 @@ Load_Menu() {
 		echo
 		case "$menu" in
 			1)
-				if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; Load_Menu; break; fi
+				if ! Ensure_Running; then break; fi
 				option1="unban"
 				while true; do
 					echo "What Type Of Input Would You Like To Unban:"
@@ -2254,21 +2275,18 @@ Load_Menu() {
 							break
 						;;
 						e|exit|back|menu)
-							unset "option1" "option2" "option3" "option4" "option5"
-							clear
-							Load_Menu
+							Return_To_Menu
 							break
 						;;
 						*)
-							echo "[*] $menu2 Isn't An Option!"
-							echo
+							Invalid_Option "$menu2"
 						;;
 					esac
 				done
 				break
 			;;
 			2)
-				if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; Load_Menu; break; fi
+				if ! Ensure_Running; then break; fi
 				option1="ban"
 				while true; do
 					echo "What Type Of Input Would You Like To Ban:"
@@ -2347,21 +2365,18 @@ Load_Menu() {
 							break
 						;;
 						e|exit|back|menu)
-							unset "option1" "option2" "option3" "option4" "option5"
-							clear
-							Load_Menu
+							Return_To_Menu
 							break
 						;;
 						*)
-							echo "[*] $menu2 Isn't An Option!"
-							echo
+							Invalid_Option "$menu2"
 						;;
 					esac
 				done
 				break
 			;;
 			3)
-				if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; Load_Menu; break; fi
+				if ! Ensure_Running; then break; fi
 				option1="banmalware"
 				while true; do
 					echo "Select Option:"
@@ -2407,21 +2422,18 @@ Load_Menu() {
 							break
 						;;
 						e|exit|back|menu)
-							unset "option1" "option2" "option3" "option4" "option5"
-							clear
-							Load_Menu
+							Return_To_Menu
 							break
 						;;
 						*)
-							echo "[*] $menu2 Isn't An Option!"
-							echo
+							Invalid_Option "$menu2"
 						;;
 					esac
 				done
 				break
 			;;
 			4)
-				if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; Load_Menu; break; fi
+				if ! Ensure_Running; then break; fi
 				option1="whitelist"
 				while true; do
 					echo "Select Whitelist Option:"
@@ -2515,14 +2527,11 @@ Load_Menu() {
 										break
 									;;
 									e|exit|back|menu)
-										unset "option1" "option2" "option3" "option4" "option5"
-										clear
-										Load_Menu
+										Return_To_Menu
 										break
 									;;
 									*)
-										echo "[*] $menu3 Isn't An Option!"
-										echo
+										Invalid_Option "$menu3"
 									;;
 								esac
 							done
@@ -2561,35 +2570,29 @@ Load_Menu() {
 										break
 									;;
 									e|exit|back|menu)
-										unset "option1" "option2" "option3" "option4" "option5"
-										clear
-										Load_Menu
+										Return_To_Menu
 										break
 									;;
 									*)
-										echo "[*] $menu3 Isn't An Option!"
-										echo
+										Invalid_Option "$menu3"
 									;;
 								esac
 							done
 							break
 						;;
 						e|exit|back|menu)
-							unset "option1" "option2" "option3" "option4" "option5"
-							clear
-							Load_Menu
+							Return_To_Menu
 							break
 						;;
 						*)
-							echo "[*] $menu2 Isn't An Option!"
-							echo
+							Invalid_Option "$menu2"
 						;;
 					esac
 				done
 				break
 			;;
 			5)
-				if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; Load_Menu; break; fi
+				if ! Ensure_Running; then break; fi
 				option1="import"
 				while true; do
 					echo "Select Where To Import List:"
@@ -2609,14 +2612,11 @@ Load_Menu() {
 							break
 						;;
 						e|exit|back|menu)
-							unset "option1" "option2" "option3" "option4" "option5"
-							clear
-							Load_Menu
+							Return_To_Menu
 							break
 						;;
 						*)
-							echo "[*] $menu3 Isn't An Option!"
-							echo
+							Invalid_Option "$menu3"
 						;;
 					esac
 				done
@@ -2629,7 +2629,7 @@ Load_Menu() {
 				break
 			;;
 			6)
-				if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; Load_Menu; break; fi
+				if ! Ensure_Running; then break; fi
 				option1="deport"
 				while true; do
 					echo "Select Where To Deport List From:"
@@ -2649,14 +2649,11 @@ Load_Menu() {
 							break
 						;;
 						e|exit|back|menu)
-							unset "option1" "option2" "option3" "option4" "option5"
-							clear
-							Load_Menu
+							Return_To_Menu
 							break
 						;;
 						*)
-							echo "[*] $menu3 Isn't An Option!"
-							echo
+							Invalid_Option "$menu3"
 						;;
 					esac
 				done
@@ -2669,7 +2666,7 @@ Load_Menu() {
 				break
 			;;
 			7)
-				if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; Load_Menu; break; fi
+				if ! Ensure_Running; then break; fi
 				option1="save"
 				break
 			;;
@@ -2705,14 +2702,11 @@ Load_Menu() {
 							break
 						;;
 						e|exit|back|menu)
-							unset "option1" "option2" "option3" "option4" "option5"
-							clear
-							Load_Menu
+							Return_To_Menu
 							break
 						;;
 						*)
-							echo "[*] $menu2 Isn't An Option!"
-							echo
+							Invalid_Option "$menu2"
 						;;
 					esac
 				done
@@ -2763,14 +2757,11 @@ Load_Menu() {
 										break
 									;;
 									e|exit|back|menu)
-										unset "option1" "option2" "option3" "option4" "option5"
-										clear
-										Load_Menu
+										Return_To_Menu
 										break
 									;;
 									*)
-										echo "[*] $menu3 Isn't An Option!"
-										echo
+										Invalid_Option "$menu3"
 									;;
 								esac
 							done
@@ -2802,14 +2793,11 @@ Load_Menu() {
 										break
 									;;
 									e|exit|back|menu)
-										unset "option1" "option2" "option3" "option4" "option5"
-										clear
-										Load_Menu
+										Return_To_Menu
 										break
 									;;
 									*)
-										echo "[*] $menu3 Isn't An Option!"
-										echo
+										Invalid_Option "$menu3"
 									;;
 								esac
 							done
@@ -2836,14 +2824,11 @@ Load_Menu() {
 										break
 									;;
 									e|exit|back|menu)
-										unset "option1" "option2" "option3" "option4" "option5"
-										clear
-										Load_Menu
+										Return_To_Menu
 										break
 									;;
 									*)
-										echo "[*] $menu3 Isn't An Option!"
-										echo
+										Invalid_Option "$menu3"
 									;;
 								esac
 							done
@@ -2875,14 +2860,11 @@ Load_Menu() {
 										break
 									;;
 									e|exit|back|menu)
-										unset "option1" "option2" "option3" "option4" "option5"
-										clear
-										Load_Menu
+										Return_To_Menu
 										break
 									;;
 									*)
-										echo "[*] $menu3 Isn't An Option!"
-										echo
+										Invalid_Option "$menu3"
 									;;
 								esac
 							done
@@ -2909,14 +2891,11 @@ Load_Menu() {
 										break
 									;;
 									e|exit|back|menu)
-										unset "option1" "option2" "option3" "option4" "option5"
-										clear
-										Load_Menu
+										Return_To_Menu
 										break
 									;;
 									*)
-										echo "[*] $menu3 Isn't An Option!"
-										echo
+										Invalid_Option "$menu3"
 									;;
 								esac
 							done
@@ -2943,14 +2922,11 @@ Load_Menu() {
 										break
 									;;
 									e|exit|back|menu)
-										unset "option1" "option2" "option3" "option4" "option5"
-										clear
-										Load_Menu
+										Return_To_Menu
 										break
 									;;
 									*)
-										echo "[*] $menu3 Isn't An Option!"
-										echo
+										Invalid_Option "$menu3"
 									;;
 								esac
 							done
@@ -2977,14 +2953,11 @@ Load_Menu() {
 										break
 									;;
 									e|exit|back|menu)
-										unset "option1" "option2" "option3" "option4" "option5"
-										clear
-										Load_Menu
+										Return_To_Menu
 										break
 									;;
 									*)
-										echo "[*] $menu3 Isn't An Option!"
-										echo
+										Invalid_Option "$menu3"
 									;;
 								esac
 							done
@@ -3011,14 +2984,11 @@ Load_Menu() {
 										break
 									;;
 									e|exit|back|menu)
-										unset "option1" "option2" "option3" "option4" "option5"
-										clear
-										Load_Menu
+										Return_To_Menu
 										break
 									;;
 									*)
-										echo "[*] $menu3 Isn't An Option!"
-										echo
+										Invalid_Option "$menu3"
 									;;
 								esac
 							done
@@ -3050,14 +3020,11 @@ Load_Menu() {
 										break
 									;;
 									e|exit|back|menu)
-										unset "option1" "option2" "option3" "option4" "option5"
-										clear
-										Load_Menu
+										Return_To_Menu
 										break
 									;;
 									*)
-										echo "[*] $menu3 Isn't An Option!"
-										echo
+										Invalid_Option "$menu3"
 									;;
 								esac
 							done
@@ -3099,14 +3066,11 @@ Load_Menu() {
 													break
 												;;
 												e|exit|back|menu)
-													unset "option1" "option2" "option3" "option4" "option5"
-													clear
-													Load_Menu
+													Return_To_Menu
 													break
 												;;
 												*)
-													echo "[*] $menu3 Isn't An Option!"
-													echo
+													Invalid_Option "$menu3"
 												;;
 											esac
 										done
@@ -3138,14 +3102,11 @@ Load_Menu() {
 													break
 												;;
 												e|exit|back|menu)
-													unset "option1" "option2" "option3" "option4" "option5"
-													clear
-													Load_Menu
+													Return_To_Menu
 													break
 												;;
 												*)
-													echo "[*] $menu3 Isn't An Option!"
-													echo
+													Invalid_Option "$menu3"
 												;;
 											esac
 										done
@@ -3153,14 +3114,11 @@ Load_Menu() {
 										break
 									;;
 									e|exit|back|menu)
-										unset "option1" "option2" "option3" "option4" "option5"
-										clear
-										Load_Menu
+										Return_To_Menu
 										break
 									;;
 									*)
-										echo "[*] $menu3 Isn't An Option!"
-										echo
+										Invalid_Option "$menu3"
 									;;
 								esac
 							done
@@ -3269,28 +3227,22 @@ Load_Menu() {
 													break
 												;;
 												e|exit|back|menu)
-													unset "option1" "option2" "option3" "option4" "option5"
-													clear
-													Load_Menu
+													Return_To_Menu
 													break
 												;;
 												*)
-													echo "[*] $menu4 Isn't An Option!"
-													echo
+													Invalid_Option "$menu4"
 												;;
 											esac
 										done
 										break
 									;;
 									e|exit|back|menu)
-										unset "option1" "option2" "option3" "option4" "option5"
-										clear
-										Load_Menu
+										Return_To_Menu
 										break
 									;;
 									*)
-										echo "[*] $menu3 Isn't An Option!"
-										echo
+										Invalid_Option "$menu3"
 									;;
 								esac
 							done
@@ -3317,14 +3269,11 @@ Load_Menu() {
 										break
 									;;
 									e|exit|back|menu)
-										unset "option1" "option2" "option3" "option4" "option5"
-										clear
-										Load_Menu
+										Return_To_Menu
 										break
 									;;
 									*)
-										echo "[*] $menu3 Isn't An Option!"
-										echo
+										Invalid_Option "$menu3"
 									;;
 								esac
 							done
@@ -3351,14 +3300,11 @@ Load_Menu() {
 										break
 									;;
 									e|exit|back|menu)
-										unset "option1" "option2" "option3" "option4" "option5"
-										clear
-										Load_Menu
+										Return_To_Menu
 										break
 									;;
 									*)
-										echo "[*] $menu3 Isn't An Option!"
-										echo
+										Invalid_Option "$menu3"
 									;;
 								esac
 							done
@@ -3385,14 +3331,11 @@ Load_Menu() {
 										break
 									;;
 									e|exit|back|menu)
-										unset "option1" "option2" "option3" "option4" "option5"
-										clear
-										Load_Menu
+										Return_To_Menu
 										break
 									;;
 									*)
-										echo "[*] $menu3 Isn't An Option!"
-										echo
+										Invalid_Option "$menu3"
 									;;
 								esac
 							done
@@ -3419,28 +3362,22 @@ Load_Menu() {
 										break
 									;;
 									e|exit|back|menu)
-										unset "option1" "option2" "option3" "option4" "option5"
-										clear
-										Load_Menu
+										Return_To_Menu
 										break
 									;;
 									*)
-										echo "[*] $menu3 Isn't An Option!"
-										echo
+										Invalid_Option "$menu3"
 									;;
 								esac
 							done
 							break
 						;;
 						e|exit|back|menu)
-							unset "option1" "option2" "option3" "option4" "option5"
-							clear
-							Load_Menu
+							Return_To_Menu
 							break
 						;;
 						*)
-							echo "[*] $menu Isn't An Option!"
-							echo
+							Invalid_Option "$menu"
 						;;
 					esac
 				done
@@ -3498,14 +3435,11 @@ Load_Menu() {
 										break
 									;;
 									e|exit|back|menu)
-										unset "option1" "option2" "option3" "option4" "option5"
-										clear
-										Load_Menu
+										Return_To_Menu
 										break
 									;;
 									*)
-										echo "[*] $menu3 Isn't An Option!"
-										echo
+										Invalid_Option "$menu3"
 									;;
 								esac
 							done
@@ -3539,14 +3473,11 @@ Load_Menu() {
 										break
 									;;
 									e|exit|back|menu)
-										unset "option1" "option2" "option3" "option4" "option5"
-										clear
-										Load_Menu
+										Return_To_Menu
 										break
 									;;
 									*)
-										echo "[*] $menu3 Isn't An Option!"
-										echo
+										Invalid_Option "$menu3"
 									;;
 								esac
 							done
@@ -3563,14 +3494,11 @@ Load_Menu() {
 							break
 						;;
 						e|exit|back|menu)
-							unset "option1" "option2" "option3" "option4" "option5"
-							clear
-							Load_Menu
+							Return_To_Menu
 							break
 						;;
 						*)
-							echo "[*] $menu2 Isn't An Option!"
-							echo
+							Invalid_Option "$menu2"
 						;;
 					esac
 				done
@@ -3623,14 +3551,11 @@ Load_Menu() {
 										break
 									;;
 									e|exit|back|menu)
-										unset "option1" "option2" "option3" "option4" "option5"
-										clear
-										Load_Menu
-										break 2
+										Return_To_Menu
+										break
 									;;
 									*)
-										echo "[*] $menu3 Isn't An Option!"
-										echo
+										Invalid_Option "$menu3"
 									;;
 								esac
 							done
@@ -3661,14 +3586,11 @@ Load_Menu() {
 										break
 									;;
 									e|exit|back|menu)
-										unset "option1" "option2" "option3" "option4" "option5"
-										clear
-										Load_Menu
+										Return_To_Menu
 										break
 									;;
 									*)
-										echo "[*] $menu4 Isn't An Option!"
-										echo
+										Invalid_Option "$menu4"
 									;;
 								esac
 							done
@@ -3794,14 +3716,11 @@ Load_Menu() {
 													break
 												;;
 												e|exit|back|menu)
-													unset "option1" "option2" "option3" "option4" "option5"
-													clear
-													Load_Menu
+													Return_To_Menu
 													break
 												;;
 												*)
-													echo "[*] $menu5 Isn't An Option!"
-													echo
+													Invalid_Option "$menu5"
 												;;
 											esac
 										done
@@ -3812,14 +3731,11 @@ Load_Menu() {
 										break
 									;;
 									e|exit|back|menu)
-										unset "option1" "option2" "option3" "option4" "option5"
-										clear
-										Load_Menu
-										break 2
+										Return_To_Menu
+										break
 									;;
 									*)
-										echo "[*] $menu4 Isn't An Option!"
-										echo
+										Invalid_Option "$menu4"
 									;;
 								esac
 							done
@@ -3874,14 +3790,11 @@ Load_Menu() {
 											break
 										;;
 										e|exit|back|menu)
-											unset "option1" "option2" "option3" "option4" "option5"
-											clear
-											Load_Menu
+											Return_To_Menu
 											break
 										;;
 										*)
-											echo "[*] $menu3 Isn't An Option!"
-											echo
+											Invalid_Option "$menu3"
 										;;
 									esac
 								done
@@ -3916,14 +3829,11 @@ Load_Menu() {
 										break
 									;;
 									e|exit|back|menu)
-										unset "option1" "option2" "option3" "option4" "option5"
-										clear
-										Load_Menu
-										break 2
+										Return_To_Menu
+										break
 									;;
 									*)
-										echo "[*] $menu3 Isn't An Option!"
-										echo
+										Invalid_Option "$menu3"
 									;;
 								esac
 							done
@@ -3940,8 +3850,7 @@ Load_Menu() {
 							break
 						;;
 						*)
-							echo "[*] $menu2 Isn't An Option!"
-							echo
+							Invalid_Option "$menu2"
 						;;
 					esac
 				done
@@ -3965,8 +3874,7 @@ Load_Menu() {
 				echo; exit 0
 			;;
 			*)
-				echo "[*] $menu Isn't An Option!"
-				echo
+				Invalid_Option "$menu"
 			;;
 		esac
 	done
@@ -5778,8 +5686,7 @@ case "$1" in
 					echo; exit 0
 				;;
 				*)
-					echo "[*] $mode1 Isn't An Option!"
-					echo
+					Invalid_Option "$mode1"
 				;;
 			esac
 		done
@@ -5815,8 +5722,7 @@ case "$1" in
 					echo; exit 0
 				;;
 				*)
-					echo "[*] $mode3 Isn't An Option!"
-					echo
+					Invalid_Option "$mode3"
 				;;
 			esac
 		done
@@ -5857,8 +5763,7 @@ case "$1" in
 					echo; exit 0
 				;;
 				*)
-					echo "[*] $mode4 Isn't An Option!"
-					echo
+					Invalid_Option "$mode4"
 				;;
 			esac
 		done
@@ -5891,8 +5796,7 @@ case "$1" in
 					echo; exit 0
 				;;
 				*)
-					echo "[*] $mode5 Isn't An Option!"
-					echo
+					Invalid_Option "$mode5"
 				;;
 			esac
 		done
@@ -6005,8 +5909,7 @@ case "$1" in
 									echo; exit 0
 								;;
 								*)
-									echo "[*] $removeswap Isn't An Option!"
-									echo
+									Invalid_Option "$removeswap"
 								;;
 							esac
 						done
@@ -6041,8 +5944,7 @@ case "$1" in
 					echo; exit 0
 				;;
 				*)
-					echo "[*] $continue Isn't An Option!"
-					echo
+					Invalid_Option "$continue"
 				;;
 			esac
 		done
