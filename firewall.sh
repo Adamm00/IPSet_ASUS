@@ -2034,15 +2034,16 @@ Prompt_Input() {
 }
 
 Prompt_Typed() {
-	message="$1"
-	varname="$2"
-	label="${3:-$varname}"
+  varname="$1"
+  label="${2:-$varname}"
+  prompt_text="${3:-}"
 
-	echo "$message"
-	echo
-	printf "[%s]: " "$label"
-	read -r "${varname:?}"
-	echo
+  # Only echo if we've been given extra prompt text
+  [ -n "$prompt_text" ] && echo "$prompt_text"
+
+  # Print the label (falls back to the var name)
+  printf "[%s]: " "$label"
+  read -r "${varname?}"
 }
 
 Show_Menu() {
@@ -2277,25 +2278,25 @@ Load_Menu() {
 					case "$menu2" in
 						1)
 							option2="ip"
-							Prompt_Typed "Input IP To Ban:" option3 "IP"
+							Prompt_Typed "option3" "IP" "Input IP To Ban:"
 							if ! echo "$option3" | Is_IP; then echo "[*] $option3 Is Not A Valid IP"; echo; unset "option2" "option3"; continue; fi
 							break
 						;;
 						2)
 							option2="range"
-							Prompt_Typed "Input Range To Unban:" option3 "Range"
+							Prompt_Typed "option3" "Range" "Input Range To Unban:"
 							if ! echo "$option3" | Is_Range; then echo "[*] $option3 Is Not A Valid Range"; echo; unset "option2" "option3"; continue; fi
 							break
 						;;
 						3)
 							option2="domain"
-							Prompt_Typed "Input Domain To Unban:" option3 "URL"
+							Prompt_Typed "option3" "URL" "Input Domain To Unban:"
 							if [ -z "$option3" ]; then echo "[*] URL Field Can't Be Empty - Please Try Again"; echo; unset "option2" "option3"; continue; fi
 							break
 						;;
 						4)
 							option2="comment"
-							Prompt_Typed "Remove Bans Matching Comment:" option3 "Comment"
+							Prompt_Typed "option3" "Comment" "Remove Bans Matching Comment:"
 							if [ "${#option3}" -gt "255" ]; then echo "[*] $option3 Is Not A Valid Comment. 255 Chars Max"; echo; unset "option2" "option3"; continue; fi
 							if [ -z "${option3}" ]; then echo "[*] Comment Field Can't Be Empty - Please Try Again"; echo; unset "option2" "option3"; continue; fi
 							break
@@ -2306,7 +2307,7 @@ Load_Menu() {
 						;;
 						6)
 							option2="asn"
-							Prompt_Typed "Input ASN To Unban:" option3 "ASN"
+							Prompt_Typed "option3" "ASN" "Input ASN To Unban:"
 							if ! echo "$option3" | Is_ASN; then echo "[*] $option3 Is Not A Valid ASN"; echo; unset "option2" "option3"; continue; fi
 							break
 						;;
@@ -2348,37 +2349,37 @@ Load_Menu() {
 					case "$menu2" in
 						1)
 							option2="ip"
-							Prompt_Typed "Input IP To Ban:" option3 "IP"
+							Prompt_Typed "option3" "IP" "Input IP To Ban:"
 							if ! echo "$option3" | Is_IP; then echo "[*] $option3 Is Not A Valid IP"; echo; unset "option2" "option3"; continue; fi
-							Prompt_Typed "Input Comment For Ban:" option4 "Comment"
+							Prompt_Typed "option4" "Comment" "Input Comment For Ban:"
 							if [ "${#option4}" -gt "244" ]; then echo "[*] $option4 Is Not A Valid Comment. 244 Chars Max"; echo; unset "option2" "option3" "option4"; continue; fi
 							break
 						;;
 						2)
 							option2="range"
-							Prompt_Typed "Input Range To Ban:" option3 "Range"
+							Prompt_Typed "option3" "Range" "Input Range To Ban:"
 							if ! echo "$option3" | Is_Range; then echo "[*] $option3 Is Not A Valid Range"; echo; unset "option2" "option3"; continue; fi
-							Prompt_Typed "Input Comment For Ban:" option4 "Comment"
+							Prompt_Typed "option4" "Comment" "Input Comment For Ban:"
 							if [ "${#option4}" -gt "243" ]; then echo "[*] $option4 Is Not A Valid Comment. 243 Chars Max"; echo; unset "option2" "option3" "option4"; continue; fi
 							break
 						;;
 						3)
 							option2="domain"
-							Prompt_Typed "Input Domain To Ban:" option3 "URL"
+							Prompt_Typed "option3" "URL" "Input Domain To Ban:"
 							if [ -z "$option3" ]; then echo "[*] URL Field Can't Be Empty - Please Try Again"; echo; unset "option2" "option3"; continue; fi
 							break
 						;;
 						4)
 							option2="country"
 							if [ -n "$countrylist" ]; then echo "Countries Currently Banned: (${countrylist})"; fi
-							Prompt_Typed "Input Country Abbreviations To Ban:" option3 "Countries"
+							Prompt_Typed "option3" "Countries" "Input Country Abbreviations To Ban:"
 							if [ -z "$option3" ]; then echo "[*] Country Field Can't Be Empty - Please Try Again"; echo; unset "option2" "option3"; continue; fi
 							if echo "$option3" | grep -qF "\""; then echo "[*] Country Field Can't Include Quotes - Please Try Again"; echo; unset "option2" "option3"; continue; fi
 							break
 						;;
 						5)
 							option2="asn"
-							Prompt_Typed "Input ASN To Ban:" option3 "ASN"
+							Prompt_Typed "option3" "ASN" "Input ASN To Ban:"
 							if ! echo "$option3" | Is_ASN; then echo "[*] $option3 Is Not A Valid ASN"; echo; unset "option2" "option3"; continue; fi
 							break
 						;;
@@ -2410,7 +2411,7 @@ Load_Menu() {
 							break
 						;;
 						2)
-							Prompt_Typed "Input Custom Filter List URL:" option2 URL
+							Prompt_Typed "option2" "URL" "Input Custom Filter List URL:"
 							if [ -z "$option2" ]; then echo "[*] URL Field Can't Be Empty - Please Try Again"; echo; unset "option2"; continue; fi
 							break
 						;;
@@ -2420,7 +2421,7 @@ Load_Menu() {
 						;;
 						4)
 							option2="exclude"
-							Prompt_Typed "Input Names Of Lists To Exclude Seperated By Pipes Example - list1.ipset|list2.ipset|list3.ipset" "option3" "Lists"
+							Prompt_Typed "option3" "Lists" "Input Names Of Lists To Exclude Seperated By Pipes Example - list1.ipset|list2.ipset|list3.ipset"
 							if [ -z "$option3" ]; then echo "[*] Exclusion List Can't Be Empty - Please Try Again"; echo; unset "option2" "option3"; continue; fi
 							break
 						;;
@@ -2457,21 +2458,21 @@ Load_Menu() {
 					case "$menu2" in
 						1)
 							option2="ip"
-							Prompt_Typed "Input IP Or Range To Whitelist:" "option3" "IP/Range"
+							Prompt_Typed "option3" "IP/Range" "Input IP Or Range To Whitelist:"
 							if ! echo "$option3" | Is_IPRange; then echo "[*] $option3 Is Not A Valid IP/Range"; echo; unset "option2" "option3"; continue; fi
-							Prompt_Typed "Input Comment For Whitelist:" "option4" "Comment"
+							Prompt_Typed "option4" "Comment" "Input Comment For Whitelist:"
 							if [ "${#option4}" -gt "242" ]; then echo "[*] $option4 Is Not A Valid Comment. 242 Chars Max"; echo; unset "option2" "option3" "option4"; continue; fi
 							break
 						;;
 						2)
 							option2="domain"
-							Prompt_Typed "Input Domain To Whitelist:" "option3" "URL"
+							Prompt_Typed "option3" "URL" "Input Domain To Whitelist:"
 							if [ -z "$option3" ]; then echo "[*] URL Field Can't Be Empty - Please Try Again"; echo; unset "option2" "option3"; continue; fi
 							break
 						;;
 						3)
 							option2="asn"
-							Prompt_Typed "Input ASN To Whitelist:" "option3" "ASN"
+							Prompt_Typed "option3" "ASN" "Input ASN To Whitelist:"
 							if ! echo "$option3" | Is_ASN; then echo "[*] $option3 Is Not A Valid ASN"; echo; unset "option2" "option3"; continue; fi
 							break
 						;;
@@ -2488,20 +2489,20 @@ Load_Menu() {
 									"Entries Matching Comment" \
 									"Exit"
 								Prompt_Input "1-3" menu3
-								case "$menu3" in
+								case "${menu3:?}" in
 									1)
 										option3="all"
 										break
 									;;
 									2)
 										option3="entry"
-										Prompt_Typed "Input IP Or Range To Remove:" "option4" "IP/Range"
+										Prompt_Typed "option4" "IP/Range" "Input IP Or Range To Remove:"
 										if ! echo "$option4" | Is_IPRange; then echo "[*] $option4 Is Not A Valid IP/Range"; echo; unset "option3" "option4"; continue; fi
 										break
 									;;
 									3)
 										option3="comment"
-										Prompt_Typed "Remove Entries Based On Comment:" "option4" "Comment"
+										Prompt_Typed "option4" "Comment" "Remove Entries Based On Comment:"
 										if [ "${#option4}" -gt "255" ]; then echo "[*] $option4 Is Not A Valid Comment. 255 Chars Max"; echo; unset "option3" "option4"; continue; fi
 										if [ -z "${option4}" ]; then echo "[*] Comment Field Can't Be Empty - Please Try Again"; echo; unset "option3" "option4"; continue; fi
 										break
@@ -2596,7 +2597,7 @@ Load_Menu() {
 						;;
 					esac
 				done
-				Prompt_Typed "Input URL/Local File To Import:" "option3" "File"
+				Prompt_Typed "option3" "File" "Input URL/Local File To Import:"
 				if [ -z "$option3" ]; then echo "[*] File Field Can't Be Empty - Please Try Again"; echo; unset "option1" "option2" "option3"; continue; fi
 				break
 			;;
@@ -2627,7 +2628,7 @@ Load_Menu() {
 						;;
 					esac
 				done
-				Prompt_Typed "Input URL/Local File To Deport" "option3" "File"
+				Prompt_Typed "option3" "File" "Input URL/Local File To Deport"
 				if [ -z "$option3" ]; then echo "[*] File Field Can't Be Empty - Please Try Again"; echo; unset "option1" "option2" "option3"; continue; fi
 				break
 			;;
@@ -2953,7 +2954,7 @@ Load_Menu() {
 								Prompt_Input "1-2" menu3
 								case "$menu3" in
 									1)
-										Prompt_Typed "Input Custom Filter List URL:" "option2" "URL"
+										Prompt_Typed "option2" "URL" "Input Custom Filter List URL:"
 										if [ -z "$option2" ]; then echo "[*] URL Field Can't Be Empty - Please Try Again"; echo; unset "option2"; continue; fi
 										break
 									;;
@@ -2995,7 +2996,7 @@ Load_Menu() {
 													break
 												;;
 												2)
-													Prompt_Typed "Input Custom Syslog Location:" option3 File
+													Prompt_Typed "option3" "File" "Input Custom Syslog Location:"
 													if [ -z "$option3" ]; then echo "[*] File Field Can't Be Empty - Please Try Again"; echo; unset "option1" "option2" "option3"; continue; fi
 													break
 												;;
@@ -3025,7 +3026,7 @@ Load_Menu() {
 													break
 												;;
 												2)
-													Prompt_Typed "Input Custom Syslog-1 Location:" option3 File
+													Prompt_Typed "option3" "File" "Input Custom Syslog-1 Location:"
 													if [ -z "$option3" ]; then echo "[*] File Field Can't Be Empty - Please Try Again"; echo; unset "option1" "option2" "option3"; continue; fi
 													break
 												;;
@@ -3068,7 +3069,7 @@ Load_Menu() {
 								case "$menu3" in
 									1)
 										option3="unban"
-										Prompt_Typed "Input Local IP(s) To Unban: Seperate Multiple Addresses With A Comma" "option4" "IP"
+										Prompt_Typed "option4" "IP" "Input Local IP(s) To Unban: Seperate Multiple Addresses With A Comma"
 										if echo "$option4" | grep -q ","; then
 											for ip in $(echo "$option4" | sed 's~,~ ~g'); do
 													if ! echo "$ip" | Is_IPRange; then echo "[*] $ip Is Not A Valid IP/Range"; echo; unset "option3" "option4"; continue 2; fi
@@ -3080,7 +3081,7 @@ Load_Menu() {
 									;;
 									2)
 										option3="ban"
-										Prompt_Typed "Input Local IP(s) To Ban: Seperate Multiple Addresses With A Comma" "option4" "IP"
+										Prompt_Typed "option4" "IP" "Input Local IP(s) To Ban: Seperate Multiple Addresses With A Comma"
 										if echo "$option4" | grep -q ","; then
 											for ip in $(echo "$option4" | sed 's~,~ ~g'); do
 													if ! echo "$ip" | Is_IPRange; then echo "[*] $ip Is Not A Valid IP/Range"; echo; unset "option3" "option4"; continue 2; fi
@@ -3097,7 +3098,7 @@ Load_Menu() {
 									4)
 										option3="ports"
 										if [ -n "$iotports" ]; then echo "Current Custom Ports Allowed: $(Grn "$iotports")"; echo; fi
-										Prompt_Typed "Input Custom Ports(s) To Allow: Seperate Multiple Ports With A Comma" "option4" "Ports"
+										Prompt_Typed "option4" "Ports" "Input Custom Ports(s) To Allow: Seperate Multiple Ports With A Comma"
 										if echo "$option4" | grep -q ","; then
 											for port in $(echo "$option4" | sed 's~,~ ~g'); do
 													if ! echo "$port" | Is_Port; then echo "[*] $port Is Not A Valid Port"; echo; unset "option3" "option4"; continue 2; fi
@@ -3316,13 +3317,13 @@ Load_Menu() {
 									;;
 									2)
 										option3="ip"
-										Prompt_Typed "" "option4" "IP"
+										Prompt_Typed "option4" "IP"
 										if ! echo "$option4" | Is_IP; then echo "[*] $option4 Is Not A Valid IP"; echo; unset "option3" "option4"; continue; fi
 										break
 									;;
 									3)
 										option3="port"
-										Prompt_Typed "" "option4" "Port"
+										Prompt_Typed "option4" "Port"
 										if ! echo "$option4" | Is_Port || [ "$option4" -gt "65535" ]; then echo "[*] $option4 Is Not A Valid Port"; echo; unset "option3" "option4"; continue; fi
 										break
 									;;
@@ -3582,25 +3583,25 @@ Load_Menu() {
 												;;
 												2)
 													option4="ip"
-													Prompt_Typed "" option5 "IP"
+													Prompt_Typed "option5" "IP"
 													if ! echo "$option5" | Is_IP; then echo "[*] $option5 Is Not A Valid IP"; echo; unset "option4" "option5"; continue; fi
 													break
 												;;
 												3)
 													option4="port"
-													Prompt_Typed "" option5 "Port"
+													Prompt_Typed "option5" "Port"
 													if ! echo "$option5" | Is_Port || [ "$option5" -gt "65535" ]; then echo "[*] $option5 Is Not A Valid Port"; echo; unset "option4" "option5"; continue; fi
 													break
 												;;
 												4)
 													option4="proto"
-													Prompt_Typed "" option5 "Protocol"
+													Prompt_Typed "option5" "Protocol"
 													if [ "$option5" != "tcp" ] && [ "$option5" != "udp" ] && [ "$option5" != "icmp" ]; then echo "[*] $option5 Is Not A Valid Protocol"; echo; unset "option4" "option5"; continue; fi
 													break
 												;;
 												5)
 													option4="id"
-													Prompt_Typed "" option5 "Identification"
+													Prompt_Typed "option5" "Identification"
 													break
 												;;
 												e|exit|back|menu)
@@ -3662,8 +3663,8 @@ Load_Menu() {
 											break
 										;;
 										4)
-											Prompt_Typed "Enter Custom Amount:" optionx "Number"
-											if ! [ "$optionx" -eq "$optionx" ] 2>/dev/null; then echo "[*] $optionx Isn't A Valid Number!"; echo; unset "optionx"; continue; fi
+											Prompt_Typed optionx "Number" "Enter Custom Amount:"
+											if ! [ "${optionx:?}" -eq "$optionx" ] 2>/dev/null; then echo "[*] $optionx Isn't A Valid Number!"; echo; unset "optionx"; continue; fi
 											if [ -n "$option4" ]; then
 												option5="$optionx"
 											else
@@ -5469,7 +5470,7 @@ case "$1" in
 				if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 				backuplocation="${skynetloc}/Skynet-Backup.tar.gz"
 				if [ ! -f "$backuplocation" ]; then
-					Prompt_Typed "[*] Skynet Backup Doesn't Exist In Expected Path, Please Provide Location" "backuplocation" "Location"
+					Prompt_Typed "backuplocation" "Location" "[*] Skynet Backup Doesn't Exist In Expected Path, Please Provide Location"
 					if [ ! -f "$backuplocation" ]; then
 						echo "[*] Skynet Backup Doesn't Exist In Specified Path - Exiting"
 						echo; exit 2
@@ -5716,7 +5717,7 @@ case "$1" in
 		echo
 		nvram commit
 		if [ "$forcereboot" = "1" ]; then
-			Prompt_Typed "[i] Reboot Required To Complete Installation" "continue" "i"
+			Prompt_Typed "continue" "i" "[i] Reboot Required To Complete Installation"
 			service reboot
 			exit 0
 		fi
