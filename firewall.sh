@@ -1967,7 +1967,7 @@ Create_Swap() {
 			"2GB (Recommended)" \
 			"Exit"
 		Prompt_Input "1-2" menu
-		case "$menu" in
+		case "${menu:?}" in
 			1)
 				swapsize=1048576
 				break
@@ -2788,13 +2788,11 @@ Load_Menu() {
 							if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 							option2="autoupdate"
 							while true; do
-								echo "Select Skynet Autoupdate Option:"
-								echo "[1]  --> Enable"
-								echo "[2]  --> Disable"
-								echo
-								printf "[1-2]: "
-								read -r "menu3"
-								echo
+								Show_Menu "Select Skynet Autoupdate Option:" \
+									"Enable" \
+									"Disable" \
+									"Exit"
+								Prompt_Input "1-2" menu3
 								case "$menu3" in
 									1)
 										option3="enable"
@@ -3003,28 +3001,28 @@ Load_Menu() {
 							if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 							option2="securemode"
 							while true; do
-							Show_Menu "Select Secure Mode Option" \
-								"Enable" \
-								"Disable" \
-								"Exit"
-							Prompt_Input "1-2" menu3
-							case "$menu3" in
-								1)
-									option3="enable"
-									break
-								;;
-								2)
-									option3="disable"
-									break
-								;;
-								e|exit|back|menu)
-									Return_To_Menu
-									break
-								;;
-								*)
-									Invalid_Option "$menu3"
-								;;
-							esac
+								Show_Menu "Select Secure Mode Option" \
+									"Enable" \
+									"Disable" \
+									"Exit"
+								Prompt_Input "1-2" menu3
+								case "$menu3" in
+									1)
+										option3="enable"
+										break
+									;;
+									2)
+										option3="disable"
+										break
+									;;
+									e|exit|back|menu)
+										Return_To_Menu
+										break
+									;;
+									*)
+										Invalid_Option "$menu3"
+									;;
+								esac
 							done
 							break
 						;;
@@ -3233,7 +3231,7 @@ Load_Menu() {
 												"Both" \
 												"Exit"
 											Prompt_Input "1-3" menu4
-											case "$menu4" in
+											case "${menu4:?}" in
 												1)
 													option4="udp"
 													break
@@ -3692,7 +3690,7 @@ Load_Menu() {
 												"Search By Identification" \
 												"Exit"
 											Prompt_Input "1-5" menu5
-											case "$menu5" in
+											case "${menu5:?}" in
 												1)
 													break
 												;;
@@ -5679,7 +5677,7 @@ case "$1" in
 				"Outbound" \
 				"Exit"
 			Prompt_Input "1-3" mode1
-			case "$mode1" in
+			case "${mode1:?}" in
 				1)
 					echo "[i] All Traffic Selected"
 					filtertraffic="all"
@@ -5712,7 +5710,7 @@ case "$1" in
 				"No" \
 				"Exit"
 			Prompt_Input "1-2" mode3
-			case "$mode3" in
+			case "${mode3:?}" in
 				1)
 					echo "[i] Logging Enabled"
 					logmode="enabled"
@@ -5743,7 +5741,7 @@ case "$1" in
 				"No" \
 				"Exit"
 			Prompt_Input "1-3" mode4
-			case "$mode4" in
+			case "${mode4:?}" in
 				1)
 					echo "[i] Malware Blacklist Updating Enabled & Scheduled Every Day"
 					banmalwareupdate="daily"
@@ -5779,7 +5777,7 @@ case "$1" in
 				"No" \
 				"Exit"
 			Prompt_Input "1-2" mode5
-			case "$mode5" in
+			case "${mode5:?}" in
 				1)
 					echo "[i] Skynet Auto-Updates Enabled & Scheduled For 1.25am Every Monday"
 					autoupdate="enabled"
@@ -5870,16 +5868,11 @@ case "$1" in
 		echo "https://github.com/Adamm00/IPSet_ASUS"
 		echo
 		while true; do
-			echo "[!] Warning - This Will Delete All Files In The Skynet Directory"
-			echo "Are You Sure You Want To Uninstall?"
-			echo
-			echo "[1]  --> Yes"
-			echo "[2]  --> No"
-			echo
-			echo "Please Select Option"
-			printf "[1-2]: "
-			read -r "continue"
-			echo
+			Show_Menu "Warning - This Will Delete All Files In The Skynet Directory. Are You Sure You Want To Uninstall?" \
+				"Yes" \
+				"No" \
+				"Exit"
+			Prompt_Input "1-2" continue
 			case "$continue" in
 				1)
 					if grep -qE "^swapon .* # Skynet" /jffs/scripts/post-mount; then
@@ -5888,8 +5881,8 @@ case "$1" in
 								"Yes" \
 								"No" \
 								"Exit"
-							Prompt_Input "1-2" swapremove
-							case "$removeswap" in
+							Prompt_Input "1-2" removeswap
+							case "${removeswap:?}" in
 								1)
 									echo "[i] Removing Skynet Generated SWAP File"
 									sed -i '\~# Skynet~d' /jffs/scripts/post-mount /jffs/scripts/unmount
