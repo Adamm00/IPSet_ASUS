@@ -52,8 +52,6 @@ LOCK_FILE="/tmp/skynet.lock"
 
 trap 'Release_Lock' INT TERM EXIT
 
-
-
 if [ -z "${skynetloc}" ] && tty >/dev/null 2>&1; then
 	set "install"
 fi
@@ -1969,7 +1967,6 @@ Create_Swap() {
 			"2GB (Recommended)" \
 			"Exit"
 		Prompt_Input "1-2" menu
-
 		case "$menu" in
 			1)
 				swapsize=1048576
@@ -2033,6 +2030,14 @@ Ensure_Running() {
 Prompt_Input() {
 	printf "[%s]: " "$1"
 	read -r "$2"
+	echo
+}
+
+Prompt_Typed() {
+	label="$1"
+	varname="$2"
+	printf "[%s]: " "$label"
+	read -r varname
 	echo
 }
 
@@ -2230,48 +2235,41 @@ Load_Menu() {
 	Purge_Logs
 	echo
 	while true; do
-		echo "Select Menu Option:"
-		echo "[1]  --> Unban"
-		echo "[2]  --> Ban"
-		echo "[3]  --> Malware Blacklist"
-		echo "[4]  --> Whitelist"
-		echo "[5]  --> Import IP List"
-		echo "[6]  --> Deport IP List"
-		echo "[7]  --> Save"
-		echo "[8]  --> Restart Skynet"
-		echo "[9]  --> Temporarily Disable Skynet"
-		echo "[10] --> Update Skynet"
-		echo "[11] --> Settings"
-		echo "[12] --> Debug Options"
-		echo "[13] --> Stats"
-		echo "[14] --> Install Skynet"
-		echo "[15] --> Uninstall"
-		echo
-		echo "[r]  --> Reload Menu"
-		echo "[e]  --> Exit Menu"
-		echo
-		printf "[1-15]: "
-		read -r "menu"
-		echo
+		Show_Menu "Select Menu Option" \
+			"Unban" \
+			"Ban" \
+			"Malware Blacklist" \
+			"Whitelist" \
+			"Import IP List" \
+			"Deport IP List" \
+			"Save" \
+			"Restart Skynet" \
+			"Temporarily Disable Skynet" \
+			"Update Skynet" \
+			"Settings" \
+			"Debug Options" \
+			"Stats" \
+			"Install Skynet" \
+			"Uninstall" \
+			"Exit"
+		Prompt_Input "1-15" menu
 		case "$menu" in
 			1)
 				if ! Ensure_Running; then break; fi
 				option1="unban"
 				while true; do
-					echo "What Type Of Input Would You Like To Unban:"
-					echo "[1]  --> IP"
-					echo "[2]  --> Range"
-					echo "[3]  --> Domain"
-					echo "[4]  --> Comment"
-					echo "[5]  --> Country"
-					echo "[6]  --> ASN"
-					echo "[7]  --> Malware Lists"
-					echo "[8]  --> Non Manual Bans"
-					echo "[9]  --> All"
-					echo
-					printf "[1-9]: "
-					read -r "menu2"
-					echo
+					Show_Menu "What Type Of Input Would You Like To Unban" \
+						"IP" \
+						"Range" \
+						"Domain" \
+						"Comment" \
+						"Country" \
+						"ASN" \
+						"Malware Lists" \
+						"Non Manual Bans" \
+						"All" \
+						"Exit"
+					Prompt_Input "1-9" menu2
 					case "$menu2" in
 						1)
 							option2="ip"
@@ -2355,16 +2353,14 @@ Load_Menu() {
 				if ! Ensure_Running; then break; fi
 				option1="ban"
 				while true; do
-					echo "What Type Of Input Would You Like To Ban:"
-					echo "[1]  --> IP"
-					echo "[2]  --> Range"
-					echo "[3]  --> Domain"
-					echo "[4]  --> Country"
-					echo "[5]  --> ASN"
-					echo
-					printf "[1-5]: "
-					read -r "menu2"
-					echo
+					Show_Menu "What Type Of Input Would You Like To Ban:" \
+						"IP" \
+						"Range" \
+						"Domain" \
+						"Country" \
+						"ASN" \
+						"Exit"
+					Prompt_Input "1-5" menu2
 					case "$menu2" in
 						1)
 							option2="ip"
@@ -2445,16 +2441,14 @@ Load_Menu() {
 				if ! Ensure_Running; then break; fi
 				option1="banmalware"
 				while true; do
-					echo "Select Option:"
-					echo "[1]  --> Update"
-					echo "[2]  --> Change Filter List"
-					echo "[3]  --> Reset Filter List"
-					echo "[4]  --> Exclude Individual Lists"
-					echo "[5]  --> Reset Exclusion List"
-					echo
-					printf "[1-5]: "
-					read -r "menu2"
-					echo
+					Show_Menu "Select Option:" \
+						"Update" \
+						"Change Filter List" \
+						"Reset Filter List" \
+						"Exclude Individual Lists" \
+						"Reset Exclusion List" \
+						"Exit"
+					Prompt_Input "1-5" menu2
 					case "$menu2" in
 						1)
 							break
@@ -2502,18 +2496,16 @@ Load_Menu() {
 				if ! Ensure_Running; then break; fi
 				option1="whitelist"
 				while true; do
-					echo "Select Whitelist Option:"
-					echo "[1]  --> IP/Range"
-					echo "[2]  --> Domain"
-					echo "[3]  --> ASN"
-					echo "[4]  --> Refresh VPN Whitelist"
-					echo "[5]  --> Remove Entries"
-					echo "[6]  --> Refresh Entries"
-					echo "[7]  --> View Entries"
-					echo
-					printf "[1-7]: "
-					read -r "menu2"
-					echo
+					Show_Menu "Select Whitelist Option:" \
+						"IP/Range" \
+						"Domain" \
+						"ASN" \
+						"Refresh VPN Whitelist" \
+						"Remove Entries" \
+						"Refresh Entries" \
+						"View Entries" \
+						"Exit"
+					Prompt_Input "1-7" menu2
 					case "$menu2" in
 						1)
 							option2="ip"
@@ -2558,14 +2550,12 @@ Load_Menu() {
 						5)
 							option2="remove"
 							while true; do
-								echo "Remove From Whitelist:"
-								echo "[1]  --> All Non-Default Entries"
-								echo "[2]  --> IP/Range"
-								echo "[3]  --> Entries Matching Comment"
-								echo
-								printf "[1-3]: "
-								read -r "menu3"
-								echo
+								Show_Menu "Remove From Whitelist:" \
+									"All Non-Default Entries" \
+									"IP/Range" \
+									"Entries Matching Comment" \
+									"Exit"
+								Prompt_Input "1-3" menu3
 								case "$menu3" in
 									1)
 										option3="all"
@@ -2617,7 +2607,6 @@ Load_Menu() {
 									"Imported Entries" \
 									"Exit"
 								Prompt_Input "1-4" menu3
-
 								case "$menu3" in
 									1)
 										break
@@ -2660,13 +2649,11 @@ Load_Menu() {
 				if ! Ensure_Running; then break; fi
 				option1="import"
 				while true; do
-					echo "Select Where To Import List:"
-					echo "[1]  --> Blacklist"
-					echo "[2]  --> Whitelist"
-					echo
-					printf "[1-2]: "
-					read -r "menu3"
-					echo
+					Show_Menu "Select Where To Import List:" \
+						"Blacklist" \
+						"Whitelist" \
+						"Exit"
+					Prompt_Input "1-2" menu3
 					case "$menu3" in
 						1)
 							option2="blacklist"
@@ -2702,7 +2689,6 @@ Load_Menu() {
 						"Whitelist" \
 						"Exit"
 					Prompt_Input "1-2" menu3
-
 					case "$menu3" in
 						1)
 							option2="blacklist"
@@ -2751,7 +2737,6 @@ Load_Menu() {
 					"Force Update Even If No Updates Detected" \
 					"Exit"
 				Prompt_Input "1-3" menu2
-
 				case "$menu2" in
 						1)
 							break
@@ -2834,14 +2819,12 @@ Load_Menu() {
 							if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 							option2="banmalware"
 							while true; do
-								echo "Select Malware Blacklist Updating Frequency:"
-								echo "[1]  --> Daily"
-								echo "[2]  --> Weekly"
-								echo "[3]  --> Disable"
-								echo
-								printf "[1-3]: "
-								read -r "menu3"
-								echo
+								Show_Menu "Select Malware Blacklist Updating Frequency:" \
+									"Daily" \
+									"Weekly" \
+									"Disable" \
+									"Exit"
+								Prompt_Input "1-3" menu3
 								case "$menu3" in
 									1)
 										option3="daily"
@@ -2870,30 +2853,28 @@ Load_Menu() {
 							if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 							option2="logmode"
 							while true; do
-								echo "Select Logging Option:"
-								echo "[1]  --> Enable"
-								echo "[2]  --> Disable"
-								echo
-								printf "[1-2]: "
-								read -r "menu3"
-								echo
-								case "$menu3" in
-									1)
-										option3="enable"
-										break
-									;;
-									2)
-										option3="disable"
-										break
-									;;
-									e|exit|back|menu)
-										Return_To_Menu
-										break
-									;;
-									*)
-										Invalid_Option "$menu3"
-									;;
-								esac
+							Show_Menu "Select Logging Option" \
+								"Enable" \
+								"Disable" \
+								"Exit"
+							Prompt_Input "1-2" menu3
+							case "$menu3" in
+								1)
+									option3="enable"
+									break
+								;;
+								2)
+									option3="disable"
+									break
+								;;
+								e|exit|back|menu)
+									Return_To_Menu
+									break
+								;;
+								*)
+									Invalid_Option "$menu3"
+								;;
+							esac
 							done
 							break
 						;;
@@ -2901,35 +2882,33 @@ Load_Menu() {
 							if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 							option2="filter"
 							while true; do
-								echo "Select Filter Option:"
-								echo "[1]  --> All Traffic"
-								echo "[2]  --> Inbound"
-								echo "[3]  --> Outbound"
-								echo
-								printf "[1-3]: "
-								read -r "menu3"
-								echo
-								case "$menu3" in
-									1)
-										option3="all"
-										break
-									;;
-									2)
-										option3="inbound"
-										break
-									;;
-									3)
-										option3="outbound"
-										break
-									;;
-									e|exit|back|menu)
-										Return_To_Menu
-										break
-									;;
-									*)
-										Invalid_Option "$menu3"
-									;;
-								esac
+							Show_Menu "Select Traffic Filter" \
+								"All - (Recommended)" \
+								"Inbound" \
+								"Outbound" \
+								"Exit"
+							Prompt_Input "1-3" menu3
+							case "$menu3" in
+								1)
+									option3="all"
+									break
+								;;
+								2)
+									option3="inbound"
+									break
+								;;
+								3)
+									option3="outbound"
+									break
+								;;
+								e|exit|back|menu)
+									Return_To_Menu
+									break
+								;;
+								*)
+									Invalid_Option "$menu3"
+								;;
+							esac
 							done
 							break
 						;;
@@ -2937,13 +2916,11 @@ Load_Menu() {
 							if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 							option2="unbanprivate"
 							while true; do
-								echo "Select Filter PrivateIP Option:"
-								echo "[1]  --> Enable"
-								echo "[2]  --> Disable"
-								echo
-								printf "[1-2]: "
-								read -r "menu3"
-								echo
+								Show_Menu "Select Filter PrivateIP Option" \
+									"Enable" \
+									"Disable" \
+									"Exit"
+								Prompt_Input "1-2" menu3
 								case "$menu3" in
 									1)
 										option3="enable"
@@ -2968,13 +2945,11 @@ Load_Menu() {
 							if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 							option2="loginvalid"
 							while true; do
-								echo "Select Invalid Packet Logging Option:"
-								echo "[1]  --> Enable"
-								echo "[2]  --> Disable"
-								echo
-								printf "[1-2]: "
-								read -r "menu3"
-								echo
+								Show_Menu "Select Invalid Packet Logging Option" \
+									"Enable" \
+									"Disable" \
+									"Exit"
+								Prompt_Input "1-2" menu3
 								case "$menu3" in
 									1)
 										option3="enable"
@@ -2999,13 +2974,11 @@ Load_Menu() {
 							if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 							option2="banaiprotect"
 							while true; do
-								echo "Select Ban AiProtect Option:"
-								echo "[1]  --> Enable"
-								echo "[2]  --> Disable"
-								echo
-								printf "[1-2]: "
-								read -r "menu3"
-								echo
+								Show_Menu "Select Ban AiProtect Option" \
+									"Enable" \
+									"Disable" \
+									"Exit"
+								Prompt_Input "1-2" menu3
 								case "$menu3" in
 									1)
 										option3="enable"
@@ -3030,16 +3003,47 @@ Load_Menu() {
 							if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 							option2="securemode"
 							while true; do
-								echo "Select Secure Mode Option:"
-								echo "[1]  --> Enable"
-								echo "[2]  --> Disable"
-								echo
-								printf "[1-2]: "
-								read -r "menu3"
-								echo
+							Show_Menu "Select Secure Mode Option" \
+								"Enable" \
+								"Disable" \
+								"Exit"
+							Prompt_Input "1-2" menu3
+							case "$menu3" in
+								1)
+									option3="enable"
+									break
+								;;
+								2)
+									option3="disable"
+									break
+								;;
+								e|exit|back|menu)
+									Return_To_Menu
+									break
+								;;
+								*)
+									Invalid_Option "$menu3"
+								;;
+							esac
+							done
+							break
+						;;
+						9)
+							if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
+							option1="fs"
+							while true; do
+								Show_Menu "Select Fast Switch List Option" \
+									"Enable" \
+									"Disable" \
+									"Exit"
+								Prompt_Input "1-2" menu3
 								case "$menu3" in
 									1)
-										option3="enable"
+										echo "Input Custom Filter List URL:"
+										printf "[URL]: "
+										read -r "option2"
+										echo
+										if [ -z "$option2" ]; then echo "[*] URL Field Can't Be Empty - Please Try Again"; echo; unset "option2"; continue; fi
 										break
 									;;
 									2)
@@ -3057,63 +3061,23 @@ Load_Menu() {
 							done
 							break
 						;;
-						9)
-							if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
-							option1="fs"
-							while true; do
-								echo "Select Fast Switch List Option:"
-								echo "[1]  --> Enable"
-								echo "[2]  --> Disable"
-								echo
-								printf "[1-2]: "
-								read -r "menu3"
-								echo
-								case "$menu3" in
-									1)
-										echo "Input Custom Filter List URL:"
-										printf "[URL]: "
-										read -r "option2"
-										echo
-										if [ -z "$option2" ]; then echo "[*] URL Field Can't Be Empty - Please Try Again"; echo; unset "option2"; continue; fi
-										break
-										break
-									;;
-									2)
-										option2="disable"
-										break
-									;;
-									e|exit|back|menu)
-										Return_To_Menu
-										break
-									;;
-									*)
-										Invalid_Option "$menu3"
-									;;
-								esac
-							done
-							break
-						;;
 						10)
 							if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 							while true; do
-								echo "Select Syslog To Configure:"
-								echo "[1]  --> syslog.log"
-								echo "[2]  --> syslog.log-1"
-								echo
-								printf "[1-2]: "
-								read -r "menu3"
-								echo
+								Show_Menu "Select Syslog To Configure:" \
+									"syslog.log" \
+									"syslog.log-1" \
+									"Exit"
+								Prompt_Input "1-2" menu3
 								case "$menu3" in
 									1)
 										option2="syslog"
 										while true; do
-											echo "Select Syslog Location:"
-											echo "[1]  --> Default"
-											echo "[2]  --> Custom"
-											echo
-											printf "[1-2]: "
-											read -r "menu3"
-											echo
+											Show_Menu "Select Syslog Location:" \
+												"Default" \
+												"Custom" \
+												"Exit"
+											Prompt_Input "1-2" menu3
 											case "$menu3" in
 												1)
 													option3="/tmp/syslog.log"
@@ -3143,13 +3107,11 @@ Load_Menu() {
 									2)
 										option2="syslog1"
 										while true; do
-											echo "Select Syslog Location:"
-											echo "[1]  --> Default"
-											echo "[2]  --> Custom"
-											echo
-											printf "[1-2]: "
-											read -r "menu3"
-											echo
+											Show_Menu "Select Syslog Location:" \
+												"Default" \
+												"Custom" \
+												"Exit"
+											Prompt_Input "1-2" menu3
 											case "$menu3" in
 												1)
 													option3="/tmp/syslog.log-1"
@@ -3191,17 +3153,15 @@ Load_Menu() {
 							if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 							while true; do
 								option2="iot"
-								echo "Select IOT Option:"
-								echo "[1]  --> Unban Devices"
-								echo "[2]  --> Ban Devices"
-								echo "[3]  --> View Blocked Devices"
-								echo "[4]  --> Add Custom Allowed Ports"
-								echo "[5]  --> Reset Custom Port List"
-								echo "[6]  --> Select Allowed Protocols"
-								echo
-								printf "[1-6]: "
-								read -r "menu3"
-								echo
+								Show_Menu "Select IOT Option:" \
+									"Unban Devices" \
+									"Ban Devices" \
+									"View Blocked Devices" \
+									"Add Custom Allowed Ports" \
+									"Reset Custom Port List" \
+									"Select Allowed Protocols" \
+									"Exit"
+								Prompt_Input "1-6" menu3
 								case "$menu3" in
 									1)
 										option3="unban"
@@ -3267,15 +3227,12 @@ Load_Menu() {
 									6)
 										while true; do
 											option3="proto"
-											echo "Select Port Protocol To Allow:"
-											echo
-											echo "[1]  --> UDP"
-											echo "[2]  --> TCP"
-											echo "[3]  --> Both"
-											echo
-											printf "[1-3]: "
-											read -r "menu4"
-											echo
+											Show_Menu "Select Port Protocol To Allow:" \
+												"UDP" \
+												"TCP" \
+												"Both" \
+												"Exit"
+											Prompt_Input "1-3" menu4
 											case "$menu4" in
 												1)
 													option4="udp"
@@ -3315,13 +3272,11 @@ Load_Menu() {
 							if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 							option2="iotlogging"
 							while true; do
-								echo "Select IOT Logging Option:"
-								echo "[1]  --> Enable"
-								echo "[2]  --> Disable"
-								echo
-								printf "[1-2]: "
-								read -r "menu3"
-								echo
+								Show_Menu "Select IOT Logging Option" \
+									"Enable" \
+									"Disable" \
+									"Exit"
+								Prompt_Input "1-2" menu3
 								case "$menu3" in
 									1)
 										option3="enable"
@@ -3346,13 +3301,11 @@ Load_Menu() {
 							if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 							option2="lookupcountry"
 							while true; do
-								echo "Select Country Lookup For Stats Option:"
-								echo "[1]  --> Enable"
-								echo "[2]  --> Disable"
-								echo
-								printf "[1-2]: "
-								read -r "menu3"
-								echo
+								Show_Menu "Select Country Lookup For Stats Option:" \
+									"Enable" \
+									"Disable" \
+									"Exit"
+								Prompt_Input "1-2" menu3
 								case "$menu3" in
 									1)
 										option3="enable"
@@ -3377,13 +3330,11 @@ Load_Menu() {
 							if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 							option2="cdnwhitelist"
 							while true; do
-								echo "Select CDN Whitelisting Option:"
-								echo "[1]  --> Enable"
-								echo "[2]  --> Disable"
-								echo
-								printf "[1-2]: "
-								read -r "menu3"
-								echo
+								Show_Menu "Select CDN Whitelisting Option:" \
+									"Enable" \
+									"Disable" \
+									"Exit"
+								Prompt_Input "1-2" menu3
 								case "$menu3" in
 									1)
 										option3="enable"
@@ -3413,7 +3364,6 @@ Load_Menu() {
 									"Disable" \
 									"Exit"
 								Prompt_Input "1-2" menu3
-
 								case "$menu3" in
 									1)
 										option3="enable"
@@ -3461,7 +3411,6 @@ Load_Menu() {
 						"Restore Skynet Files" \
 						"Exit"
 					Prompt_Input "1-6" menu2
-
 					case "$menu2" in
 						1)
 							if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
@@ -3473,7 +3422,6 @@ Load_Menu() {
 									"Port" \
 									"Exit"
 								Prompt_Input "1-3" menu3
-
 								case "$menu3" in
 									1)
 										break
@@ -3521,7 +3469,6 @@ Load_Menu() {
 									"Uninstall" \
 									"Exit"
 								Prompt_Input "1-2" menu3
-
 								case "$menu3" in
 									1)
 										option3="install"
@@ -3566,15 +3513,13 @@ Load_Menu() {
 			13)
 				option1="stats"
 				while true; do
-					echo "Select Stat Option:"
-					echo "[1]  --> Display"
-					echo "[2]  --> Search"
-					echo "[3]  --> Remove"
-					echo "[4]  --> Reset"
-					echo
-					printf "[1-4]: "
-					read -r "menu2"
-					echo
+					Show_Menu "Select Stat Option:" \
+						"Display" \
+						"Search" \
+						"Remove" \
+						"Reset" \
+						"Exit"
+					Prompt_Input "1-4" menu2
 					case "$menu2" in
 						1)
 							while true; do
@@ -3585,7 +3530,6 @@ Load_Menu() {
 									"Custom" \
 									"Exit"
 								Prompt_Input "1-4" menu3
-
 								case "$menu3" in
 									1)
 										option3="10"
@@ -3619,15 +3563,13 @@ Load_Menu() {
 								esac
 							done
 							while true; do
-								echo "Show Packet Type:"
-								echo "[1]  --> All"
-								echo "[2]  --> TCP"
-								echo "[3]  --> UDP"
-								echo "[4]  --> ICMP"
-								echo
-								printf "[1-4]: "
-								read -r "menu4"
-								echo
+								Show_Menu "Show Packet Type:" \
+									"All" \
+									"TCP" \
+									"UDP" \
+									"ICMP" \
+									"Exit"
+								Prompt_Input "1-4" menu4
 								case "$menu4" in
 									1)
 										break
@@ -3671,7 +3613,6 @@ Load_Menu() {
 									"IOT Packets" \
 									"Exit"
 								Prompt_Input "1-10" menu4
-
 								case "$menu4" in
 									1)
 										option3="port"
@@ -3743,16 +3684,14 @@ Load_Menu() {
 									9)
 										option3="connections"
 										while true; do
-											echo "Search Options:"
-											echo "[1]  --> All Results"
-											echo "[2]  --> Search By IP"
-											echo "[3]  --> Search By Port"
-											echo "[4]  --> Search By Protocol"
-											echo "[5]  --> Search By Identification"
-											echo
-											printf "[1-5]: "
-											read -r "menu5"
-											echo
+											Show_Menu "Search Options:" \
+												"All Results" \
+												"Search By IP" \
+												"Search By Port" \
+												"Search By Protocol" \
+												"Search By Identification" \
+												"Exit"
+											Prompt_Input "1-5" menu5
 											case "$menu5" in
 												1)
 													break
@@ -3814,15 +3753,13 @@ Load_Menu() {
 							done
 							if [ "$option3" != "connections" ]; then
 								while true; do
-									echo "Show Top x Results:"
-									echo "[1]  --> 10"
-									echo "[2]  --> 20"
-									echo "[3]  --> 50"
-									echo "[4]  --> Custom"
-									echo
-									printf "[1-4]: "
-									read -r "menu3"
-									echo
+									Show_Menu "Show Top x Results:" \
+										"10" \
+										"20" \
+										"50" \
+										"Custom" \
+										"Exit"
+									Prompt_Input "1-4" menu3
 									case "$menu3" in
 										1)
 											if [ -n "$option4" ]; then
@@ -3877,13 +3814,11 @@ Load_Menu() {
 						3)
 							option2="remove"
 							while true; do
-								echo "Search Options:"
-								echo "[1]  --> Logs Containing Specific IP"
-								echo "[2]  --> Logs Containing Specific Port"
-								echo
-								printf "[1-2]: "
-								read -r "menu3"
-								echo
+								Show_Menu "Search Options:" \
+									"Logs Containing Specific IP" \
+									"Logs Containing Specific Port" \
+									"Exit"
+								Prompt_Input "1-2" menu3
 								case "$menu3" in
 									1)
 										option3="ip"
@@ -3962,8 +3897,6 @@ if [ -n "$option1" ]; then
 	stime="$(date +%s)"
 	echo "[$] $0 $*" | tr -s " "
 fi
-
-trap EXIT
 
 if [ -f "$skynetcfg" ]; then
 	. "$skynetcfg"
@@ -5736,17 +5669,12 @@ case "$1" in
 		mkdir -p "${device}/skynet"
 		echo
 		while true; do
-			echo "What Type Of Traffic Do You Want To Filter?"
-			echo "[1]  --> All  - (Recommended)"
-			echo "[2]  --> Inbound"
-			echo "[3]  --> Outbound"
-			echo
-			echo "[e]  --> Exit Menu"
-			echo
-			echo "Please Select Option"
-			printf "[1-3]: "
-			read -r "mode1"
-			echo
+			Show_Menu "Please Select Traffic Filter Mode" \
+				"All - (Recommended)" \
+				"Inbound" \
+				"Outbound" \
+				"Exit"
+			Prompt_Input "1-3" mode1
 			case "$mode1" in
 				1)
 					echo "[i] All Traffic Selected"
@@ -5775,17 +5703,11 @@ case "$1" in
 		echo
 		echo
 		while true; do
-			echo "Would You Like To Enable Logging?"
-			echo "Logging Is Used For Generating Stats And Monitoring Blocked IP's"
-			echo "[1]  --> Yes  - (Recommended)"
-			echo "[2]  --> No"
-			echo
-			echo "[e]  --> Exit Menu"
-			echo
-			echo "Please Select Option"
-			printf "[1-2]: "
-			read -r "mode3"
-			echo
+			Show_Menu "Enable Logging (Used For Generating Stats And Monitoring Blocked IP's)" \
+				"Yes - (Recommended)" \
+				"No" \
+				"Exit"
+			Prompt_Input "1-2" mode3
 			case "$mode3" in
 				1)
 					echo "[i] Logging Enabled"
@@ -5799,7 +5721,7 @@ case "$1" in
 					iotlogging="disabled"
 					break
 				;;
-				e|exit)
+				e|exit|back|menu)
 					echo "[*] Exiting!"
 					echo; exit 0
 				;;
@@ -5811,17 +5733,12 @@ case "$1" in
 		echo
 		echo
 		while true; do
-			echo "Would You Like To Enable Malware Blacklist Auto-Updates?"
-			echo "[1]  --> Yes (Daily)  - (Recommended)"
-			echo "[2]  --> Yes (Weekly)"
-			echo "[3]  --> No"
-			echo
-			echo "[e]  --> Exit Menu"
-			echo
-			echo "Please Select Option"
-			printf "[1-3]: "
-			read -r "mode4"
-			echo
+			Show_Menu "Enable Malware Blacklist Auto-Updates?" \
+				"Yes (Daily) - (Recommended)" \
+				"Yes (Weekly)" \
+				"No" \
+				"Exit"
+			Prompt_Input "1-3" mode4
 			case "$mode4" in
 				1)
 					echo "[i] Malware Blacklist Updating Enabled & Scheduled Every Day"
@@ -5840,9 +5757,10 @@ case "$1" in
 					banmalwareupdate="disabled"
 					break
 				;;
-				e|exit)
+				e|exit|back|menu)
 					echo "[*] Exiting!"
-					echo; exit 0
+					echo
+					exit 0
 				;;
 				*)
 					Invalid_Option "$mode4"
@@ -5852,16 +5770,11 @@ case "$1" in
 		echo
 		echo
 		while true; do
-			echo "Would You Like To Enable Weekly Skynet Updating?"
-			echo "[1]  --> Yes  - (Recommended)"
-			echo "[2]  --> No"
-			echo
-			echo "[e]  --> Exit Menu"
-			echo
-			echo "Please Select Option"
-			printf "[1-2]: "
-			read -r "mode5"
-			echo
+			Show_Menu "Enable Weekly Skynet Auto-Update?" \
+				"Yes - (Recommended)" \
+				"No" \
+				"Exit"
+			Prompt_Input "1-2" mode5
 			case "$mode5" in
 				1)
 					echo "[i] Skynet Auto-Updates Enabled & Scheduled For 1.25am Every Monday"
@@ -5873,9 +5786,10 @@ case "$1" in
 					autoupdate="disabled"
 					break
 				;;
-				e|exit)
+				e|exit|back|menu)
 					echo "[*] Exiting!"
-					echo; exit 0
+					echo
+					exit 0
 				;;
 				*)
 					Invalid_Option "$mode5"
@@ -5966,14 +5880,11 @@ case "$1" in
 				1)
 					if grep -qE "^swapon .* # Skynet" /jffs/scripts/post-mount; then
 						while true; do
-							echo "Would You Like To Remove Skynet Generated Swap File?"
-							echo "[1]  --> Yes"
-							echo "[2]  --> No"
-							echo
-							echo "Please Select Option"
-							printf "[1-2]: "
-							read -r "removeswap"
-							echo
+							Show_Menu "Would You Like To Remove Skynet Generated Swap File?" \
+								"Yes" \
+								"No" \
+								"Exit"
+							Prompt_Input "1-2" swapremove
 							case "$removeswap" in
 								1)
 									echo "[i] Removing Skynet Generated SWAP File"
