@@ -1,16 +1,16 @@
 #!/bin/sh
 #############################################################################################################
 #                                                                                                           #
-#                  ███████╗██╗  ██╗██╗   ██╗███╗   ██╗███████╗████████╗    ██╗   ██╗███████╗                #
-#                  ██╔════╝██║ ██╔╝╚██╗ ██╔╝████╗  ██║██╔════╝╚══██╔══╝    ██║   ██║╚════██║                #
-#                  ███████╗█████╔╝  ╚████╔╝ ██╔██╗ ██║█████╗     ██║       ██║   ██║    ██╔╝                #
-#                  ╚════██║██╔═██╗   ╚██╔╝  ██║╚██╗██║██╔══╝     ██║       ╚██╗ ██╔╝   ██╔╝                 #
-#                  ███████║██║  ██╗   ██║   ██║ ╚████║███████╗   ██║        ╚████╔╝    ██║                  #
-#                  ╚══════╝╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═══╝╚══════╝   ╚═╝         ╚═══╝     ╚═╝                  #
+#                          ███████╗██╗  ██╗██╗   ██╗███╗   ██╗███████╗████████╗                             #
+#                          ██╔════╝██║ ██╔╝╚██╗ ██╔╝████╗  ██║██╔════╝╚══██╔══╝                             #
+#                          ███████╗█████╔╝  ╚████╔╝ ██╔██╗ ██║█████╗     ██║                                #
+#                          ╚════██║██╔═██╗   ╚██╔╝  ██║╚██╗██║██╔══╝     ██║                                #
+#                          ███████║██║  ██╗   ██║   ██║ ╚████║███████╗   ██║                                #
+#                          ╚══════╝╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═══╝╚══════╝   ╚═╝                                #
 #                                                                                                           #
-#                                 Router Firewall And Security Enhancements                                 #
-#                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            20/04/2025 - v8.0.0                                            #
+#                              Router Firewall And Security Enhancements                                    #
+#                          By Adamm -  https://github.com/Adamm00/IPSet_ASUS                                #
+#                                       21/04/2025 - v8.0.0                                                 #
 #############################################################################################################
 
 
@@ -48,6 +48,11 @@ skynetlog="${skynetloc}/skynet.log"
 skynetevents="${skynetloc}/events.log"
 skynetipset="${skynetloc}/skynet.ipset"
 stime="$(date +%s)"
+LOCK_FILE="/tmp/skynet.lock"
+
+trap 'Release_Lock' INT TERM EXIT
+
+
 
 if [ -z "${skynetloc}" ] && tty >/dev/null 2>&1; then
 	set "install"
@@ -58,43 +63,59 @@ fi
 ###############
 
 Check_Lock() {
-    LOCK_FILE="/tmp/skynet.lock"
+	# Open FD 9 for locking
+	exec 9<>"$LOCK_FILE"
 
-    # Open without truncating
-    exec 9<>"$LOCK_FILE"
+	# Try non‑blocking lock
+	if ! flock -n 9; then
+		locked_cmd=$(cut -d'|' -f1 "$LOCK_FILE")
+		locked_pid=$(cut -d'|' -f2 "$LOCK_FILE")
+		lock_timestamp=$(cut -d'|' -f3 "$LOCK_FILE")
+		current_time=$(date +%s)
+		age=$(( current_time - lock_timestamp ))
 
-    if ! flock -n 9; then
-        IFS='|' read -r locked_cmd locked_pid lock_timestamp < "$LOCK_FILE"
+		if [ -n "$locked_pid" ] && [ -d "/proc/$locked_pid" ]; then
+			if [ "$age" -gt 1800 ]; then
+				# Stale lock: kill and re‑acquire
+				if kill "$locked_pid" 2>/dev/null; then
+					logger -st Skynet "[*] Killed stale Skynet process (pid=$locked_pid) after $age seconds"
+				fi
+				: > "$LOCK_FILE"
+				if ! flock -n 9; then
+					logger -st Skynet "[*] Lock acquisition failed after killing stale process - Exiting (pid=$locked_pid)"
+					echo; exit 1
+				fi
+			else
+				# Active lock held by running process
+				logger -st Skynet "[*] Lock File Detected ($locked_cmd) (pid=$locked_pid, runtime=${age}s) - Exiting"
+				echo; exit 1
+			fi
+		else
+			# Invalid lock file (bad PID)
+			logger -st Skynet "[!] Invalid lock file detected - no valid PID found (pid='$locked_pid'). Removing lock."
+			: > "$LOCK_FILE"
+			if ! flock -n 9; then
+				logger -st Skynet "[*] Lock acquisition failed after removing invalid lock - Exiting"
+				echo; exit 1
+			fi
+		fi
+	fi
 
-        if [ -n "$locked_pid" ] && [ -d "/proc/$locked_pid" ]; then
-            current_time=$(date +%s)
-            lock_age=$(( current_time - lock_timestamp ))
-            if [ "$lock_age" -gt 1800 ]; then
-                if kill "$locked_pid" 2>/dev/null; then
-                    logger -st Skynet "[*] Killed stale Skynet process (pid=$locked_pid) after $lock_age seconds"
-                fi
-                : > "$LOCK_FILE"
-                flock -n 9 || {
-                    logger -st Skynet "[*] Lock acquisition failed after killing stale process - Exiting (pid=$locked_pid)"
-                    echo; exit 1
-                }
-            else
-                logger -st Skynet "[*] Lock File Detected ($locked_cmd) (pid=$locked_pid) - Exiting"
-                echo; exit 1
-            fi
-        else
-            logger -st Skynet "[!] Invalid lock file detected - no valid PID found (pid='$locked_pid'). Removing lock."
-            : > "$LOCK_FILE"
-            flock -n 9 || {
-                logger -st Skynet "[*] Lock acquisition failed after removing invalid lock - Exiting"
-                echo; exit 1
-            }
-        fi
-    fi
+	# We now hold the lock—record this invocation
+	: > "$LOCK_FILE"
+	echo "$0 $*|$$|$(date +%s)" >&9
+}
 
-    # Safely record new lock: cmd | pid | timestamp
-    : > "$LOCK_FILE"
-    echo "$0 $*|$$|$(date +%s)" >&9
+Release_Lock() {
+	[ ! -f "$LOCK_FILE" ] && exec 9>&- && return
+
+	pid=$(cut -d'|' -f2 "$LOCK_FILE")
+
+	[ "$pid" != "$$" ] && return
+
+	# We own the lock
+	exec 9>&-
+	rm -f "$LOCK_FILE"
 }
 
 if [ ! -d "${skynetloc}" ] && ! echo "$@" | grep -wqE "(install|uninstall|disable|update|restart|info)"; then
@@ -303,49 +324,49 @@ Check_Connection() {
 }
 
 Check_Files() {
-    # 1) Ensure each script has a proper shebang
-    scripts="firewall-start services-stop service-event post-mount unmount"
-    for name in $scripts; do
-        path="/jffs/scripts/$name"
-        if [ ! -f "$path" ]; then
-            echo '#!/bin/sh' > "$path"
-            echo >> "$path"
-        elif ! head -n1 "$path" | grep -q '^#!/bin/sh'; then
-            sed -i '1s~^~#!/bin/sh\n~' "$path"
-        fi
-    done
+	# 1) Ensure each script has a proper shebang
+	scripts="firewall-start services-stop service-event post-mount unmount"
+	for name in $scripts; do
+		path="/jffs/scripts/$name"
+		if [ ! -f "$path" ]; then
+			echo '#!/bin/sh' > "$path"
+			echo >> "$path"
+		elif ! head -n1 "$path" | grep -q '^#!/bin/sh'; then
+			sed -i '1s~^~#!/bin/sh\n~' "$path"
+		fi
+	done
 
-    # service-event: inject debug‑genstats if missing
-    if ! grep -vE '^#' /jffs/scripts/service-event | grep -qF 'sh /jffs/scripts/firewall debug genstats'; then
-        sed -i '\~# Skynet~d' /jffs/scripts/service-event
-        echo "if [ \"\$1\" = \"start\" ] && [ \"\$2\" = \"SkynetStats\" ]; then sh /jffs/scripts/firewall debug genstats; fi # Skynet" \
-             >> /jffs/scripts/service-event
-    fi
+	# service-event: inject debug‑genstats if missing
+	if ! grep -vE '^#' /jffs/scripts/service-event | grep -qF 'sh /jffs/scripts/firewall debug genstats'; then
+		sed -i '\~# Skynet~d' /jffs/scripts/service-event
+		echo "if [ \"\$1\" = \"start\" ] && [ \"\$2\" = \"SkynetStats\" ]; then sh /jffs/scripts/firewall debug genstats; fi # Skynet" \
+			 >> /jffs/scripts/service-event
+	fi
 
 
-    # 3) unmount: ensure swapoff entry
-    if ! grep -qE '^swapoff ' /jffs/scripts/unmount; then
-        sed -i '\~swapoff ~d' /jffs/scripts/unmount
-        echo 'swapoff -a 2>/dev/null # Skynet' >> /jffs/scripts/unmount
-    fi
+	# 3) unmount: ensure swapoff entry
+	if ! grep -qE '^swapoff ' /jffs/scripts/unmount; then
+		sed -i '\~swapoff ~d' /jffs/scripts/unmount
+		echo 'swapoff -a 2>/dev/null # Skynet' >> /jffs/scripts/unmount
+	fi
 
-    # 4) services-stop: ensure firewall‑save alias
-    if ! grep -vE '^#' /jffs/scripts/services-stop | grep -qF 'sh /jffs/scripts/firewall save'; then
-        echo 'sh /jffs/scripts/firewall save # Skynet' >> /jffs/scripts/services-stop
-    fi
+	# 4) services-stop: ensure firewall‑save alias
+	if ! grep -vE '^#' /jffs/scripts/services-stop | grep -qF 'sh /jffs/scripts/firewall save'; then
+		echo 'sh /jffs/scripts/firewall save # Skynet' >> /jffs/scripts/services-stop
+	fi
 
-    # 5) post-mount: ensure at least one blank line
-    if [ "$(wc -l < /jffs/scripts/post-mount)" -lt 2 ]; then
-        echo >> /jffs/scripts/post-mount
-    fi
+	# 5) post-mount: ensure at least one blank line
+	if [ "$(wc -l < /jffs/scripts/post-mount)" -lt 2 ]; then
+		echo >> /jffs/scripts/post-mount
+	fi
 
-    # 6) final perms
-    chmod 755 /jffs/scripts/firewall \
-                 /jffs/scripts/firewall-start \
-                 /jffs/scripts/services-stop \
-                 /jffs/scripts/service-event \
-                 /jffs/scripts/post-mount \
-                 /jffs/scripts/unmount
+	# 6) final perms
+	chmod 755 /jffs/scripts/firewall \
+				 /jffs/scripts/firewall-start \
+				 /jffs/scripts/services-stop \
+				 /jffs/scripts/service-event \
+				 /jffs/scripts/post-mount \
+				 /jffs/scripts/unmount
 }
 
 Check_Security() {
@@ -1853,27 +1874,27 @@ Uninstall_WebUI_Page() {
 }
 
 Download_File() {
-    file="$1"
-    dest="$2"
-    force="$3"
+	file="$1"
+	dest="$2"
+	force="$3"
 
-    fullurl="${remotedir}/${file}"
-    filename="$(basename "$file")"
+	fullurl="${remotedir}/${file}"
+	filename="$(basename "$file")"
 
-    # Only re-download if file changed or forced
-    remote_md5="$(curl -fsSL --retry 3 --connect-timeout 3 --max-time 6 --retry-delay 1 --retry-all-errors "$fullurl" | md5sum | awk '{print $1}')"
-    local_md5="$(md5sum "$dest" 2>/dev/null | awk '{print $1}')"
+	# Only re-download if file changed or forced
+	remote_md5="$(curl -fsSL --retry 3 --connect-timeout 3 --max-time 6 --retry-delay 1 --retry-all-errors "$fullurl" | md5sum | awk '{print $1}')"
+	local_md5="$(md5sum "$dest" 2>/dev/null | awk '{print $1}')"
 
-    if [ "$remote_md5" != "$local_md5" ] || [ "$force" = "-f" ]; then
-        if curl -fsSL --retry 3 --connect-timeout 3 --max-time 6 --retry-delay 1 --retry-all-errors "$fullurl" -o "$dest"; then
-            echo "[i] Updated $filename"
-        else
-            logger -t Skynet "[✘] Failed to update $filename"
-            echo "[✘] Failed to fetch $filename"
-        fi
-    else
-        echo "[i] No change to $filename (MD5 matched)"
-    fi
+	if [ "$remote_md5" != "$local_md5" ] || [ "$force" = "-f" ]; then
+		if curl -fsSL --retry 3 --connect-timeout 3 --max-time 6 --retry-delay 1 --retry-all-errors "$fullurl" -o "$dest"; then
+			echo "[i] Updated $filename"
+		else
+			logger -t Skynet "[✘] Failed to update $filename"
+			echo "[✘] Failed to fetch $filename"
+		fi
+	else
+		echo "[i] No change to $filename (MD5 matched)"
+	fi
 }
 
 Get_LocalName() {
@@ -1943,15 +1964,12 @@ Manage_Device() {
 
 Create_Swap() {
 	while true; do
-		echo "Select SWAP File Size:"
-		echo "[1]  --> 1GB"
-		echo "[2]  --> 2GB (Recommended)"
-		echo
-		echo "[e]  --> Exit Menu"
-		echo
-		printf "[1-2]: "
-		read -r "menu"
-		echo
+		Show_Menu "Select SWAP File Size:" \
+			"1GB" \
+			"2GB (Recommended)" \
+			"Exit"
+		Prompt_Input "1-2" menu
+
 		case "$menu" in
 			1)
 				swapsize=1048576
@@ -1961,9 +1979,10 @@ Create_Swap() {
 				swapsize=2097152
 				break
 			;;
-			e|exit)
+			e|exit|back|menu)
 				echo "[*] Exiting!"
-				echo; exit 0
+				echo
+				exit 0
 			;;
 			*)
 				Invalid_Option "$menu"
@@ -1991,24 +2010,62 @@ Create_Swap() {
 }
 
 Return_To_Menu() {
-    unset "option1" "option2" "option3" "option4" "option5"
-    clear
-    Load_Menu
+	unset "option1" "option2" "option3" "option4" "option5"
+	clear
+	Load_Menu
 }
 
 Invalid_Option() {
-    echo "[*] $1 Isn't An Option!"
-    echo
+	echo "[*] $1 Isn't An Option!"
+	echo
 }
 
 Ensure_Running() {
-    if ! Check_IPSets || ! Check_IPTables; then
-        echo "[*] Skynet Not Running - Exiting"
-        echo
-        Load_Menu
-        return 1   # indicate failure
-    fi
-    return 0       # Skynet is running
+	if ! Check_IPSets || ! Check_IPTables; then
+		echo "[*] Skynet Not Running - Exiting"
+		echo
+		Load_Menu
+		return 1   # indicate failure
+	fi
+	return 0       # Skynet is running
+}
+
+Prompt_Input() {
+	printf "[%s]: " "$1"
+	read -r "$2"
+	echo
+}
+
+Show_Menu() {
+	# usage: Show_Menu "Title" "Opt1" "Opt2" ... ["Exit"]
+	title=$1; shift
+	echo "$title"
+
+	exit_label=""
+	count=$#
+	idx=1
+
+	for opt in "$@"; do
+		# if last arg is literally "Exit", capture it
+		if [ "$idx" -eq "$count" ] && [ "$opt" = "Exit" ]; then
+			exit_label=$opt
+		else
+			if [ "$idx" -lt 10 ]; then
+				echo "[$idx]  --> $opt"
+			else
+				echo "[$idx] --> $opt"
+			fi
+			idx=$((idx+1))
+		fi
+	done
+
+	# print the [e] Exit line if provided
+	if [ -n "$exit_label" ]; then
+		echo
+		echo "[e]  --> $exit_label"
+	fi
+
+	echo
 }
 
 Purge_Logs() {
@@ -2127,10 +2184,19 @@ Load_Menu() {
 		fi
 	fi
 	if [ -n "$countrylist" ]; then echo "Banned Countries; $countrylist"; fi
-	if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(sed -n '2p' /tmp/skynet.lock)" ]; then
-		echo
-		Red "[*] Lock File Detected ($(sed -n '1p' /tmp/skynet.lock)) (pid=$(sed -n '2p' /tmp/skynet.lock))"
-		Ylow '[*] Locked Processes Generally Take 1-2 Minutes To Complete And May Result In Temporarily "Failed" Tests'
+	if [ -f "$LOCK_FILE" ] && ! flock -n 9 9<"$LOCK_FILE"; then
+		locked_cmd=$(cut -d'|' -f1 "$LOCK_FILE")
+		locked_pid=$(cut -d'|' -f2 "$LOCK_FILE")
+		lock_timestamp=$(cut -d'|' -f3 "$LOCK_FILE")
+
+		if [ -n "$locked_pid" ] && [ -d "/proc/$locked_pid" ]; then
+			current_time=$(date +%s)
+			runtime=$(( current_time - lock_timestamp ))
+
+			echo
+			Red "[*] Lock File Detected ($locked_cmd) (pid=$locked_pid, runtime=${runtime}s)"
+			Ylow '[*] Locked Processes Generally Take 1-2 Minutes To Complete And May Result In Temporarily "Failed" Tests'
+		fi
 	fi
 	echo
 	if ! Check_Connection >/dev/null 2>&1; then
@@ -2544,15 +2610,14 @@ Load_Menu() {
 						7)
 							option2="view"
 							while true; do
-								echo "Select Entries To View:"
-								echo "[1]  --> All"
-								echo "[2]  --> Manually Added IPs"
-								echo "[3]  --> Manually Added Domains"
-								echo "[4]  --> Imported Entries"
-								echo
-								printf "[1-4]: "
-								read -r "menu3"
-								echo
+								Show_Menu "Select Entries To View:" \
+									"All" \
+									"Manually Added IPs" \
+									"Manually Added Domains" \
+									"Imported Entries" \
+									"Exit"
+								Prompt_Input "1-4" menu3
+
 								case "$menu3" in
 									1)
 										break
@@ -2632,13 +2697,12 @@ Load_Menu() {
 				if ! Ensure_Running; then break; fi
 				option1="deport"
 				while true; do
-					echo "Select Where To Deport List From:"
-					echo "[1]  --> Blacklist"
-					echo "[2]  --> Whitelist"
-					echo
-					printf "[1-2]: "
-					read -r "menu3"
-					echo
+					Show_Menu "Select Where To Deport List From:" \
+						"Blacklist" \
+						"Whitelist" \
+						"Exit"
+					Prompt_Input "1-2" menu3
+
 					case "$menu3" in
 						1)
 							option2="blacklist"
@@ -2681,15 +2745,14 @@ Load_Menu() {
 			10)
 				option1="update"
 				while true; do
-					echo "Select Update Option:"
-					echo "[1]  --> Check For And Install Any New Updates"
-					echo "[2]  --> Check For Updates Only"
-					echo "[3]  --> Force Update Even If No Updates Detected"
-					echo
-					printf "[1-3]: "
-					read -r "menu2"
-					echo
-					case "$menu2" in
+				Show_Menu "Select Update Option:" \
+					"Check For And Install Any New Updates" \
+					"Check For Updates Only" \
+					"Force Update Even If No Updates Detected" \
+					"Exit"
+				Prompt_Input "1-3" menu2
+
+				case "$menu2" in
 						1)
 							break
 						;;
@@ -3345,13 +3408,12 @@ Load_Menu() {
 							if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 							option2="webui"
 							while true; do
-								echo "Select WebUI Option:"
-								echo "[1]  --> Enable"
-								echo "[2]  --> Disable"
-								echo
-								printf "[1-2]: "
-								read -r "menu3"
-								echo
+								Show_Menu "Select WebUI Option:" \
+									"Enable" \
+									"Disable" \
+									"Exit"
+								Prompt_Input "1-2" menu3
+
 								case "$menu3" in
 									1)
 										option3="enable"
@@ -3390,30 +3452,28 @@ Load_Menu() {
 			12)
 				option1="debug"
 				while true; do
-					echo "Select Debug Option:"
-					echo "[1]  --> Show Log Entries As They Appear"
-					echo "[2]  --> Print Debug Info"
-					echo "[3]  --> Cleanup Syslog Entries"
-					echo "[4]  --> SWAP File Management"
-					echo "[5]  --> Backup Skynet Files"
-					echo "[6]  --> Restore Skynet Files"
-					echo
-					printf "[1-6]: "
-					read -r "menu2"
-					echo
+					Show_Menu "Select Debug Option:" \
+						"Show Log Entries As They Appear" \
+						"Print Debug Info" \
+						"Cleanup Syslog Entries" \
+						"SWAP File Management" \
+						"Backup Skynet Files" \
+						"Restore Skynet Files" \
+						"Exit"
+					Prompt_Input "1-6" menu2
+
 					case "$menu2" in
 						1)
 							if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 							option2="watch"
 							while true; do
-								echo "Select Watch Option:"
-								echo "[1]  --> All"
-								echo "[2]  --> IP"
-								echo "[3]  --> Port"
-								echo
-								printf "[1-3]: "
-								read -r "menu3"
-								echo
+								Show_Menu "Select Watch Option:" \
+									"All" \
+									"IP" \
+									"Port" \
+									"Exit"
+								Prompt_Input "1-3" menu3
+
 								case "$menu3" in
 									1)
 										break
@@ -3456,13 +3516,12 @@ Load_Menu() {
 						4)
 							option2="swap"
 							while true; do
-								echo "Select SWAP Option:"
-								echo "[1]  --> Install"
-								echo "[2]  --> Uninstall"
-								echo
-								printf "[1-2]: "
-								read -r "menu3"
-								echo
+								Show_Menu "Select SWAP Option:" \
+									"Install" \
+									"Uninstall" \
+									"Exit"
+								Prompt_Input "1-2" menu3
+
 								case "$menu3" in
 									1)
 										option3="install"
@@ -3519,15 +3578,14 @@ Load_Menu() {
 					case "$menu2" in
 						1)
 							while true; do
-								echo "Show Top x Results:"
-								echo "[1]  --> 10"
-								echo "[2]  --> 20"
-								echo "[3]  --> 50"
-								echo "[4]  --> Custom"
-								echo
-								printf "[1-4]: "
-								read -r "menu3"
-								echo
+								Show_Menu "Show Top x Results:" \
+									"10" \
+									"20" \
+									"50" \
+									"Custom" \
+									"Exit"
+								Prompt_Input "1-4" menu3
+
 								case "$menu3" in
 									1)
 										option3="10"
@@ -3542,12 +3600,13 @@ Load_Menu() {
 										break
 									;;
 									4)
-										echo "Enter Custom Amount:"
-										echo
-										printf "[Number]: "
-										read -r "option3"
-										echo
-										if ! [ "$option3" -eq "$option3" ] 2>/dev/null; then echo "[*] $option3 Isn't A Valid Number!"; echo; unset "option3" continue; fi
+										Prompt_Input "Number" option3
+										if ! [ "$option3" -eq "$option3" ] 2>/dev/null; then
+											echo "[*] $option3 Isn't A Valid Number!"
+											echo
+											unset option3
+											continue
+										fi
 										break
 									;;
 									e|exit|back|menu)
@@ -3599,52 +3658,63 @@ Load_Menu() {
 						2)
 							option2="search"
 							while true; do
-								echo "Search Options:"
-								echo "[1]  --> Based On Port x"
-								echo "[2]  --> Entries From Specific IP"
-								echo "[3]  --> Entries From Specific Domain"
-								echo "[4]  --> Search Malwarelists For IP"
-								echo "[5]  --> Search Manualbans"
-								echo "[6]  --> Search For Outbound Entries From Local Device"
-								echo "[7]  --> Hourly Reports"
-								echo "[8]  --> Invalid Packets"
-								echo "[9]  --> Active Connections"
-								echo "[10] --> IOT Packets"
-								echo
-								printf "[1-10]: "
-								read -r "menu4"
-								echo
+								Show_Menu "Search Options:" \
+									"Based On Port x" \
+									"Entries From Specific IP" \
+									"Entries From Specific Domain" \
+									"Search Malwarelists For IP" \
+									"Search Manualbans" \
+									"Search For Outbound Entries From Local Device" \
+									"Hourly Reports" \
+									"Invalid Packets" \
+									"Active Connections" \
+									"IOT Packets" \
+									"Exit"
+								Prompt_Input "1-10" menu4
+
 								case "$menu4" in
 									1)
 										option3="port"
-										printf "[Port]: "
-										read -r "option4"
-										echo
-										if ! echo "$option4" | Is_Port || [ "$option4" -gt "65535" ]; then echo "[*] $option4 Is Not A Valid Port"; echo; unset "option3" "option4"; continue; fi
+										Prompt_Input "Port" option4
+										if ! echo "$option4" | Is_Port || [ "$option4" -gt 65535 ]; then
+											echo "[*] $option4 Is Not A Valid Port"
+											echo
+											unset option3 option4
+											continue
+										fi
 										break
 									;;
 									2)
 										option3="ip"
-										printf "[IP]: "
-										read -r "option4"
-										echo
-										if ! echo "$option4" | Is_IPRange; then echo "[*] $option4 Is Not A Valid IP/Range"; echo; unset "option3" "option4"; continue; fi
+										Prompt_Input "IP" option4
+										if ! echo "$option4" | Is_IP; then
+											echo "[*] $option4 Is Not A Valid IP"
+											echo
+											unset option3 option4
+											continue
+										fi
 										break
 									;;
 									3)
 										option3="domain"
-										printf "[Domain]: "
-										read -r "option4"
-										echo
-										if [ -z "$option4" ]; then echo "[*] Domain Field Can't Be Empty - Please Try Again"; echo; unset "option3" "option4"; continue; fi
+										Prompt_Input "Domain" option4
+										if [ -z "$option4" ]; then
+											echo "[*] Domain Field Can't Be Empty - Please Try Again"
+											echo
+											unset option3 option4
+											continue
+										fi
 										break
 									;;
 									4)
 										option3="malware"
-										printf "[IP]: "
-										read -r "option4"
-										echo
-										if ! echo "$option4" | Is_IPRange; then echo "[*] $option4 Is Not A Valid IP/Range"; echo; unset "option3" "option4"; continue; fi
+										Prompt_Input "IP" option4
+										if ! echo "$option4" | Is_IPRange; then
+											echo "[*] $option4 Is Not A Valid IP/Range"
+											echo
+											unset option3 option4
+											continue
+										fi
 										break
 									;;
 									5)
@@ -3653,10 +3723,13 @@ Load_Menu() {
 									;;
 									6)
 										option3="device"
-										printf "[Local IP]: "
-										read -r "option4"
-										echo
-										if ! echo "$option4" | Is_IP; then echo "[*] $option4 Is Not A Valid IP"; echo; unset "option3" "option4"; continue; fi
+										Prompt_Input "Local IP" option4
+										if ! echo "$option4" | Is_IP; then
+											echo "[*] $option4 Is Not A Valid IP"
+											echo
+											unset option3 option4
+											continue
+										fi
 										break
 									;;
 									7)
@@ -5324,10 +5397,19 @@ case "$1" in
 					memavailable="$(($(grep -F "MemFree" /proc/meminfo | awk '{print $2}') / 1024))"
 				fi
 				echo "Ram Available; (${memavailable}M / $(($(grep -F "MemTotal" /proc/meminfo | awk '{print $2}') / 1024))M)"
-				if [ -f "/tmp/skynet.lock" ] && [ -d "/proc/$(sed -n '2p' /tmp/skynet.lock)" ]; then
-					echo
-					Red "[*] Lock File Detected ($(sed -n '1p' /tmp/skynet.lock)) (pid=$(sed -n '2p' /tmp/skynet.lock))"
-					Ylow '[*] Locked Processes Generally Take A Few Minutes To Complete And May Result In Temporarily "Failed" Tests'
+				if [ -f "$LOCK_FILE" ] && ! flock -n 9 9<"$LOCK_FILE"; then
+					locked_cmd=$(cut -d'|' -f1 "$LOCK_FILE")
+					locked_pid=$(cut -d'|' -f2 "$LOCK_FILE")
+					lock_timestamp=$(cut -d'|' -f3 "$LOCK_FILE")
+
+					if [ -n "$locked_pid" ] && [ -d "/proc/$locked_pid" ]; then
+						current_time=$(date +%s)
+						runtime=$(( current_time - lock_timestamp ))
+
+						echo
+						Red "[*] Lock File Detected ($locked_cmd) (pid=$locked_pid, runtime=${runtime}s)"
+						Ylow '[*] Locked Processes Generally Take 1-2 Minutes To Complete And May Result In Temporarily "Failed" Tests'
+					fi
 				fi
 				passedtests="0"
 				totaltests="18"
