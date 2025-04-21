@@ -3893,9 +3893,13 @@ if [ -z "$1" ]; then
 fi
 
 if [ -n "$option1" ]; then
-	set "$option1" "$option2" "$option3" "$option4" "$option5"
+	# Clear existing args before appending new ones
+	set --
+	for opt in "$option1" "$option2" "$option3" "$option4" "$option5"; do
+		[ -n "$opt" ] && set -- "$@" "$opt"
+	done
 	stime="$(date +%s)"
-	echo "[$] $0 $*" | tr -s " "
+	echo "[$] $0 $*"
 fi
 
 if [ -f "$skynetcfg" ]; then
@@ -5955,5 +5959,5 @@ Display_Header "9"
 if [ "$nolog" != "2" ]; then Print_Log "$@"; echo; fi
 if [ "$nocfg" != "1" ]; then Write_Config; fi
 if [ "$restartfirewall" = "1" ]; then service restart_firewall; echo; fi
-if [ -n "$reloadmenu" ]; then echo; echo; printf "[i] Press Enter To Continue..."; read -r "continue"; exec "$0"; fi
+if [ -n "$reloadmenu" ]; then Release_Lock; echo; echo; printf "[i] Press Enter To Continue..."; read -r "continue"; exec "$0"; fi
 printf '\033[?7h'
