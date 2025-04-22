@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                              Router Firewall And Security Enhancements                                    #
 #                          By Adamm -  https://github.com/Adamm00/IPSet_ASUS                                #
-#                                       21/04/2025 - v8.0.0                                                 #
+#                                       22/04/2025 - v8.0.0                                                 #
 #############################################################################################################
 
 
@@ -228,7 +228,7 @@ Check_Settings() {
 		Load_Cron "banmalwareweekly"
 	fi
 
-	if [ "$autoupdate" = "enabled" ]; then
+	if Is_Enabled "$autoupdate"; then
 		Load_Cron "autoupdate"
 	else
 		Load_Cron "checkupdate"
@@ -368,7 +368,7 @@ Check_Files() {
 }
 
 Check_Security() {
-	if [ "$securemode" = "enabled" ]; then
+	if Is_Enabled "$securemode"; then
 		if [ "$(nvram get sshd_enable)" = "1" ] && [ "$(uname -o)" = "ASUSWRT-Merlin" ]; then
 			logger -st Skynet "[!] Insecure Setting Detected - Disabling WAN SSH Access"
 			nvram set sshd_enable="2"
@@ -544,7 +544,7 @@ Unload_LogIPTables() {
 }
 
 Load_LogIPTables() {
-	if [ "$logmode" = "enabled" ]; then
+	if Is_Enabled "$logmode"; then
 		if [ "$(nvram get wgs_enable)" = "1" ]; then
 			pos1="$(iptables --line -vnL PREROUTING -t raw | grep -F "Skynet-Master dst" | grep -F "DROP" | grep -F "wgs" | awk '{print $1}')"
 			iptables -t raw -I PREROUTING "$pos1" -i wgs+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
@@ -563,11 +563,11 @@ Load_LogIPTables() {
 			pos5="$(iptables --line -nL OUTPUT -t raw | grep -F "Skynet-Master dst" | grep -F "DROP" | awk '{print $1}')"
 			iptables -t raw -I OUTPUT "$pos5" -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 		fi
-		if [ "$(nvram get fw_log_x)" = "drop" ] || [ "$(nvram get fw_log_x)" = "both" ] && [ "$loginvalid" = "enabled" ]; then
+		if [ "$(nvram get fw_log_x)" = "drop" ] || [ "$(nvram get fw_log_x)" = "both" ] && Is_Enabled "$loginvalid"; then
 			pos6="$(iptables --line -nL logdrop | grep -F "DROP" | awk '{print $1}')"
 			iptables -I logdrop "$pos6" -m state --state NEW -j LOG --log-prefix "[BLOCKED - INVALID] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 		fi
-		if [ "$iotblocked" = "enabled" ] && [ "$iotlogging" = "enabled" ]; then
+		if Is_Enabled "$iotblocked" && Is_Enabled "$iotlogging"; then
 			pos7="$(iptables --line -nL FORWARD | grep -F "Skynet-IOT" | grep -F "DROP" | awk '{print $1}')"
 			iptables -I FORWARD "$pos7" -i br+ -m set --match-set Skynet-IOT src -j LOG --log-prefix "[BLOCKED - IOT] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
 		fi
@@ -575,7 +575,7 @@ Load_LogIPTables() {
 }
 
 Unload_IOTTables() {
-	if [ "$iotblocked" = "enabled" ]; then
+	if Is_Enabled "$iotblocked"; then
 		iptables -D FORWARD -i br+ -m set --match-set Skynet-IOT src -o wgs+ -j ACCEPT 2>/dev/null
 		iptables -D FORWARD -i br+ -m set --match-set Skynet-IOT src -o tun2+ -j ACCEPT 2>/dev/null
 		iptables -D FORWARD -i br+ -m set --match-set Skynet-IOT src -j DROP 2>/dev/null
@@ -599,7 +599,7 @@ Unload_IOTTables() {
 }
 
 Load_IOTTables() {
-	if [ "$iotblocked" = "enabled" ]; then
+	if Is_Enabled "$iotblocked"; then
 		iptables -I FORWARD -i br+ -m set --match-set Skynet-IOT src -j DROP 2>/dev/null
 		if [ "$(nvram get vpn_server1_state)" != "0" ] || [ "$(nvram get vpn_server2_state)" != "0" ]; then
 			iptables -I FORWARD -i br+ -m set --match-set Skynet-IOT src -o tun2+ -j ACCEPT 2>/dev/null
@@ -667,7 +667,7 @@ Check_IPTables() {
 	fi
 
 	#11–17: IOT blocking
-	if [ "$iotblocked" = "enabled" ]; then
+	if Is_Enabled "$iotblocked"; then
 		[ "$(nvram get wgs_enable)" = "1" ] && echo "$filter_rules" | grep -Fq -- '-A FORWARD -i br+ -m set --match-set Skynet-IOT src -o wgs+ -j ACCEPT' || fail="${fail}#11 "
 		{ [ "$(nvram get vpn_server1_state)" != "0" ] || [ "$(nvram get vpn_server2_state)" != "0" ]; } && echo "$filter_rules" | grep -Fq -- '-A FORWARD -i br+ -m set --match-set Skynet-IOT src -o tun2+ -j ACCEPT' || fail="${fail}#12 "
 		echo "$filter_rules" | grep -Fq -- '-A FORWARD -i br+ -m set --match-set Skynet-IOT src -j DROP' || fail="${fail}#13 "
@@ -681,7 +681,7 @@ Check_IPTables() {
 	fi
 
 	#18–24: LOG rules
-	if [ "$logmode" = "enabled" ]; then
+	if Is_Enabled "$logmode"; then
 		#18: OpenVPN LOG
 		if { [ "$(nvram get vpn_server1_state)" != "0" ] || [ "$(nvram get vpn_server2_state)" != "0" ]; }; then
 			echo "$raw_rules" \
@@ -697,7 +697,7 @@ Check_IPTables() {
 		fi
 
 		#20: IoT LOG
-		if [ "$iotblocked" = "enabled" ] && [ "$iotlogging" = "enabled" ]; then
+		if Is_Enabled "$iotblocked" && Is_Enabled "$iotlogging"; then
 			echo "$filter_rules" \
 			  | grep -Fq -- '-A FORWARD -i br+ -m set --match-set Skynet-IOT src -j LOG --log-prefix "[BLOCKED - IOT] "' \
 			  || fail="${fail}#20 "
@@ -725,7 +725,7 @@ Check_IPTables() {
 		fi
 
 		#24: Invalid LOG
-		if [ "$(nvram get fw_log_x)" != "off" ] && [ "$loginvalid" = "enabled" ]; then
+		if [ "$(nvram get fw_log_x)" != "off" ] && Is_Enabled "$loginvalid"; then
 			echo "$raw_rules" \
 			  | grep -Fq -- '-A logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - INVALID] "' \
 			  || fail="${fail}#24 "
@@ -857,7 +857,7 @@ LAN_CIDR_Lookup() {
 Extended_DNSStats() {
 	case "$1" in
 		1)
-			if [ "$lookupcountry" = "enabled" ]; then
+			if Is_Enabled "$lookupcountry"; then
 				country="($(curl -fsSL --retry 3 --max-time 6 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${statdata}/countryCode/"))"
 				if [ -z "$country" ]; then country="*"; fi
 			fi
@@ -871,7 +871,7 @@ Extended_DNSStats() {
 		2)
 			hits="$(echo "$statdata" | awk '{print $1}')"
 			ipaddr="$(echo "$statdata" | awk '{print $2}')"
-			if [ "$lookupcountry" = "enabled" ]; then
+			if Is_Enabled "$lookupcountry"; then
 				country="($(curl -fsSL --retry 3 --max-time 6 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${ipaddr}/countryCode/"))"
 				if [ -z "$country" ]; then country="*"; fi
 			fi
@@ -1020,7 +1020,7 @@ Save_IPSets() {
 }
 
 Unban_PrivateIP() {
-	if [ "$unbanprivateip" = "enabled" ] && [ "$logmode" = "enabled" ]; then
+	if Is_Enabled "$unbanprivateip" && Is_Enabled "$logmode"; then
 		grep -F "INBOUND" "$syslogloc" | Filter_PrivateSRC | grep -oE 'SRC=[0-9,\.]*' | cut -c 5- | awk '!x[$0]++' | while IFS= read -r "ip"; do
 			echo "add Skynet-Whitelist $ip comment \"Private IP\""
 			echo "del Skynet-Blacklist $ip"
@@ -1033,7 +1033,7 @@ Unban_PrivateIP() {
 }
 
 Refresh_AiProtect() {
-	if [ "$banaiprotect" = "enabled" ] && [ -s /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db ]; then
+	if Is_Enabled "$banaiprotect" && [ -s /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db ]; then
 
 		# Remove previous AiProtect entries
 		sed '\~add Skynet-Blacklist ~!d;\~BanAiProtect~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
@@ -1122,7 +1122,7 @@ Whitelist_Extra() {
 }
 
 Whitelist_CDN() {
-	if [ "$cdnwhitelist" = "enabled" ]; then
+	if Is_Enabled "$cdnwhitelist"; then
 		{
 			# Apple AS714 | Akamai AS12222 AS16625 | HighWinds AS33438 AS20446 | Fastly AS54113 | GitHub AS36459
 			printf "AS714\nAS12222\nAS16625\nAS33438\nAS20446\nAS54113\nAS36459" | xargs -I {} sh -c "curl -fsSL --retry 3 --max-time 6 https://asn.ipinfo.app/api/text/list/{} | awk -v asn={} '/^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)([[:space:]]|$)/{printf \"add Skynet-Whitelist %s comment \\\"CDN-Whitelist: %s\\\"\\n\", \$1, asn }'"
@@ -1216,6 +1216,100 @@ WriteData_ToJS() {
 	done
 }
 
+show_stats_block() {
+	# Arguments:
+	# $1 = source         ("log" or "events")
+	# $2 = pattern        (e.g. "IOT.*$proto")
+	# $3 = field          ("SRC", "DST", or "" for full line)
+	# $4 = title          (display title)
+	# $5 = method         ("head" or "tail")
+	# $6 = count          (number of entries)
+	# $7 = header_id      (passed to Display_Header)
+	# $8 = stats_mode     (passed to Extended_DNSStats)
+	case "$1" in
+		events) source_file=$skynetevents ;;
+		*)      source_file=$skynetlog ;;
+	esac
+
+	pattern=$2
+	field=$3
+	title=$4
+	method=$5
+	count=$6
+	header=${7:-1}
+	stats_mode=${8:-1}
+
+	Display_Header "9"
+	Red "$title"
+	Display_Header "$header"
+
+	awk -v pat="$pattern" -v fld="$field=" -v mode="$stats_mode" -v mth="$method" '
+		$0 ~ pat {
+		pos = index($0, fld)
+		if (fld != "" && pos > 0) {
+			val = substr($0, pos + length(fld))
+			sub(/[ ,].*/, "", val)
+		} else if (fld == "") {
+			val = $0
+		} else {
+			next
+		}
+
+		if (mode == 2) {
+			hits[val]++
+		} else {
+			if (!(val in seen)) {
+			order[++n] = val
+			seen[val] = 1
+			}
+		}
+		}
+		END {
+		if (mode == 2) {
+			for (ip in hits) {
+			printf "%7d %s\n", hits[ip], ip
+			}
+		} else {
+			if (mth == "head") {
+			for (i = n; i >= 1 && i > n - 1000; i--) print order[i]
+			} else {
+			for (i = 1; i <= n; i++) print order[i]
+			}
+		}
+		}
+	' "$source_file" | {
+		if [ "$stats_mode" -eq 2 ]; then
+			sort -nr | head -n "$count"
+		else
+			head -n "$count"
+		fi
+	} | while IFS= read -r statdata; do
+		Extended_DNSStats "$stats_mode"
+	done
+}
+
+Show_Associated_Domains() {
+	# $1 = IP to search
+	loghits="$(grep -E "reply.* is $1" /opt/var/log/dnsmasq* 2>/dev/null)"
+	if [ -n "$loghits" ]; then
+		Red "Associated Domain(s);"
+		assdomains="$(echo "$loghits" | awk '{print $(NF-2)}' | Strip_Domain | Filter_OutIP | sort -u)"
+		diversion_lists="$(cat /opt/share/diversion/list/blockinglist /opt/share/diversion/list/blacklist 2>/dev/null)"
+		echo "$assdomains" | while IFS= read -r domain; do
+			if printf '%s\n' "$diversion_lists" | grep -qE " (www\.)?${domain}$| (www\.)?${domain} "; then
+				echo "$domain (Flagged By Diversion)"
+			else
+				echo "$domain"
+			fi
+		done
+	fi
+}
+
+Is_Enabled() {
+  # $1 = variable value
+  [ "$1" = "enabled" ]
+}
+
 Run_Stats() {
 		Purge_Logs
 		nocfg="1"
@@ -1265,7 +1359,7 @@ Run_Stats() {
 				esac
 			;;
 			search)
-				if [ "$extendedstats" = "enabled" ]; then
+				if Is_Enabled "$extendedstats"; then
 					grep -hE 'reply.* is ([0-9]{1,3}\.){3}[0-9]{1,3}$' /opt/var/log/dnsmasq* | awk '{printf "%s %s\n", $(NF-2), $NF}' | awk '!x[$0]++' | Strip_Domain > /tmp/skynet/skynetstats.txt
 					printf '   \b\b\b'
 				else
@@ -1300,18 +1394,7 @@ Run_Stats() {
 						if [ -n "$found3" ]; then Red "BlockedRanges Reason;"; grep -F "add Skynet-BlockedRanges $(echo "$4" | cut -d '.' -f1-3)." "$skynetipset" | awk '{$1=$2=$4=""; print $0}' | tr -s " "; fi
 						echo
 						ip="$(echo "$4" | sed 's~\.~\\.~g')"
-						if [ "$extendedstats" = "enabled" ] && grep -qE "reply.* is $ip" /opt/var/log/dnsmasq*; then
-							Red "Associated Domain(s);"
-							assdomains="$(grep -E "reply.* is $ip" /opt/var/log/dnsmasq* | awk '{print $(NF-2)}' | Strip_Domain | Filter_OutIP)"
-							for domain in $assdomains; do
-								if grep -qE " (www.)?${domain}$| (www.)?${domain} " /opt/share/diversion/list/blockinglist /opt/share/diversion/list/blacklist 2>/dev/null; then
-									echo "$domain (Flagged By Diversion)"
-								else
-									echo "$domain"
-								fi
-							done
-							echo; echo
-						fi
+						Is_Enabled "$extendedstats" && Show_Associated_Domains "$ip"
 						echo "[i] IP Location - $(curl -fsSL --retry 3 --max-time 6 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${4}/countryName/") ($(curl -fsSL --retry 3 --max-time 6 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://ipapi.co/${4}/org/") / $(curl -fsSL --retry 3 --max-time 6 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://ipapi.co/${4}/asn/"))"
 						echo
 						echo "[i] $4 First Tracked On $(grep -m1 -F "=$4 " "$skynetlog" | awk '{printf "%s %s %s\n", $1, $2, $3}')"
@@ -1350,17 +1433,7 @@ Run_Stats() {
 							if [ -n "$found3" ]; then Red "BlockedRanges Reason;"; grep -F "add Skynet-BlockedRanges $(echo "$ip" | cut -d '.' -f1-3)." "$skynetipset" | awk '{$1=$2=$4=""; print $0}' | tr -s " "; fi
 							echo
 							ip2="$(echo "$ip" | sed 's~\.~\\.~g')"
-							if [ "$extendedstats" = "enabled" ] && grep -qE "reply.* is $ip2" /opt/var/log/dnsmasq*; then
-								Red "Associated Domain(s);"
-								assdomains="$(grep -E "reply.* is $ip2" /opt/var/log/dnsmasq* | awk '{print $(NF-2)}' | Strip_Domain | Filter_OutIP)"
-								for domain in $assdomains; do
-									if grep -qE " (www.)?${domain}$| (www.)?${domain} " /opt/share/diversion/list/blockinglist /opt/share/diversion/list/blacklist 2>/dev/null; then
-										echo "$domain (Flagged By Diversion)"
-									else
-										echo "$domain"
-									fi
-								done
-							fi
+							Is_Enabled "$extendedstats" && Show_Associated_Domains "$ip2"
 							echo; echo
 							if [ -n "$found2" ] || [ -n "$found3" ]; then
 								echo "[i] IP Location - $(curl -fsSL --retry 3 --max-time 6 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${ip}/countryName/") ($(curl -fsSL --retry 3 --max-time 6 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://ipapi.co/${ip}/org/") / $(curl -fsSL --retry 3 --max-time 6 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://ipapi.co/${ip}/asn/"))"
@@ -1396,18 +1469,7 @@ Run_Stats() {
 						if ! Check_Connection; then echo "[*] Connection Error Detected - Exiting"; echo; exit 1; fi
 						if ! echo "$4" | Is_IPRange; then echo "[*] $4 Is Not A Valid IP/Range"; echo; exit 2; fi
 						ip="$(echo "$4" | sed 's~\.~\\.~g')"
-						if [ "$extendedstats" = "enabled" ] && grep -qE "reply.* is $ip" /opt/var/log/dnsmasq*; then
-							Red "Associated Domain(s);"
-							assdomains="$(grep -E "reply.* is $ip" /opt/var/log/dnsmasq* | awk '{print $(NF-2)}' | Strip_Domain | Filter_OutIP)"
-							for domain in $assdomains; do
-								if grep -qE " (www.)?${domain}$| (www.)?${domain} " /opt/share/diversion/list/blockinglist /opt/share/diversion/list/blacklist 2>/dev/null; then
-									echo "$domain (Flagged By Diversion)"
-								else
-									echo "$domain"
-								fi
-							done
-							echo; echo
-						fi
+						Is_Enabled "$extendedstats" && Show_Associated_Domains "$ip"
 						printf '   \b\b\b'
 						Display_Header "10"
 						Red "Exact Matches;"
@@ -1570,7 +1632,7 @@ Run_Stats() {
 						proto="ICMP"
 					;;
 				esac
-				if [ "$extendedstats" = "enabled" ]; then
+				if Is_Enabled "$extendedstats"; then
 					grep -hE 'reply.* is ([0-9]{1,3}\.){3}[0-9]{1,3}$' /opt/var/log/dnsmasq* | awk '{printf "%s %s\n", $(NF-2), $NF}' | awk '!x[$0]++' | Strip_Domain > /tmp/skynet/skynetstats.txt
 					printf '   \b\b\b'
 				else
@@ -1584,71 +1646,21 @@ Run_Stats() {
 				Red "Top $counter Attacker Source Ports (Inbound);"
 				Display_Header "3"
 				grep -E "INBOUND.*$proto" "$skynetlog" | grep -oE 'SPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{printf "%-10s | %-10s | %-60s\n", $1 "x", $2, "https://www.speedguide.net/port.php?port=" $2 }'
-				Display_Header "9"
-				Red "Last $counter Unique Connections Blocked (Inbound);"
-				Display_Header "1"
-				grep -E "INBOUND.*$proto" "$skynetlog" | grep -oE ' SRC=[0-9,\.]*' | cut -c 6- | awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' | awk '!x[$0]++' | head -"$counter" | while IFS= read -r "statdata"; do
-					Extended_DNSStats "1"
-				done
-				Display_Header "9"
-				Red "Last $counter Unique Connections Blocked (Outbound);"
-				Display_Header "1"
-				grep -E "OUTBOUND.*$proto" "$skynetlog" | grep -vE 'DPT=80 |DPT=443 ' | grep -oE ' DST=[0-9,\.]*' | cut -c 6- | awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' | awk '!x[$0]++' | head -"$counter" | while IFS= read -r "statdata"; do
-					Extended_DNSStats "1"
-				done
-				if [ "$loginvalid" = "enabled" ]; then
-					Display_Header "9"
-					Red "Last $counter Unique Connections Blocked (Invalid);"
-					Display_Header "1"
-					grep -E "INVALID.*$proto" "$skynetlog" | grep -oE ' SRC=[0-9,\.]*' | cut -c 6- | awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' | awk '!x[$0]++' | head -"$counter" | while IFS= read -r "statdata"; do
-						Extended_DNSStats "1"
-					done
+				show_stats_block "log" "INBOUND.*$proto" "SRC" "Last $counter Unique Connections Blocked (Inbound)" "head" "$counter" "1" "1"
+				show_stats_block "log" "OUTBOUND.*$proto" "DST" "Last $counter Unique Connections Blocked (Outbound)" "head" "$counter" "1" "1"
+				if Is_Enabled "$loginvalid"; then
+					show_stats_block "log" "INVALID.*$proto" "SRC" "Last $counter Unique Connections Blocked (Invalid)" "head" "$counter" "1" "1"
 				fi
-				Display_Header "9"
-				Red "Last $counter Manual Bans;"
-				Display_Header "1"
-				grep -F "Manual Ban" "$skynetevents" | grep -oE ' SRC=[0-9,\.]*' | cut -c 6- | tail -"$counter" | awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' | while IFS= read -r "statdata"; do
-					Extended_DNSStats "1"
-				done
-				Display_Header "9"
-				Red "Last $counter Unique HTTP(s) Blocks (Outbound);"
-				Display_Header "1"
-				grep -E 'DPT=80 |DPT=443 ' "$skynetlog" | grep -E "OUTBOUND.*$proto" | grep -oE ' DST=[0-9,\.]*' | cut -c 6- | awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' | awk '!x[$0]++' | head -"$counter" | while IFS= read -r "statdata"; do
-					Extended_DNSStats "1"
-				done
-				Display_Header "9"
-				Red "Top $counter HTTP(s) Blocks (Outbound);"
-				Display_Header "2"
-				grep -E 'DPT=80 |DPT=443 ' "$skynetlog" | grep -E "OUTBOUND.*$proto" | grep -oE ' DST=[0-9,\.]*' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | while IFS= read -r "statdata"; do
-					Extended_DNSStats "2"
-				done
-				Display_Header "9"
-				Red "Top $counter Blocks (Inbound);"
-				Display_Header "2"
-				grep -E "INBOUND.*$proto" "$skynetlog" | grep -oE ' SRC=[0-9,\.]*' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | while IFS= read -r "statdata"; do
-					Extended_DNSStats "2"
-				done
-				Display_Header "9"
-				Red "Top $counter Blocks (Outbound);"
-				Display_Header "2"
-				grep -E "OUTBOUND.*$proto" "$skynetlog" | grep -vE 'DPT=80 |DPT=443 ' | grep -oE ' DST=[0-9,\.]*' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | while IFS= read -r "statdata"; do
-					Extended_DNSStats "2"
-				done
-				if [ "$loginvalid" = "enabled" ]; then
-					Display_Header "9"
-					Red "Top $counter Blocks (Invalid);"
-					Display_Header "2"
-					grep -E "INVALID.*$proto" "$skynetlog" | grep -oE ' SRC=[0-9,\.]*' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | while IFS= read -r "statdata"; do
-						Extended_DNSStats "2"
-					done
+				show_stats_block "events" "Manual Ban" "SRC" "Last $counter Manual Bans" "tail" "$counter" "1" "1"
+				show_stats_block "log" "(DPT=80|DPT=443).*OUTBOUND.*$proto" "DST" "Last $counter Unique HTTP(s) Blocks (Outbound)" "head" "$counter" "1" "1"
+				show_stats_block "log" "(DPT=80|DPT=443).*OUTBOUND.*$proto" "DST" "Top $counter HTTP(s) Blocks (Outbound)" "head" "$counter" "2" "2"
+				show_stats_block "log" "INBOUND.*$proto" "SRC" "Top $counter Blocks (Inbound)" "head" "$counter" "2" "2"
+				show_stats_block "log" "OUTBOUND.*$proto" "DST" "Top $counter Blocks (Outbound)" "head" "$counter" "2" "2"
+				if Is_Enabled "$loginvalid"; then
+					show_stats_block "log" "INVALID.*$proto" "SRC" "Top $counter Blocks (Invalid)" "head" "$counter" "2" "2"
 				fi
-				if [ "$iotblocked" = "enabled" ]; then
-					Display_Header "9"
-					Red "Top $counter IOT Blocks (Outbound);"
-					Display_Header "2"
-					grep -E "IOT.*$proto" "$skynetlog" | grep -oE ' DST=[0-9,\.]*' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | while IFS= read -r "statdata"; do
-						Extended_DNSStats "2"
-					done
+				if Is_Enabled "$iotblocked"; then
+					show_stats_block "log" "IOT.*$proto" "DST" "Top $counter IOT Blocks (Outbound)" "head" "$counter" "2" "2"
 				fi
 				Display_Header "9"
 				Red "Top $counter Blocked Devices (Outbound);"
@@ -1667,7 +1679,7 @@ Run_Stats() {
 
 Generate_Stats() {
 	if nvram get rc_support | grep -qF "am_addons"; then
-		if [ "$displaywebui" = "enabled" ]; then
+		if Is_Enabled "$displaywebui"; then
 			mkdir -p "${skynetloc}/webui/stats"
 			true > "${skynetloc}/webui/stats.js"
 			if [ -f "/opt/var/log/dnsmasq.log" ]; then
@@ -1714,7 +1726,7 @@ Generate_Stats() {
 				fi
 				if [ "${#banreason}" -gt "45" ]; then banreason="$(echo "$banreason" | cut -c 1-45)"; fi
 				alienvault="https://otx.alienvault.com/indicator/ip/${statdata}"
-				if [ "$lookupcountry" = "enabled" ]; then country="$(curl -fsSL --retry 3 --max-time 6 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${statdata}/countryName/")"; else country="*"; fi
+				if Is_Enabled "$lookupcountry"; then country="$(curl -fsSL --retry 3 --max-time 6 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${statdata}/countryName/")"; else country="*"; fi
 				if [ -z "$country" ]; then country="*"; fi
 				assdomains="$(grep -F "$statdata" "${skynetloc}/webui/stats/skynetstats.txt" | awk '{print $1}' | xargs)"
 				if [ -z "$assdomains" ]; then assdomains="*"; fi
@@ -1730,7 +1742,7 @@ Generate_Stats() {
 				fi
 				if [ "${#banreason}" -gt "45" ]; then banreason="$(echo "$banreason" | cut -c 1-45)"; fi
 				alienvault="https://otx.alienvault.com/indicator/ip/${statdata}"
-				if [ "$lookupcountry" = "enabled" ]; then country="$(curl -fsSL --retry 3 --max-time 6 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${statdata}/countryName/")"; else country="*"; fi
+				if Is_Enabled "$lookupcountry"; then country="$(curl -fsSL --retry 3 --max-time 6 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${statdata}/countryName/")"; else country="*"; fi
 				if [ -z "$country" ]; then country="*"; fi
 				assdomains="$(grep -F "$statdata" "${skynetloc}/webui/stats/skynetstats.txt" | awk '{print $1}' | xargs)"
 				if [ -z "$assdomains" ]; then assdomains="*"; fi
@@ -1746,7 +1758,7 @@ Generate_Stats() {
 				fi
 				if [ "${#banreason}" -gt "45" ]; then banreason="$(echo "$banreason" | cut -c 1-45)"; fi
 				alienvault="https://otx.alienvault.com/indicator/ip/${statdata}"
-				if [ "$lookupcountry" = "enabled" ]; then country="$(curl -fsSL --retry 3 --max-time 6 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${statdata}/countryName/")"; else country="*"; fi
+				if Is_Enabled "$lookupcountry"; then country="$(curl -fsSL --retry 3 --max-time 6 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${statdata}/countryName/")"; else country="*"; fi
 				if [ -z "$country" ]; then country="*"; fi
 				assdomains="$(grep -F "$statdata" "${skynetloc}/webui/stats/skynetstats.txt" | awk '{print $1}' | xargs)"
 				if [ -z "$assdomains" ]; then assdomains="*"; fi
@@ -1758,7 +1770,7 @@ Generate_Stats() {
 			grep -E 'DPT=80 |DPT=443 ' "$skynetlog" | grep -F "OUTBOUND" | grep -oE ' DST=[0-9,\.]*' | cut -c 6- | sort -n | uniq -c | sort -nr | head -10 | while IFS= read -r "statdata"; do
 				hits="$(echo "$statdata" | awk '{print $1}')"
 				ipaddr="$(echo "$statdata" | awk '{print $2}')"
-				if [ "$lookupcountry" = "enabled" ]; then country="$(curl -fsSL --retry 3 --max-time 6 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${ipaddr}/countryName/")"; else country="*"; fi
+				if Is_Enabled "$lookupcountry"; then country="$(curl -fsSL --retry 3 --max-time 6 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${ipaddr}/countryName/")"; else country="*"; fi
 				if [ -z "$country" ]; then country="*"; fi
 				echo "$hits~$ipaddr~$country" >> "${skynetloc}/webui/stats/thconn.txt"
 			done
@@ -1768,7 +1780,7 @@ Generate_Stats() {
 			grep -F "INBOUND" "$skynetlog" | grep -oE ' SRC=[0-9,\.]*' | cut -c 6- | sort -n | uniq -c | sort -nr | head -10 | while IFS= read -r "statdata"; do
 				hits="$(echo "$statdata" | awk '{print $1}')"
 				ipaddr="$(echo "$statdata" | awk '{print $2}')"
-				if [ "$lookupcountry" = "enabled" ]; then country="$(curl -fsSL --retry 3 --max-time 6 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${ipaddr}/countryName/")"; else country="*"; fi
+				if Is_Enabled "$lookupcountry"; then country="$(curl -fsSL --retry 3 --max-time 6 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${ipaddr}/countryName/")"; else country="*"; fi
 				if [ -z "$country" ]; then country="*"; fi
 				echo "$hits~$ipaddr~$country" >> "${skynetloc}/webui/stats/ticonn.txt"
 			done
@@ -1778,7 +1790,7 @@ Generate_Stats() {
 			grep -F "OUTBOUND" "$skynetlog" | grep -vE 'DPT=80 |DPT=443 ' | grep -oE ' DST=[0-9,\.]*' | cut -c 6- | sort -n | uniq -c | sort -nr | head -10 | while IFS= read -r "statdata"; do
 				hits="$(echo "$statdata" | awk '{print $1}')"
 				ipaddr="$(echo "$statdata" | awk '{print $2}')"
-				if [ "$lookupcountry" = "enabled" ]; then country="$(curl -fsSL --retry 3 --max-time 6 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${ipaddr}/countryName/")"; else country="*"; fi
+				if Is_Enabled "$lookupcountry"; then country="$(curl -fsSL --retry 3 --max-time 6 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${ipaddr}/countryName/")"; else country="*"; fi
 				if [ -z "$country" ]; then country="*"; fi
 				echo "$hits~$ipaddr~$country" >> "${skynetloc}/webui/stats/toconn.txt"
 			done
@@ -1804,7 +1816,7 @@ Generate_Stats() {
 }
 
 Get_WebUI_Page() {
-	if nvram get rc_support | grep -qF "am_addons" && [ "$displaywebui" = "enabled" ]; then
+	if nvram get rc_support | grep -qF "am_addons" && Is_Enabled "$displaywebui"; then
 		MyPage="none"
 		for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
 			page="/www/user/user$i.asp"
@@ -1819,9 +1831,9 @@ Get_WebUI_Page() {
 }
 
 Install_WebUI_Page() {
-	if [ "$logmode" = "enabled" ]; then
+	if Is_Enabled "$logmode"; then
 		if nvram get rc_support | grep -qF "am_addons"; then
-			if [ "$displaywebui" = "enabled" ]; then
+			if Is_Enabled "$displaywebui"; then
 				Get_WebUI_Page "${skynetloc}/webui/skynet.asp"
 				if [ "$MyPage" = "none" ]; then
 					logger -t Skynet "[*] Unable To Mount Skynet Web Page - No Mount Points Avilable" && echo "[*] Unable To Mount Skynet Web Page - No Mount Points Avilable"
@@ -2230,7 +2242,7 @@ Load_Menu() {
 	if ! Check_IPTables; then
 		printf '%-35s | %-8s\n' "IPTables Rules" "$(Red "[Failed]")"; nolog="1"; unset fail
 	fi
-	if [ "$fastswitch" = "enabled" ]; then
+	if Is_Enabled "$fastswitch"; then
 		Ylow "Fast Switch List Is Enabled!"
 	fi
 	if [ "$nolog" != "1" ]; then Print_Log "minimal"; fi
@@ -2681,21 +2693,21 @@ Load_Menu() {
 				option1="settings"
 				while true; do
 					echo "Select Setting To Toggle:"
-					printf '%-35s | %-40s\n' "[1]  --> Skynet Auto-Updates" "$(if [ "$autoupdate" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
+					printf '%-35s | %-40s\n' "[1]  --> Skynet Auto-Updates" "$(if Is_Enabled "$autoupdate"; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
 					printf '%-35s | %-40s\n' "[2]  --> Malware List Auto-Updates" "$(if [ "$banmalwareupdate" = "daily" ] || [ "$banmalwareupdate" = "weekly" ]; then Grn "[$banmalwareupdate]"; else Red "[Disabled]"; fi)"
-					printf '%-35s | %-40s\n' "[3]  --> Logging" "$(if [ "$logmode" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
+					printf '%-35s | %-40s\n' "[3]  --> Logging" "$(if Is_Enabled "$logmode"; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
 					printf '%-35s | %-40s\n' "[4]  --> Filter Traffic" "$(Grn "[$filtertraffic]")"
-					printf '%-35s | %-40s\n' "[5]  --> Unban PrivateIP" "$(if [ "$unbanprivateip" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
-					printf '%-35s | %-40s\n' "[6]  --> Log Invalid Packets" "$(if [ "$loginvalid" = "enabled" ]; then Grn "[Enabled]"; else Grn "[Disabled]"; fi)"
-					printf '%-35s | %-40s\n' "[7]  --> Import AiProtect Data" "$(if [ "$banaiprotect" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
-					printf '%-35s | %-40s\n' "[8]  --> Secure Mode" "$(if [ "$securemode" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
-					printf '%-35s | %-40s\n' "[9]  --> Fast Switch List" "$(if [ "$fastswitch" = "enabled" ]; then Ylow "[Enabled]"; else Grn "[Disabled]"; fi)"
+					printf '%-35s | %-40s\n' "[5]  --> Unban PrivateIP" "$(if Is_Enabled "$unbanprivateip"; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
+					printf '%-35s | %-40s\n' "[6]  --> Log Invalid Packets" "$(if Is_Enabled "$loginvalid"; then Grn "[Enabled]"; else Grn "[Disabled]"; fi)"
+					printf '%-35s | %-40s\n' "[7]  --> Import AiProtect Data" "$(if Is_Enabled "$banaiprotect"; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
+					printf '%-35s | %-40s\n' "[8]  --> Secure Mode" "$(if Is_Enabled "$securemode"; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
+					printf '%-35s | %-40s\n' "[9]  --> Fast Switch List" "$(if Is_Enabled "$fastswitch"; then Ylow "[Enabled]"; else Grn "[Disabled]"; fi)"
 					printf '%-35s | %-40s\n' "[10] --> Syslog Location" "$(if { [ "$syslogloc" = "/tmp/syslog.log" ] && [ "$syslog1loc" = "/tmp/syslog.log-1" ]; } || { [ "$syslogloc" = "/jffs/syslog.log" ] && [ "$syslog1loc" = "/jffs/syslog.log-1" ]; } then Grn "[Default]"; else Ylow "[Custom]"; fi)"
 					printf '%-35s | %-40s\n' "[11] --> IOT Blocking" "$(if [ "$iotblocked" != "enabled" ]; then Grn "[Disabled]"; else Ylow "[Enabled]"; fi)"
 					printf '%-35s | %-40s\n' "[12] --> IOT Logging" "$(if [ "$iotlogging" != "enabled" ]; then Red "[Disabled]"; else Grn "[Enabled]"; fi)"
-					printf '%-35s | %-40s\n' "[13] --> Stats Country Lookup" "$(if [ "$lookupcountry" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
-					printf '%-35s | %-40s\n' "[14] --> CDN Whitelisting" "$(if [ "$cdnwhitelist" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
-					printf '%-35s | %-40s\n' "[15] --> Display WebUI" "$(if [ "$displaywebui" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
+					printf '%-35s | %-40s\n' "[13] --> Stats Country Lookup" "$(if Is_Enabled "$lookupcountry"; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
+					printf '%-35s | %-40s\n' "[14] --> CDN Whitelisting" "$(if Is_Enabled "$cdnwhitelist"; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
+					printf '%-35s | %-40s\n' "[15] --> Display WebUI" "$(if Is_Enabled "$displaywebui"; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
 					echo
 					printf "[1-15]: "
 					read -r "menu2"
@@ -3952,12 +3964,12 @@ case "$1" in
 			echo "[*] Fast Switch List Already Disabled - Stopping Banmalware"
 			echo; exit 1
 		fi
-		if [ "$fastswitch" = "enabled" ] && [ "$1" = "fs" ] && [ -z "$2" ] || [ "$2" = "disable" ]; then
+		if Is_Enabled "$fastswitch" && [ "$1" = "fs" ] && [ -z "$2" ] || [ "$2" = "disable" ]; then
 			echo "[i] Fast Switch List Disabled"
 			fastswitch="disabled"
 			set "banmalware"
 		fi
-		if [ "$fastswitch" = "enabled" ] && [ "$1" = "banmalware" ]; then
+		if Is_Enabled "$fastswitch" && [ "$1" = "banmalware" ]; then
 			set "fs"
 		fi
 		if [ "$2" = "exclude" ]; then
@@ -4948,7 +4960,7 @@ case "$1" in
 					;;
 				esac
 				if [ "$3" != "view" ]; then
-					if [ "$iotblocked" = "enabled" ]; then
+					if Is_Enabled "$iotblocked"; then
 						echo "[i] IOT Blocking List Updated"
 					else
 						echo "[i] IOT Blocking List Cleared"
@@ -5093,25 +5105,25 @@ case "$1" in
 						tail -F "$syslogloc" | while read -r logoutput; do
 							if echo "$logoutput" | grep -qE "INVALID.*=$4 "; then
 								Blue "$logoutput"
-								if [ "$extendedstats" = "enabled" ]; then
+								if Is_Enabled "$extendedstats"; then
 									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sed 's/.$//' | sed 's~\.~\\.~g')" /opt/var/log/dnsmasq* | awk '{print $(NF-2)}' | Strip_Domain | Filter_OutIP | xargs)"
 									[ -n "$domainlist" ] && Blue "Associated Domain(s) - [$domainlist]"
 								fi
 							elif echo "$logoutput" | grep -qE "INBOUND.*=$4 "; then
 								Ylow "$logoutput"
-								if [ "$extendedstats" = "enabled" ]; then
+								if Is_Enabled "$extendedstats"; then
 									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sed 's/.$//' | sed 's~\.~\\.~g')" /opt/var/log/dnsmasq* | awk '{print $(NF-2)}' | Strip_Domain | Filter_OutIP | xargs)"
 									[ -n "$domainlist" ] && Red "Associated Domain(s) - [$domainlist]"
 								fi
 							elif echo "$logoutput" | grep -qE "OUTBOUND.*=$4 "; then
 								Red "$logoutput"
-								if [ "$extendedstats" = "enabled" ]; then
+								if Is_Enabled "$extendedstats"; then
 									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sed 's/.$//' | sed 's~\.~\\.~g')" /opt/var/log/dnsmasq* | awk '{print $(NF-2)}' | Strip_Domain | Filter_OutIP | xargs)"
 									[ -n "$domainlist" ] && Red "Associated Domain(s) - [$domainlist]"
 								fi
 							elif echo "$logoutput" | grep -qE "IOT.*=$4 "; then
 								Red "$logoutput"
-								if [ "$extendedstats" = "enabled" ]; then
+								if Is_Enabled "$extendedstats"; then
 									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sed 's/.$//' | sed 's~\.~\\.~g')" /opt/var/log/dnsmasq* | awk '{print $(NF-2)}' | Strip_Domain | Filter_OutIP | xargs)"
 									[ -n "$domainlist" ] && Red "Associated Domain(s) - [$domainlist]"
 								fi
@@ -5125,25 +5137,25 @@ case "$1" in
 						tail -F "$syslogloc" | while read -r logoutput; do
 							if echo "$logoutput" | grep -qE "INAVLID.*PT=$4 "; then
 								Blue "$logoutput"
-								if [ "$extendedstats" = "enabled" ]; then
+								if Is_Enabled "$extendedstats"; then
 									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sed 's/.$//' | sed 's~\.~\\.~g')" /opt/var/log/dnsmasq* | awk '{print $(NF-2)}' | Strip_Domain | Filter_OutIP | xargs)"
 									[ -n "$domainlist" ] && Blue "Associated Domain(s) - [$domainlist]"
 								fi
 							elif echo "$logoutput" | grep -qE "INBOUND.*PT=$4 "; then
 								Ylow "$logoutput"
-								if [ "$extendedstats" = "enabled" ]; then
+								if Is_Enabled "$extendedstats"; then
 									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sed 's/.$//' | sed 's~\.~\\.~g')" /opt/var/log/dnsmasq* | awk '{print $(NF-2)}' | Strip_Domain | Filter_OutIP | xargs)"
 									[ -n "$domainlist" ] && Red "Associated Domain(s) - [$domainlist]"
 								fi
 							elif echo "$logoutput" | grep -qE "OUTBOUND.*PT=$4 "; then
 								Red "$logoutput"
-								if [ "$extendedstats" = "enabled" ]; then
+								if Is_Enabled "$extendedstats"; then
 									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sed 's/.$//' | sed 's~\.~\\.~g')" /opt/var/log/dnsmasq* | awk '{print $(NF-2)}' | Strip_Domain | Filter_OutIP | xargs)"
 									[ -n "$domainlist" ] && Red "Associated Domain(s) - [$domainlist]"
 								fi
 							elif echo "$logoutput" | grep -qE "IOT.*PT=$4 "; then
 								Red "$logoutput"
-								if [ "$extendedstats" = "enabled" ]; then
+								if Is_Enabled "$extendedstats"; then
 									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sed 's/.$//' | sed 's~\.~\\.~g')" /opt/var/log/dnsmasq* | awk '{print $(NF-2)}' | Strip_Domain | Filter_OutIP | xargs)"
 									[ -n "$domainlist" ] && Red "Associated Domain(s) - [$domainlist]"
 								fi
@@ -5154,25 +5166,25 @@ case "$1" in
 						tail -F "$syslogloc" | while read -r logoutput; do
 							if echo "$logoutput" | grep -q "INVALID"; then
 								Blue "$logoutput"
-								if [ "$extendedstats" = "enabled" ]; then
+								if Is_Enabled "$extendedstats"; then
 									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sed 's/.$//' | sed 's~\.~\\.~g')" /opt/var/log/dnsmasq* | awk '{print $(NF-2)}' | Strip_Domain | Filter_OutIP | xargs)"
 									[ -n "$domainlist" ] && Blue "Associated Domain(s) - [$domainlist]"
 								fi
 							elif echo "$logoutput" | grep -q "INBOUND"; then
 								Ylow "$logoutput"
-								if [ "$extendedstats" = "enabled" ]; then
+								if Is_Enabled "$extendedstats"; then
 									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6- | sed 's/.$//' | sed 's~\.~\\.~g')" /opt/var/log/dnsmasq* | awk '{print $(NF-2)}' | Strip_Domain | Filter_OutIP | xargs)"
 									[ -n "$domainlist" ] && Red "Associated Domain(s) - [$domainlist]"
 								fi
 							elif echo "$logoutput" | grep -q "OUTBOUND"; then
 								Red "$logoutput"
-								if [ "$extendedstats" = "enabled" ]; then
+								if Is_Enabled "$extendedstats"; then
 									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sed 's/.$//' | sed 's~\.~\\.~g')" /opt/var/log/dnsmasq* | awk '{print $(NF-2)}' | Strip_Domain | Filter_OutIP | xargs)"
 									[ -n "$domainlist" ] && Red "Associated Domain(s) - [$domainlist]"
 								fi
 							elif echo "$logoutput" | grep -q "IOT"; then
 								Red "$logoutput"
-								if [ "$extendedstats" = "enabled" ]; then
+								if Is_Enabled "$extendedstats"; then
 									domainlist="$(grep -E "reply.* is $(echo "$logoutput" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6- | sed 's/.$//' | sed 's~\.~\\.~g')" /opt/var/log/dnsmasq* | awk '{print $(NF-2)}' | Strip_Domain | Filter_OutIP | xargs)"
 									[ -n "$domainlist" ] && Red "Associated Domain(s) - [$domainlist]"
 								fi
@@ -5287,7 +5299,7 @@ case "$1" in
 				printf "%-35s | " "IPTables Rules"
 				if Check_IPTables; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
 				printf '%-8s\n' "$result"
-				if [ "$displaywebui" = "enabled" ]; then
+				if Is_Enabled "$displaywebui"; then
 					printf "%-35s | " "Local WebUI Files"
 					[ -f "${skynetloc}/webui/chart.js" ] || localfail="${localfail}chart.js "
 					[ -f "${skynetloc}/webui/chartjs-plugin-zoom.js" ] || localfail="${localfail}chartjs-plugin-zoom.js "
@@ -5312,21 +5324,21 @@ case "$1" in
 					totaltests="$((totaltests - 3))"
 				fi
 				Display_Header "8"
-				printf '%-35s | %-8s\n' "Skynet Auto-Updates" "$(if [ "$autoupdate" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
+				printf '%-35s | %-8s\n' "Skynet Auto-Updates" "$(if Is_Enabled "$autoupdate"; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
 				printf '%-35s | %-8s\n' "Malware List Auto-Updates" "$(if [ "$banmalwareupdate" = "daily" ] || [ "$banmalwareupdate" = "weekly" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
-				printf '%-35s | %-8s\n' "Logging" "$(if [ "$logmode" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
+				printf '%-35s | %-8s\n' "Logging" "$(if Is_Enabled "$logmode"; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
 				printf '%-35s | %-8s\n' "Filter Traffic" "$(if [ "$filtertraffic" = "all" ]; then Grn "[Enabled]"; else Ylow "[Selective]"; fi)"
-				printf '%-35s | %-8s\n' "Unban PrivateIP" "$(if [ "$unbanprivateip" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
-				printf '%-35s | %-8s\n' "Log Invalid Packets" "$(if [ "$loginvalid" = "enabled" ]; then Grn "[Enabled]"; else Grn "[Disabled]"; fi)"
-				printf '%-35s | %-8s\n' "Import AiProtect Data" "$(if [ "$banaiprotect" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
-				printf '%-35s | %-8s\n' "Secure Mode" "$(if [ "$securemode" = "enabled" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
-				printf '%-35s | %-8s\n' "Fast Switch List" "$(if [ "$fastswitch" = "enabled" ]; then Ylow "[Enabled]"; else Grn "[Disabled]"; fi)"
+				printf '%-35s | %-8s\n' "Unban PrivateIP" "$(if Is_Enabled "$unbanprivateip"; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
+				printf '%-35s | %-8s\n' "Log Invalid Packets" "$(if Is_Enabled "$loginvalid"; then Grn "[Enabled]"; else Grn "[Disabled]"; fi)"
+				printf '%-35s | %-8s\n' "Import AiProtect Data" "$(if Is_Enabled "$banaiprotect"; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
+				printf '%-35s | %-8s\n' "Secure Mode" "$(if Is_Enabled "$securemode"; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
+				printf '%-35s | %-8s\n' "Fast Switch List" "$(if Is_Enabled "$fastswitch"; then Ylow "[Enabled]"; else Grn "[Disabled]"; fi)"
 				printf '%-35s | %-8s\n' "Syslog Location" "$(if { [ "$syslogloc" = "/tmp/syslog.log" ] && [ "$syslog1loc" = "/tmp/syslog.log-1" ]; } || { [ "$syslogloc" = "/jffs/syslog.log" ] && [ "$syslog1loc" = "/jffs/syslog.log-1" ]; } then Grn "[Default]"; else Ylow "[Custom]"; fi)"
 				printf '%-35s | %-8s\n' "IOT Blocking" "$(if [ "$iotblocked" != "enabled" ]; then Grn "[Disabled]"; else Ylow "[Enabled]"; fi)"
 				printf '%-35s | %-8s\n' "IOT Logging" "$(if [ "$iotlogging" != "enabled" ]; then Red "[Disabled]"; else Grn "[Enabled]"; fi)"
-				printf '%-35s | %-8s\n' "Country Lookup For Stats" "$(if [ "$lookupcountry" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
-				printf '%-35s | %-8s\n' "CDN Whitelisting" "$(if [ "$cdnwhitelist" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
-				printf '%-35s | %-8s\n' "Display WebUI" "$(if [ "$displaywebui" = "enabled" ]; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
+				printf '%-35s | %-8s\n' "Country Lookup For Stats" "$(if Is_Enabled "$lookupcountry"; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
+				printf '%-35s | %-8s\n' "CDN Whitelisting" "$(if Is_Enabled "$cdnwhitelist"; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
+				printf '%-35s | %-8s\n' "Display WebUI" "$(if Is_Enabled "$displaywebui"; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
 				printf '\n%-35s\n' "${passedtests}/${totaltests} Tests Sucessful"
 				if [ -n "$fail" ]; then echo; echo "[*] Rule Integrity Violation - [ ${fail}]"; unset fail; fi
 				if [ -n "$localfail" ]; then echo; echo "[*] Local File Missing - [ ${localfail}]"; fi
@@ -5338,7 +5350,7 @@ case "$1" in
 				Check_Lock "$@"
 				Purge_Logs "all"
 				if nvram get rc_support | grep -qF "am_addons"; then
-					if [ "$displaywebui" = "enabled" ]; then
+					if Is_Enabled "$displaywebui"; then
 						echo "[i] Generating Stats For WebUI"
 						Generate_Stats
 					else
