@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                              Router Firewall And Security Enhancements                                    #
 #                          By Adamm -  https://github.com/Adamm00/IPSet_ASUS                                #
-#                                       22/04/2025 - v8.0.0                                                 #
+#                                       26/04/2025 - v8.0.0                                                 #
 #############################################################################################################
 
 
@@ -323,16 +323,15 @@ Check_Connection() {
 
 Check_Files() {
 	# 1) Ensure each script has a proper shebang
-	scripts="firewall-start services-stop service-event post-mount unmount"
-	for name in $scripts; do
-		path="/jffs/scripts/$name"
-		if [ ! -f "$path" ]; then
-			echo '#!/bin/sh' > "$path"
-			echo >> "$path"
-		elif ! head -n1 "$path" | grep -q '^#!/bin/sh'; then
-			sed -i '1s~^~#!/bin/sh\n~' "$path"
-		fi
-	done
+    for name in "$@"; do
+        path="/jffs/scripts/$name"
+        if [ ! -f "$path" ]; then
+            echo '#!/bin/sh' > "$path"
+            echo >> "$path"
+        elif ! head -n1 "$path" | grep -q '^#!/bin/sh'; then
+            sed -i '1s~^~#!/bin/sh\n~' "$path"
+        fi
+    done
 
 	# service-event: inject debug‑genstats if missing
 	if ! grep -vE '^#' /jffs/scripts/service-event | grep -qF 'sh /jffs/scripts/firewall debug genstats'; then
@@ -340,7 +339,6 @@ Check_Files() {
 		echo "if [ \"\$1\" = \"start\" ] && [ \"\$2\" = \"SkynetStats\" ]; then sh /jffs/scripts/firewall debug genstats; fi # Skynet" \
 			 >> /jffs/scripts/service-event
 	fi
-
 
 	# 3) unmount: ensure swapoff entry
 	if ! grep -qE '^swapoff ' /jffs/scripts/unmount; then
@@ -4389,7 +4387,7 @@ case "$1" in
 		logger -t Skynet "[i] Startup Initiated... ( $(echo "$@" | sed 's~start ~~g') )"; echo "[i] Startup Initiated... ( $(echo "$@" | sed 's~start ~~g') )"
 		Unload_Cron "all"
 		Check_Settings
-		Check_Files "verify"
+		Check_Files firewall-start services-stop service-event post-mount unmount
 		Clean_Temp
 		if ! Check_Connection; then logger -st Skynet "[*] Connection Error Detected - Exiting"; echo; exit 1; fi
 		Load_Cron "save"
@@ -5371,7 +5369,7 @@ case "$1" in
 				case "$3" in
 					install)
 						Check_Lock "$@"
-						Check_Files
+						Check_Files firewall-start services-stop service-event post-mount unmount
 						swaplocation="$(grep -E "^swapon " /jffs/scripts/post-mount | awk '{print $2}')"
 						findswap="$(find /tmp/mnt -name "myswap.swp")"
 						if [ -z "$findswap" ]; then
@@ -5682,7 +5680,7 @@ case "$1" in
 			esac
 		done
 		echo
-		Check_Files
+		Check_Files firewall-start services-stop service-event post-mount unmount
 		if ! grep -qE "^swapon " /jffs/scripts/post-mount; then Create_Swap; fi
 		if [ -f "$skynetlog" ]; then mv "$skynetlog" "${device}/skynet/skynet.log"; fi
 		if [ -f "$skynetevents" ]; then mv "$skynetevents" "${device}/skynet/events.log"; fi
