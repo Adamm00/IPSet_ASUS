@@ -21,6 +21,19 @@ sed -n '2,14p' "$0"
 export LC_ALL=C
 mkdir -p /tmp/skynet/lists
 mkdir -p /jffs/addons/shared-whitelists
+skynetloc="$(grep -ow "skynetloc=.* # Skynet" /jffs/scripts/firewall-start 2>/dev/null | grep -vE "^#" | awk '{print $1}' | cut -c 11-)"
+skynetcfg="${skynetloc}/skynet.cfg"
+skynetlog="${skynetloc}/skynet.log"
+skynetevents="${skynetloc}/events.log"
+skynetipset="${skynetloc}/skynet.ipset"
+stime="$(date +%s)"
+LOCK_FILE="/tmp/skynet.lock"
+
+# Default to the NVRAM’s WAN interface name, but if the protocol is PPPoE, override to ppp0
+iface="$(nvram get wan0_ifname)"
+[ "$(nvram get wan0_proto)" = "pppoe" ] && iface="ppp0"
+
+trap 'Release_Lock' INT TERM EXIT
 
 ntptimer=0
 case "$1" in
@@ -42,16 +55,8 @@ case "$1" in
 	;;
 esac
 
-skynetloc="$(grep -ow "skynetloc=.* # Skynet" /jffs/scripts/firewall-start 2>/dev/null | grep -vE "^#" | awk '{print $1}' | cut -c 11-)"
-skynetcfg="${skynetloc}/skynet.cfg"
-skynetlog="${skynetloc}/skynet.log"
-skynetevents="${skynetloc}/events.log"
-skynetipset="${skynetloc}/skynet.ipset"
-stime="$(date +%s)"
-LOCK_FILE="/tmp/skynet.lock"
-
-trap 'Release_Lock' INT TERM EXIT
-
+# If we haven’t yet determined an install directory and the script is running in a real terminal,
+# force the command to “install” so the installer logic kicks in automatically.
 if [ -z "${skynetloc}" ] && tty >/dev/null 2>&1; then
 	set "install"
 fi
@@ -116,46 +121,54 @@ Release_Lock() {
 	rm -f "$LOCK_FILE"
 }
 
-if [ ! -d "${skynetloc}" ] && ! echo "$@" | grep -wqE "(install|uninstall|disable|update|restart|info)"; then
-	Check_Lock "$@"
-	usbtest="0"
-	if [ -z "${skynetloc}" ]; then usbtest="10"; fi
-	while [ ! -d "${skynetloc}" ] && [ "$usbtest" -le "10" ]; do
-		usbtest="$((usbtest + 1))"
-		logger -st Skynet "[*] USB Not Found - Sleeping For 10 Seconds ( Attempt $usbtest Of 10 )"
-		sleep 10
-	done
-	if [ ! -d "${skynetloc}" ] || [ ! -w "${skynetloc}" ]; then
-		logger -st Skynet "[*] Problem With USB Install Location - Please Fix Immediately!"
-		logger -st Skynet "[*] To Change Install Location Run - ( sh $0 install )"
-		echo; exit 1
+find_install_dir() {
+	# Skip for installer/info commands
+	case "$1" in
+		install|uninstall|disable|update|restart|info) return 0 ;;
+	esac
+
+	if [ -z "$skynetloc" ]; then
+		Check_Lock "$@"
+
+		MAX_RETRIES=10
+		attempt=1
+
+		# Wait until skynetloc exists as a directory and is writable
+		while [ "$attempt" -le "$MAX_RETRIES" ] && { [ ! -d "$skynetloc" ] || [ ! -w "$skynetloc" ]; }; do
+			logger -st Skynet "[*] USB install directory not ready — sleeping 10s ($attempt/$MAX_RETRIES)"
+			sleep 10
+			attempt=$(( attempt + 1 ))
+		done
+
+		# Final verification
+		if [ ! -d "$skynetloc" ] || [ ! -w "$skynetloc" ]; then
+			logger -st Skynet "[*] Problem with USB install location — please fix immediately!"
+			logger -st Skynet "[*] To change location run: sh $0 install"
+			echo
+			exit 1
+		fi
 	fi
-fi
-
-if [ "$(nvram get wan0_proto)" = "pppoe" ]; then
-	iface="ppp0"
-else
-	iface="$(nvram get wan0_ifname)"
-fi
-
-Red() {
-	printf -- '\033[1;31m%s\033[0m\n' "$1"
 }
 
-Grn() {
-	printf -- '\033[1;32m%s\033[0m\n' "$1"
+# Prints in color if either stdout or stderr is a terminal, otherwise plain
+Print_Colored() {
+	# $1 = ANSI color code (e.g. "1;31"), $2 = text
+ 	if [ -t 1 ] || [ -t 2 ]; then
+		printf '\033[%sm%s\033[0m\n' "$1" "$2"
+	else
+		printf '%s\n' "$2"
+	fi
 }
 
-Blue() {
-	printf -- '\033[1;36m%s\033[0m\n' "$1"
-}
+# Specific wrappers
+Red()   { Print_Colored '1;31' "$1"; }
+Grn()   { Print_Colored '1;32' "$1"; }
+Blue()  { Print_Colored '1;36' "$1"; }
+Ylow()  { Print_Colored '1;33' "$1"; }
 
-Ylow() {
-	printf -- '\033[1;33m%s\033[0m\n' "$1"
-}
-
+# Check if a swap file (not just partition) is active
 Check_Swap() {
-	grep -qF "file" "/proc/swaps"
+	grep -qsF "file" "/proc/swaps"
 }
 
 Check_Settings() {
@@ -404,13 +417,13 @@ Check_Security() {
 		rm -rf "/var/run/tor" "/var/run/torrc" "/var/run/tord" "/var/run/vpnfilterm" "/var/run/vpnfilterw"
 		restartfirewall="1"
 	fi
-	if [ -f "/jffs/chkupdate.sh" ] || [ -f "/tmp/update" ] || [ -f "/tmp/.update.log" ] || [ -f "/jffs/runtime.log" ] || grep -qF "upgrade.sh" "/jffs/scripts/openvpn-event" 2>/dev/null; then
+	if [ -f "/jffs/chkupdate.sh" ] || [ -f "/tmp/update" ] || [ -f "/tmp/.update.log" ] || [ -f "/jffs/runtime.log" ] || grep -qsF "upgrade.sh" "/jffs/scripts/openvpn-event"; then
 		logger -st Skynet "[!] Warning! Router Malware Detected (chkupdate.sh) - Investigate Immediately!"
 		grep -hoE '([0-9]{1,3}\.){3}[0-9]{1,3}' "/jffs/chkupdate.sh" "/tmp/update" "/tmp/.update.log" "/jffs/runtime.log" "/jffs/scripts/openvpn-event" 2>/dev/null | awk '!x[$0]++' | while IFS= read -r "ip"; do
 			echo "add Skynet-Blacklist $ip comment \"Malware: chkupdate.sh\""
 		done | ipset restore -!
 	fi
-	if [ -f "/jffs/updater" ] || [ -f "/jffs/p32" ] || [ -f "/tmp/pawns-cli" ] || [ -f "/tmp/updateservice" ] || nvram get "jffs2_exec" | grep -qF "/jffs/updater" || nvram get "script_usbmount" | grep -qF "/jffs/updater" || nvram get "script_usbumount" | grep -qF "/jffs/updater" || nvram get "vpn_server_custom" | grep -qF "/jffs/updater" || nvram get "vpn_server1_custom" | grep -qF "/jffs/updater" || cru l | grep -qF "/jffs/updater" 2>/dev/null; then
+	if [ -f "/jffs/updater" ] || [ -f "/jffs/p32" ] || [ -f "/tmp/pawns-cli" ] || [ -f "/tmp/updateservice" ] || nvram get "jffs2_exec" | grep -qF "/jffs/updater" || nvram get "script_usbmount" | grep -qF "/jffs/updater" || nvram get "script_usbumount" | grep -qF "/jffs/updater" || nvram get "vpn_server_custom" | grep -qF "/jffs/updater" || nvram get "vpn_server1_custom" | grep -qF "/jffs/updater" || cru l | grep -qF "/jffs/updater"; then
 		logger -st Skynet "[!] Warning! Router Malware Detected (/jffs/updater) - Investigate Immediately!"
 		logger -st Skynet "[!] Caching Potential Updater Malware: ${skynetloc}/malwareupdater.tar.gz"
 		nvram savefile "/tmp/nvramoutput.txt"
@@ -744,9 +757,13 @@ Unload_IPSets() {
 }
 
 Unload_Cron() {
-	if [ -z "$1" ]; then set "all"; fi
-	for cron in "$@"; do
-		case "$cron" in
+	# If no argument or "all", reset $@ to the full list
+	if [ -z "$1" ] || [ "$1" = "all" ]; then
+		set -- "save" "banmalware" "autoupdate" "checkupdate" "genstats"
+	fi
+
+	for job in "$@"; do
+		case "$job" in
 			save)
 				cru d Skynet_save
 			;;
@@ -762,24 +779,16 @@ Unload_Cron() {
 			genstats)
 				cru d Skynet_genstats
 			;;
-			all)
-				cru d Skynet_save
-				cru d Skynet_banmalware
-				cru d Skynet_autoupdate
-				cru d Skynet_checkupdate
-				cru d Skynet_genstats
-			;;
 			*)
-				echo "[*] Error - No Cron Specified To Unload"
+				echo "[*] Warning: Unknown Cron Job '$job'"
 			;;
 		esac
 	done
 }
 
 Load_Cron() {
-	if [ -z "$1" ]; then set "all"; fi
-	for cron in "$@"; do
-		case "$cron" in
+	for job in "$@"; do
+		case "$job" in
 			save)
 				cru a Skynet_save "0 * * * * sh /jffs/scripts/firewall save"
 			;;
@@ -804,7 +813,7 @@ Load_Cron() {
 				cru a Skynet_genstats "$min */12 * * * sh /jffs/scripts/firewall debug genstats"
 			;;
 			*)
-				echo "[*] Error - No Cron Specified To Load"
+				echo "[*] Warning: Unknown Cron Job '$job'"
 			;;
 		esac
 	done
@@ -3795,10 +3804,19 @@ Load_Menu() {
 	done
 }
 
+find_install_dir "$@"
+
+# Load saved defaults from the config file if it exists
+if [ -f "$skynetcfg" ]; then
+	. "$skynetcfg"
+fi
+
+# Display the interactive menu when no command argument is provided
 if [ -z "$1" ]; then
 	Load_Menu
 fi
 
+# If the menu set any option variables, rebuild the script’s positional parameters to match those menu choices,
 if [ -n "$option1" ]; then
 	# Clear existing args before appending new ones
 	set --
@@ -3807,10 +3825,6 @@ if [ -n "$option1" ]; then
 	done
 	stime="$(date +%s)"
 	echo "[$] $0 $*"
-fi
-
-if [ -f "$skynetcfg" ]; then
-	. "$skynetcfg"
 fi
 
 Display_Header "9"
@@ -4452,11 +4466,8 @@ case "$1" in
 		if Is_Enabled "$forcebanmalwareupdate"; then
 			Write_Config
 			Release_Lock
-
 			#— force a summary now, before we trigger banmalware —
 			Print_Log "$@"
-			echo
-
 			# then run banmalware as a child (not via exec)
 			"$0" banmalware
 			exit 0
@@ -5536,13 +5547,28 @@ case "$1" in
 				nolog="2"
 			;;
 			run)
-				Check_Lock
-				if grep -qE "^${3}()" "$0"; then
-					printf '[i] Running Function %s()\n\n' "$3"
-					"$3"
-					printf '\n[i] Complete\n'
+				Check_Lock "$@"
+				func="$3"
+				# Capture any extra args for the function
+				shift 3
+				args="$*"
+				# Verify the function exists in this script
+				if grep -qE "^[[:space:]]*${func}[[:space:]]*\(\)" "$0"; then
+					# Show what we're invoking, including any follow-up args
+					echo "[i] Running function ${func}()${args:+ with args: $args}"
+					echo
+
+					# Call it with those args
+					if "$func" $args; then
+						echo
+						echo "[i] ${func}() completed successfully"
+					else
+						code=$?
+						echo
+						echo "[!] ${func}() failed with exit code $code"
+					fi
 				else
-					printf "%s() Doesn't Exist\\n" "$3"
+					echo "[!] Function ${func}() does not exist"
 				fi
 			;;
 			*)
