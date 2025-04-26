@@ -323,15 +323,15 @@ Check_Connection() {
 
 Check_Files() {
 	# 1) Ensure each script has a proper shebang
-    for name in "$@"; do
-        path="/jffs/scripts/$name"
-        if [ ! -f "$path" ]; then
-            echo '#!/bin/sh' > "$path"
-            echo >> "$path"
-        elif ! head -n1 "$path" | grep -q '^#!/bin/sh'; then
-            sed -i '1s~^~#!/bin/sh\n~' "$path"
-        fi
-    done
+	for name in "$@"; do
+		path="/jffs/scripts/$name"
+		if [ ! -f "$path" ]; then
+			echo '#!/bin/sh' > "$path"
+			echo >> "$path"
+		elif ! head -n1 "$path" | grep -q '^#!/bin/sh'; then
+			sed -i '1s~^~#!/bin/sh\n~' "$path"
+		fi
+	done
 
 	# service-event: inject debug‑genstats if missing
 	if ! grep -vE '^#' /jffs/scripts/service-event | grep -qF 'sh /jffs/scripts/firewall debug genstats'; then
@@ -2089,22 +2089,46 @@ Show_Menu() {
 }
 
 Purge_Logs() {
-	sed '\~BLOCKED -~!d' "$syslog1loc" "$syslogloc" 2>/dev/null >> "$skynetlog"
-	sed -i '\~BLOCKED -~d' "$syslog1loc" "$syslogloc" 2>/dev/null
-	if [ "$(du "$skynetlog" | awk '{print $1}')" -ge "10240" ] || [ "$1" = "force" ]; then
+	# Extract all BLOCKED lines into skynetlog, then delete them from source
+	sed -n '/BLOCKED -/!d' "$syslog1loc" "$syslogloc" 2>/dev/null >> "$skynetlog"
+	sed -i '/BLOCKED -/d' "$syslog1loc" "$syslogloc" 2>/dev/null
+
+	# Ensure skynetlog isn’t too large (or force), run stats, and truncate if still big
+	log_kb=$(du -k "$skynetlog" 2>/dev/null | cut -f1) || log_kb=0
+	log_kb=${log_kb:-0}
+	if [ "$log_kb" -ge 10240 ] || [ "$1" = "force" ]; then
 		Generate_Stats
-		sed -i '\~BLOCKED -~d' "$skynetlog"
-		sed -i '\~Skynet: \[#\] ~d' "$skynetevents"
+		sed -i '/BLOCKED -/d' "$skynetlog" 2>/dev/null
+		sed -i '/Skynet: \[#\] /d' "$skynetevents" 2>/dev/null
 		iptables -Z PREROUTING -t raw
-		if [ "$(du "$skynetlog" | awk '{print $1}')" -ge "3000" ]; then
-			true > "$skynetlog"
-		fi
+		log_kb=$(du -k "$skynetlog" 2>/dev/null | cut -f1) || log_kb=0
+		log_kb=${log_kb:-0}
+		[ "$log_kb" -ge 3000 ] && : > "$skynetlog"
 	fi
-	if [ "$1" = "all" ] || [ "$(grep -cE "Skynet: [#] " "$syslogloc" 2>/dev/null)" -gt "24" ] 2>/dev/null; then
-		sed '\~Skynet: \[#\] ~!d' "$syslog1loc" "$syslogloc" 2>/dev/null >> "$skynetevents"
-		sed -i '\~Skynet: \[#\] ~d;\~Skynet: \[i\] ~d;\~Skynet: \[\*\] Lock ~d' "$syslog1loc" "$syslogloc" 2>/dev/null
+
+	# Move numbered Skynet event lines into events.log, then purge info and lock entries
+	count_events=$(grep -c 'Skynet: \[#\]' "$syslogloc" 2>/dev/null) || count_events=0
+	count_events=${count_events:-0}
+	if [ "$1" = "all" ] || [ "$count_events" -gt 24 ]; then
+		sed -n '/Skynet: \[#\] /p' "$syslog1loc" "$syslogloc" 2>/dev/null >> "$skynetevents"
+		sed -i '
+			/Skynet: \[i\] /{
+				/Startup Initiated/!d
+			}
+			/Skynet: \[#\] /d
+			/Skynet: \[\*\] Lock /d
+		' "$syslog1loc" "$syslogloc" 2>/dev/null
 	fi
-	if [ -f "/opt/etc/syslog-ng.d/skynet" ]; then killall -HUP syslog-ng; fi
+
+	# If more than three startup banners exist, remove them all so only the next one appears
+	start_count=$(grep -c 'Skynet: \[i\] Startup Initiated' "$syslogloc" 2>/dev/null) || start_count=0
+	start_count=${start_count:-0}
+	if [ "$start_count" -gt 3 ]; then
+		sed -i '/Skynet: \[i\] Startup Initiated/d' "$syslog1loc" "$syslogloc" 2>/dev/null
+	fi
+
+	# Reload syslog-ng only if configured
+	[ -f /opt/etc/syslog-ng.d/skynet ] && killall -HUP syslog-ng 2>/dev/null
 }
 
 Print_Log() {
@@ -4102,7 +4126,7 @@ case "$1" in
 		Display_Message "[i] Saving Changes"
 		Save_IPSets
 		Display_Result
-		unset "forcebanmalwareupdate"
+		forcebanmalwareupdate="disabled"
 		echo
 		echo "[i] For Whitelisting Assistance -"
 		echo "[i] https://www.snbforums.com/threads/release-skynet-router-firewall-security-enhancements.16798/#post-115872"
@@ -4425,7 +4449,18 @@ case "$1" in
 		Load_IOTTables
 		Load_LogIPTables
 		sed -i '\~DROP IN=~d' "$syslog1loc" "$syslogloc" 2>/dev/null
-		if [ "$forcebanmalwareupdate" = "true" ]; then Write_Config; rm -rf "/tmp/skynet.lock"; exec "$0" banmalware; fi
+		if Is_Enabled "$forcebanmalwareupdate"; then
+			Write_Config
+			Release_Lock
+
+			#— force a summary now, before we trigger banmalware —
+			Print_Log "$@"
+			echo
+
+			# then run banmalware as a child (not via exec)
+			"$0" banmalware
+			exit 0
+		fi
 	;;
 
 	restart)
@@ -4539,7 +4574,7 @@ case "$1" in
 						if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 						Purge_Logs
 						banmalwareupdate="daily"
-						forcebanmalwareupdate="true"
+						forcebanmalwareupdate="enabled"
 						Unload_Cron "banmalware"
 						Load_Cron "banmalwaredaily"
 						echo "[i] Daily Malware Blacklist Updates Enabled"
@@ -4549,7 +4584,7 @@ case "$1" in
 						if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 						Purge_Logs
 						banmalwareupdate="weekly"
-						forcebanmalwareupdate="true"
+						forcebanmalwareupdate="enabled"
 						Unload_Cron "banmalware"
 						Load_Cron "banmalwareweekly"
 						echo "[i] Weekly Malware Blacklist Updates Enabled"
@@ -5626,13 +5661,13 @@ case "$1" in
 				1)
 					echo "[i] Malware Blacklist Updating Enabled & Scheduled Every Day"
 					banmalwareupdate="daily"
-					forcebanmalwareupdate="true"
+					forcebanmalwareupdate="enabled"
 					break
 				;;
 				2)
 					echo "[i] Malware Blacklist Auto-Updates Enabled & Scheduled For Every Monday"
 					banmalwareupdate="weekly"
-					forcebanmalwareupdate="true"
+					forcebanmalwareupdate="enabled"
 					break
 				;;
 				3)
