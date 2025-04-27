@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                              Router Firewall And Security Enhancements                                    #
 #                          By Adamm -  https://github.com/Adamm00/IPSet_ASUS                                #
-#                                       26/04/2025 - v8.0.0                                                 #
+#                                       27/04/2025 - v8.0.0                                                 #
 #############################################################################################################
 
 
@@ -1934,53 +1934,79 @@ Get_LocalName() {
 }
 
 Manage_Device() {
-	echo "Looking For Available Partitions"
-	i="1"
-	IFS="
-	"
-	for mounted in $(/bin/mount | grep -E "ext2|ext3|ext4|tfat|exfat" | awk '{printf "%s - (%s)\n", $3, $1}'); do
-		echo "[$i]  --> $mounted"
-		eval mounts$i="$(echo "$mounted" | awk '{print $1}')"
-		i="$((i + 1))"
+	echo "[i] Looking for available partitions"
+
+	# Build $@ = list of mountpoints whose fs is ext2/3/4, vfat, exfat or ntfs
+	set --
+	while read -r _ mnt fs _; do
+		case "$fs" in
+			ext2|ext3|ext4|tfat|exfat)
+				set -- "$@" "$mnt"
+				;;
+		esac
+	done < /proc/mounts
+
+	# If none found, bail out
+	if [ $# -eq 0 ]; then
+		echo "[*] No compatible USB partitions found - exiting!"
+		echo
+		exit 1
+	fi
+
+	# Display numbered list
+	idx=0
+	for m in "$@"; do
+		idx=$((idx + 1))
+		echo "[$idx] --> $m"
 	done
-	unset IFS
-	if [ "$i" = "1" ]; then
-		echo "[*] No Compatible ext* USB Partitions Found - Exiting!"
-		echo; exit 1
-	fi
-	Select_Device() {
+
+	# Prompt loop
+	while :; do
 		echo
-		echo "Please Enter Partition Number Or e To Exit"
-		printf "[0-%s]: " "$((i - 1))"
-		read -r "partitionNumber"
+		echo "Please enter partition number or 'e' to exit"
+		printf "[1-%d]: " "$idx"
+		read -r partitionNumber
 		echo
-		if [ "$partitionNumber" = "e" ] || [ "$partitionNumber" = "exit" ]; then
-			echo "[*] Exiting!"
-			echo; exit 0
-		elif [ -z "$partitionNumber" ] || [ "$partitionNumber" -gt "$((i - 1))" ] 2>/dev/null || [ "$partitionNumber" = "0" ]; then
-			echo "[*] Invalid Partition Number!"
-			Select_Device
-		elif [ "$partitionNumber" -eq "$partitionNumber" ] 2>/dev/null; then
-			true
-		else
-			Invalid_Option "$partitionNumber"
-			Select_Device
-		fi
-	}
-	Select_Device
-	device=""
-	eval device=\$mounts"$partitionNumber"
-	touch "${device}/rwtest"
-	if [ ! -w "${device}/rwtest" ]; then
-		echo "[*] Writing To $device Failed - Exiting!"
-		Manage_Device
-	else
-		rm -rf "${device}/rwtest"
-	fi
+
+		case "$partitionNumber" in
+			e|exit)
+				echo "[*] Exiting!"
+				echo
+				exit 0
+			;;
+			''|*[!0-9]*|0)
+				echo "[*] Invalid partition number!"
+			;;
+			*)
+				if [ "$partitionNumber" -ge 1 ] && [ "$partitionNumber" -le "$idx" ]; then
+					choice=0
+					for m in "$@"; do
+						choice=$((choice + 1))
+						if [ "$choice" -eq "$partitionNumber" ]; then
+							device="$m"
+							break
+						fi
+					done
+
+					# Test writability
+					if ! touch "$device/rwtest" 2>/dev/null; then
+						echo "[*] Writing to $device failed - try another"
+						continue
+					else
+						rm -f "$device/rwtest"
+						break
+					fi
+				else
+					echo "[*] Invalid partition number!"
+				fi
+			;;
+		esac
+	done
 }
 
 Create_Swap() {
-	while true; do
+	# 1) Ask for swap‐file size
+	while :; do
 		Show_Menu "Select SWAP File Size:" \
 			"1GB" \
 			"2GB (Recommended)" \
@@ -1988,14 +2014,14 @@ Create_Swap() {
 		Prompt_Input "1-2" menu
 		case "${menu:?}" in
 			1)
-				swapsize=1048576
+				swapsize_kb=1048576
 				break
 			;;
 			2)
-				swapsize=2097152
+				swapsize_kb=2097152
 				break
 			;;
-			e|exit|back|menu)
+			e|exit)
 				echo "[*] Exiting!"
 				echo
 				exit 0
@@ -2005,23 +2031,44 @@ Create_Swap() {
 			;;
 		esac
 	done
+
 	swaplocation="${device}/myswap.swp"
-	if [ -f "$swaplocation" ]; then swapoff -a 2>/dev/null; rm -rf "$swaplocation"; fi
-	if [ "$(df "$device" | xargs | awk '{print $11}')" -le "$swapsize" ]; then echo "[*] Not Enough Free Space Available On $device"; Create_Swap; fi
-	echo "[i] Creating SWAP File"
+
+	# 2) Remove any existing swap file
+	if [ -f "$swaplocation" ]; then
+		swapoff -a 2>/dev/null
+		rm -f "$swaplocation"
+	fi
+
+	# 3) Check free space in KB on the chosen device
+	avail_kb=$(df -k "$device" | awk 'NR==2 {print $4}')
+	avail_mb=$(( avail_kb / 1024 ))
+	if [ -z "$avail_kb" ] || [ "$avail_kb" -lt "$swapsize_kb" ]; then
+		echo "[*] Not enough free space on $device (${avail_mb}MB available)"
+		echo
+		return 1
+	fi
+
+	# 4) Create, enable swap
+	swapsize_mb=$(( swapsize_kb / 1024 ))
+	echo "[i] Creating ${swapsize_mb}MB swap file at $swaplocation"
 	echo
-	dd if=/dev/zero of="$swaplocation" bs=1k count="$swapsize"
+	dd if=/dev/zero bs=1k count="$swapsize_kb" of="$swaplocation" 2>/dev/null
 	mkswap "$swaplocation"
 	swapon "$swaplocation"
+
+	# 5) Ensure post-mount script will re-enable it on reboot
 	sed -i '\~swapon ~d' /jffs/scripts/post-mount
-	if [ "$(wc -l < /jffs/scripts/post-mount)" -lt "2" ]; then echo >> /jffs/scripts/post-mount; fi
 	sed -i "2i swapon $swaplocation # Skynet" /jffs/scripts/post-mount
-	if [ -f "/jffs/scripts/unmount" ] && ! grep -qE "^swapoff " /jffs/scripts/unmount; then
-		sed -i '\~swapoff ~d' /jffs/scripts/unmount
-		echo "swapoff -a 2>/dev/null # Skynet" >> /jffs/scripts/unmount
+
+	# 6) Ensure unmount script will turn it off
+	if [ -f /jffs/scripts/unmount ] && ! grep -q '^swapoff ' /jffs/scripts/unmount; then
+		echo 'swapoff -a 2>/dev/null # Skynet' >> /jffs/scripts/unmount
 	fi
+
+	# 7) Done!
 	echo
-	echo "[i] SWAP File Located At $swaplocation"
+	echo "[i] Swap file created at $swaplocation"
 	echo
 }
 
@@ -4472,6 +4519,7 @@ case "$1" in
 			"$0" banmalware
 			exit 0
 		fi
+		unset "nolog"
 	;;
 
 	restart)
@@ -5549,17 +5597,21 @@ case "$1" in
 			run)
 				Check_Lock "$@"
 				func="$3"
-				# Capture any extra args for the function
+				# Shift off “run” and the sub‐command name, leaving any extra args in $@
 				shift 3
-				args="$*"
+
 				# Verify the function exists in this script
 				if grep -qE "^[[:space:]]*${func}[[:space:]]*\(\)" "$0"; then
-					# Show what we're invoking, including any follow-up args
-					echo "[i] Running function ${func}()${args:+ with args: $args}"
+					# Show what we're invoking, including any follow‐up args
+					if [ $# -gt 0 ]; then
+						echo "[i] Running function ${func}() with args: $*"
+					else
+						echo "[i] Running function ${func}()"
+					fi
 					echo
 
 					# Call it with those args
-					if "$func" $args; then
+					if "$func" "$@"; then
 						echo
 						echo "[i] ${func}() completed successfully"
 					else
