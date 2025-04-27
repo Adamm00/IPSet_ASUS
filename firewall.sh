@@ -43,12 +43,12 @@ case "$1" in
 			ntptimer=$((ntptimer + 1))
 			[ "$ntptimer" -eq 60 ] && {
 				echo
-				logger -st Skynet "[*] Waiting For NTP To Sync"
+				Log warn -s "Waiting For NTP To Sync"
 			}
 			sleep 1
 		done
 		[ "$ntptimer" -ge 300 ] && {
-			logger -st Skynet "[*] NTP Failed To Sync After 5 Minutes - Please Fix Immediately!"
+			Log warn -s "NTP Failed To Sync After 5 Minutes - Please Fix Immediately!"
 			echo
 			exit 1
 		}
@@ -81,24 +81,24 @@ Check_Lock() {
 			if [ "$age" -gt 1800 ]; then
 				# Stale lock: kill and re‑acquire
 				if kill "$locked_pid" 2>/dev/null; then
-					logger -st Skynet "[*] Killed stale Skynet process (pid=$locked_pid) after $age seconds"
+					Log warn -s "Killed stale Skynet process (pid=$locked_pid) after $age seconds"
 				fi
 				: > "$LOCK_FILE"
 				if ! flock -n 9; then
-					logger -st Skynet "[*] Lock acquisition failed after killing stale process - Exiting (pid=$locked_pid)"
+					Log warn -s "Lock acquisition failed after killing stale process - Exiting (pid=$locked_pid)"
 					echo; exit 1
 				fi
 			else
 				# Active lock held by running process
-				logger -st Skynet "[*] Lock File Detected ($locked_cmd) (pid=$locked_pid, runtime=${age}s) - Exiting"
+				Log warn -s "Lock File Detected ($locked_cmd) (pid=$locked_pid, runtime=${age}s) - Exiting"
 				echo; exit 1
 			fi
 		else
 			# Invalid lock file (bad PID)
-			logger -st Skynet "[!] Invalid lock file detected - no valid PID found (pid='$locked_pid'). Removing lock."
+			Log error -s "Invalid lock file detected - no valid PID found (pid='$locked_pid'). Removing lock."
 			: > "$LOCK_FILE"
 			if ! flock -n 9; then
-				logger -st Skynet "[*] Lock acquisition failed after removing invalid lock - Exiting"
+				Log warn -s "Lock acquisition failed after removing invalid lock - Exiting"
 				echo; exit 1
 			fi
 		fi
@@ -135,15 +135,15 @@ find_install_dir() {
 
 		# Wait until skynetloc exists as a directory and is writable
 		while [ "$attempt" -le "$MAX_RETRIES" ] && { [ ! -d "$skynetloc" ] || [ ! -w "$skynetloc" ]; }; do
-			logger -st Skynet "[*] USB install directory not ready — sleeping 10s ($attempt/$MAX_RETRIES)"
+			Log warn -s "USB install directory not ready — sleeping 10s ($attempt/$MAX_RETRIES)"
 			sleep 10
 			attempt=$(( attempt + 1 ))
 		done
 
 		# Final verification
 		if [ ! -d "$skynetloc" ] || [ ! -w "$skynetloc" ]; then
-			logger -st Skynet "[*] Problem with USB install location — please fix immediately!"
-			logger -st Skynet "[*] To change location run: sh $0 install"
+			Log warn -s "Problem with USB install location — please fix immediately!"
+			Log warn -s "To change location run: sh $0 install"
 			echo
 			exit 1
 		fi
@@ -177,7 +177,7 @@ Check_Settings() {
 	
 	# require config file
 	if [ ! -f "$skynetcfg" ]; then
-		logger -st Skynet "[*] Configuration File Not Detected - Please Use ( sh $0 install ) To Continue"
+		Log warn -s "Configuration File Not Detected - Please Use ( sh $0 install ) To Continue"
 		echo; exit 1
 	fi
 
@@ -198,12 +198,12 @@ Check_Settings() {
 			done < /jffs/scripts/post-mount
 		fi
 	else
-		logger -st Skynet "[*] Scanning /tmp/mnt For Swap Files"
+		Log warn -s "Scanning /tmp/mnt For Swap Files"
 		# look for existing swap file (first match)
 		found=$(find /tmp/mnt -name myswap.swp -print -quit 2>/dev/null)
 		if [ -n "$found" ] && [ -f "$found" ]; then
 			swaplocation=$found
-			logger -st Skynet "[*] Restoring Swap File Entry ( $swaplocation )"
+			Log warn -s "Restoring Swap File Entry ( $swaplocation )"
 			if ! Check_Swap; then
 				swapon "$swaplocation" 2>/dev/null
 			fi
@@ -218,24 +218,24 @@ Check_Settings() {
 
 	# final validations
 	if [ -n "$swaplocation" ] && [ ! -f "$swaplocation" ]; then
-		logger -st Skynet "[*] SWAP File Missing ( $swaplocation ) - Fix This By Running ( $0 debug swap uninstall ) Then ( $0 debug swap install )"
+		Log warn -s "SWAP File Missing ( $swaplocation ) - Fix This By Running ( $0 debug swap uninstall ) Then ( $0 debug swap install )"
 		echo; exit 1
 	fi
 
 	if grep -q '^partition' /proc/swaps; then
-		logger -st Skynet "[*] SWAP Partitions Not Supported - Please Use SWAP File"
+		Log warn -s "SWAP Partitions Not Supported - Please Use SWAP File"
 		echo; exit 1
 	fi
 
 	if [ -z "$swaplocation" ] && ! Check_Swap; then
-		logger -st Skynet "[*] Skynet Requires A SWAP File - Install One ( $0 debug swap install )"
+		Log warn -s "Skynet Requires A SWAP File - Install One ( $0 debug swap install )"
 		echo; exit 1
 	fi
 
 	# warn if too small (<1GB)
 	swap_kb=$(du -k "$swaplocation" 2>/dev/null | awk '{print $1}') || swap_kb=0
 	if [ "$swap_kb" -gt 0 ] && [ "$swap_kb" -lt 1048576 ]; then
-		logger -st Skynet "[*] SWAP File Too Small (<1GB) - Please Fix Immediately!"
+		Log warn -s "SWAP File Too Small (<1GB) - Please Fix Immediately!"
 	fi
 
 	# load banmalware and update cronjobs
@@ -267,7 +267,7 @@ Check_Settings() {
 	if [ "$(nvram get jffs2_scripts)" != "1" ]; then
 		nvram set jffs2_scripts=1
 		nvram commit
-		logger -st Skynet "[*] Custom JFFS Scripts Enabled - Please Manually Reboot To Apply Changes"
+		Log warn -s "Custom JFFS Scripts Enabled - Please Manually Reboot To Apply Changes"
 	fi
 
 	if [ "$(nvram get fw_enable_x)" != "1" ]; then
@@ -307,7 +307,7 @@ Check_Settings() {
 
 	# scribe plugin install
 	if [ -f "/opt/bin/scribe" ] && [ ! -f "/opt/etc/syslog-ng.d/skynet" ] && [ -f "/opt/share/syslog-ng/examples/skynet" ]; then
-		logger -st Skynet "[i] Installing Scribe Plugin"
+		Log info -s "Installing Scribe Plugin"
 		rm -rf "/opt/etc/syslog-ng.d/firewall" "/opt/etc/logrotate/firewall"
 		cp -p "/opt/share/syslog-ng/examples/skynet" "/opt/etc/syslog-ng.d"
 		syslogloc="$(grep -m1 "file(" "/opt/etc/syslog-ng.d/skynet" | awk -F '"' '{print $2}')"
@@ -317,7 +317,7 @@ Check_Settings() {
 	fi
 
 	if nvram get wan0_ipaddr | Is_PrivateIP; then
-		logger -st Skynet "[*] Private WAN IP Detected $(nvram get wan0_ipaddr) - Please Put Your Modem In Bridge Mode / Disable CG-NAT"
+		Log warn -s "Private WAN IP Detected $(nvram get wan0_ipaddr) - Please Put Your Modem In Bridge Mode / Disable CG-NAT"
 	fi
 }
 
@@ -395,26 +395,26 @@ Check_Files() {
 Check_Security() {
 	if Is_Enabled "$securemode"; then
 		if [ "$(nvram get sshd_enable)" = "1" ] && [ "$(uname -o)" = "ASUSWRT-Merlin" ]; then
-			logger -st Skynet "[!] Insecure Setting Detected - Disabling WAN SSH Access"
+			Log error -s "Insecure Setting Detected - Disabling WAN SSH Access"
 			nvram set sshd_enable="2"
 			nvram commit
 			restartfirewall="1"
 		fi
 		if [ "$(nvram get sshd_wan)" = "1" ] && [ "$(uname -o)" = "ASUSWRT-Merlin-LTS" ]; then
-			logger -st Skynet "[!] Insecure Setting Detected - Disabling WAN SSH Access"
+			Log error -s "Insecure Setting Detected - Disabling WAN SSH Access"
 			nvram set sshd_wan="0"
 			nvram commit
 			restartfirewall="1"
 		fi
 		if [ "$(nvram get misc_http_x)" = "1" ]; then
-			logger -st Skynet "[!] Insecure Setting Detected - Disabling WAN GUI Access"
+			Log error -s "Insecure Setting Detected - Disabling WAN GUI Access"
 			nvram set misc_http_x="0"
 			nvram commit
 			restartfirewall="1"
 		fi
 	fi
 	if [ "$(nvram get pptpd_enable)" = "1" ] && nvram get pptpd_clientlist | grep -qE 'i[0-9]{7}|p[0-9]{7}'; then
-		logger -st Skynet "[!] PPTP VPN Server Shows Signs Of Compromise - Investigate Immediately!"
+		Log error -s "PPTP VPN Server Shows Signs Of Compromise - Investigate Immediately!"
 		nvram set pptpd_enable="0"
 		nvram set pptpd_broadcast="0"
 		nvram commit
@@ -425,21 +425,21 @@ Check_Security() {
 		restartfirewall="1"
 	fi
 	if [ -e "/var/run/tor" ] || [ -e "/var/run/torrc" ] || [ -e "/var/run/tord" ] || [ -e "/var/run/vpnfilterm" ] || [ -e "/var/run/vpnfilterw" ]; then
-		logger -st Skynet "[!] Suspected VPNFilter Malware Found - Investigate Immediately!"
-		logger -st Skynet "[!] Caching Potential VPNFilter Malware: ${skynetloc}/vpnfilter.tar.gz"
+		Log error -s "Suspected VPNFilter Malware Found - Investigate Immediately!"
+		Log error -s "Caching Potential VPNFilter Malware: ${skynetloc}/vpnfilter.tar.gz"
 		tar -czf "${skynetloc}/vpnfilter.tar.gz" "/var/run/tor" "/var/run/torrc" "/var/run/tord" "/var/run/vpnfilterm" "/var/run/vpnfilterw" >/dev/null 2>&1
 		rm -rf "/var/run/tor" "/var/run/torrc" "/var/run/tord" "/var/run/vpnfilterm" "/var/run/vpnfilterw"
 		restartfirewall="1"
 	fi
 	if [ -f "/jffs/chkupdate.sh" ] || [ -f "/tmp/update" ] || [ -f "/tmp/.update.log" ] || [ -f "/jffs/runtime.log" ] || grep -qsF "upgrade.sh" "/jffs/scripts/openvpn-event"; then
-		logger -st Skynet "[!] Warning! Router Malware Detected (chkupdate.sh) - Investigate Immediately!"
+		Log error -s "Warning! Router Malware Detected (chkupdate.sh) - Investigate Immediately!"
 		grep -hoE '([0-9]{1,3}\.){3}[0-9]{1,3}' "/jffs/chkupdate.sh" "/tmp/update" "/tmp/.update.log" "/jffs/runtime.log" "/jffs/scripts/openvpn-event" 2>/dev/null | awk '!x[$0]++' | while IFS= read -r "ip"; do
 			echo "add Skynet-Blacklist $ip comment \"Malware: chkupdate.sh\""
 		done | ipset restore -!
 	fi
 	if [ -f "/jffs/updater" ] || [ -f "/jffs/p32" ] || [ -f "/tmp/pawns-cli" ] || [ -f "/tmp/updateservice" ] || nvram get "jffs2_exec" | grep -qF "/jffs/updater" || nvram get "script_usbmount" | grep -qF "/jffs/updater" || nvram get "script_usbumount" | grep -qF "/jffs/updater" || nvram get "vpn_server_custom" | grep -qF "/jffs/updater" || nvram get "vpn_server1_custom" | grep -qF "/jffs/updater" || cru l | grep -qF "/jffs/updater"; then
-		logger -st Skynet "[!] Warning! Router Malware Detected (/jffs/updater) - Investigate Immediately!"
-		logger -st Skynet "[!] Caching Potential Updater Malware: ${skynetloc}/malwareupdater.tar.gz"
+		Log error -s "Warning! Router Malware Detected (/jffs/updater) - Investigate Immediately!"
+		Log error -s "Caching Potential Updater Malware: ${skynetloc}/malwareupdater.tar.gz"
 		nvram savefile "/tmp/nvramoutput.txt"
 		tar -czf "${skynetloc}/malwareupdater.tar.gz" "/jffs/updater" "/jffs/p32" "/tmp/pawns-cli" "/tmp/updateservice" "/tmp/nvramoutput.txt" "/root/.profile" >/dev/null 2>&1
 		rm -rf "/jffs/updater" "/jffs/p32" "/tmp/pawns-cli" "/tmp/updateservice" "/tmp/nvramoutput.txt"
@@ -1332,6 +1332,58 @@ Is_Enabled() {
 	[ "$1" = "enabled" ]
 }
 
+Log() {
+	# initialize defaults
+	opt_s=0
+	tag="Skynet"
+	prefix=""
+
+	# parse flags and level keywords
+	while [ "$#" -gt 0 ]; do
+		case "$1" in
+		-s)
+			# log to syslog and stderr
+			opt_s=1
+			shift
+			;;
+		-t)
+			# custom syslog tag
+			shift
+			if [ "$#" -gt 0 ]; then
+			tag="$1"
+			shift
+			fi
+			;;
+		info)
+			prefix="[i] "
+			shift
+			;;
+		warn)
+			prefix="[*] "
+			shift
+			;;
+		error)
+			prefix="[✘] "
+			shift
+			;;
+		*)
+			break
+			;;
+		esac
+	done
+
+	# finalize message
+	msg="$prefix$*"
+
+	if [ "$opt_s" -eq 1 ]; then
+		# logger -s echoes to stderr
+		logger -s -t "$tag" "$msg"
+	else
+		logger -t "$tag" "$msg"
+		echo "$msg"
+	fi
+}
+
 Run_Stats() {
 		Purge_Logs
 		nocfg="1"
@@ -1852,9 +1904,9 @@ Install_WebUI_Page() {
 			if Is_Enabled "$displaywebui"; then
 				Get_WebUI_Page "${skynetloc}/webui/skynet.asp"
 				if [ "$MyPage" = "none" ]; then
-					logger -t Skynet "[*] Unable To Mount Skynet Web Page - No Mount Points Avilable" && echo "[*] Unable To Mount Skynet Web Page - No Mount Points Avilable"
+					Log warn "Unable To Mount Skynet Web Page - No Mount Points Avilable"
 				else
-					logger -t Skynet "[i] Mounting Skynet Web Page As $MyPage" && echo "[i] Mounting Skynet Web Page As $MyPage"
+					Log info "Mounting Skynet Web Page As $MyPage"
 					cp -f "${skynetloc}/webui/skynet.asp" "/www/user/$MyPage"
 					if [ "$(uname -o)" = "ASUSWRT-Merlin" ]; then
 						if [ ! -f "/tmp/menuTree.js" ]; then
@@ -1879,7 +1931,7 @@ Install_WebUI_Page() {
 			fi
 		fi
 	else
-		logger -t Skynet "[*] WebUI Integration Requires Logging To Be Enabled"; echo "[*] WebUI Integration Requires Logging To Be Enabled"
+		Log warn "WebUI Integration Requires Logging To Be Enabled"
 	fi
 }
 
@@ -1915,8 +1967,7 @@ Download_File() {
 		if curl -fsSL --retry 3 --connect-timeout 3 --max-time 6 --retry-delay 1 --retry-all-errors "$fullurl" -o "$dest"; then
 			echo "[i] Updated $filename"
 		else
-			logger -t Skynet "[✘] Failed to update $filename"
-			echo "[✘] Failed to fetch $filename"
+			Log error "Failed to update $filename"
 		fi
 	else
 		echo "[i] No change to $filename (MD5 matched)"
@@ -4078,7 +4129,7 @@ case "$1" in
 			echo "[i] Custom Filter Detected: $customlisturl"
 		elif [ "$1" = "fs" ]; then
 			if [ -z "$2" ] && [ -z "$customlist2url" ]; then
-				logger -st Skynet "[*] Fast Switch List URL Not Configured - Stopping Banmalware"
+				Log warn -s "Fast Switch List URL Not Configured - Stopping Banmalware"
 				echo; exit 1
 			else
 				fastswitch="enabled"
@@ -4446,7 +4497,7 @@ case "$1" in
 	save)
 		Check_Lock "$@"
 		if ! Check_IPSets || ! Check_IPTables; then
-			logger -st Skynet "[*] Rule Integrity Violation - Restarting Firewall [ ${fail}]"
+			Log warn -s "Rule Integrity Violation - Restarting Firewall [ ${fail}]"
 			unset fail
 			restartfirewall="1"
 			nolog="2"
@@ -4461,15 +4512,15 @@ case "$1" in
 
 	start)
 		Check_Lock "$@"
-		logger -t Skynet "[i] Startup Initiated... ( $(echo "$@" | sed 's~start ~~g') )"; echo "[i] Startup Initiated... ( $(echo "$@" | sed 's~start ~~g') )"
+		Log info "Startup Initiated... ( $(echo "$@" | sed 's~start ~~g') )"
 		Unload_Cron "all"
 		Check_Settings
 		Check_Files firewall-start services-stop service-event post-mount unmount
 		Clean_Temp
-		if ! Check_Connection; then logger -st Skynet "[*] Connection Error Detected - Exiting"; echo; exit 1; fi
+		if ! Check_Connection; then Log warn -s "Connection Error Detected - Exiting"; echo; exit 1; fi
 		Load_Cron "save"
 		modprobe xt_set
-		if [ -f "$skynetipset" ]; then ipset restore -! -f "$skynetipset"; else logger -st Skynet "[i] Setting Up Skynet"; touch "$skynetipset"; fi
+		if [ -f "$skynetipset" ]; then ipset restore -! -f "$skynetipset"; else Log info -s "Setting Up Skynet"; touch "$skynetipset"; fi
 		if ! ipset -L -n Skynet-Whitelist >/dev/null 2>&1; then ipset -q create Skynet-Whitelist hash:net hashsize 64 maxelem "$((65536 * 6))" comment; fi
 		if ! ipset -L -n Skynet-WhitelistDomains >/dev/null 2>&1; then ipset -q create Skynet-WhitelistDomains hash:ip hashsize 64 maxelem "$((65536 * 8))" comment timeout 86400; fi
 		if ! ipset -L -n Skynet-Blacklist >/dev/null 2>&1; then ipset -q create Skynet-Blacklist hash:ip hashsize 64 maxelem "$((65536 * 16))" comment; fi
@@ -4527,7 +4578,7 @@ case "$1" in
 		Unload_IPSets
 		Uninstall_WebUI_Page
 		iptables -t raw -F
-		logger -t Skynet "[i] Restarting Firewall Service"; echo "[i] Restarting Firewall Service"
+		Log info "Restarting Firewall Service"
 		restartfirewall="1"
 		nolog="2"
 	;;
@@ -4543,7 +4594,7 @@ case "$1" in
 		Unload_LogIPTables
 		Unload_IPSets
 		Uninstall_WebUI_Page
-		logger -t Skynet "[i] Skynet Disabled"; echo "[i] Skynet Disabled"
+		Log info "Skynet Disabled"
 		Purge_Logs "all"
 		nolog="2"
 	;;
@@ -4556,16 +4607,16 @@ case "$1" in
 		localmd5="$(md5sum "$0" | awk '{print $1}')"
 		remotemd5="$(curl -fsL --retry 3 --max-time 6 "${remotedir}/firewall.sh" | md5sum | awk '{print $1}')"
 		if [ "$localmd5" = "$remotemd5" ] && [ "$2" != "-f" ]; then
-			logger -t Skynet "[i] Skynet Up To Date - $localver (${localmd5})"; echo "[i] Skynet Up To Date - $localver (${localmd5})"
+			Log info "Skynet Up To Date - $localver (${localmd5})"
 			nolog="2"
 		elif [ "$localmd5" != "$remotemd5" ] && [ "$2" = "check" ]; then
-			logger -t Skynet "[i] Skynet Update Detected - $remotever (${remotemd5})"; echo "[i] Skynet Update Detected - $remotever (${remotemd5})"
+			Log info "Skynet Update Detected - $remotever (${remotemd5})"
 			nolog="2"
 		elif [ "$2" = "-f" ]; then
 			echo "[i] Forcing Update"
 		fi
 		if [ "$localmd5" != "$remotemd5" ] || [ "$2" = "-f" ] && [ "$nolog" != "2" ]; then
-			logger -t Skynet "[i] New Version Detected - Updating To $remotever (${remotemd5})"; echo "[i] New Version Detected - Updating To $remotever (${remotemd5})"
+			Log info "New Version Detected - Updating To $remotever (${remotemd5})"
 			echo "[i] Saving Changes"
 			Save_IPSets
 			echo "[i] Unloading Skynet Components"
@@ -4582,7 +4633,7 @@ case "$1" in
 			Download_File "webui/hammerjs.js" "${skynetloc}/webui/hammerjs.js" "$2"
 			Download_File "webui/skynet.asp" "${skynetloc}/webui/skynet.asp" "$2"
 			Download_File "firewall.sh" "$0" "$2"
-			logger -t Skynet "[i] Restarting Firewall Service"; echo "[i] Restarting Firewall Service"
+			Log info "Restarting Firewall Service"
 			service restart_firewall
 			echo; exit 0
 		fi
@@ -5428,7 +5479,7 @@ case "$1" in
 							Unload_IOTTables
 							Unload_LogIPTables
 							Unload_IPSets
-							logger -t Skynet "[i] Restarting Firewall Service"; echo "[i] Restarting Firewall Service"
+							Log info "Restarting Firewall Service"
 							restartfirewall="1"
 							nolog="2"
 						elif [ -z "$swaplocation" ] && [ -n "$findswap" ]; then
@@ -5446,7 +5497,7 @@ case "$1" in
 							Unload_IOTTables
 							Unload_LogIPTables
 							Unload_IPSets
-							logger -t Skynet "[i] Restarting Firewall Service"; echo "[i] Restarting Firewall Service"
+							Log info "Restarting Firewall Service"
 							restartfirewall="1"
 							nolog="2"
 						elif [ -n "$swaplocation" ] && [ ! -f "$swaplocation" ]; then
@@ -5492,7 +5543,7 @@ case "$1" in
 							echo "[*] SWAP File Partially Removed - Please Inspect Manually"
 						fi
 						sed -i '\~swapoff ~d' /jffs/scripts/unmount
-						logger -t Skynet "[i] Restarting Firewall Service"; echo "[i] Restarting Firewall Service"
+						Log info "Restarting Firewall Service"
 						restartfirewall="1"
 						nolog="2"
 					;;
@@ -5535,7 +5586,7 @@ case "$1" in
 				tar -xzvf "$backuplocation" -C "${skynetloc}"
 				echo
 				echo "[i] Backup Restored"
-				logger -t Skynet "[i] Restarting Firewall Service"; echo "[i] Restarting Firewall Service"
+				Log info "Restarting Firewall Service"
 				restartfirewall="1"
 				nolog="2"
 			;;
