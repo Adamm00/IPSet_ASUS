@@ -153,7 +153,7 @@ find_install_dir() {
 # Prints in color if either stdout or stderr is a terminal, otherwise plain
 Print_Colored() {
 	# $1 = ANSI color code (e.g. "1;31"), $2 = text
- 	if [ -t 1 ] || [ -t 2 ]; then
+	if [ -t 1 ] || [ -t 2 ]; then
 		printf '\033[%sm%s\033[0m\n' "$1" "$2"
 	else
 		printf '%s\n' "$2"
@@ -172,74 +172,81 @@ Check_Swap() {
 }
 
 Check_Settings() {
+	# Grab and set local version
+	localver="$(Filter_Version < "$0")"
+	
+	# require config file
 	if [ ! -f "$skynetcfg" ]; then
 		logger -st Skynet "[*] Configuration File Not Detected - Please Use ( sh $0 install ) To Continue"
 		echo; exit 1
 	fi
 
+	# clear any previous
 	unset "swaplocation"
-	if grep -qE "^swapon " /jffs/scripts/post-mount; then
+
+	# if post-mount already contains a swapon line
+	if grep -q '^swapon ' /jffs/scripts/post-mount; then
 		if Check_Swap; then
-			swaplocation="$(grep -m1 -F "file" "/proc/swaps" | awk '{print $1}')"
-			if [ "$(grep -E "^swapon " /jffs/scripts/post-mount | awk '{print $2}')" != "$swaplocation" ] && echo "$swaplocation" | grep -E "/..*/"; then
-				logger -st Skynet "[*] Restoring Missing Swap File Entry ( $swaplocation )"
-				sed -i '\~swapon ~d' /jffs/scripts/post-mount
-				if [ "$(wc -l < /jffs/scripts/post-mount)" -lt "2" ]; then echo >> /jffs/scripts/post-mount; fi
-				sed -i "2i swapon $swaplocation # Skynet" /jffs/scripts/post-mount
-			fi
+			# currently active swap file
+			swaplocation=$(grep -m1 -F "file" /proc/swaps | awk '{print $1}')
 		else
-			sleep 10
-			swapon "$(grep -E "^swapon " /jffs/scripts/post-mount | awk '{print $2}')" 2>/dev/null
+			# read all swapon paths
+			while read -r cmd path _; do
+				[ "$cmd" = "swapon" ] && {
+					swapon "$path" 2>/dev/null && swaplocation=$path && break
+				}
+			done < /jffs/scripts/post-mount
 		fi
 	else
 		logger -st Skynet "[*] Scanning /tmp/mnt For Swap Files"
-		findswap="$(find /tmp/mnt -name "myswap.swp")"
-		if [ -n "$findswap" ] && [ -f "$findswap" ]; then
-			logger -st Skynet "[*] Restoring Damaged Swap File Entry ( $findswap )"
-			sed -i '\~swapon ~d' /jffs/scripts/post-mount
-			if [ "$(wc -l < /jffs/scripts/post-mount)" -lt "2" ]; then echo >> /jffs/scripts/post-mount; fi
-			sed -i "2i swapon $findswap # Skynet" /jffs/scripts/post-mount
-			if ! Check_Swap; then swapon "$findswap"; fi
-			swaplocation="$findswap"
-		elif Check_Swap; then
-			findswap="$(grep -m1 -F "file" "/proc/swaps" | awk '{print $1}')"
-			if [ -n "$findswap" ] && [ -f "$findswap" ]; then
-				logger -st Skynet "[*] Restoring Missing Swap File Entry ( $findswap )"
-				sed -i '\~swapon ~d' /jffs/scripts/post-mount
-				if [ "$(wc -l < /jffs/scripts/post-mount)" -lt "2" ]; then echo >> /jffs/scripts/post-mount; fi
-				sed -i "2i swapon $findswap # Skynet" /jffs/scripts/post-mount
-				swaplocation="$findswap"
+		# look for existing swap file (first match)
+		found=$(find /tmp/mnt -name myswap.swp -print -quit 2>/dev/null)
+		if [ -n "$found" ] && [ -f "$found" ]; then
+			swaplocation=$found
+			logger -st Skynet "[*] Restoring Swap File Entry ( $swaplocation )"
+			if ! Check_Swap; then
+				swapon "$swaplocation" 2>/dev/null
 			fi
+			# update post-mount & unmount
+			sed -i '\~swapon ~d' /jffs/scripts/post-mount
+			[ "$(wc -l < /jffs/scripts/post-mount)" -lt 2 ] && echo >> /jffs/scripts/post-mount
+			sed -i "2i swapon $swaplocation # Skynet" /jffs/scripts/post-mount
+			sed -i '\~swapoff ~d' /jffs/scripts/unmount
+			echo 'swapoff -a 2>/dev/null # Skynet' >> /jffs/scripts/unmount
 		fi
 	fi
+
+	# final validations
 	if [ -n "$swaplocation" ] && [ ! -f "$swaplocation" ]; then
 		logger -st Skynet "[*] SWAP File Missing ( $swaplocation ) - Fix This By Running ( $0 debug swap uninstall ) Then ( $0 debug swap install )"
 		echo; exit 1
-	elif grep -m1 -qF "partition" "/proc/swaps"; then
+	fi
+
+	if grep -q '^partition' /proc/swaps; then
 		logger -st Skynet "[*] SWAP Partitions Not Supported - Please Use SWAP File"
 		echo; exit 1
-	elif [ -z "$swaplocation" ] && ! Check_Swap; then
-		logger -st Skynet "[*] Skynet Requires A SWAP File - Install One By Running ( $0 debug swap install )"
+	fi
+
+	if [ -z "$swaplocation" ] && ! Check_Swap; then
+		logger -st Skynet "[*] Skynet Requires A SWAP File - Install One ( $0 debug swap install )"
 		echo; exit 1
 	fi
 
-	if [ -n "$swaplocation" ] && [ "$(du "$swaplocation" | awk '{print $1}')" -lt "1048576" ]; then
-		logger -st Skynet "[*] SWAP File Too Small - 1GB Minimum Required - Please Fix Immediately!"
+	# warn if too small (<1GB)
+	swap_kb=$(du -k "$swaplocation" 2>/dev/null | awk '{print $1}') || swap_kb=0
+	if [ "$swap_kb" -gt 0 ] && [ "$swap_kb" -lt 1048576 ]; then
+		logger -st Skynet "[*] SWAP File Too Small (<1GB) - Please Fix Immediately!"
 	fi
 
-	if [ "$(nvram get fw_log_x)" != "drop" ] && [ "$(nvram get fw_log_x)" != "both" ]; then
-		nvram set fw_log_x=drop
-		nvram commit
-		restartfirewall="1"
-	fi
-
-	localver="$(Filter_Version < "$0")"
-
-	if [ "$banmalwareupdate" = "daily" ]; then
-		Load_Cron "banmalwaredaily"
-	elif [ "$banmalwareupdate" = "weekly" ]; then
-		Load_Cron "banmalwareweekly"
-	fi
+	# load banmalware and update cronjobs
+	case "$banmalwareupdate" in
+		daily)  
+			Load_Cron banmalwaredaily 
+		;;
+		weekly) 
+			Load_Cron banmalwareweekly 
+		;;
+	esac
 
 	if Is_Enabled "$autoupdate"; then
 		Load_Cron "autoupdate"
@@ -247,6 +254,7 @@ Check_Settings() {
 		Load_Cron "checkupdate"
 	fi
 
+	# ensure firewall symlink & alias
 	if [ -d "/opt/bin" ] && [ ! -L "/opt/bin/firewall" ]; then
 		ln -s /jffs/scripts/firewall /opt/bin
 	fi
@@ -255,6 +263,7 @@ Check_Settings() {
 		echo "alias firewall=\"sh /jffs/scripts/firewall\" # Skynet" >> /jffs/configs/profile.add
 	fi
 
+	# enable jffs2_scripts & fw_enable_x
 	if [ "$(nvram get jffs2_scripts)" != "1" ]; then
 		nvram set jffs2_scripts=1
 		nvram commit
@@ -267,39 +276,44 @@ Check_Settings() {
 		restartfirewall="1"
 	fi
 
+	case "$(nvram get fw_log_x)" in
+		drop|both) 
+		;;
+		*) 
+			nvram set fw_log_x=drop
+			nvram commit
+			restartfirewall=1
+		;;
+	esac
+
+	# extendedstats & iotlogging defaults
 	if [ -f "/opt/var/log/dnsmasq.log" ]; then
 		extendedstats="enabled"
 	else
 		extendedstats="disabled"
 	fi
 
-	if [ -z "$iotlogging" ]; then
-		iotlogging="enabled"
-	fi
-
-	# If syslogd was started from /sbin/syslogd with /jffs/syslog.log, fix syslogloc
+	# set syslog location on newer models that use /jffs
 	pids=$(pidof syslogd) || pids=
 	for pid in $pids; do
-		# 1) Confirm the binary path
 		exe_path=$(readlink "/proc/$pid/exe") || continue
 		[ "$exe_path" != "/sbin/syslogd" ] && continue
-
-		# 2) Check its cmdline for the jffs logfile argument
-		if grep -qF "/jffs/syslog.log" "/proc/$pid/cmdline"; then
+		if grep -qF '/jffs/syslog.log' "/proc/$pid/cmdline"; then
 			syslogloc="/jffs/syslog.log"
 			syslog1loc="/jffs/syslog.log-1"
 			break
 		fi
 	done
 
+	# scribe plugin install
 	if [ -f "/opt/bin/scribe" ] && [ ! -f "/opt/etc/syslog-ng.d/skynet" ] && [ -f "/opt/share/syslog-ng/examples/skynet" ]; then
 		logger -st Skynet "[i] Installing Scribe Plugin"
 		rm -rf "/opt/etc/syslog-ng.d/firewall" "/opt/etc/logrotate/firewall"
 		cp -p "/opt/share/syslog-ng/examples/skynet" "/opt/etc/syslog-ng.d"
-		syslogloc="$(grep -m1 "file(" "/opt/etc/syslog-ng.d/skynet" | awk -F "\"" '{print $2}')"
+		syslogloc="$(grep -m1 "file(" "/opt/etc/syslog-ng.d/skynet" | awk -F '"' '{print $2}')"
 		killall -HUP syslog-ng
 	elif [ -f "/opt/bin/scribe" ] && [ -f "/opt/etc/syslog-ng.d/skynet" ] && [ "$syslogloc" = "/tmp/syslog.log" ]; then
-		syslogloc="$(grep -m1 "file(" "/opt/etc/syslog-ng.d/skynet" | awk -F "\"" '{print $2}')"
+		syslogloc="$(grep -m1 "file(" "/opt/etc/syslog-ng.d/skynet" | awk -F '"' '{print $2}')"
 	fi
 
 	if nvram get wan0_ipaddr | Is_PrivateIP; then
@@ -350,7 +364,7 @@ Check_Files() {
 	if ! grep -vE '^#' /jffs/scripts/service-event | grep -qF 'sh /jffs/scripts/firewall debug genstats'; then
 		sed -i '\~# Skynet~d' /jffs/scripts/service-event
 		echo "if [ \"\$1\" = \"start\" ] && [ \"\$2\" = \"SkynetStats\" ]; then sh /jffs/scripts/firewall debug genstats; fi # Skynet" \
-			 >> /jffs/scripts/service-event
+			>> /jffs/scripts/service-event
 	fi
 
 	# 3) unmount: ensure swapoff entry
@@ -371,11 +385,11 @@ Check_Files() {
 
 	# 6) final perms
 	chmod 755 /jffs/scripts/firewall \
-				 /jffs/scripts/firewall-start \
-				 /jffs/scripts/services-stop \
-				 /jffs/scripts/service-event \
-				 /jffs/scripts/post-mount \
-				 /jffs/scripts/unmount
+				/jffs/scripts/firewall-start \
+				/jffs/scripts/services-stop \
+				/jffs/scripts/service-event \
+				/jffs/scripts/post-mount \
+				/jffs/scripts/unmount
 }
 
 Check_Security() {
@@ -452,8 +466,8 @@ IPSet_Wrapper() {
 	mode="$1"       # add | del | import | flush | deport
 	setname="$2"
 	input="$3"      # IP, file, or -
-	comment="$4"
-	filtermode="$5"   # --filtermode or auto-detect
+	filtermode="$4"   # --filtermode or auto-detect
+	comment="$5"
 
 	# Validate allowed sets
 	case "$setname" in
@@ -490,9 +504,14 @@ IPSet_Wrapper() {
 
 	#  Filter unless disabled
 	case "$filtermode" in
-	  --nofilter) ;;  # Skip all filtering
-	  --skip-filter-ip) data="$(echo "$data" | Filter_PrivateIP)" ;;
-	  *) data="$(echo "$data" | Filter_IP | Filter_PrivateIP)" ;;
+		nofilter) 
+		;;  # Skip all filtering
+		skip-filter-ip) 
+			data="$(echo "$data" | Filter_PrivateIP)" 
+		;;
+		*) 		
+			data="$(echo "$data" | Filter_IP | Filter_PrivateIP)" 
+		;;
 	esac
 
 	#  DEPORT: selective delete only
@@ -653,28 +672,23 @@ Check_IPTables() {
 
 	#6: WireGuard DROP
 	if [ "$(nvram get wgs_enable)" = "1" ]; then
-		echo "$raw_rules" | grep -Fq -- '-A PREROUTING -i wgs+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP' \
-			|| fail="${fail}#6 "
+		echo "$raw_rules" | grep -Fq -- '-A PREROUTING -i wgs+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP' || fail="${fail}#6 "
 	fi
 
 	#7: OpenVPN DROP
 	if [ "$(nvram get vpn_server1_state)" != "0" ] || [ "$(nvram get vpn_server2_state)" != "0" ]; then
-		echo "$raw_rules" | grep -Fq -- '-A PREROUTING -i tun2+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP' \
-			|| fail="${fail}#7 "
+		echo "$raw_rules" | grep -Fq -- '-A PREROUTING -i tun2+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP' || fail="${fail}#7 "
 	fi
 
 	#8: Inbound on $iface
 	if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "inbound" ]; then
-		echo "$raw_rules" | grep -Fq -- "-A PREROUTING -i $iface -m set ! --match-set Skynet-MasterWL src -m set --match-set Skynet-Master src -j DROP" \
-			|| fail="${fail}#8 "
+		echo "$raw_rules" | grep -Fq -- "-A PREROUTING -i $iface -m set ! --match-set Skynet-MasterWL src -m set --match-set Skynet-Master src -j DROP" || fail="${fail}#8 "
 	fi
 
 	#9 & #10: Outbound on br+ and OUTPUT
 	if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "outbound" ]; then
-		echo "$raw_rules" | grep -Fq -- '-A PREROUTING -i br+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP' \
-			|| fail="${fail}#9 "
-		echo "$raw_rules" | grep -Fq -- '-A OUTPUT -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP' \
-			|| fail="${fail}#10 "
+		echo "$raw_rules" | grep -Fq -- '-A PREROUTING -i br+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP' || fail="${fail}#9 "
+		echo "$raw_rules" | grep -Fq -- '-A OUTPUT -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP' || fail="${fail}#10 "
 	fi
 
 	#11–17: IOT blocking
@@ -696,50 +710,43 @@ Check_IPTables() {
 		#18: OpenVPN LOG
 		if { [ "$(nvram get vpn_server1_state)" != "0" ] || [ "$(nvram get vpn_server2_state)" != "0" ]; }; then
 			echo "$raw_rules" \
-			  | grep -Fq -- '-A PREROUTING -i tun2+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] "' \
-			  || fail="${fail}#18 "
+			| grep -Fq -- '-A PREROUTING -i tun2+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] "' || fail="${fail}#18 "
 		fi
 
 		#19: WireGuard LOG
 		if [ "$(nvram get wgs_enable)" = "1" ]; then
 			echo "$raw_rules" \
-			  | grep -Fq -- '-A PREROUTING -i wgs+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] "' \
-			  || fail="${fail}#19 "
+			| grep -Fq -- '-A PREROUTING -i wgs+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] "' || fail="${fail}#19 "
 		fi
 
 		#20: IoT LOG
 		if Is_Enabled "$iotblocked" && Is_Enabled "$iotlogging"; then
 			echo "$filter_rules" \
-			  | grep -Fq -- '-A FORWARD -i br+ -m set --match-set Skynet-IOT src -j LOG --log-prefix "[BLOCKED - IOT] "' \
-			  || fail="${fail}#20 "
+			| grep -Fq -- '-A FORWARD -i br+ -m set --match-set Skynet-IOT src -j LOG --log-prefix "[BLOCKED - IOT] "' || fail="${fail}#20 "
 		fi
 
 		#21: Inbound LOG
 		if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "inbound" ]; then
 			echo "$raw_rules" \
-			  | grep -Fq -- "-A PREROUTING -i $iface -m set ! --match-set Skynet-MasterWL src -m set --match-set Skynet-Master src -j LOG --log-prefix \"[BLOCKED - INBOUND] \"" \
-			  || fail="${fail}#21 "
+			| grep -Fq -- "-A PREROUTING -i $iface -m set ! --match-set Skynet-MasterWL src -m set --match-set Skynet-Master src -j LOG --log-prefix \"[BLOCKED - INBOUND] \"" || fail="${fail}#21 "
 		fi
 
 		#22: Outbound PREROUTING LOG
 		if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "outbound" ]; then
 			echo "$raw_rules" \
-			  | grep -Fq -- '-A PREROUTING -i br+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] "' \
-			  || fail="${fail}#22 "
+			| grep -Fq -- '-A PREROUTING -i br+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] "' || fail="${fail}#22 "
 		fi
 
 		#23: Outbound OUTPUT LOG
 		if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "outbound" ]; then
 			echo "$raw_rules" \
-			  | grep -Fq -- '-A OUTPUT -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] "' \
-			  || fail="${fail}#23 "
+			| grep -Fq -- '-A OUTPUT -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] "' || fail="${fail}#23 "
 		fi
 
 		#24: Invalid LOG
 		if [ "$(nvram get fw_log_x)" != "off" ] && Is_Enabled "$loginvalid"; then
 			echo "$raw_rules" \
-			  | grep -Fq -- '-A logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - INVALID] "' \
-			  || fail="${fail}#24 "
+			| grep -Fq -- '-A logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - INVALID] "' || fail="${fail}#24 "
 		fi
 	fi
 
@@ -961,6 +968,14 @@ Display_Message() {
 Display_Result() {
 	result="$(Grn "[$(($(date +%s) - btime))s]")"
 	printf '%-8s\n' "$result"
+}
+
+Command_Not_Recognized() {
+	Ylow "Command Not Recognized, Please Try Again"
+	Ylow "For Help:   https://github.com/Adamm00/IPSet_ASUS#help"
+	Ylow "Common Issues: https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
+	echo
+	exit 2
 }
 
 Filter_Version() {
@@ -1313,8 +1328,8 @@ Show_Associated_Domains() {
 }
 
 Is_Enabled() {
-  # $1 = variable value
-  [ "$1" = "enabled" ]
+	# $1 = variable value
+	[ "$1" = "enabled" ]
 }
 
 Run_Stats() {
@@ -1358,10 +1373,7 @@ Run_Stats() {
 						echo "[i] $logcount Log Entries Removed Containing Port $4"
 					;;
 					*)
-						echo "Command Not Recognized, Please Try Again"
-						echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
-						echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
-						echo; exit 2
+						Command_Not_Recognized
 					;;
 				esac
 			;;
@@ -1615,10 +1627,7 @@ Run_Stats() {
 						done
 					;;
 					*)
-						echo "Command Not Recognized, Please Try Again"
-						echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
-						echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
-						echo; exit 2
+						Command_Not_Recognized
 					;;
 				esac
 			;;
@@ -2100,16 +2109,16 @@ Prompt_Input() {
 }
 
 Prompt_Typed() {
-  varname="$1"
-  label="${2:-$varname}"
-  prompt_text="${3:-}"
+varname="$1"
+label="${2:-$varname}"
+prompt_text="${3:-}"
 
-  # Only echo if we've been given extra prompt text
-  [ -n "$prompt_text" ] && echo "$prompt_text"
+# Only echo if we've been given extra prompt text
+[ -n "$prompt_text" ] && echo "$prompt_text"
 
-  # Print the label (falls back to the var name)
-  printf "[%s]: " "$label"
-  read -r "${varname?}"
+# Print the label (falls back to the var name)
+printf "[%s]: " "$label"
+read -r "${varname?}"
 }
 
 Show_Menu() {
@@ -2292,7 +2301,6 @@ Load_Menu() {
 		if [ -n "$locked_pid" ] && [ -d "/proc/$locked_pid" ]; then
 			current_time=$(date +%s)
 			runtime=$(( current_time - lock_timestamp ))
-
 			echo
 			Red "[*] Lock File Detected ($locked_cmd) (pid=$locked_pid, runtime=${runtime}s)"
 			Ylow '[*] Locked Processes Generally Take 1-2 Minutes To Complete And May Result In Temporarily "Failed" Tests'
@@ -3890,13 +3898,13 @@ case "$1" in
 			ip)
 				if ! echo "$3" | Is_IP; then echo "[*] $3 Is Not A Valid IP"; echo; exit 2; fi
 				echo "[i] Unbanning $3"
-				IPSet_Wrapper del Skynet-Blacklist "$3" --nofilter
+				IPSet_Wrapper del Skynet-Blacklist "$3" nofilter
 				sed -i "\\~\\(BLOCKED.*=$3 \\|Manual Ban.*=$3 \\)~d" "$skynetlog" "$skynetevents"
 			;;
 			range)
 				if ! echo "$3" | Is_Range; then echo "[*] $3 Is Not A Valid Range"; echo; exit 2; fi
 				echo "[i] Unbanning $3"
-				IPSet_Wrapper del Skynet-BlockedRanges "$3" --nofilter
+				IPSet_Wrapper del Skynet-BlockedRanges "$3" nofilter
 				sed -i "\\~\\(BLOCKED.*=$3 \\|Manual Ban.*=$3 \\)~d" "$skynetlog" "$skynetevents"
 			;;
 			domain)
@@ -3906,7 +3914,7 @@ case "$1" in
 				echo "[i] Removing $domain From Blacklist"
 				for ip in $(Domain_Lookup "$domain" 3); do
 					echo "[i] Unbanning $ip"
-					IPSet_Wrapper del Skynet-Blacklist "$ip" --nofilter
+					IPSet_Wrapper del Skynet-Blacklist "$ip" nofilter
 					sed -i "\\~\\(BLOCKED.*=$ip \\|Manual Ban.*=$ip \\)~d" "$skynetlog" "$skynetevents"
 				done
 			;;
@@ -3955,10 +3963,7 @@ case "$1" in
 
 			;;
 			*)
-				echo "Command Not Recognized, Please Try Again"
-				echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
-				echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
-				echo; exit 2
+				Command_Not_Recognized
 			;;
 		esac
 		echo "[i] Saving Changes"
@@ -3979,7 +3984,7 @@ case "$1" in
 				if [ -z "$4" ]; then
 					desc="$(date +"%b %d %T")"
 				fi
-				IPSet_Wrapper add Skynet-Blacklist "$3" "ManualBan: $desc" --nofilter
+				IPSet_Wrapper add Skynet-Blacklist "$3" nofilter "ManualBan: $desc"
 				echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Single SRC=$3 COMMENT=$desc " >> "$skynetevents"
 			;;
 			range)
@@ -3990,7 +3995,7 @@ case "$1" in
 				if [ -z "$4" ]; then
 					desc="$(date +"%b %d %T")"
 				fi
-				IPSet_Wrapper add Skynet-BlockedRanges "$3" "ManualRBan: $desc" --nofilter
+				IPSet_Wrapper add Skynet-BlockedRanges "$3" nofilter "ManualRBan: $desc" 
 				echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Range SRC=$3 COMMENT=$desc " >> "$skynetevents"
 			;;
 			domain)
@@ -3999,7 +4004,7 @@ case "$1" in
 				echo "[i] Adding $domain To Blacklist"
 				for ip in $(Domain_Lookup "$domain" 3 | Filter_PrivateIP); do
 					echo "[i] Banning $ip"
-					IPSet_Wrapper add Skynet-Blacklist "$ip" "ManualBanD: $domain" --nofilter
+					IPSet_Wrapper add Skynet-Blacklist "$ip" nofilter "ManualBanD: $domain"
 					echo "$(date +"%b %d %T") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$domain " >> "$skynetevents"
 				done
 			;;
@@ -4029,10 +4034,7 @@ case "$1" in
 				curl -fsSL --retry 3 --max-time 6 "https://asn.ipinfo.app/api/text/list/$asnlist" | awk -v asn="$asnlist" '/^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)([[:space:]]|$)/{printf "add Skynet-BlockedRanges %s comment \"ASN: %s \"\n", $1, asn }' | awk '!x[$0]++' | ipset restore -!
 			;;
 			*)
-				echo "Command Not Recognized, Please Try Again"
-				echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
-				echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
-				echo; exit 2
+				Command_Not_Recognized
 			;;
 		esac
 		echo "[i] Saving Changes"
@@ -4208,7 +4210,7 @@ case "$1" in
 				if [ -z "$4" ]; then
 					desc="$(date +"%b %d %T")"
 				fi
-				IPSet_Wrapper add Skynet-Whitelist "$3" "ManualWlist: $desc" --nofilter
+				IPSet_Wrapper add Skynet-Whitelist "$3" "ManualWlist: $desc" nofilter
 				sed -i "\\~=$3 ~d" "$skynetlog" "$skynetevents" && echo "$(date +"%b %d %T") Skynet: [Manual Whitelist] TYPE=Single SRC=$3 COMMENT=$desc " >> "$skynetevents"
 				ipset -q -D Skynet-Blacklist "$3"
 				ipset -q -D Skynet-BlockedRanges "$3"
@@ -4220,7 +4222,7 @@ case "$1" in
 				echo "[i] Adding $domain To Whitelist"
 				for ip in $(Domain_Lookup "$domain" 3); do
 					echo "[i] Whitelisting $ip"
-					IPSet_Wrapper add Skynet-Whitelist "$ip" "ManualWlistD: $domain" --nofilter
+					IPSet_Wrapper add Skynet-Whitelist "$ip" nofilter "ManualWlistD: $domain"
 					sed -i "\\~=$ip ~d" "$skynetlog" "$skynetevents" && echo "$(date +"%b %d %T") Skynet: [Manual Whitelist] TYPE=Domain SRC=$ip Host=$domain " >> "$skynetevents"
 					ipset -q -D Skynet-Blacklist "$ip"
 				done
@@ -4242,7 +4244,7 @@ case "$1" in
 					entry)
 						if ! echo "$4" | Is_IPRange; then echo "[*] $4 Is Not A Valid IP/Range"; echo; exit 2; fi
 						echo "[i] Removing $4 From Whitelist"
-						IPSet_Wrapper del Skynet-Whitelist "$4" --nofilter
+						IPSet_Wrapper del Skynet-Whitelist "$4" nofilter
 						sed -i "\\~=$4 ~d" "$skynetlog" "$skynetevents"
 					;;
 					comment)
@@ -4269,10 +4271,7 @@ case "$1" in
 						Whitelist_Shared
 					;;
 					*)
-						echo "Command Not Recognized, Please Try Again"
-						echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
-						echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
-						echo; exit 2
+						Command_Not_Recognized
 					;;
 				esac
 			;;
@@ -4303,10 +4302,7 @@ case "$1" in
 				echo
 			;;
 			*)
-				echo "Command Not Recognized, Please Try Again"
-				echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
-				echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
-				echo; exit 2
+				Command_Not_Recognized
 			;;
 		esac
 		echo "[i] Saving Changes"
@@ -4380,10 +4376,7 @@ case "$1" in
 				Save_IPSets
 			;;
 			*)
-				echo "Command Not Recognized, Please Try Again"
-				echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
-				echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
-				echo; exit 2
+				Command_Not_Recognized
 			;;
 		esac
 	;;
@@ -4445,10 +4438,7 @@ case "$1" in
 				Save_IPSets
 			;;
 			*)
-				echo "Command Not Recognized, Please Try Again"
-				echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
-				echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
-				echo; exit 2
+				Command_Not_Recognized
 			;;
 		esac
 	;;
@@ -4621,10 +4611,7 @@ case "$1" in
 						echo "[i] Skynet Auto-Updates Disabled"
 					;;
 					*)
-						echo "Command Not Recognized, Please Try Again"
-						echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
-						echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
-						echo; exit 2
+						Command_Not_Recognized
 					;;
 				esac
 			;;
@@ -4659,10 +4646,7 @@ case "$1" in
 						echo "[i] Malware Blacklist Updates Disabled"
 					;;
 					*)
-						echo "Command Not Recognized, Please Try Again"
-						echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
-						echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
-						echo; exit 2
+						Command_Not_Recognized
 					;;
 				esac
 			;;
@@ -4686,10 +4670,7 @@ case "$1" in
 						echo "[i] Logging Disabled"
 					;;
 					*)
-						echo "Command Not Recognized, Please Try Again"
-						echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
-						echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
-						echo; exit 2
+						Command_Not_Recognized
 					;;
 				esac
 			;;
@@ -4736,10 +4717,7 @@ case "$1" in
 						echo "[i] Outbound Filtering Enabled"
 					;;
 					*)
-						echo "Command Not Recognized, Please Try Again"
-						echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
-						echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
-						echo; exit 2
+						Command_Not_Recognized
 					;;
 				esac
 			;;
@@ -4761,10 +4739,7 @@ case "$1" in
 						echo "[i] Unban Private IP Disabled"
 					;;
 					*)
-						echo "Command Not Recognized, Please Try Again"
-						echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
-						echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
-						echo; exit 2
+						Command_Not_Recognized
 					;;
 				esac
 			;;
@@ -4789,10 +4764,7 @@ case "$1" in
 						echo "[i] Invalid IP Logging Disabled"
 					;;
 					*)
-						echo "Command Not Recognized, Please Try Again"
-						echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
-						echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
-						echo; exit 2
+						Command_Not_Recognized
 					;;
 				esac
 			;;
@@ -4816,10 +4788,7 @@ case "$1" in
 						echo "[i] Import AiProtect Data Disabled"
 					;;
 					*)
-						echo "Command Not Recognized, Please Try Again"
-						echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
-						echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
-						echo; exit 2
+						Command_Not_Recognized
 					;;
 				esac
 				echo "[i] Saving Changes"
@@ -4843,10 +4812,7 @@ case "$1" in
 						echo "[i] Secure Mode Disabled"
 					;;
 					*)
-						echo "Command Not Recognized, Please Try Again"
-						echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
-						echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
-						echo; exit 2
+						Command_Not_Recognized
 					;;
 				esac
 			;;
@@ -4892,7 +4858,7 @@ case "$1" in
 										echo "[*] $ip Is Not A Valid IP/Range"
 										echo
 									else
-										IPSet_Wrapper del Skynet-IOT "$ip" --nofilter
+										IPSet_Wrapper del Skynet-IOT "$ip" nofilter
 									fi
 							done
 						else
@@ -4900,7 +4866,7 @@ case "$1" in
 								echo "[*] $4 Is Not A Valid IP/Range"
 								echo
 							else
-								IPSet_Wrapper del Skynet-IOT "$4" --nofilter
+								IPSet_Wrapper del Skynet-IOT "$4" nofilter
 								sed -i "\\~BLOCKED - IOT.*=$4 ~d" "$skynetlog"
 							fi
 						fi
@@ -4928,7 +4894,7 @@ case "$1" in
 										echo "[*] $ip Is Not A Valid IP/Range"
 										echo
 									else
-										IPSet_Wrapper add Skynet-IOT "$ip" "IOTBan: $desc" --skip-filter-ip
+										IPSet_Wrapper add Skynet-IOT "$ip" skip-filter-ip "IOTBan: $desc"
 									fi
 							done
 						else
@@ -4936,7 +4902,7 @@ case "$1" in
 								echo "[*] $4 Is Not A Valid IP/Range"
 								echo
 							else
-								IPSet_Wrapper add Skynet-IOT "$4" "IOTBan: $desc" --skip-filter-ip
+								IPSet_Wrapper add Skynet-IOT "$4" skip-filter-ip "IOTBan: $desc"
 							fi
 						fi
 						if [ "$(ipset -L -t Skynet-IOT | tail -1 | awk '{print $4}')" -gt "0" ]; then
@@ -5039,18 +5005,12 @@ case "$1" in
 							echo "[i] Allowing UDP & TCP Proto"
 						;;
 						*)
-							echo "Command Not Recognized, Please Try Again"
-							echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
-							echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
-							echo; exit 2
+							Command_Not_Recognized
 						;;
 					esac
 					;;
 					*)
-						echo "Command Not Recognized, Please Try Again"
-						echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
-						echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
-						echo; exit 2
+						Command_Not_Recognized
 					;;
 				esac
 				if [ "$3" != "view" ]; then
@@ -5084,10 +5044,7 @@ case "$1" in
 						echo "[i] IOT Logging For Protected Devices Disabled"
 					;;
 					*)
-						echo "Command Not Recognized, Please Try Again"
-						echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
-						echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
-						echo; exit 2
+						Command_Not_Recognized
 					;;
 				esac
 			;;
@@ -5108,10 +5065,7 @@ case "$1" in
 						echo "[i] Country Lookups For Stat Data Disabled"
 					;;
 					*)
-						echo "Command Not Recognized, Please Try Again"
-						echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
-						echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
-						echo; exit 2
+						Command_Not_Recognized
 					;;
 				esac
 			;;
@@ -5134,10 +5088,7 @@ case "$1" in
 						echo "[i] CDN Whitelisting Disabled"
 					;;
 					*)
-						echo "Command Not Recognized, Please Try Again"
-						echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
-						echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
-						echo; exit 2
+						Command_Not_Recognized
 					;;
 				esac
 			;;
@@ -5166,18 +5117,12 @@ case "$1" in
 						echo "[i] WebUI Disabled"
 					;;
 					*)
-						echo "Command Not Recognized, Please Try Again"
-						echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
-						echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
-						echo; exit 2
+						Command_Not_Recognized
 					;;
 				esac
 			;;
 			*)
-				echo "Command Not Recognized, Please Try Again"
-				echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
-				echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
-				echo; exit 2
+				Command_Not_Recognized
 			;;
 		esac
 	;;
@@ -5552,10 +5497,7 @@ case "$1" in
 						nolog="2"
 					;;
 					*)
-						echo "Command Not Recognized, Please Try Again"
-						echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
-						echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
-						echo; exit 2
+						Command_Not_Recognized
 					;;
 				esac
 			;;
@@ -5627,10 +5569,7 @@ case "$1" in
 				fi
 			;;
 			*)
-				echo "Command Not Recognized, Please Try Again"
-				echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
-				echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
-				echo; exit 2
+				Command_Not_Recognized
 			;;
 		esac
 	;;
@@ -5934,12 +5873,10 @@ case "$1" in
 			esac
 		done
 	;;
-
 	*)
-		echo "Command Not Recognized, Please Try Again"
-		echo "For Help Check https://github.com/Adamm00/IPSet_ASUS#help"
-		echo "For Common Issues Check https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
-		echo
+		Ylow "Command Not Recognized, Please Try Again"
+		Ylow "For Help:   https://github.com/Adamm00/IPSet_ASUS#help"
+		Ylow "Common Issues: https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
 	;;
 esac
 
