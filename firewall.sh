@@ -3915,10 +3915,11 @@ case "$1" in
 				echo "[i] Removing Bans With Comment Containing ($3)"
 				sed "\\~add Skynet-Whitelist ~d;\\~$3~!d;s~ comment.*~~;s~add~del~g" "$skynetipset" | ipset restore -!
 				echo "[i] Removing Old Logs - This May Take Awhile (To Skip Type ctrl+c)"
-				trap 'break; echo' 2
+				trap 'echo; echo; echo "[*] Interrupted"; break' INT
 				sed "\\~add Skynet-Whitelist ~d;\\~$3~!d;s~ comment.*~~" "$skynetipset" | cut -d' ' -f3 | while IFS= read -r "ip"; do
 					sed -i "\\~\\(BLOCKED.*=$ip \\|Manual Ban.*=$ip \\)~d" "$skynetlog" "$skynetevents"
 				done
+				trap 'Release_Lock' INT TERM EXIT
 			;;
 			country)
 				echo "[i] Removing Previous Country Bans (${countrylist})"
@@ -4249,10 +4250,11 @@ case "$1" in
 						echo "[i] Removing All Entries With Comment Matching \"$4\" From Whitelist"
 						sed "\\~add Skynet-Whitelist ~!d;\\~$4~!d;s~ comment.*~~;s~add~del~g" "$skynetipset" | ipset restore -!
 						echo "[i] Removing Old Logs - This May Take Awhile (To Skip Type ctrl+c)"
-						trap 'break; echo' 2
+						trap 'echo; echo; echo "[*] Interrupted"; break' INT
 						sed "\\~add Skynet-Whitelist ~!d;\\~$4~!d" "$skynetipset" | cut -d' ' -f3 | while IFS= read -r "ip"; do
 							sed -i "\\~=$ip ~d" "$skynetlog" "$skynetevents"
 						done
+						trap 'Release_Lock' INT TERM EXIT
 					;;
 					all)
 						if ! Check_Connection; then echo "[*] Connection Error Detected - Exiting"; echo; exit 1; fi
@@ -5185,7 +5187,7 @@ case "$1" in
 			watch)
 				if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 				if [ "$logmode" = "disabled" ]; then echo "[*] Logging Is Disabled - Exiting!"; echo; exit 2; fi
-				trap 'echo;echo; echo "[*] Stopping Log Monitoring"; Purge_Logs' 2
+				trap 'echo; echo; echo "[*] Interrupted"; break; Purge_Logs' INT
 				echo "[i] Watching Syslog For Log Entries (ctrl +c) To Stop"
 				echo
 				Purge_Logs
@@ -5284,6 +5286,7 @@ case "$1" in
 						done
 					;;
 				esac
+				trap 'Release_Lock' INT TERM EXIT
 				nocfg="1"
 			;;
 			info)
