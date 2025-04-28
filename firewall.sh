@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                              Router Firewall And Security Enhancements                                    #
 #                          By Adamm -  https://github.com/Adamm00/IPSet_ASUS                                #
-#                                       27/04/2025 - v8.0.0                                                 #
+#                                       28/04/2025 - v8.0.0                                                 #
 #############################################################################################################
 
 
@@ -875,11 +875,51 @@ Extended_DNSStats() {
 				country="($(curl -fsSL --retry 3 --max-time 6 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${statdata}/countryCode/"))"
 				if [ -z "$country" ]; then country="*"; fi
 			fi
-			banreason="$(grep -F " ${statdata} " "$skynetipset" | grep -m1 -vF "Skynet-Whitelist" | awk -F '"' '{print $2}')"
-			if [ -z "$banreason" ]; then
-				banreason="$(grep -E "$(echo "$statdata" | cut -d '.' -f1-3)\..*/" "$skynetipset" | grep -m1 -vF "Skynet-Whitelist" | awk -F '"' '{print $2}')*"
-			fi
-			if [ "${#banreason}" -gt "45" ]; then banreason="$(echo "$banreason" | cut -c 1-45)"; fi
+
+			banreason="$(
+			grep -E '^add Skynet-(Blacklist|BlockedRanges) ' "$skynetipset" |
+			awk -v ip="$statdata" '
+				# trim whitespace
+				function trim(s) { sub(/^ +| +$/, "", s); return s }
+				# print comment text
+				function do_print() {
+				pos = index($0, "comment \"")
+				if (pos) {
+					s = substr($0, pos+9)
+					sub(/"$/, "", s)
+					print trim(s)
+				}
+				}
+				BEGIN {
+				split(ip, A, ".")
+				ipn = A[1]*16777216 + A[2]*65536 + A[3]*256 + A[4]
+				}
+				{
+				setname = $2
+				if (setname == "Skynet-Blacklist") {
+					# exact /32 match
+					if ($3 == ip) { do_print(); exit }
+				} else {
+					# CIDR match
+					split($3, P, "/"); net = P[1]; prefix = P[2]
+					split(net, B, ".")
+					netn = B[1]*16777216 + B[2]*65536 + B[3]*256 + B[4]
+					# common prefixes
+					if (prefix == 24 && A[1]==B[1] && A[2]==B[2] && A[3]==B[3]) { do_print(); exit }
+					else if (prefix == 16 && A[1]==B[1] && A[2]==B[2]) { do_print(); exit }
+					else if (prefix == 8  && A[1]==B[1]) { do_print(); exit }
+					else {
+					# any other prefix via integer math
+					sh = 32 - prefix; div = 1
+					for (i = 0; i < sh; i++) div *= 2
+					if (int(ipn/div) == int(netn/div)) { do_print(); exit }
+					}
+				}
+				}
+			'
+			)"
+			# truncate to 45 chars if needed
+			[ "${#banreason}" -gt 45 ] && banreason="$(printf '%s' "$banreason" | cut -c1-45)"
 			printf '%-15s %-4s | %-55s | %-45s | %-60s \n' "$statdata" "$country" "https://otx.alienvault.com/indicator/ip/${statdata}" "$banreason" "$(grep -F "$statdata" /tmp/skynet/skynetstats.txt | awk '{print $1}' | xargs)"
 		;;
 		2)
@@ -889,11 +929,50 @@ Extended_DNSStats() {
 				country="($(curl -fsSL --retry 3 --max-time 6 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${ipaddr}/countryCode/"))"
 				if [ -z "$country" ]; then country="*"; fi
 			fi
-			banreason="$(grep -F " ${ipaddr} " "$skynetipset" | grep -m1 -vF "Skynet-Whitelist" | awk -F '"' '{print $2}')"
-			if [ -z "$banreason" ]; then
-				banreason="$(grep -E "$(echo "$ipaddr" | cut -d '.' -f1-3)\..*/" "$skynetipset" | grep -m1 -vF "Skynet-Whitelist" | awk -F '"' '{print $2}')*"
-			fi
-			if [ "${#banreason}" -gt "45" ]; then banreason="$(echo "$banreason" | cut -c 1-45)"; fi
+			banreason="$(
+			grep -E '^add Skynet-(Blacklist|BlockedRanges) ' "$skynetipset" |
+			awk -v ip="$ipaddr" '
+				# trim whitespace
+				function trim(s) { sub(/^ +| +$/, "", s); return s }
+				# print comment text
+				function do_print() {
+				pos = index($0, "comment \"")
+				if (pos) {
+					s = substr($0, pos+9)
+					sub(/"$/, "", s)
+					print trim(s)
+				}
+				}
+				BEGIN {
+				split(ip, A, ".")
+				ipn = A[1]*16777216 + A[2]*65536 + A[3]*256 + A[4]
+				}
+				{
+				setname = $2
+				if (setname == "Skynet-Blacklist") {
+					# exact /32 match
+					if ($3 == ip) { do_print(); exit }
+				} else {
+					# CIDR match
+					split($3, P, "/"); net = P[1]; prefix = P[2]
+					split(net, B, ".")
+					netn = B[1]*16777216 + B[2]*65536 + B[3]*256 + B[4]
+					# common prefixes
+					if (prefix == 24 && A[1]==B[1] && A[2]==B[2] && A[3]==B[3]) { do_print(); exit }
+					else if (prefix == 16 && A[1]==B[1] && A[2]==B[2]) { do_print(); exit }
+					else if (prefix == 8  && A[1]==B[1]) { do_print(); exit }
+					else {
+					# any other prefix via integer math
+					sh = 32 - prefix; div = 1
+					for (i = 0; i < sh; i++) div *= 2
+					if (int(ipn/div) == int(netn/div)) { do_print(); exit }
+					}
+				}
+				}
+			'
+			)"
+			# truncate to 45 chars if needed
+			[ "${#banreason}" -gt 45 ] && banreason="$(printf '%s' "$banreason" | cut -c1-45)"
 			printf '%-10s | %-15s %-4s | %-55s | %-45s | %-60s\n' "${hits}x" "${ipaddr}" "${country}" "https://otx.alienvault.com/indicator/ip/${ipaddr}" "$banreason" "$(grep -F "$ipaddr" /tmp/skynet/skynetstats.txt | awk '{print $1}' | xargs)"
 		;;
 		*)
@@ -1461,13 +1540,56 @@ Run_Stats() {
 						ipset test Skynet-BlockedRanges "$4" && found3=true
 						echo
 						if [ -n "$found1" ]; then Red "Whitelist Reason;"; grep -F "add Skynet-Whitelist $(echo "$4" | cut -d '.' -f1-3)." "$skynetipset" | awk '{$1=$2=$4=""; print $0}' | tr -s " "; echo; fi
-						if [ -n "$found2" ]; then Red "Blacklist Reason;"; grep -F "add Skynet-Blacklist $4 " "$skynetipset" | awk '{$1=$2=$3=$4=""; print $0}' | tr -s " "; echo; fi
-						if [ -n "$found3" ]; then Red "BlockedRanges Reason;"; grep -F "add Skynet-BlockedRanges $(echo "$4" | cut -d '.' -f1-3)." "$skynetipset" | awk '{$1=$2=$4=""; print $0}' | tr -s " "; fi
+						if [ -n "$found2" ] || [ -n "$found3" ]; then
+							Red "Ban Reasons;"
+							grep -E '^add Skynet-(Blacklist|BlockedRanges) ' "$skynetipset" | awk -v ip="$4" '
+							function trim(s)      { sub(/^ +| +$/, "", s); return s }
+							function do_print(suffix) {
+								pos = index($0, "comment \"")
+								if (pos) {
+								s = substr($0, pos+9)
+								sub(/"$/, "", s)
+								print trim(s) suffix
+								}
+							}
+							BEGIN {
+								split(ip, A, ".")
+								ipn = A[1]*16777216 + A[2]*65536 + A[3]*256 + A[4]
+							}
+							{
+								setname = $2
+								if (setname=="Skynet-Blacklist") {
+								# exact /32
+								if ($3 == ip) {
+									do_print("") 
+								}
+								} else {
+								# CIDR match
+								split($3,P,"/"); net=P[1]; prefix=P[2]
+								split(net,B,".")
+								netn = B[1]*16777216 + B[2]*65536 + B[3]*256 + B[4]
+								suffix = " [" net "/" prefix "]"
+								# fast-prefix checks
+								if      (prefix==24 && A[1]==B[1] && A[2]==B[2] && A[3]==B[3]) { do_print(suffix) }
+								else if (prefix==16 && A[1]==B[1] && A[2]==B[2])             { do_print(suffix) }
+								else if (prefix==8  && A[1]==B[1])                           { do_print(suffix) }
+								else {
+									sh = 32-prefix; div=1
+									for(i=0;i<sh;i++) div*=2
+									if (int(ipn/div)==int(netn/div)) { do_print(suffix) }
+								}
+								}
+							}
+							END { print "" }
+							'
+						fi
 						echo
 						ip="$(echo "$4" | sed 's~\.~\\.~g')"
 						Is_Enabled "$extendedstats" && Show_Associated_Domains "$ip"
-						echo "[i] IP Location - $(curl -fsSL --retry 3 --max-time 6 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${4}/countryName/") ($(curl -fsSL --retry 3 --max-time 6 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://ipapi.co/${4}/org/") / $(curl -fsSL --retry 3 --max-time 6 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://ipapi.co/${4}/asn/"))"
-						echo
+						if Is_Enabled "$lookupcountry"; then
+							echo "[i] IP Location - $(curl -fsSL --retry 3 --max-time 6 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${4}/countryName/") ($(curl -fsSL --retry 3 --max-time 6 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://ipapi.co/${4}/org/") / $(curl -fsSL --retry 3 --max-time 6 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://ipapi.co/${4}/asn/"))"
+							echo
+						fi
 						echo "[i] $4 First Tracked On $(grep -m1 -F "=$4 " "$skynetlog" | awk '{printf "%s %s %s\n", $1, $2, $3}')"
 						echo "[i] $4 Last Tracked On $(grep -F "=$4 " "$skynetlog" | tail -1 | awk '{printf "%s %s %s\n", $1, $2, $3}')"
 						echo "[i] $(grep -Foc "=$4 " "$skynetlog") Blocks Total"
@@ -1500,15 +1622,58 @@ Run_Stats() {
 							ipset test Skynet-BlockedRanges "$ip" && found3=true
 							echo
 							if [ -n "$found1" ]; then Red "Whitelist Reason;"; grep -F "add Skynet-Whitelist $(echo "$ip" | cut -d '.' -f1-3)." "$skynetipset" | awk '{$1=$2=$4=""; print $0}' | tr -s " "; echo; fi
-							if [ -n "$found2" ]; then Red "Blacklist Reason;"; grep -F "add Skynet-Blacklist $ip " "$skynetipset" | awk '{$1=$2=$3=$4=""; print $0}' | tr -s " "; echo; fi
-							if [ -n "$found3" ]; then Red "BlockedRanges Reason;"; grep -F "add Skynet-BlockedRanges $(echo "$ip" | cut -d '.' -f1-3)." "$skynetipset" | awk '{$1=$2=$4=""; print $0}' | tr -s " "; fi
+							if [ -n "$found2" ] || [ -n "$found3" ]; then
+								Red "Ban Reasons;"
+								grep -E '^add Skynet-(Blacklist|BlockedRanges) ' "$skynetipset" | awk -v ip="$4" '
+								function trim(s)      { sub(/^ +| +$/, "", s); return s }
+								function do_print(suffix) {
+									pos = index($0, "comment \"")
+									if (pos) {
+									s = substr($0, pos+9)
+									sub(/"$/, "", s)
+									print trim(s) suffix
+									}
+								}
+								BEGIN {
+									split(ip, A, ".")
+									ipn = A[1]*16777216 + A[2]*65536 + A[3]*256 + A[4]
+								}
+								{
+									setname = $2
+									if (setname=="Skynet-Blacklist") {
+									# exact /32
+									if ($3 == ip) {
+										do_print("") 
+									}
+									} else {
+									# CIDR match
+									split($3,P,"/"); net=P[1]; prefix=P[2]
+									split(net,B,".")
+									netn = B[1]*16777216 + B[2]*65536 + B[3]*256 + B[4]
+									suffix = " [" net "/" prefix "]"
+									# fast-prefix checks
+									if      (prefix==24 && A[1]==B[1] && A[2]==B[2] && A[3]==B[3]) { do_print(suffix) }
+									else if (prefix==16 && A[1]==B[1] && A[2]==B[2])             { do_print(suffix) }
+									else if (prefix==8  && A[1]==B[1])                           { do_print(suffix) }
+									else {
+										sh = 32-prefix; div=1
+										for(i=0;i<sh;i++) div*=2
+										if (int(ipn/div)==int(netn/div)) { do_print(suffix) }
+									}
+									}
+								}
+								END { print "" }
+								'
+							fi
 							echo
 							ip2="$(echo "$ip" | sed 's~\.~\\.~g')"
 							Is_Enabled "$extendedstats" && Show_Associated_Domains "$ip2"
 							echo; echo
 							if [ -n "$found2" ] || [ -n "$found3" ]; then
-								echo "[i] IP Location - $(curl -fsSL --retry 3 --max-time 6 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${ip}/countryName/") ($(curl -fsSL --retry 3 --max-time 6 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://ipapi.co/${ip}/org/") / $(curl -fsSL --retry 3 --max-time 6 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://ipapi.co/${ip}/asn/"))"
-								echo
+								if Is_Enabled "$lookupcountry"; then
+									echo "[i] IP Location - $(curl -fsSL --retry 3 --max-time 6 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://api.db-ip.com/v2/free/${ip}/countryName/") ($(curl -fsSL --retry 3 --max-time 6 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://ipapi.co/${ip}/org/") / $(curl -fsSL --retry 3 --max-time 6 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno) / $(tr -cd 0-9 </dev/urandom | head -c 20)" "https://ipapi.co/${ip}/asn/"))"
+									echo
+								fi
 								echo "[i] $ip First Tracked On $(grep -m1 -F "=$ip " "$skynetlog" | awk '{printf "%s %s %s\n", $1, $2, $3}')"
 								echo "[i] $ip Last Tracked On $(grep -F "=$ip " "$skynetlog" | tail -1 | awk '{printf "%s %s %s\n", $1, $2, $3}')"
 								echo "[i] $(grep -Foc "=$ip " "$skynetlog") Blocks Total"
