@@ -37,21 +37,21 @@ trap 'Release_Lock' INT TERM EXIT
 
 ntptimer=0
 case "$1" in
-	uninstall|disable) ;;  # skip NTP check for these modes
+	uninstall|disable) ;;  # Skip NTP check for these modes
 	*)
 		while [ "$(nvram get ntp_ready)" != "1" ] && [ "$ntptimer" -lt 300 ]; do
 			ntptimer=$((ntptimer + 1))
-			[ "$ntptimer" -eq 60 ] && {
+			if [ "$ntptimer" -eq 60 ]; then
 				echo
-				Log warn -s "Waiting For NTP To Sync"
-			}
+				Log warn -s "Waiting for NTP to synchronize..."
+			fi
 			sleep 1
 		done
-		[ "$ntptimer" -ge 300 ] && {
-			Log warn -s "NTP Failed To Sync After 5 Minutes - Please Fix Immediately!"
+		if [ "$ntptimer" -ge 300 ]; then
+			Log warn -s "NTP synchronization failed after 5 minutes. Please check your configuration!"
 			echo
 			exit 1
-		}
+		fi
 	;;
 esac
 
@@ -394,18 +394,23 @@ Check_Files() {
 
 Check_Security() {
 	if Is_Enabled "$securemode"; then
+		# Disable WAN SSH Access for ASUSWRT-Merlin
 		if [ "$(nvram get sshd_enable)" = "1" ] && [ "$(uname -o)" = "ASUSWRT-Merlin" ]; then
 			Log error -s "Insecure Setting Detected - Disabling WAN SSH Access"
 			nvram set sshd_enable="2"
 			nvram commit
 			restartfirewall="1"
 		fi
+
+		# Disable WAN SSH Access for ASUSWRT-Merlin-LTS
 		if [ "$(nvram get sshd_wan)" = "1" ] && [ "$(uname -o)" = "ASUSWRT-Merlin-LTS" ]; then
 			Log error -s "Insecure Setting Detected - Disabling WAN SSH Access"
 			nvram set sshd_wan="0"
 			nvram commit
 			restartfirewall="1"
 		fi
+
+		# Disable WAN GUI Access
 		if [ "$(nvram get misc_http_x)" = "1" ]; then
 			Log error -s "Insecure Setting Detected - Disabling WAN GUI Access"
 			nvram set misc_http_x="0"
@@ -413,17 +418,19 @@ Check_Security() {
 			restartfirewall="1"
 		fi
 	fi
+
+	# Check for PPTP VPN compromise
 	if [ "$(nvram get pptpd_enable)" = "1" ] && nvram get pptpd_clientlist | grep -qE 'i[0-9]{7}|p[0-9]{7}'; then
-		Log error -s "PPTP VPN Server Shows Signs Of Compromise - Investigate Immediately!"
+		Log error -s "PPTP VPN Server Shows Signs Of Compromise - Disabling Immediately!"
 		nvram set pptpd_enable="0"
 		nvram set pptpd_broadcast="0"
 		nvram commit
-		echo "[i] Stopping PPTP Service"
 		service stop_pptpd
-		echo "[i] Restarting Samba Service"
 		service restart_samba
 		restartfirewall="1"
 	fi
+
+	# Detect and handle VPNFilter malware
 	if [ -e "/var/run/tor" ] || [ -e "/var/run/torrc" ] || [ -e "/var/run/tord" ] || [ -e "/var/run/vpnfilterm" ] || [ -e "/var/run/vpnfilterw" ]; then
 		Log error -s "Suspected VPNFilter Malware Found - Investigate Immediately!"
 		Log error -s "Caching Potential VPNFilter Malware: ${skynetloc}/vpnfilter.tar.gz"
@@ -431,12 +438,16 @@ Check_Security() {
 		rm -rf "/var/run/tor" "/var/run/torrc" "/var/run/tord" "/var/run/vpnfilterm" "/var/run/vpnfilterw"
 		restartfirewall="1"
 	fi
+
+	# Detect chkupdate.sh malware
 	if [ -f "/jffs/chkupdate.sh" ] || [ -f "/tmp/update" ] || [ -f "/tmp/.update.log" ] || [ -f "/jffs/runtime.log" ] || grep -qsF "upgrade.sh" "/jffs/scripts/openvpn-event"; then
 		Log error -s "Warning! Router Malware Detected (chkupdate.sh) - Investigate Immediately!"
-		grep -hoE '([0-9]{1,3}\.){3}[0-9]{1,3}' "/jffs/chkupdate.sh" "/tmp/update" "/tmp/.update.log" "/jffs/runtime.log" "/jffs/scripts/openvpn-event" 2>/dev/null | awk '!x[$0]++' | while IFS= read -r "ip"; do
+		grep -hoE '([0-9]{1,3}\.){3}[0-9]{1,3}' "/jffs/chkupdate.sh" "/tmp/update" "/tmp/.update.log" "/jffs/runtime.log" "/jffs/scripts/openvpn-event" 2>/dev/null | awk '!x[$0]++' | while IFS= read -r ip; do
 			echo "add Skynet-Blacklist $ip comment \"Malware: chkupdate.sh\""
 		done | ipset restore -!
 	fi
+
+	# Detect updater malware
 	if [ -f "/jffs/updater" ] || [ -f "/jffs/p32" ] || [ -f "/tmp/pawns-cli" ] || [ -f "/tmp/updateservice" ] || nvram get "jffs2_exec" | grep -qF "/jffs/updater" || nvram get "script_usbmount" | grep -qF "/jffs/updater" || nvram get "script_usbumount" | grep -qF "/jffs/updater" || nvram get "vpn_server_custom" | grep -qF "/jffs/updater" || nvram get "vpn_server1_custom" | grep -qF "/jffs/updater" || cru l | grep -qF "/jffs/updater"; then
 		Log error -s "Warning! Router Malware Detected (/jffs/updater) - Investigate Immediately!"
 		Log error -s "Caching Potential Updater Malware: ${skynetloc}/malwareupdater.tar.gz"
@@ -668,7 +679,6 @@ Check_IPSets() {
 Check_IPTables() {
 	raw_rules=$(iptables-save -t raw)
 	filter_rules=$(iptables-save -t filter)
-	fail=""
 
 	#6: WireGuard DROP
 	if [ "$(nvram get wgs_enable)" = "1" ]; then
@@ -2124,23 +2134,47 @@ Download_File() {
 
 Get_LocalName() {
 	localname=""
-	if [ -n "$macaddr" ]; then localname="$(nvram get custom_clientlist | grep -ioE "<.*>$macaddr" | sed -E 's/.*<([^>]+)>[^<]*$/\1/; s/[^a-zA-Z0-9.-]//g')"; fi
-	if [ -z "$localname" ]; then localname="$(grep -F "$ipaddr " /var/lib/misc/dnsmasq.leases | awk '{print $4}')"; fi
+	
+	# Check custom client list for MAC address
+	if [ -n "$macaddr" ]; then
+		localname="$(nvram get custom_clientlist | grep -ioE "<.*>$macaddr" | sed -E 's/.*<([^>]+)>[^<]*$/\1/; s/[^a-zA-Z0-9.-]//g')"
+	fi
+	
+	# Fallback to dnsmasq leases
+	if [ -z "$localname" ]; then
+		localname="$(grep -F "$ipaddr " /var/lib/misc/dnsmasq.leases | awk '{print $4}')"
+	fi
+	
+	# If no name found, check OUI DB for MAC address
 	if [ -z "$localname" ] || [ "$localname" = "*" ]; then
 		if [ -n "$macaddr" ]; then
-			macaddr2="$(echo "$macaddr" | sed 'y/abcdefghijklmnopqrstuvwxyz/ABCDEFGHIJKLMNOPQRSTUVWXYZ/' | tr -d ':' | cut -c 1-6)"
-			localname="$(grep "$macaddr2" /www/ajax/ouiDB.json | sed 's/.*"\([^"]*\)".*/\1/')" 
+			macaddr2=$(echo "$macaddr" | tr -d ':' | cut -c1-6 | tr 'abcdef' 'ABCDEF')
+			localname=$(grep -m1 "$macaddr2" /www/ajax/ouiDB.json | cut -d\" -f4)
 		fi
-		if [ "$ipaddr" = "$(nvram get wan0_ipaddr)" ]; then localname="$model"; fi
-		if [ "$ipaddr" = "$(nvram get wgs1_addr | cut -d'/' -f1)" ]; then localname="Wireguard VPN Server"; fi
-		if [ "$ipaddr" = "$(nvram get vpn_server1_remote)" ] || [ "$ipaddr" = "$(nvram get vpn_server2_remote)" ]; then localname="OpenVPN Server"; fi
-		if [ -z "$localname" ] || [ "$localname" = "*" ]; then localname="Unknown"; fi
+		# Additional checks for specific cases	
+		if [ -z "$localname" ]; then
+			case "$ipaddr" in
+				"$(nvram get wan0_ipaddr)")
+					localname="$model"
+				;;
+				"$(nvram get wgs1_addr | cut -d'/' -f1)")
+					localname="Wireguard VPN Server"
+				;;
+				"$(nvram get vpn_server1_remote)" | "$(nvram get vpn_server2_remote)")
+					localname="OpenVPN Server"
+				;;
+				*)
+					localname="Unknown"
+				;;
+			esac
+		fi
 	fi
-	if [ "${#localname}" -gt "40" ]; then
+	
+	# Truncate name if too long
+	if [ "${#localname}" -gt 40 ]; then
 		localname="$(echo "$localname" | cut -c 1-40)"
 	fi
 }
-
 Manage_Device() {
 	echo "[i] Looking for available partitions"
 
