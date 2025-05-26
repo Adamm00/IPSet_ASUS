@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            07/05/2025 - v8.0.0                                            #
+#                                       26/05/2025 - v8.0.0 BETA                                            #
 #############################################################################################################
 
 
@@ -181,42 +181,19 @@ Check_Settings() {
 		echo; exit 1
 	fi
 
-	# clear any previous
-	unset "swaplocation"
+	# SWAP Checks
+	swaplocation="$(grep -o 'swapon [^#]*' /jffs/scripts/post-mount | cut -d ' ' -f2)"
 
-	# if post-mount already contains a swapon line
-	if grep -q '^swapon ' /jffs/scripts/post-mount; then
-		if Check_Swap; then
-			# currently active swap file
-			swaplocation=$(grep -m1 -F "file" /proc/swaps | awk '{print $1}')
-		else
-			# read all swapon paths
-			while read -r cmd path _; do
-				[ "$cmd" = "swapon" ] && {
-					swapon "$path" 2>/dev/null && swaplocation=$path && break
-				}
-			done < /jffs/scripts/post-mount
-		fi
-	else
-		Log warn -s "Scanning /tmp/mnt For Swap Files"
-		# look for existing swap file (first match)
-		found=$(find /tmp/mnt -name myswap.swp -print -quit 2>/dev/null)
-		if [ -n "$found" ] && [ -f "$found" ]; then
-			swaplocation=$found
-			Log warn -s "Restoring Swap File Entry ( $swaplocation )"
-			if ! Check_Swap; then
-				swapon "$swaplocation" 2>/dev/null
-			fi
-			# update post-mount & unmount
-			sed -i '\~swapon ~d' /jffs/scripts/post-mount
-			[ "$(wc -l < /jffs/scripts/post-mount)" -lt 2 ] && echo >> /jffs/scripts/post-mount
-			sed -i "2i swapon $swaplocation # Skynet" /jffs/scripts/post-mount
-			sed -i '\~swapoff ~d' /jffs/scripts/unmount
-			echo 'swapoff -a 2>/dev/null # Skynet' >> /jffs/scripts/unmount
-		fi
+	if [ -z "$swaplocation" ] && ! Check_Swap; then
+		Log warn -s "Skynet Requires A SWAP File - Install One ( $0 debug swap install )"
+		echo; exit 1
 	fi
 
-	# final validations
+	if Check_Swap && [ -z "$swaplocation" ]; then
+		Log warn -s "SWAPON Entry Missing - Fix This By Running ( $0 debug swap uninstall ) Then ( $0 debug swap install )"
+		echo; exit 1
+	fi
+
 	if [ -n "$swaplocation" ] && [ ! -f "$swaplocation" ]; then
 		Log warn -s "SWAP File Missing ( $swaplocation ) - Fix This By Running ( $0 debug swap uninstall ) Then ( $0 debug swap install )"
 		echo; exit 1
@@ -224,11 +201,6 @@ Check_Settings() {
 
 	if grep -q '^partition' /proc/swaps; then
 		Log warn -s "SWAP Partitions Not Supported - Please Use SWAP File"
-		echo; exit 1
-	fi
-
-	if [ -z "$swaplocation" ] && ! Check_Swap; then
-		Log warn -s "Skynet Requires A SWAP File - Install One ( $0 debug swap install )"
 		echo; exit 1
 	fi
 
@@ -1465,14 +1437,17 @@ Run_Stats() {
 		if [ ! -s "$skynetlog" ] && [ ! -s "$skynetevents" ]; then
 			echo "[*] No Logging Data Detected - Give This Time To Generate"
 			echo; exit 0
-		else
-			echo "[i] Logging Data Detected in $skynetlog - $(du -h "$skynetlog" | awk '{print $1}')"
 		fi
-		echo "[i] Monitoring From $(grep -m1 -F "BLOCKED -" "$skynetlog" | awk '{printf "%s %s %s\n", $1, $2, $3}') To $(grep -F "BLOCKED -" "$skynetlog" | tail -1 | awk '{printf "%s %s %s\n", $1, $2, $3}')"
-		echo "[i] $(wc -l < "$skynetlog") Block Events Detected"
-		echo "[i] $({ grep -E 'INBOUND|INVALID' "$skynetlog" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6-; grep -F "OUTBOUND" "$skynetlog" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6-; } | awk '!x[$0]++' | wc -l) Unique IPs"
-		echo "[i] $(grep -Fc "Manual Ban" "$skynetevents") Manual Bans Issued"
-		echo
+		printf '╔═════════════════════ Logging ═════════════════════════════════════════════════════════════════════════════╗\n'
+		printf '║ %-20s │ %-82s ║\n' "Syslog Locations" "$syslogloc $syslog1loc"
+		printf '║ %-20s │ %-82s ║\n' "Skynet Log"       "${skynetlog}"
+		SZ="$(du -h "${skynetlog}" | awk '{print $1}')"
+		printf '║ └── %-16s │ %-82s ║\n' "Size" "$SZ"
+		# FIX ME BREAKS FORMATTING
+		printf '║ %-20s │ %-82s ║\n' "Block Events"       "$(wc -l < "$skynetlog") ($({ grep -E 'INBOUND|INVALID' "$skynetlog" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6-; grep -F "OUTBOUND" "$skynetlog" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6-; } | awk '!x[$0]++' | wc -l) Unique IPs)"
+		printf '║ %-20s │ %-82s ║\n' "Manual Bans"       "$(grep -Fc "Manual Ban" "$skynetevents")"
+		printf '║ %-20s │ %-84s ║\n' "Monitor Span"      "$(grep -m1 -F "BLOCKED -" "$skynetlog" | awk '{printf "%s %s %s\n", $1, $2, $3}') → $(grep -F "BLOCKED -" "$skynetlog" | tail -1 | awk '{printf "%s %s %s\n", $1, $2, $3}')"
+		printf '╚══════════════════════╧════════════════════════════════════════════════════════════════════════════════════╝\n\n'
 		counter="10"
 		case "$2" in
 			reset)
@@ -2303,7 +2278,7 @@ Create_Swap() {
 
 	# 5) Ensure post-mount script will re-enable it on reboot
 	sed -i '\~swapon ~d' /jffs/scripts/post-mount
-	sed -i "2i swapon $swaplocation # Skynet" /jffs/scripts/post-mount
+	sed -i "2i [ -f \"${device}/myswap.swp\" ] && swapon $swaplocation # Skynet" /jffs/scripts/post-mount
 
 	# 6) Ensure unmount script will turn it off
 	if [ -f /jffs/scripts/unmount ] && ! grep -q '^swapoff ' /jffs/scripts/unmount; then
@@ -5470,7 +5445,20 @@ case "$1" in
 				nocfg="1"
 			;;
 			info)
+				if [ -f "$LOCK_FILE" ] && ! flock -n 9 9<"$LOCK_FILE"; then
+					locked_cmd=$(cut -d'|' -f1 "$LOCK_FILE")
+					locked_pid=$(cut -d'|' -f2 "$LOCK_FILE")
+					lock_timestamp=$(cut -d'|' -f3 "$LOCK_FILE")
 
+					if [ -n "$locked_pid" ] && [ -d "/proc/$locked_pid" ]; then
+						current_time=$(date +%s)
+						runtime=$(( current_time - lock_timestamp ))
+
+						echo
+						Red "[*] Lock File Detected ($locked_cmd) (pid=$locked_pid, runtime=${runtime}s)"
+						Ylow '[*] Locked Processes Generally Take 1-2 Minutes To Complete And May Result In Temporarily "Failed" Tests'
+					fi
+				fi
 				printf '╔═════════════════════ System ══════════════════════════════════════════════════════════════════════════════╗\n'
 				printf '║ %-20s │ %-82s ║\n' "Router Model"   "$(nvram get productid)"
 				printf '║ %-20s │ %-82s ║\n' "Skynet Version" "$localver ($(Filter_Date < "$0"))"
@@ -5511,20 +5499,6 @@ case "$1" in
 				#printf '║ %-20s │ %-82s ║\n' "Block Events"       "$(wc -l < "$skynetlog") ($({ grep -E 'INBOUND|INVALID' "$skynetlog" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6-; grep -F "OUTBOUND" "$skynetlog" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6-; } | awk '!x[$0]++' | wc -l) Unique IPs)"
 				printf '║ %-20s │ %-84s ║\n' "Monitor Span"      "$(grep -m1 -F "BLOCKED -" "$skynetlog" | awk '{printf "%s %s %s\n", $1, $2, $3}') → $(grep -F "BLOCKED -" "$skynetlog" | tail -1 | awk '{printf "%s %s %s\n", $1, $2, $3}')"
 				printf '╚══════════════════════╧════════════════════════════════════════════════════════════════════════════════════╝\n\n\n'
-				if [ -f "$LOCK_FILE" ] && ! flock -n 9 9<"$LOCK_FILE"; then
-					locked_cmd=$(cut -d'|' -f1 "$LOCK_FILE")
-					locked_pid=$(cut -d'|' -f2 "$LOCK_FILE")
-					lock_timestamp=$(cut -d'|' -f3 "$LOCK_FILE")
-
-					if [ -n "$locked_pid" ] && [ -d "/proc/$locked_pid" ]; then
-						current_time=$(date +%s)
-						runtime=$(( current_time - lock_timestamp ))
-
-						echo
-						Red "[*] Lock File Detected ($locked_cmd) (pid=$locked_pid, runtime=${runtime}s)"
-						Ylow '[*] Locked Processes Generally Take 1-2 Minutes To Complete And May Result In Temporarily "Failed" Tests'
-					fi
-				fi
 				passedtests="0"
 				totaltests="18"
 				Display_Header "6"
@@ -5674,12 +5648,8 @@ case "$1" in
 					install)
 						Check_Lock "$@"
 						Check_Files firewall-start services-stop service-event post-mount unmount
-						swaplocation="$(grep -E "^swapon " /jffs/scripts/post-mount | awk '{print $2}')"
-						findswap="$(find /tmp/mnt -name "myswap.swp")"
-						if [ -z "$findswap" ]; then
-							findswap="$(grep -m1 -F "file" "/proc/swaps" | awk '{print $1}')"
-						fi
-						if [ -z "$swaplocation" ] && [ -z "$findswap" ] && ! Check_Swap; then
+						swaplocation="$(grep -o 'swapon [^#]*' /jffs/scripts/post-mount | cut -d ' ' -f2)"
+						if [ -z "$swaplocation" ] && ! Check_Swap; then
 							Manage_Device
 							Create_Swap
 							echo "[i] Saving Changes"
@@ -5693,34 +5663,13 @@ case "$1" in
 							Log info "Restarting Firewall Service"
 							restartfirewall="1"
 							nolog="2"
-						elif [ -z "$swaplocation" ] && [ -n "$findswap" ]; then
-							echo "[*] Restoring Missing Swap File Entry ( $findswap )"
-							sed -i '\~swapon ~d' /jffs/scripts/post-mount
-							if [ "$(wc -l < /jffs/scripts/post-mount)" -lt "2" ]; then echo >> /jffs/scripts/post-mount; fi
-							sed -i "2i swapon $findswap # Skynet" /jffs/scripts/post-mount
-							swapon "$findswap" 2>/dev/null
-							swaplocation="$findswap"
-							echo "[i] Saving Changes"
-							Save_IPSets
-							echo "[i] Unloading Skynet Components"
-							Unload_Cron "all"
-							Unload_IPTables
-							Unload_IOTTables
-							Unload_LogIPTables
-							Unload_IPSets
-							Log info "Restarting Firewall Service"
-							restartfirewall="1"
-							nolog="2"
-						elif [ -n "$swaplocation" ] && [ ! -f "$swaplocation" ]; then
-							echo "[*] SWAP File Missing ( $swaplocation ) - Fix This By Running ( $0 debug swap uninstall ) Then ( $0 debug swap install )"
-							nolog="2"
 						else
 							echo "[*] Pre-existing SWAP File Detected - Exiting!"
 						fi
 					;;
 					uninstall)
 						Check_Lock "$@"
-						if ! grep -qE "^swapon " /jffs/scripts/post-mount; then
+						if ! grep -qF "swapon " /jffs/scripts/post-mount; then
 							findswap="$(find /tmp/mnt -name "myswap.swp")"
 							if [ -n "$findswap" ]; then
 								swaplocation="$findswap"
@@ -5733,7 +5682,7 @@ case "$1" in
 								fi
 							fi
 						else
-							swaplocation="$(grep -E "^swapon " /jffs/scripts/post-mount | awk '{print $2}')"
+							swaplocation="$(grep -o 'swapon [^#]*' /jffs/scripts/post-mount | cut -d ' ' -f2)"
 						fi
 						echo "[i] Saving Changes"
 						Save_IPSets
@@ -5749,9 +5698,6 @@ case "$1" in
 							sync; echo 3 > /proc/sys/vm/drop_caches
 							swapoff -a
 							if rm -rf "$swaplocation"; then echo "[i] SWAP File Removed"; else "[*] SWAP File Partially Removed - Please Inspect Manually"; fi
-						else
-							sed -i '\~swapon ~d' /jffs/scripts/post-mount
-							echo "[*] SWAP File Partially Removed - Please Inspect Manually"
 						fi
 						sed -i '\~swapoff ~d' /jffs/scripts/unmount
 						Log info "Restarting Firewall Service"
@@ -5998,7 +5944,7 @@ case "$1" in
 		done
 		echo
 		Check_Files firewall-start services-stop service-event post-mount unmount
-		if ! grep -qE "^swapon " /jffs/scripts/post-mount; then Create_Swap; fi
+		if ! grep -qF "swapon " /jffs/scripts/post-mount; then Create_Swap; fi
 		if [ -f "$skynetlog" ]; then mv "$skynetlog" "${device}/skynet/skynet.log"; fi
 		if [ -f "$skynetevents" ]; then mv "$skynetevents" "${device}/skynet/events.log"; fi
 		if [ -f "$skynetipset" ]; then mv "$skynetipset" "${device}/skynet/skynet.ipset"; fi
@@ -6071,7 +6017,7 @@ case "$1" in
 			Prompt_Input "1-2" continue
 			case "$continue" in
 				1)
-					if grep -qE "^swapon .* # Skynet" /jffs/scripts/post-mount; then
+					if grep -qE "swapon .* # Skynet" /jffs/scripts/post-mount; then
 						while true; do
 							Show_Menu "Would You Like To Remove Skynet Generated Swap File?" \
 								"Yes" \
