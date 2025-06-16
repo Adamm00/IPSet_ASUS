@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                       26/05/2025 - v8.0.0 BETA                                            #
+#                                       16/06/2025 - v8.0.0 BETA                                            #
 #############################################################################################################
 
 
@@ -182,20 +182,15 @@ Check_Settings() {
 	fi
 
 	# SWAP Checks
-	swaplocation="$(grep -o 'swapon [^#]*' /jffs/scripts/post-mount | cut -d ' ' -f2)"
+	swaplocation="$(awk 'NR==2 { print $1 }' /proc/swaps)"
 
 	if [ -z "$swaplocation" ] && ! Check_Swap; then
 		Log warn -s "Skynet Requires A SWAP File - Install One ( $0 debug swap install )"
 		echo; exit 1
 	fi
 
-	if Check_Swap && [ -z "$swaplocation" ]; then
+	if Check_Swap && [ -z "$(grep -E 'swapon [^#]+' /jffs/scripts/post-mount | cut -d ' ' -f2)" ]; then
 		Log warn -s "SWAPON Entry Missing - Fix This By Running ( $0 debug swap uninstall ) Then ( $0 debug swap install )"
-		echo; exit 1
-	fi
-
-	if [ -n "$swaplocation" ] && [ ! -f "$swaplocation" ]; then
-		Log warn -s "SWAP File Missing ( $swaplocation ) - Fix This By Running ( $0 debug swap uninstall ) Then ( $0 debug swap install )"
 		echo; exit 1
 	fi
 
@@ -2152,6 +2147,7 @@ Get_LocalName() {
 		localname="$(echo "$localname" | cut -c 1-40)"
 	fi
 }
+
 Manage_Device() {
 	echo "[i] Looking for available partitions"
 
@@ -2278,7 +2274,7 @@ Create_Swap() {
 
 	# 5) Ensure post-mount script will re-enable it on reboot
 	sed -i '\~swapon ~d' /jffs/scripts/post-mount
-	sed -i "2i [ -f \"${device}/myswap.swp\" ] && swapon $swaplocation # Skynet" /jffs/scripts/post-mount
+	sed -i "2i [ -f \"\$1/myswap.swp\" ] && swapon \$1/myswap.swp # Skynet" /jffs/scripts/post-mount
 
 	# 6) Ensure unmount script will turn it off
 	if [ -f /jffs/scripts/unmount ] && ! grep -q '^swapoff ' /jffs/scripts/unmount; then
@@ -5648,7 +5644,7 @@ case "$1" in
 					install)
 						Check_Lock "$@"
 						Check_Files firewall-start services-stop service-event post-mount unmount
-						swaplocation="$(grep -o 'swapon [^#]*' /jffs/scripts/post-mount | cut -d ' ' -f2)"
+						swaplocation="$(awk 'NR==2 { print $1 }' /proc/swaps)"
 						if [ -z "$swaplocation" ] && ! Check_Swap; then
 							Manage_Device
 							Create_Swap
@@ -5682,7 +5678,7 @@ case "$1" in
 								fi
 							fi
 						else
-							swaplocation="$(grep -o 'swapon [^#]*' /jffs/scripts/post-mount | cut -d ' ' -f2)"
+							swaplocation="$(awk 'NR==2 { print $1 }' /proc/swaps)"
 						fi
 						echo "[i] Saving Changes"
 						Save_IPSets
