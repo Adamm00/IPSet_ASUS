@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                       16/06/2025 - v8.0.0 BETA                                            #
+#                                       28/07/2025 - v8.0.0 BETA                                            #
 #############################################################################################################
 
 
@@ -1227,7 +1227,7 @@ Whitelist_Shared() {
 	ipset flush Skynet-WhitelistDomains
 	sed -i '\~# Skynet~d' /jffs/configs/dnsmasq.conf.add
 	grep -hvF "#" /jffs/addons/shared-whitelists/shared-*-whitelist | Strip_Domain | xargs -n 20 | sed 's~^~ipset=/~g;s~ ~/~g;s~$~/Skynet-WhitelistDomains # Skynet~g' >> /jffs/configs/dnsmasq.conf.add
-	chmod +x /jffs/configs/dnsmasq.conf.add
+	chmod 644 /jffs/configs/dnsmasq.conf.add
 	service restart_dnsmasq >/dev/null 2>&1
 	if [ "$(uname -o)" = "ASUSWRT-Merlin" ]; then dotvar="dnspriv_rulelist"; else dotvar="stubby_dns"; fi
 	for ip in $(nvram get "$dotvar" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}'); do
