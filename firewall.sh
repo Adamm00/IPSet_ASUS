@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                       28/07/2025 - v8.0.0 BETA                                            #
+#                                       02/08/2025 - v8.0.0 BETA                                            #
 #############################################################################################################
 
 
@@ -1507,9 +1507,9 @@ Run_Stats() {
 							function do_print(suffix) {
 								pos = index($0, "comment \"")
 								if (pos) {
-								s = substr($0, pos+9)
-								sub(/"$/, "", s)
-								print trim(s) suffix
+									s = substr($0, pos+9)
+									sub(/"$/, "", s)
+									print trim(s) suffix
 								}
 							}
 							BEGIN {
@@ -1518,29 +1518,25 @@ Run_Stats() {
 							}
 							{
 								setname = $2
-								if (setname=="Skynet-Blacklist") {
-								# exact /32
-								if ($3 == ip) {
-									do_print("") 
-								}
+								if (setname == "Skynet-Blacklist") {
+									if ($3 == ip) do_print(" [" ip "]")
 								} else {
-								# CIDR match
-								split($3,P,"/"); net=P[1]; prefix=P[2]
-								split(net,B,".")
-								netn = B[1]*16777216 + B[2]*65536 + B[3]*256 + B[4]
-								suffix = " [" net "/" prefix "]"
-								# fast-prefix checks
-								if      (prefix==24 && A[1]==B[1] && A[2]==B[2] && A[3]==B[3]) { do_print(suffix) }
-								else if (prefix==16 && A[1]==B[1] && A[2]==B[2])             { do_print(suffix) }
-								else if (prefix==8  && A[1]==B[1])                           { do_print(suffix) }
-								else {
-									sh = 32-prefix; div=1
-									for(i=0;i<sh;i++) div*=2
-									if (int(ipn/div)==int(netn/div)) { do_print(suffix) }
-								}
+									split($3, P, "/")
+									net = P[1]; prefix = P[2] + 0
+									split(net, B, ".")
+									netn = B[1]*16777216 + B[2]*65536 + B[3]*256 + B[4]
+									suffix = " [" net "/" prefix "]"
+									if      (prefix==24 && A[1]==B[1] && A[2]==B[2] && A[3]==B[3]) do_print(suffix)
+									else if (prefix==16 && A[1]==B[1] && A[2]==B[2])              do_print(suffix)
+									else if (prefix==8  && A[1]==B[1])                            do_print(suffix)
+									else {
+										sh = 32 - prefix
+										div = 1
+										for(i=0;i<sh;i++) div *= 2
+										if (int(ipn/div) == int(netn/div)) do_print(suffix)
+									}
 								}
 							}
-							END { print "" }
 							'
 						fi
 						echo
@@ -1585,14 +1581,14 @@ Run_Stats() {
 							if [ -n "$found1" ]; then Red "Whitelist Reason;"; grep -F "add Skynet-Whitelist $(echo "$ip" | cut -d '.' -f1-3)." "$skynetipset" | awk '{$1=$2=$4=""; print $0}' | tr -s " "; echo; fi
 							if [ -n "$found2" ] || [ -n "$found3" ]; then
 								Red "Ban Reasons;"
-								grep -E '^add Skynet-(Blacklist|BlockedRanges) ' "$skynetipset" | awk -v ip="$4" '
+								grep -E '^add Skynet-(Blacklist|BlockedRanges) ' "$skynetipset" | awk -v ip="$ip" '
 								function trim(s)      { sub(/^ +| +$/, "", s); return s }
 								function do_print(suffix) {
 									pos = index($0, "comment \"")
 									if (pos) {
-									s = substr($0, pos+9)
-									sub(/"$/, "", s)
-									print trim(s) suffix
+										s = substr($0, pos+9)
+										sub(/"$/, "", s)
+										print trim(s) suffix
 									}
 								}
 								BEGIN {
@@ -1601,29 +1597,25 @@ Run_Stats() {
 								}
 								{
 									setname = $2
-									if (setname=="Skynet-Blacklist") {
-									# exact /32
-									if ($3 == ip) {
-										do_print("") 
-									}
+									if (setname == "Skynet-Blacklist") {
+										if ($3 == ip) do_print(" [" ip "]")
 									} else {
-									# CIDR match
-									split($3,P,"/"); net=P[1]; prefix=P[2]
-									split(net,B,".")
-									netn = B[1]*16777216 + B[2]*65536 + B[3]*256 + B[4]
-									suffix = " [" net "/" prefix "]"
-									# fast-prefix checks
-									if      (prefix==24 && A[1]==B[1] && A[2]==B[2] && A[3]==B[3]) { do_print(suffix) }
-									else if (prefix==16 && A[1]==B[1] && A[2]==B[2])             { do_print(suffix) }
-									else if (prefix==8  && A[1]==B[1])                           { do_print(suffix) }
-									else {
-										sh = 32-prefix; div=1
-										for(i=0;i<sh;i++) div*=2
-										if (int(ipn/div)==int(netn/div)) { do_print(suffix) }
-									}
+										split($3, P, "/")
+										net = P[1]; prefix = P[2] + 0
+										split(net, B, ".")
+										netn = B[1]*16777216 + B[2]*65536 + B[3]*256 + B[4]
+										suffix = " [" net "/" prefix "]"
+										if      (prefix==24 && A[1]==B[1] && A[2]==B[2] && A[3]==B[3]) do_print(suffix)
+										else if (prefix==16 && A[1]==B[1] && A[2]==B[2])              do_print(suffix)
+										else if (prefix==8  && A[1]==B[1])                            do_print(suffix)
+										else {
+											sh = 32 - prefix
+											div = 1
+											for(i=0;i<sh;i++) div *= 2
+											if (int(ipn/div) == int(netn/div)) do_print(suffix)
+										}
 									}
 								}
-								END { print "" }
 								'
 							fi
 							echo
