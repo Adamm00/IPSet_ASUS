@@ -286,6 +286,11 @@ Check_Settings() {
 	if nvram get wan0_ipaddr | Is_PrivateIP; then
 		Log warn -s "Private WAN IP Detected $(nvram get wan0_ipaddr) - Please Put Your Modem In Bridge Mode / Disable CG-NAT"
 	fi
+
+	# Set default log size if not set
+	if [ -z "$logsize" ]; then
+		logsize="10"
+	fi
 }
 
 Check_Connection() {
@@ -829,6 +834,14 @@ Is_Port() {
 
 Is_ASN() {
 	grep -qiE '^AS[0-9]{1,6}$'
+}
+
+Is_Numeric() {
+	case "$1" in
+		*[!0-9]*) return 1 ;;  # If any non-digit, fail
+		"")       return 1 ;;  # If empty, fail
+		*)        return 0 ;;  # Otherwise, success
+	esac
 }
 
 Strip_Domain() {
@@ -2382,7 +2395,8 @@ Purge_Logs() {
 	# Ensure skynetlog isn’t too large (or force), run stats, and truncate if still big
 	log_kb=$(du -k "$skynetlog" 2>/dev/null | cut -f1) || log_kb=0
 	log_kb=${log_kb:-0}
-	if [ "$log_kb" -ge 10240 ] || [ "$1" = "force" ]; then
+	log_kb_limit="$((logsize * 1024))"
+	if [ "$log_kb" -ge "$log_kb_limit" ] || [ "$1" = "force" ]; then
 		Generate_Stats
 		sed -i '/BLOCKED -/d' "$skynetlog" 2>/dev/null
 		sed -i '/Skynet: \[#\] /d' "$skynetevents" 2>/dev/null
@@ -2476,6 +2490,7 @@ Write_Config() {
 		printf '\n%s\n' "## Settings ##"
 		printf '%s="%s"\n' "unbanprivateip" "$unbanprivateip"
 		printf '%s="%s"\n' "loginvalid" "$loginvalid"
+		printf '%s="%s"\n' "logsize" "$logsize"
 		printf '%s="%s"\n' "banaiprotect" "$banaiprotect"
 		printf '%s="%s"\n' "securemode" "$securemode"
 		printf '%s="%s"\n' "extendedstats" "$extendedstats"
@@ -3006,17 +3021,18 @@ Load_Menu() {
 					printf '%-35s | %-40s\n' "[4]  --> Filter Traffic" "$(Grn "[$filtertraffic]")"
 					printf '%-35s | %-40s\n' "[5]  --> Unban PrivateIP" "$(if Is_Enabled "$unbanprivateip"; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
 					printf '%-35s | %-40s\n' "[6]  --> Log Invalid Packets" "$(if Is_Enabled "$loginvalid"; then Grn "[Enabled]"; else Grn "[Disabled]"; fi)"
-					printf '%-35s | %-40s\n' "[7]  --> Import AiProtect Data" "$(if Is_Enabled "$banaiprotect"; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
-					printf '%-35s | %-40s\n' "[8]  --> Secure Mode" "$(if Is_Enabled "$securemode"; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
-					printf '%-35s | %-40s\n' "[9]  --> Fast Switch List" "$(if Is_Enabled "$fastswitch"; then Ylow "[Enabled]"; else Grn "[Disabled]"; fi)"
-					printf '%-35s | %-40s\n' "[10] --> Syslog Location" "$(if { [ "$syslogloc" = "/tmp/syslog.log" ] && [ "$syslog1loc" = "/tmp/syslog.log-1" ]; } || { [ "$syslogloc" = "/jffs/syslog.log" ] && [ "$syslog1loc" = "/jffs/syslog.log-1" ]; } then Grn "[Default]"; else Ylow "[Custom]"; fi)"
-					printf '%-35s | %-40s\n' "[11] --> IOT Blocking" "$(if [ "$iotblocked" != "enabled" ]; then Grn "[Disabled]"; else Ylow "[Enabled]"; fi)"
-					printf '%-35s | %-40s\n' "[12] --> IOT Logging" "$(if [ "$iotlogging" != "enabled" ]; then Red "[Disabled]"; else Grn "[Enabled]"; fi)"
-					printf '%-35s | %-40s\n' "[13] --> Stats Country Lookup" "$(if Is_Enabled "$lookupcountry"; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
-					printf '%-35s | %-40s\n' "[14] --> CDN Whitelisting" "$(if Is_Enabled "$cdnwhitelist"; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
-					printf '%-35s | %-40s\n' "[15] --> Display WebUI" "$(if Is_Enabled "$displaywebui"; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
+					printf '%-35s | %-40s\n' "[7]  --> Log Size" "$(Grn "[${logsize}MB]")"
+					printf '%-35s | %-40s\n' "[8]  --> Import AiProtect Data" "$(if Is_Enabled "$banaiprotect"; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
+					printf '%-35s | %-40s\n' "[9]  --> Secure Mode" "$(if Is_Enabled "$securemode"; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
+					printf '%-35s | %-40s\n' "[10] --> Fast Switch List" "$(if Is_Enabled "$fastswitch"; then Ylow "[Enabled]"; else Grn "[Disabled]"; fi)"
+					printf '%-35s | %-40s\n' "[11] --> Syslog Location" "$(if { [ "$syslogloc" = "/tmp/syslog.log" ] && [ "$syslog1loc" = "/tmp/syslog.log-1" ]; } || { [ "$syslogloc" = "/jffs/syslog.log" ] && [ "$syslog1loc" = "/jffs/syslog.log-1" ]; } then Grn "[Default]"; else Ylow "[Custom]"; fi)"
+					printf '%-35s | %-40s\n' "[12] --> IOT Blocking" "$(if [ "$iotblocked" != "enabled" ]; then Grn "[Disabled]"; else Ylow "[Enabled]"; fi)"
+					printf '%-35s | %-40s\n' "[13] --> IOT Logging" "$(if [ "$iotlogging" != "enabled" ]; then Red "[Disabled]"; else Grn "[Enabled]"; fi)"
+					printf '%-35s | %-40s\n' "[14] --> Stats Country Lookup" "$(if Is_Enabled "$lookupcountry"; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
+					printf '%-35s | %-40s\n' "[15] --> CDN Whitelisting" "$(if Is_Enabled "$cdnwhitelist"; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
+					printf '%-35s | %-40s\n' "[16] --> Display WebUI" "$(if Is_Enabled "$displaywebui"; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
 					echo
-					printf "[1-15]: "
+					printf "[1-16]: "
 					read -r "menu2"
 					echo
 					case "$menu2" in
@@ -3206,6 +3222,37 @@ Load_Menu() {
 						;;
 						7)
 							if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
+							option2="logsize"
+							while true; do
+								Show_Menu "Select Log Size Option" \
+									"10MB" \
+									"Custom" \
+									"Exit"
+								Prompt_Input "1-2" menu3
+								case "$menu3" in
+									1)
+										option3="10"
+										break
+									;;
+									2)
+										Prompt_Typed "option3" "Size" "Input Custom Log Size (in MB):"
+										if ! Is_Numeric "$option3"; then echo; echo "[*] $option3 Is Not A Valid Size"; echo; unset "option3"; continue; fi
+										if [ "$option3" -lt 10 ]; then echo; echo "[*] $option3 Is Not A Valid Size - Must Be At Least 10MB"; echo; unset "option3"; continue; fi
+										break
+									;;
+									e|exit|back|menu)
+										Return_To_Menu
+										break
+									;;
+									*)
+										Invalid_Option "$menu3"
+									;;
+								esac
+							done
+							break
+						;;
+						8)
+							if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 							option2="banaiprotect"
 							while true; do
 								Show_Menu "Select Ban AiProtect Option" \
@@ -3233,7 +3280,7 @@ Load_Menu() {
 							done
 							break
 						;;
-						8)
+						9)
 							if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 							option2="securemode"
 							while true; do
@@ -3262,7 +3309,7 @@ Load_Menu() {
 							done
 							break
 						;;
-						9)
+						10)
 							if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 							option1="fs"
 							while true; do
@@ -3292,7 +3339,7 @@ Load_Menu() {
 							done
 							break
 						;;
-						10)
+						11)
 							if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 							while true; do
 								Show_Menu "Select Syslog To Configure:" \
@@ -3372,7 +3419,7 @@ Load_Menu() {
 							done
 							break
 						;;
-						11)
+						12)
 							if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 							while true; do
 								option2="iot"
@@ -3476,7 +3523,7 @@ Load_Menu() {
 							done
 							break
 						;;
-						12)
+						13)
 							if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 							option2="iotlogging"
 							while true; do
@@ -3505,7 +3552,7 @@ Load_Menu() {
 							done
 							break
 						;;
-						13)
+						14)
 							if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 							option2="lookupcountry"
 							while true; do
@@ -3534,7 +3581,7 @@ Load_Menu() {
 							done
 							break
 						;;
-						14)
+						15)
 							if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 							option2="cdnwhitelist"
 							while true; do
@@ -3563,7 +3610,7 @@ Load_Menu() {
 							done
 							break
 						;;
-						15)
+						16)
 							if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 							option2="webui"
 							while true; do
@@ -4989,6 +5036,33 @@ case "$1" in
 					;;
 				esac
 			;;
+			logsize)
+				case "$3" in
+					10)
+						Check_Lock "$@"
+						if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
+						logsize="10"
+						Purge_Logs
+						echo "[i] Log Size Set To 10MB"
+					;;
+					*)
+						Check_Lock "$@"
+						if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
+						if Is_Numeric "$3"; then
+							if [ "$3" -lt 10 ]; then 
+								echo "[*] $3 Is Not A Valid Size - Must Be At Least 10MB"
+							else
+								logsize="$3"
+								Purge_Logs
+								echo "[i] Log Size Set To ${logsize}MB"
+							fi
+						else
+							echo "[*] $3 Is Not A Valid Size - Must Be Numeric"
+							Command_Not_Recognized
+						fi
+					;;
+				esac
+			;;
 			banaiprotect)
 				case "$3" in
 					enable)
@@ -5505,7 +5579,7 @@ case "$1" in
 				printf '║ %-20s │ %-82s ║\n' "Syslog Locations" "$syslogloc $syslog1loc"
 				printf '║ %-20s │ %-82s ║\n' "Skynet Log"       "${skynetlog}"
 				SZ="$(du -h "${skynetlog}" | awk '{print $1}')"
-				printf '║ └── %-16s │ %-82s ║\n' "Size" "$SZ"
+				printf '║ └── %-16s │ %-82s ║\n' "Size" "$SZ / ${logsize}MB"
 				Generate_Blocked_Events
 				printf '║ %-20s │ %-84s ║\n' "Monitor Span"      "$(grep -m1 -F "BLOCKED -" "$skynetlog" | awk '{printf "%s %s %s\n", $1, $2, $3}') → $(grep -F "BLOCKED -" "$skynetlog" | tail -1 | awk '{printf "%s %s %s\n", $1, $2, $3}')"
 				printf '╚══════════════════════╧════════════════════════════════════════════════════════════════════════════════════╝\n\n\n'
@@ -5616,6 +5690,7 @@ case "$1" in
 				printf '║ %-33s ║ %-80s ║\n' "Filter Traffic" "$(if [ "$filtertraffic" = "all" ]; then Grn "[Enabled]"; else Ylow "[Selective]"; fi)"
 				printf '║ %-33s ║ %-80s ║\n' "Unban PrivateIP" "$(if Is_Enabled "$unbanprivateip"; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
 				printf '║ %-33s ║ %-80s ║\n' "Log Invalid Packets" "$(if Is_Enabled "$loginvalid"; then Grn "[Enabled]"; else Grn "[Disabled]"; fi)"
+				printf '║ %-33s ║ %-80s ║\n' "Log Size" "$(Grn "[${logsize}MB]")"
 				printf '║ %-33s ║ %-80s ║\n' "Import AiProtect Data" "$(if Is_Enabled "$banaiprotect"; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
 				printf '║ %-33s ║ %-80s ║\n' "Secure Mode" "$(if Is_Enabled "$securemode"; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
 				printf '║ %-33s ║ %-80s ║\n' "Fast Switch List" "$(if Is_Enabled "$fastswitch"; then Ylow "[Enabled]"; else Grn "[Disabled]"; fi)"
