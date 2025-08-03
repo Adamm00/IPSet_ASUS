@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                       02/08/2025 - v8.0.0 BETA                                            #
+#                                       03/08/2025 - v8.0.0 BETA                                            #
 #############################################################################################################
 
 
@@ -885,7 +885,8 @@ Extended_DNSStats() {
 			  '
 			)"
 			#FIX ME
-			#[ -z "$banreason" ] && [ ! "$(ipset -q test Skynet-Blacklist "$ipaddr")" ] && [ ! "$(ipset -q test Skynet-BlockedRanges "$ipaddr")" ] && banreason="No Longer Blacklisted"
+			[ -z "$banreason" ] && ! ipset -q test Skynet-Blacklist "$ipaddr" && ! ipset -q test Skynet-BlockedRanges "$ipaddr" && banreason="No Longer Blacklisted"
+			#
 			[ "${#banreason}" -gt 45 ] && banreason="$(printf '%s' "$banreason" | cut -c1-45)"
 			printf '%-15s %-4s | %-55s | %-45s | %-60s \n' "$statdata" "$country" "https://otx.alienvault.com/indicator/ip/${statdata}" "$banreason" "$(grep -F "$statdata" /tmp/skynet/skynetstats.txt | awk '{print $1}' | xargs)"
 		;;
@@ -1438,8 +1439,7 @@ Run_Stats() {
 		printf '║ %-20s │ %-82s ║\n' "Skynet Log"       "${skynetlog}"
 		SZ="$(du -h "${skynetlog}" | awk '{print $1}')"
 		printf '║ └── %-16s │ %-82s ║\n' "Size" "$SZ"
-		# FIX ME BREAKS FORMATTING
-		printf '║ %-20s │ %-82s ║\n' "Block Events"       "$(wc -l < "$skynetlog") ($({ grep -E 'INBOUND|INVALID' "$skynetlog" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6-; grep -F "OUTBOUND" "$skynetlog" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6-; } | awk '!x[$0]++' | wc -l) Unique IPs)"
+		Generate_Blocked_Events
 		printf '║ %-20s │ %-82s ║\n' "Manual Bans"       "$(grep -Fc "Manual Ban" "$skynetevents")"
 		printf '║ %-20s │ %-84s ║\n' "Monitor Span"      "$(grep -m1 -F "BLOCKED -" "$skynetlog" | awk '{printf "%s %s %s\n", $1, $2, $3}') → $(grep -F "BLOCKED -" "$skynetlog" | tail -1 | awk '{printf "%s %s %s\n", $1, $2, $3}')"
 		printf '╚══════════════════════╧════════════════════════════════════════════════════════════════════════════════════╝\n\n'
@@ -2003,6 +2003,29 @@ Generate_Stats() {
 			rm -rf "${skynetloc}/webui/stats"
 		fi
 	fi
+}
+
+Generate_Blocked_Events() {
+	unique_ip_count="$(awk '
+		/INBOUND|INVALID/ {
+			for (i = 1; i <= NF; i++)
+				if ($i ~ /^SRC=/) {
+					split($i, ip, "=")
+					if (ip[2] ~ /^[0-9.]+$/) seen[ip[2]]++
+					break
+				}
+		}
+		/OUTBOUND/ {
+			for (i = 1; i <= NF; i++)
+				if ($i ~ /^DST=/) {
+					split($i, ip, "=")
+					if (ip[2] ~ /^[0-9.]+$/) seen[ip[2]]++
+					break
+				}
+		}
+		END { print length(seen) }
+	' "$skynetlog")"
+	printf '║ %-20s │ %-82s ║\n' "Block Events" "$(wc -l < "$skynetlog") ($unique_ip_count Unique IPs)"
 }
 
 Get_WebUI_Page() {
@@ -5483,8 +5506,7 @@ case "$1" in
 				printf '║ %-20s │ %-82s ║\n' "Skynet Log"       "${skynetlog}"
 				SZ="$(du -h "${skynetlog}" | awk '{print $1}')"
 				printf '║ └── %-16s │ %-82s ║\n' "Size" "$SZ"
-				# FIX ME BREAKS FORMATTING
-				#printf '║ %-20s │ %-82s ║\n' "Block Events"       "$(wc -l < "$skynetlog") ($({ grep -E 'INBOUND|INVALID' "$skynetlog" | grep -oE ' SRC=[0-9,\.]* ' | cut -c 6-; grep -F "OUTBOUND" "$skynetlog" | grep -oE ' DST=[0-9,\.]* ' | cut -c 6-; } | awk '!x[$0]++' | wc -l) Unique IPs)"
+				Generate_Blocked_Events
 				printf '║ %-20s │ %-84s ║\n' "Monitor Span"      "$(grep -m1 -F "BLOCKED -" "$skynetlog" | awk '{printf "%s %s %s\n", $1, $2, $3}') → $(grep -F "BLOCKED -" "$skynetlog" | tail -1 | awk '{printf "%s %s %s\n", $1, $2, $3}')"
 				printf '╚══════════════════════╧════════════════════════════════════════════════════════════════════════════════════╝\n\n\n'
 				passedtests="0"
