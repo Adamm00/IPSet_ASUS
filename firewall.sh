@@ -2473,11 +2473,6 @@ Write_Config() {
 		printf '%s\n' "## Installer ##"
 		printf '%s="%s"\n' "model" "$model"
 		printf '%s="%s"\n' "localver" "$localver"
-		printf '%s="%s"\n' "autoupdate" "$autoupdate"
-		printf '%s="%s"\n' "banmalwareupdate" "$banmalwareupdate"
-		printf '%s="%s"\n' "forcebanmalwareupdate" "$forcebanmalwareupdate"
-		printf '%s="%s"\n' "logmode" "$logmode"
-		printf '%s="%s"\n' "filtertraffic" "$filtertraffic"
 		printf '%s="%s"\n' "swaplocation" "$swaplocation"
 		printf '\n%s\n' "## Counters / Lists ##"
 		printf '%s="%s"\n' "blacklist1count" "$blacklist1count"
@@ -2487,9 +2482,14 @@ Write_Config() {
 		printf '%s="%s"\n' "countrylist" "$countrylist"
 		printf '%s="%s"\n' "excludelists" "$excludelists"
 		printf '\n%s\n' "## Settings ##"
-		printf '%s="%s"\n' "unbanprivateip" "$unbanprivateip"
+		printf '%s="%s"\n' "autoupdate" "$autoupdate"
+		printf '%s="%s"\n' "banmalwareupdate" "$banmalwareupdate"
+		printf '%s="%s"\n' "forcebanmalwareupdate" "$forcebanmalwareupdate"
+		printf '%s="%s"\n' "logmode" "$logmode"
 		printf '%s="%s"\n' "loginvalid" "$loginvalid"
 		printf '%s="%s"\n' "logsize" "$logsize"
+		printf '%s="%s"\n' "filtertraffic" "$filtertraffic"
+		printf '%s="%s"\n' "unbanprivateip" "$unbanprivateip"
 		printf '%s="%s"\n' "banaiprotect" "$banaiprotect"
 		printf '%s="%s"\n' "securemode" "$securemode"
 		printf '%s="%s"\n' "extendedstats" "$extendedstats"
@@ -3017,10 +3017,10 @@ Load_Menu() {
 					printf '%-35s | %-40s\n' "[1]  --> Skynet Auto-Updates" "$(if Is_Enabled "$autoupdate"; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
 					printf '%-35s | %-40s\n' "[2]  --> Malware List Auto-Updates" "$(if [ "$banmalwareupdate" = "daily" ] || [ "$banmalwareupdate" = "weekly" ]; then Grn "[$banmalwareupdate]"; else Red "[Disabled]"; fi)"
 					printf '%-35s | %-40s\n' "[3]  --> Logging" "$(if Is_Enabled "$logmode"; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
-					printf '%-35s | %-40s\n' "[4]  --> Filter Traffic" "$(Grn "[$filtertraffic]")"
-					printf '%-35s | %-40s\n' "[5]  --> Unban PrivateIP" "$(if Is_Enabled "$unbanprivateip"; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
-					printf '%-35s | %-40s\n' "[6]  --> Log Invalid Packets" "$(if Is_Enabled "$loginvalid"; then Grn "[Enabled]"; else Grn "[Disabled]"; fi)"
-					printf '%-35s | %-40s\n' "[7]  --> Log Size" "$(Grn "[${logsize}MB]")"
+					printf '%-35s | %-40s\n' "[4]  --> Log Invalid Packets" "$(if Is_Enabled "$loginvalid"; then Grn "[Enabled]"; else Grn "[Disabled]"; fi)"
+					printf '%-35s | %-40s\n' "[5]  --> Log Size" "$(Grn "[${logsize}MB]")"
+					printf '%-35s | %-40s\n' "[6]  --> Filter Traffic" "$(Grn "[$filtertraffic]")"
+					printf '%-35s | %-40s\n' "[7]  --> Unban PrivateIP" "$(if Is_Enabled "$unbanprivateip"; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
 					printf '%-35s | %-40s\n' "[8]  --> Import AiProtect Data" "$(if Is_Enabled "$banaiprotect"; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
 					printf '%-35s | %-40s\n' "[9]  --> Secure Mode" "$(if Is_Enabled "$securemode"; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
 					printf '%-35s | %-40s\n' "[10] --> Fast Switch List" "$(if Is_Enabled "$fastswitch"; then Ylow "[Enabled]"; else Grn "[Disabled]"; fi)"
@@ -3129,6 +3129,66 @@ Load_Menu() {
 						;;
 						4)
 							if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
+							option2="loginvalid"
+							while true; do
+								Show_Menu "Select Invalid Packet Logging Option" \
+									"Enable" \
+									"Disable" \
+									"Exit"
+								Prompt_Input "1-2" menu3
+								case "$menu3" in
+									1)
+										option3="enable"
+										break
+									;;
+									2)
+										option3="disable"
+										break
+									;;
+									e|exit|back|menu)
+										Return_To_Menu
+										break
+									;;
+									*)
+										Invalid_Option "$menu3"
+									;;
+								esac
+							done
+							break
+						;;
+						5)
+							if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
+							option2="logsize"
+							while true; do
+								Show_Menu "Select Log Size Option" \
+									"10MB" \
+									"Custom" \
+									"Exit"
+								Prompt_Input "1-2" menu3
+								case "$menu3" in
+									1)
+										option3="10"
+										break
+									;;
+									2)
+										Prompt_Typed "option3" "Size" "Input Custom Log Size (in MB):"
+										if ! Is_Numeric "$option3"; then echo; echo "[*] $option3 Is Not A Valid Size"; echo; unset "option3"; continue; fi
+										if [ "$option3" -lt 10 ]; then echo; echo "[*] $option3 Is Not A Valid Size - Must Be At Least 10MB"; echo; unset "option3"; continue; fi
+										break
+									;;
+									e|exit|back|menu)
+										Return_To_Menu
+										break
+									;;
+									*)
+										Invalid_Option "$menu3"
+									;;
+								esac
+							done
+							break
+						;;
+						6)
+							if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 							option2="filter"
 							while true; do
 							Show_Menu "Select Traffic Filter" \
@@ -3161,7 +3221,7 @@ Load_Menu() {
 							done
 							break
 						;;
-						5)
+						7)
 							if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 							option2="unbanprivate"
 							while true; do
@@ -3177,66 +3237,6 @@ Load_Menu() {
 									;;
 									2)
 										option3="disable"
-										break
-									;;
-									e|exit|back|menu)
-										Return_To_Menu
-										break
-									;;
-									*)
-										Invalid_Option "$menu3"
-									;;
-								esac
-							done
-							break
-						;;
-						6)
-							if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
-							option2="loginvalid"
-							while true; do
-								Show_Menu "Select Invalid Packet Logging Option" \
-									"Enable" \
-									"Disable" \
-									"Exit"
-								Prompt_Input "1-2" menu3
-								case "$menu3" in
-									1)
-										option3="enable"
-										break
-									;;
-									2)
-										option3="disable"
-										break
-									;;
-									e|exit|back|menu)
-										Return_To_Menu
-										break
-									;;
-									*)
-										Invalid_Option "$menu3"
-									;;
-								esac
-							done
-							break
-						;;
-						7)
-							if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
-							option2="logsize"
-							while true; do
-								Show_Menu "Select Log Size Option" \
-									"10MB" \
-									"Custom" \
-									"Exit"
-								Prompt_Input "1-2" menu3
-								case "$menu3" in
-									1)
-										option3="10"
-										break
-									;;
-									2)
-										Prompt_Typed "option3" "Size" "Input Custom Log Size (in MB):"
-										if ! Is_Numeric "$option3"; then echo; echo "[*] $option3 Is Not A Valid Size"; echo; unset "option3"; continue; fi
-										if [ "$option3" -lt 10 ]; then echo; echo "[*] $option3 Is Not A Valid Size - Must Be At Least 10MB"; echo; unset "option3"; continue; fi
 										break
 									;;
 									e|exit|back|menu)
@@ -4941,6 +4941,58 @@ case "$1" in
 					;;
 				esac
 			;;
+			loginvalid)
+				case "$3" in
+					enable)
+						Check_Lock "$@"
+						if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
+						Purge_Logs
+						loginvalid="enabled"
+						Unload_LogIPTables
+						Load_LogIPTables
+						echo "[i] Invalid IP Logging Enabled"
+					;;
+					disable)
+						Check_Lock "$@"
+						if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
+						Purge_Logs
+						loginvalid="disabled"
+						Unload_LogIPTables
+						Load_LogIPTables
+						echo "[i] Invalid IP Logging Disabled"
+					;;
+					*)
+						Command_Not_Recognized
+					;;
+				esac
+			;;
+			logsize)
+				case "$3" in
+					10)
+						Check_Lock "$@"
+						if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
+						logsize="10"
+						Purge_Logs
+						echo "[i] Log Size Set To 10MB"
+					;;
+					*)
+						Check_Lock "$@"
+						if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
+						if Is_Numeric "$3"; then
+							if [ "$3" -lt 10 ]; then 
+								echo "[*] $3 Is Not A Valid Size - Must Be At Least 10MB"
+							else
+								logsize="$3"
+								Purge_Logs
+								echo "[i] Log Size Set To ${logsize}MB"
+							fi
+						else
+							echo "[*] $3 Is Not A Valid Size - Must Be Numeric"
+							Command_Not_Recognized
+						fi
+					;;
+				esac
+			;;
 			filter)
 				case "$3" in
 					all)
@@ -5007,58 +5059,6 @@ case "$1" in
 					;;
 					*)
 						Command_Not_Recognized
-					;;
-				esac
-			;;
-			loginvalid)
-				case "$3" in
-					enable)
-						Check_Lock "$@"
-						if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
-						Purge_Logs
-						loginvalid="enabled"
-						Unload_LogIPTables
-						Load_LogIPTables
-						echo "[i] Invalid IP Logging Enabled"
-					;;
-					disable)
-						Check_Lock "$@"
-						if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
-						Purge_Logs
-						loginvalid="disabled"
-						Unload_LogIPTables
-						Load_LogIPTables
-						echo "[i] Invalid IP Logging Disabled"
-					;;
-					*)
-						Command_Not_Recognized
-					;;
-				esac
-			;;
-			logsize)
-				case "$3" in
-					10)
-						Check_Lock "$@"
-						if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
-						logsize="10"
-						Purge_Logs
-						echo "[i] Log Size Set To 10MB"
-					;;
-					*)
-						Check_Lock "$@"
-						if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
-						if Is_Numeric "$3"; then
-							if [ "$3" -lt 10 ]; then 
-								echo "[*] $3 Is Not A Valid Size - Must Be At Least 10MB"
-							else
-								logsize="$3"
-								Purge_Logs
-								echo "[i] Log Size Set To ${logsize}MB"
-							fi
-						else
-							echo "[*] $3 Is Not A Valid Size - Must Be Numeric"
-							Command_Not_Recognized
-						fi
 					;;
 				esac
 			;;
