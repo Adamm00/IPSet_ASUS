@@ -43,12 +43,12 @@ case "$1" in
 			ntptimer=$((ntptimer + 1))
 			if [ "$ntptimer" -eq 60 ]; then
 				echo
-				Log warn -s "Waiting for NTP to synchronize..."
+				Log info -s "Waiting for NTP to synchronize..."
 			fi
 			sleep 1
 		done
 		if [ "$ntptimer" -ge 300 ]; then
-			Log warn -s "NTP synchronization failed after 5 minutes. Please check your configuration!"
+			Log error -s "NTP synchronization failed after 5 minutes. Please check your configuration!"
 			echo
 			exit 1
 		fi
@@ -81,16 +81,16 @@ Check_Lock() {
 			if [ "$age" -gt 1800 ]; then
 				# Stale lock: kill and re‑acquire
 				if kill "$locked_pid" 2>/dev/null; then
-					Log warn -s "Killed stale Skynet process (pid=$locked_pid) after $age seconds"
+					Log info -s "Killed stale Skynet process (pid=$locked_pid) after $age seconds"
 				fi
 				: > "$LOCK_FILE"
 				if ! flock -n 9; then
-					Log warn -s "Lock acquisition failed after killing stale process - Exiting (pid=$locked_pid)"
+					Log error -s "Lock acquisition failed after killing stale process - Exiting (pid=$locked_pid)"
 					echo; exit 1
 				fi
 			else
 				# Active lock held by running process
-				Log warn -s "Lock File Detected ($locked_cmd) (pid=$locked_pid, runtime=${age}s) - Exiting"
+				Log error -s "Lock File Detected ($locked_cmd) (pid=$locked_pid, runtime=${age}s) - Exiting"
 				echo; exit 1
 			fi
 		else
@@ -98,7 +98,7 @@ Check_Lock() {
 			Log error -s "Invalid lock file detected - no valid PID found (pid='$locked_pid'). Removing lock."
 			: > "$LOCK_FILE"
 			if ! flock -n 9; then
-				Log warn -s "Lock acquisition failed after removing invalid lock - Exiting"
+				Log error -s "Lock acquisition failed after removing invalid lock - Exiting"
 				echo; exit 1
 			fi
 		fi
@@ -135,15 +135,15 @@ find_install_dir() {
 
 		# Wait until skynetloc exists as a directory and is writable
 		while [ "$attempt" -le "$MAX_RETRIES" ] && { [ ! -d "$skynetloc" ] || [ ! -w "$skynetloc" ]; }; do
-			Log warn -s "USB install directory not ready — sleeping 10s ($attempt/$MAX_RETRIES)"
+			Log info -s "USB install directory not ready — sleeping 10s ($attempt/$MAX_RETRIES)"
 			sleep 10
 			attempt=$(( attempt + 1 ))
 		done
 
 		# Final verification
 		if [ ! -d "$skynetloc" ] || [ ! -w "$skynetloc" ]; then
-			Log warn -s "Problem with USB install location — please fix immediately!"
-			Log warn -s "To change location run: sh $0 install"
+			Log error -s "Problem with USB install location — please fix immediately!"
+			Log error -s "To change location run: sh $0 install"
 			echo
 			exit 1
 		fi
@@ -177,7 +177,7 @@ Check_Settings() {
 	
 	# require config file
 	if [ ! -f "$skynetcfg" ]; then
-		Log warn -s "Configuration File Not Detected - Please Use ( sh $0 install ) To Continue"
+		Log error -s "Configuration File Not Detected - Please Use ( sh $0 install ) To Continue"
 		echo; exit 1
 	fi
 
@@ -185,24 +185,24 @@ Check_Settings() {
 	swaplocation="$(awk 'NR==2 { print $1 }' /proc/swaps)"
 
 	if [ -z "$swaplocation" ] && ! Check_Swap; then
-		Log warn -s "Skynet Requires A SWAP File - Install One ( $0 debug swap install )"
+		Log error -s "Skynet Requires A SWAP File - Install One ( $0 debug swap install )"
 		echo; exit 1
 	fi
 
 	if Check_Swap && [ -z "$(grep -E 'swapon [^#]+' /jffs/scripts/post-mount | cut -d ' ' -f2)" ]; then
-		Log warn -s "SWAPON Entry Missing - Fix This By Running ( $0 debug swap uninstall ) Then ( $0 debug swap install )"
+		Log error -s "SWAPON Entry Missing - Fix This By Running ( $0 debug swap uninstall ) Then ( $0 debug swap install )"
 		echo; exit 1
 	fi
 
 	if grep -q '^partition' /proc/swaps; then
-		Log warn -s "SWAP Partitions Not Supported - Please Use SWAP File"
+		Log error -s "SWAP Partitions Not Supported - Please Use SWAP File"
 		echo; exit 1
 	fi
 
 	# warn if too small (<1GB)
 	swap_kb=$(du -k "$swaplocation" 2>/dev/null | awk '{print $1}') || swap_kb=0
 	if [ "$swap_kb" -gt 0 ] && [ "$swap_kb" -lt 1048576 ]; then
-		Log warn -s "SWAP File Too Small (<1GB) - Please Fix Immediately!"
+		Log error -s "SWAP File Too Small (<1GB) - Please Fix Immediately!"
 	fi
 
 	# load banmalware and update cronjobs
@@ -234,7 +234,7 @@ Check_Settings() {
 	if [ "$(nvram get jffs2_scripts)" != "1" ]; then
 		nvram set jffs2_scripts=1
 		nvram commit
-		Log warn -s "Custom JFFS Scripts Enabled - Please Manually Reboot To Apply Changes"
+		Log info -s "Custom JFFS Scripts Enabled - Please Manually Reboot To Apply Changes"
 	fi
 
 	if [ "$(nvram get fw_enable_x)" != "1" ]; then
@@ -284,7 +284,7 @@ Check_Settings() {
 	fi
 
 	if nvram get wan0_ipaddr | Is_PrivateIP; then
-		Log warn -s "Private WAN IP Detected $(nvram get wan0_ipaddr) - Please Put Your Modem In Bridge Mode / Disable CG-NAT"
+		Log error -s "Private WAN IP Detected $(nvram get wan0_ipaddr) - Please Put Your Modem In Bridge Mode / Disable CG-NAT"
 	fi
 
 	# Set default log size if not set
@@ -1407,10 +1407,6 @@ Log() {
 			prefix="[i] "
 			shift
 			;;
-		warn)
-			prefix="[*] "
-			shift
-			;;
 		error)
 			prefix="[✘] "
 			shift
@@ -2061,7 +2057,7 @@ Install_WebUI_Page() {
 			if Is_Enabled "$displaywebui"; then
 				Get_WebUI_Page "${skynetloc}/webui/skynet.asp"
 				if [ "$MyPage" = "none" ]; then
-					Log warn "Unable To Mount Skynet Web Page - No Mount Points Avilable"
+					Log error "Unable To Mount Skynet Web Page - No Mount Points Avilable"
 				else
 					Log info "Mounting Skynet Web Page As $MyPage"
 					cp -f "${skynetloc}/webui/skynet.asp" "/www/user/$MyPage"
@@ -2088,7 +2084,7 @@ Install_WebUI_Page() {
 			fi
 		fi
 	else
-		Log warn "WebUI Integration Requires Logging To Be Enabled"
+		Log error "WebUI Integration Requires Logging To Be Enabled"
 	fi
 }
 
@@ -4356,7 +4352,7 @@ case "$1" in
 			echo "[i] Custom Filter Detected: $customlisturl"
 		elif [ "$1" = "fs" ]; then
 			if [ -z "$2" ] && [ -z "$customlist2url" ]; then
-				Log warn -s "Fast Switch List URL Not Configured - Stopping Banmalware"
+				Log error -s "Fast Switch List URL Not Configured - Stopping Banmalware"
 				echo; exit 1
 			else
 				fastswitch="enabled"
@@ -4724,7 +4720,7 @@ case "$1" in
 	save)
 		Check_Lock "$@"
 		if ! Check_IPSets || ! Check_IPTables; then
-			Log warn -s "Rule Integrity Violation - Restarting Firewall [ ${fail}]"
+			Log error -s "Rule Integrity Violation - Restarting Firewall [ ${fail}]"
 			unset fail
 			restartfirewall="1"
 			nolog="2"
@@ -4744,7 +4740,7 @@ case "$1" in
 		Check_Settings
 		Check_Files firewall-start services-stop service-event post-mount unmount
 		Clean_Temp
-		if ! Check_Connection; then Log warn -s "Connection Error Detected - Exiting"; echo; exit 1; fi
+		if ! Check_Connection; then Log error -s "Connection Error Detected - Exiting"; echo; exit 1; fi
 		Load_Cron "save"
 		modprobe xt_set
 		if [ -f "$skynetipset" ]; then ipset restore -! -f "$skynetipset"; else Log info -s "Setting Up Skynet"; touch "$skynetipset"; fi
@@ -4779,6 +4775,7 @@ case "$1" in
 		Load_IPTables
 		Load_IOTTables
 		Load_LogIPTables
+		unset "nolog"
 		sed -i '\~DROP IN=~d' "$syslog1loc" "$syslogloc" 2>/dev/null
 		if Is_Enabled "$forcebanmalwareupdate"; then
 			Write_Config
@@ -4789,7 +4786,6 @@ case "$1" in
 			"$0" banmalware
 			exit 0
 		fi
-		unset "nolog"
 	;;
 
 	restart)
@@ -4842,7 +4838,7 @@ case "$1" in
 		elif [ "$2" = "-f" ]; then
 			echo "[i] Forcing Update"
 		fi
-		if [ "$localmd5" != "$remotemd5" ] || [ "$2" = "-f" ] && [ "$nolog" != "2" ]; then
+		if [ "$localmd5" != "$remotemd5" ] || [ "$2" = "-f" ]; then
 			Log info "New Version Detected - Updating To $remotever (${remotemd5})"
 			echo "[i] Saving Changes"
 			Save_IPSets
