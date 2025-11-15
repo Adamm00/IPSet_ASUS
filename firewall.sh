@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                       01/11/2025 - v8.0.0 BETA                                            #
+#                                            15/11/2025 - v8.0.0                                            #
 #############################################################################################################
 
 
@@ -1399,8 +1399,8 @@ Log() {
 			# custom syslog tag
 			shift
 			if [ "$#" -gt 0 ]; then
-			tag="$1"
-			shift
+				tag="$1"
+				shift
 			fi
 			;;
 		info)
@@ -2432,7 +2432,7 @@ Purge_Logs() {
 	fi
 
 	# Reload syslog-ng only if configured
-	[ -f /opt/etc/syslog-ng.d/skynet ] && killall -HUP syslog-ng 2>/dev/null
+	[ -f "/opt/etc/syslog-ng.d/skynet" ] && killall -HUP syslog-ng 2>/dev/null
 }
 
 Print_Log() {
@@ -4780,7 +4780,7 @@ case "$1" in
 		if Is_Enabled "$forcebanmalwareupdate"; then
 			Write_Config
 			Release_Lock
-			#— force a summary now, before we trigger banmalware —
+			# force a summary now, before we trigger banmalware
 			Print_Log "$@"
 			# then run banmalware as a child (not via exec)
 			"$0" banmalware
