@@ -121,9 +121,10 @@ amtm
 - `firewall settings autoupdate enable|disable`: Enable/disable Skynet autoupdating.
 - `firewall settings banmalware daily|weekly|disable`: Enable/disable automatic malware list updating.
 - `firewall settings logmode enable|disable`: Enable/disable logging.
+- `firewall settings loginvalid enable|disable`: Enable/disable invalid packet logging.
+- `firewall settings logsize 10` : Configure Skynet log size in MB 
 - `firewall settings filter all|inbound|outbound`: Select what traffic to filter.
 - `firewall settings unbanprivate enable|disable`: Enable/disable Unban_PrivateIP function.
-- `firewall settings loginvalid enable|disable`: Enable/disable invalid packet logging.
 - `firewall settings banaiprotect enable|disable`: Enable/disable banning IPs flagged by AiProtect.
 - `firewall settings securemode enable|disable`: Enable/disable insecure settings being applied in WebUI.
 - `firewall settings fs google.com/filter.list|disable`: Configure/disable fast malware list switching.
