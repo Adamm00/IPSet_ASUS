@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            15/11/2025 - v8.0.0                                            #
+#                                            16/11/2025 - v8.0.1                                            #
 #############################################################################################################
 
 
@@ -4390,6 +4390,7 @@ case "$1" in
 		Display_Result
 		Display_Message "[i] Consolidating Blacklist"
 
+		rm -rf "${skynetloc}"/lists/*
 		mkdir -p "${skynetloc}/lists"
 		cwd="$(pwd)"
 		cd "${skynetloc}/lists" || exit 1
@@ -4400,12 +4401,28 @@ case "$1" in
 		# Download all feeds in parallel
 		while IFS= read -r list; do
 			(
-				url=$(grep "$list" /jffs/addons/shared-whitelists/shared-Skynet-whitelist)
+				url=$(grep -m 1 "$list" /jffs/addons/shared-whitelists/shared-Skynet-whitelist)
 				if [ -n "$url" ]; then
-					curl -fsLZ --retry 2 --connect-timeout 5 --max-time 15 "$url" -o "${skynetloc}/lists/$list" \
-					|| echo "[✘] Failed to fetch: $url"
+					base_path="${skynetloc}/lists/$list"
+					dest_path="$base_path"
+
+					# If file exists, find next available suffix: .1, .2, ...
+					if [ -f "$dest_path" ] || [ -d "$dest_path" ]; then
+						i=1
+						while :; do
+							dest_path="${base_path}.${i}"
+							if [ ! -f "$dest_path" ] && [ ! -d "$dest_path" ]; then
+								break
+							fi
+							i=$((i + 1))
+						done
+						echo "$dest_path" >> "/tmp/skynet/skynet.manifest"
+					fi
+					# echo "downloading $url"
+					curl -sfL --retry 2 --connect-timeout 5 --max-time 15 "$url" -o "$dest_path" \
+					|| echo "[✘] Failed to fetch: $url" to "$dest_path"
 				fi
-			) &
+			)
 		done < /tmp/skynet/skynet.manifest
 		wait
 
@@ -4414,6 +4431,7 @@ case "$1" in
 		for file in "${skynetloc}/lists/"*; do
 			basefile="$(basename "$file")"
 			if ! grep -qF "$basefile" /tmp/skynet/skynet.manifest; then
+				echo "[✘] Removing Unlisted File: $basefile"
 				rm -f "$file"
 			fi
 		done
