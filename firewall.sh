@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            16/11/2025 - v8.0.2                                            #
+#                                            17/11/2025 - v8.0.3                                            #
 #############################################################################################################
 
 
@@ -127,7 +127,7 @@ find_install_dir() {
 		install|uninstall|disable|update|restart|info) return 0 ;;
 	esac
 
-	if [ -z "$skynetloc" ]; then
+	if [ ! -d "${skynetloc}" ] || [ ! -w "${skynetloc}" ]; then
 		Check_Lock "$@"
 
 		MAX_RETRIES=10
@@ -727,7 +727,7 @@ Check_IPTables() {
 
 		#24: Invalid LOG
 		if [ "$(nvram get fw_log_x)" != "off" ] && Is_Enabled "$loginvalid"; then
-			echo "$raw_rules" \
+			echo "$filter_rules" \
 			| grep -Fq -- '-A logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - INVALID] "' || fail="${fail}#24 "
 		fi
 	fi
@@ -4462,12 +4462,26 @@ case "$1" in
 						src = FILENAME
 						gsub(".*/", "", src)
 
-						# Skip RFC1918 / private / loopback / link-local ranges
-						if (ip ~ /^10\./ ||
-							ip ~ /^192\.168\./ ||
-							ip ~ /^172\.(1[6-9]|2[0-9]|3[0-1])\./ ||
-							ip ~ /^127\./ ||
-							ip ~ /^169\.254\./) {
+						# Skip non-routable / private / special ranges that shouldn t be blacklisted
+						# 0.0.0.0/8, 10.0.0.0/8, 100.64.0.0/10 (CGNAT), 127.0.0.0/8, 169.254.0.0/16,
+						# 172.16.0.0/12, 192.0.0.0/24, 192.0.2.0/24, 192.168.0.0/16,
+						# 198.18.0.0/15, 198.51.100.0/24, 203.0.113.0/24,
+						# 224.0.0.0–255.255.255.255 (multicast / reserved)
+						if (ip ~ /^0\./ ||
+						    ip ~ /^10\./ ||
+						    ip ~ /^100\.(6[4-9]|[7-9][0-9]|1[0-1][0-9]|12[0-7])\./ ||
+						    ip ~ /^127\./ ||
+						    ip ~ /^169\.254\./ ||
+						    ip ~ /^172\.1[6-9]\./ ||
+						    ip ~ /^172\.2[0-9]\./ ||
+						    ip ~ /^172\.3[0-1]\./ ||
+						    ip ~ /^192\.0\.0\./ ||
+						    ip ~ /^192\.0\.2\./ ||
+						    ip ~ /^192\.168\./ ||
+						    ip ~ /^198\.(1[8-9])\./ ||
+						    ip ~ /^198\.51\.100\./ ||
+						    ip ~ /^203\.0\.113\./ ||
+						    ip ~ /^2(2[4-9]|[3-4][0-9]|5[0-5])\./) {
 							next
 						}
 
