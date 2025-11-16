@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            16/11/2025 - v8.0.1                                            #
+#                                            16/11/2025 - v8.0.2                                            #
 #############################################################################################################
 
 
@@ -4388,41 +4388,57 @@ case "$1" in
 		Whitelist_Shared
 		Refresh_MWhitelist
 		Display_Result
-		Display_Message "[i] Consolidating Blacklist"
+		Display_Message "[i] Start Blacklist Consolidation"
+		echo
 
 		rm -rf "${skynetloc}"/lists/*
 		mkdir -p "${skynetloc}/lists"
 		cwd="$(pwd)"
 		cd "${skynetloc}/lists" || exit 1
 
-		# Extract just the filenames from URLs (e.g. file.txt)
-		awk -F / '{print $NF}' /jffs/addons/shared-whitelists/shared-Skynet-whitelist > /tmp/skynet/skynet.manifest
+		# Build manifest: "url filename" (dedupe URLs, auto-suffix duplicate basenames)
+		awk '
+			NF == 0 { next }
+
+			{
+				# Strip trailing CR if present (CRLF safety)
+				sub("\r$", "", $0)
+				url = $0
+
+				# Basic URL sanity: only keep http/https URLs
+				if (url !~ /^https?:\/\/.*/) {
+					next
+				}
+
+				# Skip exact duplicate URL lines
+				if (seen[url]++) {
+					next
+				}
+
+				n = split(url, parts, "/")
+				name = parts[n]
+				if (name == "") {
+					next
+				}
+
+				count[name]++
+				if (count[name] > 1) {
+					# Same basename from another URL → suffix .1, .2, ...
+					printf "%s %s.%d\n", url, name, count[name] - 1
+				} else {
+					printf "%s %s\n", url, name
+				}
+			}
+		' /jffs/addons/shared-whitelists/shared-Skynet-whitelist > /tmp/skynet/skynet.manifest
 
 		# Download all feeds in parallel
-		while IFS= read -r list; do
+		while IFS=' ' read -r url list || [ -n "$url" ]; do
 			(
-				url=$(grep -m 1 "$list" /jffs/addons/shared-whitelists/shared-Skynet-whitelist)
-				if [ -n "$url" ]; then
-					base_path="${skynetloc}/lists/$list"
-					dest_path="$base_path"
-
-					# If file exists, find next available suffix: .1, .2, ...
-					if [ -f "$dest_path" ] || [ -d "$dest_path" ]; then
-						i=1
-						while :; do
-							dest_path="${base_path}.${i}"
-							if [ ! -f "$dest_path" ] && [ ! -d "$dest_path" ]; then
-								break
-							fi
-							i=$((i + 1))
-						done
-						echo "$dest_path" >> "/tmp/skynet/skynet.manifest"
-					fi
-					# echo "downloading $url"
-					curl -sfL --retry 2 --connect-timeout 5 --max-time 15 "$url" -o "$dest_path" \
-					|| echo "[✘] Failed to fetch: $url" to "$dest_path"
-				fi
-			)
+				[ -n "$url" ] || exit 0
+				curl -fsLZ --retry 2 --connect-timeout 5 --max-time 15 "$url" \
+					-o "${skynetloc}/lists/$list" 2>/dev/null \
+				&& echo "[✔] Downloading $url" || echo "[✘] Failed to fetch: $url"
+			) &
 		done < /tmp/skynet/skynet.manifest
 		wait
 
@@ -4431,46 +4447,58 @@ case "$1" in
 		for file in "${skynetloc}/lists/"*; do
 			basefile="$(basename "$file")"
 			if ! grep -qF "$basefile" /tmp/skynet/skynet.manifest; then
-				echo "[✘] Removing Unlisted File: $basefile"
 				rm -f "$file"
 			fi
 		done
 
-		if [ "$result" != "1" ]; then
-			sed -i '\~comment \"BanMalware: ~d' "$skynetipset"
-			if [ -d "${skynetloc}/lists" ] && ls "${skynetloc}/lists/"* 1>/dev/null 2>&1; then
-				if ! awk '
-					BEGIN { valid_entries=0 }
-					{
-						if ($1 ~ /^([0-9]{1,3}\.){3}[0-9]{1,3}(\/([0-9]|[1-2][0-9]|3[0-2]))?([[:space:]]|$)/) {
-							ip = $1
-							src = FILENAME
-							gsub(".*/", "", src)
-							if (!x[ip]++) {
-								valid_entries++
-								if (ip ~ /^([0-9]{1,3}\.){3}[0-9]{1,3}\/32$/ || ip !~ /\//) {
-									print "add Skynet-Blacklist " ip " comment \"BanMalware: " src "\""
-								} else if (ip ~ /^([0-9]{1,3}\.){3}[0-9]{1,3}\/([0-9]|[1-2][0-9]|3[0-1])$/) {
-									print "add Skynet-BlockedRanges " ip " comment \"BanMalware: " src "\""
-								}
+		sed -i '\~comment \"BanMalware: ~d' "$skynetipset"
+		if [ -d "${skynetloc}/lists" ] && ls "${skynetloc}/lists/"* 1>/dev/null 2>&1; then
+			if ! awk '
+				BEGIN { valid_entries=0 }
+				{
+					# Match IPv4 with optional CIDR mask
+					if ($1 ~ /^([0-9]{1,3}\.){3}[0-9]{1,3}(\/([0-9]|[1-2][0-9]|3[0-2]))?([[:space:]]|$)/) {
+						ip = $1
+						src = FILENAME
+						gsub(".*/", "", src)
+
+						# Skip RFC1918 / private / loopback / link-local ranges
+						if (ip ~ /^10\./ ||
+							ip ~ /^192\.168\./ ||
+							ip ~ /^172\.(1[6-9]|2[0-9]|3[0-1])\./ ||
+							ip ~ /^127\./ ||
+							ip ~ /^169\.254\./) {
+							next
+						}
+
+						# De-duplicate on IP/CIDR
+						if (!x[ip]++) {
+							valid_entries++
+							# Single host or /32 → Skynet-Blacklist
+							if (ip ~ /^([0-9]{1,3}\.){3}[0-9]{1,3}\/32$/ || ip !~ /\//) {
+								print "add Skynet-Blacklist " ip " comment \"BanMalware: " src "\""
+							}
+							# Network ranges (/0–/31) → Skynet-BlockedRanges
+							else if (ip ~ /^([0-9]{1,3}\.){3}[0-9]{1,3}\/([0-9]|[1-2][0-9]|3[0-1])$/) {
+								print "add Skynet-BlockedRanges " ip " comment \"BanMalware: " src "\""
 							}
 						}
 					}
-					END {
-						if (valid_entries == 0) exit 1
-					}
-				' "${skynetloc}/lists/"* | Filter_PrivateIP >> "$skynetipset"; then
-					result="$(Red "[$(($(date +%s) - btime))s]")"
-					printf '%-8s\n' "$result"
-					printf '%-35s\n' "[✘] No usable malware entries found in feeds"
-					nocfg="1"
-				fi
-			else
-				printf '%-35s\n' "[✘] No malware feeds found — skipping consolidation"
+				}
+				END {
+					if (valid_entries == 0) exit 1
+				}
+			' "${skynetloc}/lists/"* >> "$skynetipset"; then
+				result="$(Red "[$(($(date +%s) - btime))s]")"
+				printf '%-8s\n' "$result"
+				printf '%-35s\n' "[✘] No usable malware entries found in feeds"
 				nocfg="1"
 			fi
+		else
+			printf '%-35s\n' "[✘] No malware feeds found — skipping consolidation"
+			nocfg="1"
 		fi
-
+		printf "%-35s | " "[i] Finish Blacklist Consolidation"
 		Display_Result
 		Display_Message "[i] Applying New Blacklist"
 		ipset flush Skynet-Blacklist; ipset flush Skynet-BlockedRanges
