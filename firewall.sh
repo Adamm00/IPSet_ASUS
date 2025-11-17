@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            17/11/2025 - v8.0.3                                            #
+#                                            17/11/2025 - v8.0.4                                            #
 #############################################################################################################
 
 
@@ -675,15 +675,25 @@ Check_IPTables() {
 
 	#11–17: IOT blocking
 	if Is_Enabled "$iotblocked"; then
-		[ "$(nvram get wgs_enable)" = "1" ] && echo "$filter_rules" | grep -Fq -- '-A FORWARD -i br+ -m set --match-set Skynet-IOT src -o wgs+ -j ACCEPT' || fail="${fail}#11 "
-		{ [ "$(nvram get vpn_server1_state)" != "0" ] || [ "$(nvram get vpn_server2_state)" != "0" ]; } && echo "$filter_rules" | grep -Fq -- '-A FORWARD -i br+ -m set --match-set Skynet-IOT src -o tun2+ -j ACCEPT' || fail="${fail}#12 "
+		if [ "$(nvram get wgs_enable)" = "1" ]; then
+			echo "$filter_rules" | grep -Fq -- '-A FORWARD -i br+ -m set --match-set Skynet-IOT src -o wgs+ -j ACCEPT' || fail="${fail}#11 "
+		fi
+		{ [ "$(nvram get vpn_server1_state)" != "0" ] || [ "$(nvram get vpn_server2_state)" != "0" ]; } && echo "$filter_rules" | grep -Fq -- '-A FORWARD -i br+ -o tun2+ -m set --match-set Skynet-IOT src -j ACCEPT' || fail="${fail}#12 "
 		echo "$filter_rules" | grep -Fq -- '-A FORWARD -i br+ -m set --match-set Skynet-IOT src -j DROP' || fail="${fail}#13 "
 		if [ -n "$iotports" ]; then
-			{ [ "$iotproto" = "all" ] || [ "$iotproto" = "udp" ]; } && echo "$filter_rules" | grep -Fq -- "-A FORWARD -i br+ -m set --match-set Skynet-IOT src -o $iface -p udp -m udp -m multiport --dports $iotports -j ACCEPT" || fail="${fail}#14 "
-			{ [ "$iotproto" = "all" ] || [ "$iotproto" = "tcp" ]; } && echo "$filter_rules" | grep -Fq -- "-A FORWARD -i br+ -m set --match-set Skynet-IOT src -o $iface -p tcp -m tcp -m multiport --dports $iotports -j ACCEPT" || fail="${fail}#15 "
+			if [ "$iotproto" = "all" ] || [ "$iotproto" = "udp" ]; then
+				echo "$filter_rules" | grep -Fq -- "-A FORWARD -i br+ -m set --match-set Skynet-IOT src -o $iface -p udp -m udp -m multiport --dports $iotports -j ACCEPT" || fail="${fail}#14 "
+			fi
+			if [ "$iotproto" = "all" ] || [ "$iotproto" = "tcp" ]; then
+				echo "$filter_rules" | grep -Fq -- "-A FORWARD -i br+ -m set --match-set Skynet-IOT src -o $iface -p tcp -m tcp -m multiport --dports $iotports -j ACCEPT" || fail="${fail}#15 "
+			fi
 		else
-			{ [ "$iotproto" = "all" ] || [ "$iotproto" = "udp" ]; } && echo "$filter_rules" | grep -Fq -- "-A FORWARD -i br+ -m set --match-set Skynet-IOT src -o $iface -p udp -m udp --dport 123 -j ACCEPT" || fail="${fail}#16 "
-			{ [ "$iotproto" = "all" ] || [ "$iotproto" = "tcp" ]; } && echo "$filter_rules" | grep -Fq -- "-A FORWARD -i br+ -m set --match-set Skynet-IOT src -o $iface -p tcp -m tcp --dport 123 -j ACCEPT" || fail="${fail}#17 "
+			if [ "$iotproto" = "all" ] || [ "$iotproto" = "udp" ]; then
+				echo "$filter_rules" | grep -Fq -- "-A FORWARD -i br+ -o $iface -p udp -m set --match-set Skynet-IOT src -m udp --dport 123 -j ACCEPT" || fail="${fail}#16 "
+			fi
+			if [ "$iotproto" = "all" ] || [ "$iotproto" = "tcp" ]; then
+				echo "$filter_rules" | grep -Fq -- "-A FORWARD -i br+ -o $iface -p tcp -m set --match-set Skynet-IOT src -m tcp --dport 123 -j ACCEPT" || fail="${fail}#17 "
+			fi
 		fi
 	fi
 
@@ -4527,20 +4537,20 @@ case "$1" in
 						# 198.18.0.0/15, 198.51.100.0/24, 203.0.113.0/24,
 						# 224.0.0.0–255.255.255.255 (multicast / reserved)
 						if (ip ~ /^0\./ ||
-						    ip ~ /^10\./ ||
-						    ip ~ /^100\.(6[4-9]|[7-9][0-9]|1[0-1][0-9]|12[0-7])\./ ||
-						    ip ~ /^127\./ ||
-						    ip ~ /^169\.254\./ ||
-						    ip ~ /^172\.1[6-9]\./ ||
-						    ip ~ /^172\.2[0-9]\./ ||
-						    ip ~ /^172\.3[0-1]\./ ||
-						    ip ~ /^192\.0\.0\./ ||
-						    ip ~ /^192\.0\.2\./ ||
-						    ip ~ /^192\.168\./ ||
-						    ip ~ /^198\.(1[8-9])\./ ||
-						    ip ~ /^198\.51\.100\./ ||
-						    ip ~ /^203\.0\.113\./ ||
-						    ip ~ /^2(2[4-9]|[3-4][0-9]|5[0-5])\./) {
+							ip ~ /^10\./ ||
+							ip ~ /^100\.(6[4-9]|[7-9][0-9]|1[0-1][0-9]|12[0-7])\./ ||
+							ip ~ /^127\./ ||
+							ip ~ /^169\.254\./ ||
+							ip ~ /^172\.1[6-9]\./ ||
+							ip ~ /^172\.2[0-9]\./ ||
+							ip ~ /^172\.3[0-1]\./ ||
+							ip ~ /^192\.0\.0\./ ||
+							ip ~ /^192\.0\.2\./ ||
+							ip ~ /^192\.168\./ ||
+							ip ~ /^198\.(1[8-9])\./ ||
+							ip ~ /^198\.51\.100\./ ||
+							ip ~ /^203\.0\.113\./ ||
+							ip ~ /^2(2[4-9]|[3-4][0-9]|5[0-5])\./) {
 							next
 						}
 
@@ -5314,7 +5324,7 @@ case "$1" in
 										echo "[*] $ip Is Not A Valid IP/Range"
 										echo
 									else
-										IPSet_Wrapper add Skynet-IOT "$ip" skip-filter-ip "IOTBan: $desc"
+										IPSet_Wrapper add Skynet-IOT "$ip" nofilter "IOTBan: $desc"
 									fi
 							done
 						else
@@ -5322,7 +5332,7 @@ case "$1" in
 								echo "[*] $4 Is Not A Valid IP/Range"
 								echo
 							else
-								IPSet_Wrapper add Skynet-IOT "$4" skip-filter-ip "IOTBan: $desc"
+								IPSet_Wrapper add Skynet-IOT "$4" nofilter "IOTBan: $desc"
 							fi
 						fi
 						if [ "$(ipset -L -t Skynet-IOT | tail -1 | awk '{print $4}')" -gt "0" ]; then
