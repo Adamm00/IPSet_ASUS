@@ -26,7 +26,6 @@ skynetcfg="${skynetloc}/skynet.cfg"
 skynetlog="${skynetloc}/skynet.log"
 skynetevents="${skynetloc}/events.log"
 skynetipset="${skynetloc}/skynet.ipset"
-stime="$(date +%s)"
 LOCK_FILE="/tmp/skynet.lock"
 
 # Default to the NVRAM’s WAN interface name, but if the protocol is PPPoE, override to ppp0
@@ -35,11 +34,11 @@ iface="$(nvram get wan0_ifname)"
 
 trap 'Release_Lock' INT TERM EXIT
 
-ntptimer=0
 case "$1" in
 	uninstall|disable) ;;  # Skip NTP check for these modes
 	*)
-		while [ "$(nvram get ntp_ready)" != "1" ] && [ "$ntptimer" -lt 300 ]; do
+		ntptimer="0"
+		while [ "$(nvram get ntp_ready)" != "1" ] && [ "$ntptimer" -lt "300" ]; do
 			ntptimer=$((ntptimer + 1))
 			if [ "$ntptimer" -eq 60 ]; then
 				echo
@@ -54,6 +53,7 @@ case "$1" in
 		fi
 	;;
 esac
+stime="$(date +%s)"
 
 # If we haven’t yet determined an install directory and the script is running in a real terminal,
 # force the command to “install” so the installer logic kicks in automatically.
@@ -1373,6 +1373,7 @@ Show_Associated_Domains() {
 				echo "$domain"
 			fi
 		done
+		echo;echo
 	fi
 }
 
@@ -1450,7 +1451,7 @@ Run_Stats() {
 		Generate_Blocked_Events
 		printf '║ %-20s │ %-82s ║\n' "Manual Bans"       "$(grep -Fc "Manual Ban" "$skynetevents")"
 		printf '║ %-20s │ %-84s ║\n' "Monitor Span"      "$(grep -m1 -F "BLOCKED -" "$skynetlog" | awk '{printf "%s %s %s\n", $1, $2, $3}') → $(grep -F "BLOCKED -" "$skynetlog" | tail -1 | awk '{printf "%s %s %s\n", $1, $2, $3}')"
-		printf '╚══════════════════════╧════════════════════════════════════════════════════════════════════════════════════╝\n\n'
+		printf '╚══════════════════════╧════════════════════════════════════════════════════════════════════════════════════╝\n\n\n'
 		counter="10"
 		case "$2" in
 			reset)
@@ -1491,10 +1492,10 @@ Run_Stats() {
 						echo "[i] Port $4 Last Tracked On $(grep -F "PT=$4 " "$skynetlog" | tail -1 | awk '{printf "%s %s %s\n", $1, $2, $3}')"
 						echo "[i] $(grep -Foc "PT=$4 " "$skynetlog") Attempts Total"
 						echo "[i] $(grep -F "PT=$4 " "$skynetlog" | grep -oE ' SRC=[0-9,\.]* ' | awk '!x[$0]++' | wc -l) Unique IPs"
-						echo
+						echo;echo
 						Red "First Block Tracked On Port $4;"
 						grep -m1 -F "PT=$4 " "$skynetlog"
-						echo
+						echo;echo
 						Red "$counter Most Recent Blocks On Port $4;"
 						grep -F "PT=$4 " "$skynetlog" | tail -"$counter"
 						echo
@@ -1506,8 +1507,8 @@ Run_Stats() {
 						ipset test Skynet-Whitelist "$4" && found1=true
 						ipset test Skynet-Blacklist "$4" && found2=true
 						ipset test Skynet-BlockedRanges "$4" && found3=true
-						echo
-						if [ -n "$found1" ]; then Red "Whitelist Reason;"; grep -F "add Skynet-Whitelist $(echo "$4" | cut -d '.' -f1-3)." "$skynetipset" | awk '{$1=$2=$4=""; print $0}' | tr -s " "; echo; fi
+						echo;echo
+						if [ -n "$found1" ]; then Red "Whitelist Reason;"; grep -F "add Skynet-Whitelist $(echo "$4" | cut -d '.' -f1-3)." "$skynetipset" | awk '{$1=$2=$4=""; print $0}' | tr -s " "; echo; echo; fi
 						if [ -n "$found2" ] || [ -n "$found3" ]; then
 							Red "Ban Reasons;"
 							grep -E '^add Skynet-(Blacklist|BlockedRanges) ' "$skynetipset" | awk -v ip="$4" '
@@ -1547,7 +1548,7 @@ Run_Stats() {
 							}
 							'
 						fi
-						echo
+						echo;echo
 						ip="$(echo "$4" | sed 's~\.~\\.~g')"
 						Is_Enabled "$extendedstats" && Show_Associated_Domains "$ip"
 						if Is_Enabled "$lookupcountry"; then
@@ -1558,13 +1559,13 @@ Run_Stats() {
 						echo "[i] $4 First Tracked On $(grep -m1 -F "=$4 " "$skynetlog" | awk '{printf "%s %s %s\n", $1, $2, $3}')"
 						echo "[i] $4 Last Tracked On $(grep -F "=$4 " "$skynetlog" | tail -1 | awk '{printf "%s %s %s\n", $1, $2, $3}')"
 						echo "[i] $(grep -Foc "=$4 " "$skynetlog") Blocks Total"
-						echo
+						echo;echo
 						Red "Event Log Entries From $4;"
 						grep -F "=$4 " "$skynetevents"
-						echo
+						echo;echo
 						Red "First Block Tracked From $4;"
 						grep -m1 -F "=$4 " "$skynetlog"
-						echo
+						echo;echo
 						Red "$counter Most Recent Blocks From $4;"
 						grep -F "=$4 " "$skynetlog" | tail -"$counter"
 						echo; echo
@@ -1637,13 +1638,13 @@ Run_Stats() {
 								echo "[i] $ip First Tracked On $(grep -m1 -F "=$ip " "$skynetlog" | awk '{printf "%s %s %s\n", $1, $2, $3}')"
 								echo "[i] $ip Last Tracked On $(grep -F "=$ip " "$skynetlog" | tail -1 | awk '{printf "%s %s %s\n", $1, $2, $3}')"
 								echo "[i] $(grep -Foc "=$ip " "$skynetlog") Blocks Total"
-								echo
+								echo;echo
 								Red "Event Log Entries From $ip;"
 								grep -F "=$ip " "$skynetevents"
-								echo
+								echo;echo
 								Red "First Block Tracked From $ip;"
 								grep -m1 -F "=$ip " "$skynetlog"
-								echo
+								echo;echo
 								Red "$counter Most Recent Blocks From $ip;"
 								grep -F "=$ip " "$skynetlog" | tail -"$counter"
 								echo; echo
@@ -1688,10 +1689,10 @@ Run_Stats() {
 						if [ "$4" -eq "$4" ] 2>/dev/null; then counter="$4"; fi
 						echo "First Manual Ban Issued On $(grep -m1 -F "Manual Ban" "$skynetevents" | awk '{printf "%s %s %s\n", $1, $2, $3}')"
 						echo "Last Manual Ban Issued On $(grep -F "Manual Ban" "$skynetevents" | tail -1 | awk '{printf "%s %s %s\n", $1, $2, $3}')"
-						echo
+						echo;echo
 						Red "First Manual Ban Issued;"
 						grep -m1 -F "Manual Ban" "$skynetevents"
-						echo
+						echo;echo
 						Red "$counter Most Recent Manual Bans;"
 						grep -F "Manual Ban" "$skynetevents" | tail -"$counter"
 					;;
@@ -1701,13 +1702,13 @@ Run_Stats() {
 						echo "[i] $4 First Tracked On $(grep -m1 -E "OUTBOUND.* SRC=$4 " "$skynetlog" | awk '{printf "%s %s %s\n", $1, $2, $3}')"
 						echo "[i] $4 Last Tracked On $(grep -E "OUTBOUND.* SRC=$4 " "$skynetlog" | tail -1 | awk '{printf "%s %s %s\n", $1, $2, $3}')"
 						echo "[i] $(grep -Eoc -E "OUTBOUND.* SRC=$4 " "$skynetlog") Blocks Total"
-						echo
+						echo;echo
 						Red "Device Name;"
 						if grep -qF " $4 " "/var/lib/misc/dnsmasq.leases"; then grep -F " $4 " "/var/lib/misc/dnsmasq.leases" | awk '{print $4}'; else echo "Unknown"; fi
-						echo
+						echo;echo
 						Red "First Block Tracked From $4;"
 						grep -m1 -E "OUTBOUND.* SRC=$4 " "$skynetlog"
-						echo
+						echo;echo
 						Red "$counter Most Recent Blocks From $4;"
 						grep -E "OUTBOUND.* SRC=$4 " "$skynetlog" | tail -"$counter"
 						echo; echo
@@ -1729,10 +1730,10 @@ Run_Stats() {
 						sed -i '\~Skynet: \[#\] ~d' "$syslog1loc" "$syslogloc" 2>/dev/null
 						echo "[i] First Report Tracked On $(grep -m1 -F "Skynet: [#] " "$skynetevents" | awk '{printf "%s %s %s\n", $1, $2, $3}')"
 						echo "[i] Last Report Tracked On $(grep -F "Skynet: [#] " "$skynetevents" | tail -1 | awk '{printf "%s %s %s\n", $1, $2, $3}')"
-						echo
+						echo;echo
 						Red "First Report Tracked;"
 						grep -m1 -F "Skynet: [#] " "$skynetevents"
-						echo
+						echo;echo
 						Red "$counter Most Recent Reports;"
 						grep -F "Skynet: [#] " "$skynetevents" | tail -"$counter"
 					;;
@@ -1740,10 +1741,10 @@ Run_Stats() {
 						if [ "$4" -eq "$4" ] 2>/dev/null; then counter="$4"; fi
 						echo "[i] First Invalid Block Tracked On $(grep -m1 -F "BLOCKED - INVALID" "$skynetlog" | awk '{printf "%s %s %s\n", $1, $2, $3}')"
 						echo "[i] Last Invalid Block Tracked On $(grep -F "BLOCKED - INVALID" "$skynetlog" | tail -1 | awk '{printf "%s %s %s\n", $1, $2, $3}')"
-						echo
+						echo;echo
 						Red "First Report Tracked;"
 						grep -m1 -F "BLOCKED - INVALID" "$skynetlog"
-						echo
+						echo;echo
 						Red "$counter Most Recent Reports;"
 						grep -F "BLOCKED - INVALID" "$skynetlog" | tail -"$counter"
 					;;
@@ -1790,10 +1791,10 @@ Run_Stats() {
 						if [ "$4" -eq "$4" ] 2>/dev/null; then counter="$4"; fi
 						echo "[i] First IOT Block Tracked On $(grep -m1 -F "BLOCKED - IOT" "$skynetlog" | awk '{printf "%s %s %s\n", $1, $2, $3}')"
 						echo "[i] Last IOT Block Tracked On $(grep -F "BLOCKED - IOT" "$skynetlog" | tail -1 | awk '{printf "%s %s %s\n", $1, $2, $3}')"
-						echo
+						echo;echo
 						Red "First IOT Block Tracked;"
 						grep -m1 -F "BLOCKED - IOT" "$skynetlog"
-						echo
+						echo;echo
 						Red "$counter Most Recent IOT Blocks;"
 						grep -F "BLOCKED - IOT" "$skynetlog" | tail -"$counter"
 						echo;echo
