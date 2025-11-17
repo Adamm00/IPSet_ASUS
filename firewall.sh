@@ -1447,7 +1447,7 @@ Run_Stats() {
 		printf '║ %-20s │ %-82s ║\n' "Syslog Locations" "$syslogloc $syslog1loc"
 		printf '║ %-20s │ %-82s ║\n' "Skynet Log"       "${skynetlog}"
 		SZ="$(du -h "${skynetlog}" | awk '{print $1}')"
-		printf '║ └── %-16s │ %-82s ║\n' "Size" "$SZ"
+		printf '║ └── %-16s │ %-82s ║\n' "Used/Total" "$SZ / ${logsize}MB"
 		Generate_Blocked_Events
 		printf '║ %-20s │ %-82s ║\n' "Manual Bans"       "$(grep -Fc "Manual Ban" "$skynetevents")"
 		printf '║ %-20s │ %-84s ║\n' "Monitor Span"      "$(grep -m1 -F "BLOCKED -" "$skynetlog" | awk '{printf "%s %s %s\n", $1, $2, $3}') → $(grep -F "BLOCKED -" "$skynetlog" | tail -1 | awk '{printf "%s %s %s\n", $1, $2, $3}')"
@@ -4284,22 +4284,80 @@ case "$1" in
 				done
 			;;
 			country)
+				# Require at least one argument after "country"
 				if [ -z "$3" ]; then echo "[*] Country Field Can't Be Empty - Please Try Again"; echo; exit 2; fi
-				if echo "$3" | grep -qF "\""; then echo "[*] Country Field Can't Include Quotes - Please Try Again"; echo; exit 2; fi
-				countrylinklist="$(echo "$3" | awk '{print tolower($0)}')"
+
+				# Build raw country string from $3 onwards (so quotes aren't required)
+				country_raw=""
+				i=3
+				while [ "$i" -le "$#" ]; do
+					eval "arg=\${$i}"
+					if [ -n "$arg" ]; then
+						if [ -z "$country_raw" ]; then
+							country_raw=$arg
+						else
+							country_raw="$country_raw $arg"
+						fi
+					fi
+					i=$((i + 1))
+				done
+
+				# Disallow quotes in the combined country string
+				if printf '%s\n' "$country_raw" | grep -qF '"'; then
+					echo "[*] Country Field Can't Include Quotes - Please Try Again"
+					echo
+					exit 2
+				fi
+
+				# Normalise to lowercase and keep only 2-letter country codes
+				countrylinklist="$(
+					printf '%s\n' "$country_raw" |
+					awk '
+						{
+							for (i = 1; i <= NF; i++) {
+								code = tolower($i)
+								if (code ~ /^[a-z][a-z]$/) {
+									if (out != "") {
+										out = out " "
+									}
+									out = out code
+								}
+							}
+						}
+						END {
+							if (out != "") {
+								print out
+							}
+						}
+					'
+				)"
+
+				# No valid codes left after filtering
+				if [ -z "$countrylinklist" ]; then
+					echo "[✘] No valid 2-letter country codes detected - Please Try Again"
+					echo
+					exit 2
+				fi
+
+				# Remove any previous country bans (anything with "Country:" comment)
 				if [ -n "$countrylist" ]; then
 					echo "[i] Removing Previous Country Bans (${countrylist})"
 					sed '\~add Skynet-Whitelist ~d;\~Country: ~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
 				fi
-				if [ "${#3}" -gt "246" ]; then countrylist="Multiple Countries"; else countrylist="$countrylinklist"; fi
-				echo "[i] Banning Known IP Ranges For (${3})"
-				echo "[i] Downloading Lists"
-				for country in $countrylinklist; do
-					curl -fskL --retry 3 --connect-timeout 3 --max-time 6 --retry-delay 1 --retry-all-errors https://ipdeny.com/ipblocks/data/aggregated/"$country"-aggregated.zone >> /tmp/skynet/countrylist.txt
+
+				# For logging / other uses, keep the filtered list as-is
+				countrylist="$countrylinklist"
+
+				echo "[i] Banning Known IP Ranges For (${countrylist})"
+				echo "[i] Downloading Lists, Filtering IPv4 Ranges & Applying Blacklists"
+
+				for country in $countrylist; do
+					curl -fskL --retry 3 --connect-timeout 3 --max-time 6 --retry-delay 1 --retry-all-errors \
+						"https://ipdeny.com/ipblocks/data/aggregated/${country}-aggregated.zone" \
+					| grep -F "/" \
+					| sed -n "/^[0-9,\\.,\\/]*$/s/^/add Skynet-BlockedRanges /;s/$/& comment \"Country: ${country}\"/p" \
+					| ipset restore -!
 				done
-				echo "[i] Filtering IPv4 Ranges & Applying Blacklists"
-				grep -F "/" /tmp/skynet/countrylist.txt | sed -n "/^[0-9,\\.,\\/]*$/s/^/add Skynet-BlockedRanges /;s/$/& comment \"Country: $countrylist\"/p" | ipset restore -!
-				rm -rf "/tmp/skynet/countrylist.txt"
 			;;
 			asn)
 				if [ -z "$3" ]; then echo "[*] ASN Field Can't Be Empty - Please Try Again"; echo; exit 2; fi
@@ -5623,8 +5681,8 @@ case "$1" in
 				printf '╚══════════════════════╧════════════════════════════════════════════════════════════════════════════════════╝\n\n\n'
 				printf '╔═════════════════════ Storage ═════════════════════════════════════════════════════════════════════════════╗\n'
 				printf '║ %-20s │ %-82s ║\n' "Install Dir"    "${skynetloc}"
-				UA="$(df -h "$skynetloc" | awk 'NR==2{print $3 " / " $4}')"
-				printf '║ └── %-16s │ %-82s ║\n' "Used/Available" "$UA"
+				UA="$(df -h "$skynetloc" | awk 'NR==2{print $3 " / " $2}')"
+				printf '║ └── %-16s │ %-82s ║\n' "Used/Total" "$UA"
 				if [ -n "$swaplocation" ]; then
 					printf '║ %-20s │ %-82s ║\n' "SWAP File" "$swaplocation"
 					SZ="$(du -h "$swaplocation" | awk '{print $1}')"
@@ -5640,13 +5698,14 @@ case "$1" in
 				fi
 				totalmem=$(( $(awk '/MemTotal/     {print $2}' /proc/meminfo) /1024 ))
 				printf '║ %-20s │ %-82s ║\n' "RAM Used/Total" "(${memavailable}M / ${totalmem}M)"
-				[ -n "$countrylist" ] && printf '║ %-20s │ %-82s ║\n' "Banned Countries" "$countrylist"
 				printf '╚══════════════════════╧════════════════════════════════════════════════════════════════════════════════════╝\n\n\n'
 				printf '╔═════════════════════ Logging ═════════════════════════════════════════════════════════════════════════════╗\n'
 				printf '║ %-20s │ %-82s ║\n' "Syslog Locations" "$syslogloc $syslog1loc"
 				printf '║ %-20s │ %-82s ║\n' "Skynet Log"       "${skynetlog}"
 				SZ="$(du -h "${skynetlog}" | awk '{print $1}')"
-				printf '║ └── %-16s │ %-82s ║\n' "Size" "$SZ / ${logsize}MB"
+				printf '║ └── %-16s │ %-82s ║\n' "Used/Total" "$SZ / ${logsize}MB"
+				[ -n "$countrylist" ] && printf '║ %-20s │ %-82s ║\n' "Banned Countries" "$countrylist"
+				[ -n "$customlisturl" ] && printf '║ %-20s │ %-82s ║\n' "Custom Filter URL" "$customlisturl"
 				Generate_Blocked_Events
 				printf '║ %-20s │ %-84s ║\n' "Monitor Span"      "$(grep -m1 -F "BLOCKED -" "$skynetlog" | awk '{printf "%s %s %s\n", $1, $2, $3}') → $(grep -F "BLOCKED -" "$skynetlog" | tail -1 | awk '{printf "%s %s %s\n", $1, $2, $3}')"
 				printf '╚══════════════════════╧════════════════════════════════════════════════════════════════════════════════════╝\n\n\n'
