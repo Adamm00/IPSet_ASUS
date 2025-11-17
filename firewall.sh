@@ -264,7 +264,7 @@ Check_Settings() {
 	pids=$(pidof syslogd) || pids=
 	for pid in $pids; do
 		exe_path=$(readlink "/proc/$pid/exe") || continue
-		[ "$exe_path" != "/sbin/syslogd" ] && continue
+		[ "$exe_path" != "/bin/busybox" ] && continue
 		if grep -qF '/jffs/syslog.log' "/proc/$pid/cmdline"; then
 			syslogloc="/jffs/syslog.log"
 			syslog1loc="/jffs/syslog.log-1"
