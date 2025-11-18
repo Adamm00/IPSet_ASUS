@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            17/11/2025 - v8.0.4                                            #
+#                                            18/11/2025 - v8.0.5                                            #
 #############################################################################################################
 
 
@@ -76,6 +76,12 @@ Check_Lock() {
 		lock_timestamp=$(cut -d'|' -f3 "$LOCK_FILE")
 		current_time=$(date +%s)
 		age=$(( current_time - lock_timestamp ))
+
+		# re‑entrant lock handling
+		if [ "$locked_pid" = "$$" ]; then
+			# Same process calling Check_Lock again – reuse existing lock
+			return 0
+		fi
 
 		if [ -n "$locked_pid" ] && [ -d "/proc/$locked_pid" ]; then
 			if [ "$age" -gt 1800 ]; then
@@ -294,29 +300,51 @@ Check_Settings() {
 }
 
 Check_Connection() {
-	# 1) Grab the numeric gateway IP from the routing table
-	gw=$(route -n | awk '$1=="0.0.0.0"{print $2; exit}')
-	[ -n "$gw" ] || {
-		echo "[*] No Default Route"
-		return 1
-	}
+	# Usage:
+	#   Check_Connection              # 1 attempt
+	#   Check_Connection 5            # 5 attempts, 3s apart
+	#   Check_Connection 5 10         # 5 attempts, 10s apart
 
-	# 2) Quick ping gateway (1 s timeout)
-	if ping -c1 -W1 "$gw" >/dev/null 2>&1; then
-		return 0
+	retries="${1:-1}"   # default: 1 attempt (backwards compatible)
+	delay="${2:-3}"     # default: 3 seconds between attempts
+	[ "$retries" -lt 1 ] && retries=1
+	[ "$delay" -lt 1 ] && delay=1
+
+	attempt=1
+	while [ "$attempt" -le "$retries" ]; do
+		# 1) Grab the numeric gateway IP from the routing table
+		gw="$(route -n | awk '$1=="0.0.0.0"{print $2; exit}')"
+
+		# 2) Quick ping gateway (1 s timeout) if we have a gateway
+		if [ -n "$gw" ] && ping -c1 -W1 "$gw" >/dev/null 2>&1; then
+			return 0
+		fi
+
+		# 3) Quick ping a reliable public IP (1 s timeout)
+		if ping -c1 -W1 1.1.1.1 >/dev/null 2>&1; then
+			return 0
+		fi
+
+		# 4) ARP fallback on the known $iface (1 s timeout) if we have a gateway
+		if [ -n "$gw" ] && arping -c1 -w1 -I "$iface" "$gw" >/dev/null 2>&1; then
+			return 0
+		fi
+
+		# If this wasn't the last attempt, wait and retry
+		if [ "$attempt" -lt "$retries" ]; then
+			sleep "$delay"
+		fi
+
+		attempt=$((attempt + 1))
+	 done
+
+	# Final failure: print a single message like the original function
+	if [ -z "$gw" ]; then
+		Log error -s "Connection Error Detected - Unable To Determine Gateway Or Reach Public IP"
+	else
+		Log error -s "Connection Error Detected - Unable To Reach Gateway ($gw) Or Public IP"
 	fi
 
-	# 3) Quick ping a reliable public IP (1 s timeout)
-	if ping -c1 -W1 1.1.1.1 >/dev/null 2>&1; then
-		return 0
-	fi
-
-	# 4) ARP fallback on the known $iface (1 s timeout)
-	if arping -c1 -w1 -I "$iface" "$gw" >/dev/null 2>&1; then
-		return 0
-	fi
-
-	echo "[*] Connectivity Check Failed"
 	return 1
 }
 
@@ -1076,7 +1104,7 @@ Filter_PrivateDST() {
 Domain_Lookup() {
 	domain="$1"
 	timeout="$2"
-	result_file="/tmp/skynet/ns.$$.$(echo "$domain" | tr -c '[:alnum:]' '_').tmp"
+	result_file="/tmp/skynet/ns.$$.$(echo "$domain" | tr -c 'A-Za-z0-9' '_').tmp"
 
 	(
 		if [ -n "$3" ]; then
@@ -1086,11 +1114,21 @@ Domain_Lookup() {
 		fi
 	) &
 	lookup_pid=$!
-	sleep "$timeout" && kill "$lookup_pid" 2>/dev/null >/dev/null & watchdog_pid=$!
-	wait "$lookup_pid" 2>/dev/null
-	kill "$watchdog_pid" 2>/dev/null >/dev/null
+	( sleep "$timeout"; kill "$lookup_pid" 2>/dev/null ) &
+	watchdog_pid=$!
 
-	[ -s "$result_file" ] && awk '/Address/ && $NF ~ /^([0-9]{1,3}\.){3}[0-9]{1,3}$/ { print $NF }' "$result_file"
+	wait "$lookup_pid" 2>/dev/null
+	kill "$watchdog_pid" 2>/dev/null
+
+	if [ -s "$result_file" ]; then
+		awk '/Address/ {
+			for (i = 1; i <= NF; i++) {
+				if ($i ~ /^([0-9]{1,3}\.){3}[0-9]{1,3}$/)
+					print $i
+			}
+		}' "$result_file"
+	fi
+
 	rm -f "$result_file"
 }
 
@@ -4869,7 +4907,7 @@ case "$1" in
 		Check_Settings
 		Check_Files firewall-start services-stop service-event post-mount unmount
 		Clean_Temp
-		if ! Check_Connection; then Log error -s "Connection Error Detected - Exiting"; echo; exit 1; fi
+		if ! Check_Connection 10 5; then echo; exit 1; fi
 		Load_Cron "save"
 		modprobe xt_set
 		if [ -f "$skynetipset" ]; then ipset restore -! -f "$skynetipset"; else Log info -s "Setting Up Skynet"; touch "$skynetipset"; fi
