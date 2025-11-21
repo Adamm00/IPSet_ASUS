@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            18/11/2025 - v8.0.5                                            #
+#                                            21/11/2025 - v8.0.6                                            #
 #############################################################################################################
 
 
@@ -1210,11 +1210,11 @@ Refresh_MBans() {
 		while IFS= read -r "domain"; do
 		{
 			for ip in $(Domain_Lookup "$domain" 3 | Filter_PrivateIP); do
-			echo "add Skynet-Blacklist $ip comment \"ManualBanD: $domain\""
-			echo "$(date +"%b %e %T") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$domain " >> "$skynetevents"
+				echo "add Skynet-Blacklist $ip comment \"ManualBanD: $domain\""
+				echo "$(date +"%b %e %T") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$domain " >> "$skynetevents"
 			done
 		} &
-		done < /tmp/skynet/mbans.list
+		done < /tmp/skynet/mbans.list | ipset restore -!
 		wait
 		rm -rf /tmp/skynet/mbans.list
 	fi
