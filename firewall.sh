@@ -66,26 +66,27 @@ fi
 ###############
 
 Check_Lock() {
-	# Open FD 9 for locking
+	# Open FD 9 for locking
 	exec 9<>"$LOCK_FILE"
 
-	# Try non‑blocking lock
+	# Try non-blocking lock
 	if ! flock -n 9; then
-		locked_cmd=$(cut -d'|' -f1 "$LOCK_FILE")
-		locked_pid=$(cut -d'|' -f2 "$LOCK_FILE")
-		lock_timestamp=$(cut -d'|' -f3 "$LOCK_FILE")
+		locked_cmd=$(cut -d'|' -f1 "$LOCK_FILE" 2>/dev/null)
+		locked_pid=$(cut -d'|' -f2 "$LOCK_FILE" 2>/dev/null)
+		lock_timestamp=$(cut -d'|' -f3 "$LOCK_FILE" 2>/dev/null)
 		current_time=$(date +%s)
-		age=$(( current_time - lock_timestamp ))
 
-		# re‑entrant lock handling
+		# Re-entrant lock handling
 		if [ "$locked_pid" = "$$" ]; then
-			# Same process calling Check_Lock again – reuse existing lock
 			return 0
 		fi
 
+		# If we have a non-empty PID and that process exists
 		if [ -n "$locked_pid" ] && [ -d "/proc/$locked_pid" ]; then
-			if [ "$age" -gt 1800 ]; then
-				# Stale lock: kill and re‑acquire
+			age=$(( current_time - lock_timestamp ))
+
+			if [ "$age" -gt 1800 ] 2>/dev/null; then
+				# Stale lock: kill and re-acquire
 				if kill "$locked_pid" 2>/dev/null; then
 					Log info -s "Killed stale Skynet process (pid=$locked_pid) after $age seconds"
 				fi
@@ -100,17 +101,15 @@ Check_Lock() {
 				echo; exit 1
 			fi
 		else
-			# Invalid lock file (bad PID)
-			Log error -s "Invalid lock file detected - no valid PID found (pid='$locked_pid'). Removing lock."
-			: > "$LOCK_FILE"
-			if ! flock -n 9; then
-				Log error -s "Lock acquisition failed after removing invalid lock - Exiting"
-				echo; exit 1
-			fi
+			# We *know* flock says the file is locked, but the metadata is missing
+			# or corrupt. That usually means another Skynet instance is in the
+			# middle of writing the lock line. Safer to just bail.
+			Log error -s "Lock file busy but metadata invalid (pid='$locked_pid') - another Skynet instance is running - Exiting"
+			echo; exit 1
 		fi
 	fi
 
-	# We now hold the lock—record this invocation
+	# We now hold the lock — record this invocation
 	: > "$LOCK_FILE"
 	echo "$0 $*|$$|$(date +%s)" >&9
 }
@@ -1121,12 +1120,33 @@ Domain_Lookup() {
 	kill "$watchdog_pid" 2>/dev/null
 
 	if [ -s "$result_file" ]; then
-		awk '/Address/ {
-			for (i = 1; i <= NF; i++) {
-				if ($i ~ /^([0-9]{1,3}\.){3}[0-9]{1,3}$/)
-					print $i
+		awk -v q="$domain" '
+			BEGIN {
+				# normalise query: strip trailing dot if present
+				gsub(/\.$/, "", q)
+				in_query = 0
 			}
-		}' "$result_file"
+
+			# When we hit the Name: line that matches the query,
+			# start treating subsequent Address lines as belonging
+			# to this lookup (including CNAME target blocks).
+			/^Name:[[:space:]]*/ {
+				name = $2
+				gsub(/\.$/, "", name)
+				if (!in_query && name == q)
+					in_query = 1
+				next
+			}
+
+			# Only process Address lines once we are "inside" the
+			# query section. This skips the Server: block entirely.
+			in_query && /Address/ {
+				for (i = 1; i <= NF; i++) {
+					if ($i ~ /^([0-9]{1,3}\.){3}[0-9]{1,3}$/)
+						print $i
+				}
+			}
+		' "$result_file"
 	fi
 
 	rm -f "$result_file"
@@ -1962,7 +1982,38 @@ Generate_Stats() {
 			# last 10 Connections Blocked Inbound
 			true > "${skynetloc}/webui/stats/liconn.txt"
 			grep -F "INBOUND" "$skynetlog" | grep -oE ' SRC=[0-9,\.]*' | cut -c 6- | awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' | awk '!x[$0]++' | head -10 | while IFS= read -r "statdata"; do
-				banreason="$(grep -F " ${statdata} " "$skynetipset" | grep -m1 -vF "Skynet-Whitelist" | awk -F '"' '{print $2}' | sed "s~BanMalware: ~~g")"
+							banreason="$(
+			  grep -E '^add Skynet-(Blacklist|BlockedRanges) ' "$skynetipset" |
+			  awk -v ip="$statdata" '
+				function trim(s) { sub(/^ +| +$/, "", s); return s }
+				function do_print(cidr) {
+				  pos = index($0, "comment \"")
+				  if (pos) {
+					s = substr($0, pos+9); sub(/"$/, "", s)
+					printf "%s", trim(s)
+					if (cidr) printf "*"
+					printf "\n"
+				  }
+				}
+				BEGIN { split(ip,A,"."); ipn=A[1]*16777216 + A[2]*65536 + A[3]*256 + A[4] }
+				# exact blacklist
+				$1=="add" && $2=="Skynet-Blacklist" && $3==ip { do_print(0); exit }
+				# CIDR ranges
+				$1=="add" && $2=="Skynet-BlockedRanges" {
+				  split($3,P,"/"); net=P[1]; prefix=P[2]
+				  split(net,B,"."); netn=B[1]*16777216 + B[2]*65536 + B[3]*256 + B[4]
+				  if (prefix==32 && ipn==netn)              { do_print(0); exit }
+				  else if (prefix==24 && A[1]==B[1]&&A[2]==B[2]&&A[3]==B[3]) { do_print(1); exit }
+				  else if (prefix==16 && A[1]==B[1]&&A[2]==B[2])           { do_print(1); exit }
+				  else if (prefix==8  && A[1]==B[1])                       { do_print(1); exit }
+				  else {
+					sh=32-prefix; div=1
+					for(i=0;i<sh;i++) div*=2
+					if (int(ipn/div)==int(netn/div)) { do_print(1); exit }
+				  }
+				}
+			  '
+			)"
 				if [ -z "$banreason" ]; then
 					banreason="$(grep -E "$(echo "$statdata" | cut -d '.' -f1-3)\..*/" "$skynetipset" | grep -m1 -vF "Skynet-Whitelist" | awk -F '"' '{print $2}' | sed "s~BanMalware: ~~g")*"
 				fi
@@ -1979,7 +2030,38 @@ Generate_Stats() {
 			# Last 10 Connections Blocked Outbound
 			true > "${skynetloc}/webui/stats/loconn.txt"
 			grep -F "OUTBOUND" "$skynetlog" | grep -vE 'DPT=80 |DPT=443 ' | grep -oE ' DST=[0-9,\.]*' | cut -c 6- | awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' | awk '!x[$0]++' | head -10 | while IFS= read -r "statdata"; do
-				banreason="$(grep -F " ${statdata} " "$skynetipset" | grep -m1 -vF "Skynet-Whitelist" | awk -F '"' '{print $2}' | sed "s~BanMalware: ~~g")"
+			banreason="$(
+			  	grep -E '^add Skynet-(Blacklist|BlockedRanges) ' "$skynetipset" |
+			  	awk -v ip="$statdata" '
+					function trim(s) { sub(/^ +| +$/, "", s); return s }
+					function do_print(cidr) {
+					pos = index($0, "comment \"")
+					if (pos) {
+						s = substr($0, pos+9); sub(/"$/, "", s)
+						printf "%s", trim(s)
+						if (cidr) printf "*"
+						printf "\n"
+					}
+					}
+					BEGIN { split(ip,A,"."); ipn=A[1]*16777216 + A[2]*65536 + A[3]*256 + A[4] }
+					# exact blacklist
+					$1=="add" && $2=="Skynet-Blacklist" && $3==ip { do_print(0); exit }
+					# CIDR ranges
+					$1=="add" && $2=="Skynet-BlockedRanges" {
+					split($3,P,"/"); net=P[1]; prefix=P[2]
+					split(net,B,"."); netn=B[1]*16777216 + B[2]*65536 + B[3]*256 + B[4]
+					if (prefix==32 && ipn==netn)              { do_print(0); exit }
+					else if (prefix==24 && A[1]==B[1]&&A[2]==B[2]&&A[3]==B[3]) { do_print(1); exit }
+					else if (prefix==16 && A[1]==B[1]&&A[2]==B[2])           { do_print(1); exit }
+					else if (prefix==8  && A[1]==B[1])                       { do_print(1); exit }
+					else {
+						sh=32-prefix; div=1
+						for(i=0;i<sh;i++) div*=2
+						if (int(ipn/div)==int(netn/div)) { do_print(1); exit }
+					}
+					}
+				'
+			)"
 				if [ -z "$banreason" ]; then
 					banreason="$(grep -E "$(echo "$statdata" | cut -d '.' -f1-3)\..*/" "$skynetipset" | grep -m1 -vF "Skynet-Whitelist" | awk -F '"' '{print $2}' | sed "s~BanMalware: ~~g")*"
 				fi
@@ -1996,7 +2078,38 @@ Generate_Stats() {
 			# Last 10 HTTP Connections Blocked Outbound
 			true > "${skynetloc}/webui/stats/lhconn.txt"
 			grep -E 'DPT=80 |DPT=443 ' "$skynetlog" | grep -F "OUTBOUND" | grep -oE ' DST=[0-9,\.]*' | cut -c 6- | awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' | awk '!x[$0]++' | head -10 | while IFS= read -r "statdata"; do
-				banreason="$(grep -F " ${statdata} " "$skynetipset" | grep -m1 -vF "Skynet-Whitelist" | awk -F '"' '{print $2}' | sed "s~BanMalware: ~~g")"
+			banreason="$(
+			 	grep -E '^add Skynet-(Blacklist|BlockedRanges) ' "$skynetipset" |
+				awk -v ip="$statdata" '
+					function trim(s) { sub(/^ +| +$/, "", s); return s }
+					function do_print(cidr) {
+					pos = index($0, "comment \"")
+					if (pos) {
+						s = substr($0, pos+9); sub(/"$/, "", s)
+						printf "%s", trim(s)
+						if (cidr) printf "*"
+						printf "\n"
+					}
+					}
+					BEGIN { split(ip,A,"."); ipn=A[1]*16777216 + A[2]*65536 + A[3]*256 + A[4] }
+					# exact blacklist
+					$1=="add" && $2=="Skynet-Blacklist" && $3==ip { do_print(0); exit }
+					# CIDR ranges
+					$1=="add" && $2=="Skynet-BlockedRanges" {
+					split($3,P,"/"); net=P[1]; prefix=P[2]
+					split(net,B,"."); netn=B[1]*16777216 + B[2]*65536 + B[3]*256 + B[4]
+					if (prefix==32 && ipn==netn)              { do_print(0); exit }
+					else if (prefix==24 && A[1]==B[1]&&A[2]==B[2]&&A[3]==B[3]) { do_print(1); exit }
+					else if (prefix==16 && A[1]==B[1]&&A[2]==B[2])           { do_print(1); exit }
+					else if (prefix==8  && A[1]==B[1])                       { do_print(1); exit }
+					else {
+						sh=32-prefix; div=1
+						for(i=0;i<sh;i++) div*=2
+						if (int(ipn/div)==int(netn/div)) { do_print(1); exit }
+					}
+					}
+				'
+			)"
 				if [ -z "$banreason" ]; then
 					banreason="$(grep -E "$(echo "$statdata" | cut -d '.' -f1-3)\..*/" "$skynetipset" | grep -m1 -vF "Skynet-Whitelist" | awk -F '"' '{print $2}' | sed "s~BanMalware: ~~g")*"
 				fi
