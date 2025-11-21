@@ -4651,7 +4651,7 @@ case "$1" in
 				if [ -z "$4" ]; then
 					desc="$(date +"%b %e %T")"
 				fi
-				IPSet_Wrapper add Skynet-Whitelist "$3" "ManualWlist: $desc" nofilter
+				IPSet_Wrapper add Skynet-Whitelist "$3" nofilter "ManualWlist: $desc"
 				sed -i "\\~=$3 ~d" "$skynetlog" "$skynetevents" && echo "$(date +"%b %e %T") Skynet: [Manual Whitelist] TYPE=Single SRC=$3 COMMENT=$desc " >> "$skynetevents"
 				ipset -q -D Skynet-Blacklist "$3"
 				ipset -q -D Skynet-BlockedRanges "$3"
