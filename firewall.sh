@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            21/11/2025 - v8.0.6                                            #
+#                                            24/11/2025 - v8.0.7                                            #
 #############################################################################################################
 
 
@@ -703,7 +703,7 @@ Check_IPTables() {
 	#11–17: IOT blocking
 	if Is_Enabled "$iotblocked"; then
 		if [ "$(nvram get wgs_enable)" = "1" ]; then
-			echo "$filter_rules" | grep -Fq -- '-A FORWARD -i br+ -m set --match-set Skynet-IOT src -o wgs+ -j ACCEPT' || fail="${fail}#11 "
+			echo "$filter_rules" | grep -Fq -- '-A FORWARD -i br+ -o wgs+ -m set --match-set Skynet-IOT src -j ACCEPT' || fail="${fail}#11 "
 		fi
 		if [ "$(nvram get vpn_server1_state)" != "0" ] || [ "$(nvram get vpn_server2_state)" != "0" ]; then
 			echo "$filter_rules" | grep -Fq -- '-A FORWARD -i br+ -o tun2+ -m set --match-set Skynet-IOT src -j ACCEPT' || fail="${fail}#12 "
@@ -905,36 +905,36 @@ Extended_DNSStats() {
 			fi
 			# banreason: single AWK for both blacklist and CIDR, star only on CIDR
 			banreason="$(
-			  grep -E '^add Skynet-(Blacklist|BlockedRanges) ' "$skynetipset" |
-			  awk -v ip="$statdata" '
-				function trim(s) { sub(/^ +| +$/, "", s); return s }
-				function do_print(cidr) {
-				  pos = index($0, "comment \"")
-				  if (pos) {
-					s = substr($0, pos+9); sub(/"$/, "", s)
-					printf "%s", trim(s)
-					if (cidr) printf "*"
-					printf "\n"
-				  }
-				}
-				BEGIN { split(ip,A,"."); ipn=A[1]*16777216 + A[2]*65536 + A[3]*256 + A[4] }
-				# exact blacklist
-				$1=="add" && $2=="Skynet-Blacklist" && $3==ip { do_print(0); exit }
-				# CIDR ranges
-				$1=="add" && $2=="Skynet-BlockedRanges" {
-				  split($3,P,"/"); net=P[1]; prefix=P[2]
-				  split(net,B,"."); netn=B[1]*16777216 + B[2]*65536 + B[3]*256 + B[4]
-				  if (prefix==32 && ipn==netn)              { do_print(0); exit }
-				  else if (prefix==24 && A[1]==B[1]&&A[2]==B[2]&&A[3]==B[3]) { do_print(1); exit }
-				  else if (prefix==16 && A[1]==B[1]&&A[2]==B[2])           { do_print(1); exit }
-				  else if (prefix==8  && A[1]==B[1])                       { do_print(1); exit }
-				  else {
-					sh=32-prefix; div=1
-					for(i=0;i<sh;i++) div*=2
-					if (int(ipn/div)==int(netn/div)) { do_print(1); exit }
-				  }
-				}
-			  '
+				grep -E '^add Skynet-(Blacklist|BlockedRanges) ' "$skynetipset" |
+				awk -v ip="$statdata" '
+					function trim(s) { sub(/^ +| +$/, "", s); return s }
+					function do_print(cidr) {
+					pos = index($0, "comment \"")
+					if (pos) {
+						s = substr($0, pos+9); sub(/"$/, "", s)
+						printf "%s", trim(s)
+						if (cidr) printf "*"
+						printf "\n"
+					}
+					}
+					BEGIN { split(ip,A,"."); ipn=A[1]*16777216 + A[2]*65536 + A[3]*256 + A[4] }
+					# exact blacklist
+					$1=="add" && $2=="Skynet-Blacklist" && $3==ip { do_print(0); exit }
+					# CIDR ranges
+					$1=="add" && $2=="Skynet-BlockedRanges" {
+					split($3,P,"/"); net=P[1]; prefix=P[2]
+					split(net,B,"."); netn=B[1]*16777216 + B[2]*65536 + B[3]*256 + B[4]
+					if (prefix==32 && ipn==netn)              { do_print(0); exit }
+					else if (prefix==24 && A[1]==B[1]&&A[2]==B[2]&&A[3]==B[3]) { do_print(1); exit }
+					else if (prefix==16 && A[1]==B[1]&&A[2]==B[2])           { do_print(1); exit }
+					else if (prefix==8  && A[1]==B[1])                       { do_print(1); exit }
+					else {
+						sh=32-prefix; div=1
+						for(i=0;i<sh;i++) div*=2
+						if (int(ipn/div)==int(netn/div)) { do_print(1); exit }
+					}
+					}
+				'
 			)"
 			[ -z "$banreason" ] && ! ipset -q test Skynet-Blacklist "$ipaddr" && ! ipset -q test Skynet-BlockedRanges "$ipaddr" && banreason="No Longer Blacklisted"
 			[ "${#banreason}" -gt 45 ] && banreason="$(printf '%s' "$banreason" | cut -c1-45)"
@@ -948,36 +948,36 @@ Extended_DNSStats() {
 			fi
 			# banreason: single AWK for both blacklist and CIDR, star only on CIDR
 			banreason="$(
-			  grep -E '^add Skynet-(Blacklist|BlockedRanges) ' "$skynetipset" |
-			  awk -v ip="$ipaddr" '
-				function trim(s) { sub(/^ +| +$/, "", s); return s }
-				function do_print(cidr) {
-				  pos = index($0, "comment \"")
-				  if (pos) {
-					s = substr($0, pos+9); sub(/"$/, "", s)
-					printf "%s", trim(s)
-					if (cidr) printf "*"
-					printf "\n"
-				  }
-				}
-				BEGIN { split(ip,A,"."); ipn=A[1]*16777216 + A[2]*65536 + A[3]*256 + A[4] }
-				# exact blacklist
-				$1=="add" && $2=="Skynet-Blacklist" && $3==ip { do_print(0); exit }
-				# CIDR ranges
-				$1=="add" && $2=="Skynet-BlockedRanges" {
-				  split($3,P,"/"); net=P[1]; prefix=P[2]
-				  split(net,B,"."); netn=B[1]*16777216 + B[2]*65536 + B[3]*256 + B[4]
-				  if (prefix==32 && ipn==netn)              { do_print(0); exit }
-				  else if (prefix==24 && A[1]==B[1]&&A[2]==B[2]&&A[3]==B[3]) { do_print(1); exit }
-				  else if (prefix==16 && A[1]==B[1]&&A[2]==B[2])           { do_print(1); exit }
-				  else if (prefix==8  && A[1]==B[1])                       { do_print(1); exit }
-				  else {
-					sh=32-prefix; div=1
-					for(i=0;i<sh;i++) div*=2
-					if (int(ipn/div)==int(netn/div)) { do_print(1); exit }
-				  }
-				}
-			  '
+				grep -E '^add Skynet-(Blacklist|BlockedRanges) ' "$skynetipset" |
+				awk -v ip="$ipaddr" '
+					function trim(s) { sub(/^ +| +$/, "", s); return s }
+					function do_print(cidr) {
+					pos = index($0, "comment \"")
+					if (pos) {
+						s = substr($0, pos+9); sub(/"$/, "", s)
+						printf "%s", trim(s)
+						if (cidr) printf "*"
+						printf "\n"
+					}
+					}
+					BEGIN { split(ip,A,"."); ipn=A[1]*16777216 + A[2]*65536 + A[3]*256 + A[4] }
+					# exact blacklist
+					$1=="add" && $2=="Skynet-Blacklist" && $3==ip { do_print(0); exit }
+					# CIDR ranges
+					$1=="add" && $2=="Skynet-BlockedRanges" {
+					split($3,P,"/"); net=P[1]; prefix=P[2]
+					split(net,B,"."); netn=B[1]*16777216 + B[2]*65536 + B[3]*256 + B[4]
+					if (prefix==32 && ipn==netn)              { do_print(0); exit }
+					else if (prefix==24 && A[1]==B[1]&&A[2]==B[2]&&A[3]==B[3]) { do_print(1); exit }
+					else if (prefix==16 && A[1]==B[1]&&A[2]==B[2])           { do_print(1); exit }
+					else if (prefix==8  && A[1]==B[1])                       { do_print(1); exit }
+					else {
+						sh=32-prefix; div=1
+						for(i=0;i<sh;i++) div*=2
+						if (int(ipn/div)==int(netn/div)) { do_print(1); exit }
+					}
+					}
+				'
 			)"
 			[ -z "$banreason" ] && ! ipset -q test Skynet-Blacklist "$ipaddr" && ! ipset -q test Skynet-BlockedRanges "$ipaddr" && banreason="No Longer Blacklisted"
 			[ "${#banreason}" -gt 45 ] && banreason="$(printf '%s' "$banreason" | cut -c1-45)"
@@ -1984,38 +1984,38 @@ Generate_Stats() {
 			# last 10 Connections Blocked Inbound
 			true > "${skynetloc}/webui/stats/liconn.txt"
 			grep -F "INBOUND" "$skynetlog" | grep -oE ' SRC=[0-9,\.]*' | cut -c 6- | awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' | awk '!x[$0]++' | head -10 | while IFS= read -r "statdata"; do
-							banreason="$(
-			  grep -E '^add Skynet-(Blacklist|BlockedRanges) ' "$skynetipset" |
-			  awk -v ip="$statdata" '
-				function trim(s) { sub(/^ +| +$/, "", s); return s }
-				function do_print(cidr) {
-				  pos = index($0, "comment \"")
-				  if (pos) {
-					s = substr($0, pos+9); sub(/"$/, "", s)
-					printf "%s", trim(s)
-					if (cidr) printf "*"
-					printf "\n"
-				  }
-				}
-				BEGIN { split(ip,A,"."); ipn=A[1]*16777216 + A[2]*65536 + A[3]*256 + A[4] }
-				# exact blacklist
-				$1=="add" && $2=="Skynet-Blacklist" && $3==ip { do_print(0); exit }
-				# CIDR ranges
-				$1=="add" && $2=="Skynet-BlockedRanges" {
-				  split($3,P,"/"); net=P[1]; prefix=P[2]
-				  split(net,B,"."); netn=B[1]*16777216 + B[2]*65536 + B[3]*256 + B[4]
-				  if (prefix==32 && ipn==netn)              { do_print(0); exit }
-				  else if (prefix==24 && A[1]==B[1]&&A[2]==B[2]&&A[3]==B[3]) { do_print(1); exit }
-				  else if (prefix==16 && A[1]==B[1]&&A[2]==B[2])           { do_print(1); exit }
-				  else if (prefix==8  && A[1]==B[1])                       { do_print(1); exit }
-				  else {
-					sh=32-prefix; div=1
-					for(i=0;i<sh;i++) div*=2
-					if (int(ipn/div)==int(netn/div)) { do_print(1); exit }
-				  }
-				}
-			  '
-			)"
+				banreason="$(
+					grep -E '^add Skynet-(Blacklist|BlockedRanges) ' "$skynetipset" |
+					awk -v ip="$statdata" '
+						function trim(s) { sub(/^ +| +$/, "", s); return s }
+						function do_print(cidr) {
+						pos = index($0, "comment \"")
+						if (pos) {
+							s = substr($0, pos+9); sub(/"$/, "", s)
+							printf "%s", trim(s)
+							if (cidr) printf "*"
+							printf "\n"
+						}
+						}
+						BEGIN { split(ip,A,"."); ipn=A[1]*16777216 + A[2]*65536 + A[3]*256 + A[4] }
+						# exact blacklist
+						$1=="add" && $2=="Skynet-Blacklist" && $3==ip { do_print(0); exit }
+						# CIDR ranges
+						$1=="add" && $2=="Skynet-BlockedRanges" {
+						split($3,P,"/"); net=P[1]; prefix=P[2]
+						split(net,B,"."); netn=B[1]*16777216 + B[2]*65536 + B[3]*256 + B[4]
+						if (prefix==32 && ipn==netn)              { do_print(0); exit }
+						else if (prefix==24 && A[1]==B[1]&&A[2]==B[2]&&A[3]==B[3]) { do_print(1); exit }
+						else if (prefix==16 && A[1]==B[1]&&A[2]==B[2])           { do_print(1); exit }
+						else if (prefix==8  && A[1]==B[1])                       { do_print(1); exit }
+						else {
+							sh=32-prefix; div=1
+							for(i=0;i<sh;i++) div*=2
+							if (int(ipn/div)==int(netn/div)) { do_print(1); exit }
+						}
+						}
+					'
+				)"
 				if [ -z "$banreason" ]; then
 					banreason="$(grep -E "$(echo "$statdata" | cut -d '.' -f1-3)\..*/" "$skynetipset" | grep -m1 -vF "Skynet-Whitelist" | awk -F '"' '{print $2}' | sed "s~BanMalware: ~~g")*"
 				fi
@@ -2032,38 +2032,38 @@ Generate_Stats() {
 			# Last 10 Connections Blocked Outbound
 			true > "${skynetloc}/webui/stats/loconn.txt"
 			grep -F "OUTBOUND" "$skynetlog" | grep -vE 'DPT=80 |DPT=443 ' | grep -oE ' DST=[0-9,\.]*' | cut -c 6- | awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' | awk '!x[$0]++' | head -10 | while IFS= read -r "statdata"; do
-			banreason="$(
-			  	grep -E '^add Skynet-(Blacklist|BlockedRanges) ' "$skynetipset" |
-			  	awk -v ip="$statdata" '
-					function trim(s) { sub(/^ +| +$/, "", s); return s }
-					function do_print(cidr) {
-					pos = index($0, "comment \"")
-					if (pos) {
-						s = substr($0, pos+9); sub(/"$/, "", s)
-						printf "%s", trim(s)
-						if (cidr) printf "*"
-						printf "\n"
-					}
-					}
-					BEGIN { split(ip,A,"."); ipn=A[1]*16777216 + A[2]*65536 + A[3]*256 + A[4] }
-					# exact blacklist
-					$1=="add" && $2=="Skynet-Blacklist" && $3==ip { do_print(0); exit }
-					# CIDR ranges
-					$1=="add" && $2=="Skynet-BlockedRanges" {
-					split($3,P,"/"); net=P[1]; prefix=P[2]
-					split(net,B,"."); netn=B[1]*16777216 + B[2]*65536 + B[3]*256 + B[4]
-					if (prefix==32 && ipn==netn)              { do_print(0); exit }
-					else if (prefix==24 && A[1]==B[1]&&A[2]==B[2]&&A[3]==B[3]) { do_print(1); exit }
-					else if (prefix==16 && A[1]==B[1]&&A[2]==B[2])           { do_print(1); exit }
-					else if (prefix==8  && A[1]==B[1])                       { do_print(1); exit }
-					else {
-						sh=32-prefix; div=1
-						for(i=0;i<sh;i++) div*=2
-						if (int(ipn/div)==int(netn/div)) { do_print(1); exit }
-					}
-					}
-				'
-			)"
+				banreason="$(
+					grep -E '^add Skynet-(Blacklist|BlockedRanges) ' "$skynetipset" |
+					awk -v ip="$statdata" '
+						function trim(s) { sub(/^ +| +$/, "", s); return s }
+						function do_print(cidr) {
+						pos = index($0, "comment \"")
+						if (pos) {
+							s = substr($0, pos+9); sub(/"$/, "", s)
+							printf "%s", trim(s)
+							if (cidr) printf "*"
+							printf "\n"
+						}
+						}
+						BEGIN { split(ip,A,"."); ipn=A[1]*16777216 + A[2]*65536 + A[3]*256 + A[4] }
+						# exact blacklist
+						$1=="add" && $2=="Skynet-Blacklist" && $3==ip { do_print(0); exit }
+						# CIDR ranges
+						$1=="add" && $2=="Skynet-BlockedRanges" {
+						split($3,P,"/"); net=P[1]; prefix=P[2]
+						split(net,B,"."); netn=B[1]*16777216 + B[2]*65536 + B[3]*256 + B[4]
+						if (prefix==32 && ipn==netn)              { do_print(0); exit }
+						else if (prefix==24 && A[1]==B[1]&&A[2]==B[2]&&A[3]==B[3]) { do_print(1); exit }
+						else if (prefix==16 && A[1]==B[1]&&A[2]==B[2])           { do_print(1); exit }
+						else if (prefix==8  && A[1]==B[1])                       { do_print(1); exit }
+						else {
+							sh=32-prefix; div=1
+							for(i=0;i<sh;i++) div*=2
+							if (int(ipn/div)==int(netn/div)) { do_print(1); exit }
+						}
+						}
+					'
+				)"
 				if [ -z "$banreason" ]; then
 					banreason="$(grep -E "$(echo "$statdata" | cut -d '.' -f1-3)\..*/" "$skynetipset" | grep -m1 -vF "Skynet-Whitelist" | awk -F '"' '{print $2}' | sed "s~BanMalware: ~~g")*"
 				fi
@@ -2080,38 +2080,38 @@ Generate_Stats() {
 			# Last 10 HTTP Connections Blocked Outbound
 			true > "${skynetloc}/webui/stats/lhconn.txt"
 			grep -E 'DPT=80 |DPT=443 ' "$skynetlog" | grep -F "OUTBOUND" | grep -oE ' DST=[0-9,\.]*' | cut -c 6- | awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' | awk '!x[$0]++' | head -10 | while IFS= read -r "statdata"; do
-			banreason="$(
-			 	grep -E '^add Skynet-(Blacklist|BlockedRanges) ' "$skynetipset" |
-				awk -v ip="$statdata" '
-					function trim(s) { sub(/^ +| +$/, "", s); return s }
-					function do_print(cidr) {
-					pos = index($0, "comment \"")
-					if (pos) {
-						s = substr($0, pos+9); sub(/"$/, "", s)
-						printf "%s", trim(s)
-						if (cidr) printf "*"
-						printf "\n"
-					}
-					}
-					BEGIN { split(ip,A,"."); ipn=A[1]*16777216 + A[2]*65536 + A[3]*256 + A[4] }
-					# exact blacklist
-					$1=="add" && $2=="Skynet-Blacklist" && $3==ip { do_print(0); exit }
-					# CIDR ranges
-					$1=="add" && $2=="Skynet-BlockedRanges" {
-					split($3,P,"/"); net=P[1]; prefix=P[2]
-					split(net,B,"."); netn=B[1]*16777216 + B[2]*65536 + B[3]*256 + B[4]
-					if (prefix==32 && ipn==netn)              { do_print(0); exit }
-					else if (prefix==24 && A[1]==B[1]&&A[2]==B[2]&&A[3]==B[3]) { do_print(1); exit }
-					else if (prefix==16 && A[1]==B[1]&&A[2]==B[2])           { do_print(1); exit }
-					else if (prefix==8  && A[1]==B[1])                       { do_print(1); exit }
-					else {
-						sh=32-prefix; div=1
-						for(i=0;i<sh;i++) div*=2
-						if (int(ipn/div)==int(netn/div)) { do_print(1); exit }
-					}
-					}
-				'
-			)"
+				banreason="$(
+					grep -E '^add Skynet-(Blacklist|BlockedRanges) ' "$skynetipset" |
+					awk -v ip="$statdata" '
+						function trim(s) { sub(/^ +| +$/, "", s); return s }
+						function do_print(cidr) {
+						pos = index($0, "comment \"")
+						if (pos) {
+							s = substr($0, pos+9); sub(/"$/, "", s)
+							printf "%s", trim(s)
+							if (cidr) printf "*"
+							printf "\n"
+						}
+						}
+						BEGIN { split(ip,A,"."); ipn=A[1]*16777216 + A[2]*65536 + A[3]*256 + A[4] }
+						# exact blacklist
+						$1=="add" && $2=="Skynet-Blacklist" && $3==ip { do_print(0); exit }
+						# CIDR ranges
+						$1=="add" && $2=="Skynet-BlockedRanges" {
+						split($3,P,"/"); net=P[1]; prefix=P[2]
+						split(net,B,"."); netn=B[1]*16777216 + B[2]*65536 + B[3]*256 + B[4]
+						if (prefix==32 && ipn==netn)              { do_print(0); exit }
+						else if (prefix==24 && A[1]==B[1]&&A[2]==B[2]&&A[3]==B[3]) { do_print(1); exit }
+						else if (prefix==16 && A[1]==B[1]&&A[2]==B[2])           { do_print(1); exit }
+						else if (prefix==8  && A[1]==B[1])                       { do_print(1); exit }
+						else {
+							sh=32-prefix; div=1
+							for(i=0;i<sh;i++) div*=2
+							if (int(ipn/div)==int(netn/div)) { do_print(1); exit }
+						}
+						}
+					'
+				)"
 				if [ -z "$banreason" ]; then
 					banreason="$(grep -E "$(echo "$statdata" | cut -d '.' -f1-3)\..*/" "$skynetipset" | grep -m1 -vF "Skynet-Whitelist" | awk -F '"' '{print $2}' | sed "s~BanMalware: ~~g")*"
 				fi
@@ -4659,7 +4659,7 @@ case "$1" in
 				[ -n "$url" ] || exit 0
 				curl -fsLZ --retry 2 --connect-timeout 5 --max-time 15 "$url" \
 					-o "${skynetloc}/lists/$list" 2>/dev/null \
-				&& echo "[✔] Downloading $url" || echo "[✘] Failed to fetch: $url"
+				&& echo "[✔] Downloaded $url" || echo "[✘] Failed to fetch: $url"
 			) &
 		done < /tmp/skynet/skynet.manifest
 		wait
