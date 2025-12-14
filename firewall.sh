@@ -890,7 +890,7 @@ LAN_CIDR_Lookup() {
 	fi
 }
 
-Extended_DNSStats() {
+Generate_Ban_Stats() {
 	case "$1" in
 		1)
 			if Is_Enabled "$lookupcountry"; then
@@ -1359,7 +1359,7 @@ show_stats_block() {
 	# $5 = method         ("head" or "tail")
 	# $6 = count          (number of entries)
 	# $7 = header_id      (passed to Display_Header)
-	# $8 = stats_mode     (passed to Extended_DNSStats)
+	# $8 = stats_mode     (passed to Generate_Ban_Stats)
 	case "$1" in
 		events) source_file=$skynetevents ;;
 		*)      source_file=$skynetlog ;;
@@ -1418,7 +1418,7 @@ show_stats_block() {
 			head -n "$count"
 		fi
 	} | while IFS= read -r statdata; do
-		Extended_DNSStats "$stats_mode"
+		Generate_Ban_Stats "$stats_mode"
 	done
 }
 
@@ -1780,13 +1780,13 @@ Run_Stats() {
 						Red "Top $counter HTTP(s) Blocks (Outbound);"
 						Display_Header "2"
 						grep -E 'DPT=80 |DPT=443 ' "$skynetlog" | grep -E "OUTBOUND.*$proto" | grep -F "SRC=${4} " | grep -oE ' DST=[0-9,\.]*' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | while IFS= read -r "statdata"; do
-							Extended_DNSStats "2"
+							Generate_Ban_Stats "2"
 						done
 						echo; echo
 						Red "Top $counter Blocks From (Outbound);"
 						Display_Header "2"
 						grep -E "OUTBOUND.*$proto" "$skynetlog" | grep -vE 'DPT=80 |DPT=443 ' | grep -F "SRC=${4} " | grep -oE ' DST=[0-9,\.]*' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | while IFS= read -r "statdata"; do
-							Extended_DNSStats "2"
+							Generate_Ban_Stats "2"
 						done
 					;;
 					reports)
@@ -1866,7 +1866,7 @@ Run_Stats() {
 						Red "Top $counter IOT Blocks (Outbound);"
 						Display_Header "2"
 						grep -E "IOT.*$proto" "$skynetlog" | grep -oE ' DST=[0-9,\.]*' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | while IFS= read -r "statdata"; do
-							Extended_DNSStats "2"
+							Generate_Ban_Stats "2"
 						done
 					;;
 					*)
@@ -6485,6 +6485,7 @@ case "$1" in
 		Download_File "webui/skynet.asp" "${skynetloc}/webui/skynet.asp"
 		[ -z "$(nvram get odmpid)" ] && model="$(nvram get productid)" || model="$(nvram get odmpid)"
 		if [ -z "$loginvalid" ]; then loginvalid="disabled"; fi
+		if [ -z "$logsize" ]; then logsize="10"; fi
 		if [ -z "$unbanprivateip" ]; then unbanprivateip="enabled"; fi
 		if [ -z "$banaiprotect" ]; then banaiprotect="enabled"; fi
 		if [ -z "$securemode" ]; then securemode="enabled"; fi

@@ -127,6 +127,7 @@ amtm
 - `firewall settings unbanprivate enable|disable`: Enable/disable Unban_PrivateIP function.
 - `firewall settings banaiprotect enable|disable`: Enable/disable banning IPs flagged by AiProtect.
 - `firewall settings securemode enable|disable`: Enable/disable insecure settings being applied in WebUI.
+- `firewall settings extendedstats enable|disable`: Enable/disable dnsmasq log lookups for blocked IPS.
 - `firewall settings fs google.com/filter.list|disable`: Configure/disable fast malware list switching.
 - `firewall settings syslog|syslog1 /tmp/syslog.log|default`: Configure custom syslog/syslog-1 location.
 - `firewall settings iot unban|ban 8.8.8.8,9.9.9.9`: Unban/ban IOT device(s) (or CIDR) from accessing WAN (allow NTP/remote access via OpenVPN/Wireguard only).
