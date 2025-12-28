@@ -259,9 +259,17 @@ def build_event(ip_info: Dict, otx_intel: Dict, config: dict) -> Dict:
     else:
         severity, severity_id = "informational", 1
 
-    # Get first pulse info if available
+    # Get first pulse info if available - handle both dict and string formats
     pulses = otx_intel.get("pulses", [])
-    first_pulse = pulses[0] if pulses else {}
+    first_pulse = {}
+    pulse_names = []
+    if pulses:
+        if isinstance(pulses[0], dict):
+            first_pulse = pulses[0]
+            pulse_names = [p.get("name", "") if isinstance(p, dict) else str(p) for p in pulses[:5]]
+        else:
+            # Old format - pulses are just strings
+            pulse_names = [str(p) for p in pulses[:5]]
 
     return {
         "_time": time.time(),
@@ -273,8 +281,8 @@ def build_event(ip_info: Dict, otx_intel: Dict, config: dict) -> Dict:
         "threat_collection": "alienvault_otx",
         "threat_collection_key": ip_info["ip"],
         "threat_source_name": "AlienVault OTX",
-        "threat_source_id": first_pulse.get("id", ""),
-        "threat_description": first_pulse.get("description", ""),
+        "threat_source_id": first_pulse.get("id", "") if first_pulse else "",
+        "threat_description": first_pulse.get("description", "") if first_pulse else "",
 
         # CIM Network/IDS
         "src_ip": ip_info["ip"],
@@ -291,7 +299,7 @@ def build_event(ip_info: Dict, otx_intel: Dict, config: dict) -> Dict:
         "otx_asn": otx_intel.get("asn", ""),
         "otx_city": otx_intel.get("city", ""),
         "otx_tags": otx_intel.get("tags", []),
-        "otx_pulses": [p.get("name", "") for p in pulses[:5]],
+        "otx_pulses": pulse_names,
         "otx_malware_families": otx_intel.get("malware_families", []),
         "mitre_technique_id": otx_intel.get("attack_ids", []),
         "otx_url": f"https://otx.alienvault.com/indicator/ip/{ip_info['ip']}",
@@ -369,7 +377,10 @@ def run_collection(config: dict) -> int:
     # Load state and cache
     state = load_json_file(STATE_FILE, {"sent": []})
     cache = load_json_file(CACHE_FILE, {})
-    sent: Set[str] = set(state.get("sent", []))
+
+    # Ensure sent is a set of strings only
+    sent_list = state.get("sent", [])
+    sent: Set[str] = set(s for s in sent_list if isinstance(s, str))
 
     log(f"State: {len(sent)} IPs already processed")
 
