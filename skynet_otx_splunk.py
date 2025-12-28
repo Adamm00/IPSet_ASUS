@@ -1,19 +1,14 @@
 #!/opt/bin/python3
 """
 Skynet OTX Threat Intelligence Collector for Splunk ES
-Designed for ASUS routers running AsusWRT-Merlin with Skynet firewall
+Collects OTX threat intel for IPs in Skynet's blocklist
 
 This script:
-1. Parses Skynet firewall logs for blocked threats
-2. Enriches threat data with OTX (AlienVault Open Threat Exchange) intelligence
-3. Exports CIM-compliant events to Splunk ES via HEC
+1. Reads blocked IPs from Skynet ipset
+2. Fetches OTX threat intelligence for each IP
+3. Sends threat intel to Splunk ES as a threat feed
 
-Requirements:
-- Python 3.x (via Entware: opkg install python3 python3-pip)
-- requests library (pip3 install requests)
-
-Author: Claude Code
-Version: 1.0.0
+Does NOT touch syslog - that's already going to Splunk.
 """
 
 import json
@@ -25,1101 +20,469 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple
-from collections import defaultdict
+from typing import Dict, List, Optional
 
-# Handle missing requests library gracefully
 try:
     import requests
     REQUESTS_AVAILABLE = True
 except ImportError:
     REQUESTS_AVAILABLE = False
-    print("WARNING: 'requests' library not found. Install with: opkg install python3-requests")
-    print("         or: pip3 install requests")
+    print("ERROR: Install requests: opkg install python3-requests")
+    sys.exit(1)
 
 
 # ============================================================================
-# Configuration - Load from config file or use defaults
+# Configuration
 # ============================================================================
 
-class Config:
-    """Configuration management for the script"""
+CONFIG = {
+    # Splunk HEC
+    "splunk_hec_url": "https://192.168.50.213:8088/services/collector/event",
+    "splunk_hec_token": "935af03b-c11c-403a-98e7-904eaf7d88e5",
+    "splunk_index": "threat_activity",
+    "splunk_sourcetype": "otx:threat:intel",
+    "splunk_source": "alienvault_otx",
 
-    def __init__(self, config_path: str = None):
-        # Default paths for ASUS router
-        self.script_dir = Path(__file__).parent.resolve()
-        self.config_path = config_path or self.script_dir / "skynet_otx_config.json"
+    # OTX API
+    "otx_api_key": "85d7363b64fff612405535891cffaab7d269f89324da10bc1165f45aea103eaa",
+    "otx_base_url": "https://otx.alienvault.com/api/v1",
 
-        # Default configuration
-        self.defaults = {
-            # Splunk HEC Configuration
-            "splunk_hec_url": "https://192.168.50.213:8088/services/collector/event",
-            "splunk_hec_token": "935af03b-c11c-403a-98e7-904eaf7d88e5",
-            "splunk_index": "threat_activity",
-            "splunk_sourcetype": "skynet:otx:threat",
-            "splunk_source": "skynet_firewall",
-            "splunk_verify_ssl": False,
+    # Paths
+    "state_file": "/tmp/mnt/OTX/otx_state.json",
+    "cache_file": "/tmp/mnt/OTX/otx_cache.json",
+    "log_file": "/tmp/mnt/OTX/skynet_otx.log",
 
-            # OTX Configuration
-            "otx_api_key": "85d7363b64fff612405535891cffaab7d269f89324da10bc1165f45aea103eaa",
-            "otx_base_url": "https://otx.alienvault.com/api/v1",
-            "otx_cache_ttl": 3600,  # Cache OTX results for 1 hour
-            "otx_rate_limit": 0.5,  # Seconds between OTX API calls
+    # Settings
+    "batch_size": 50,
+    "otx_cache_hours": 24,
+    "max_ips_per_run": 100,
 
-            # Skynet Log Locations
-            "syslog_paths": [
-                "/tmp/syslog.log",
-                "/jffs/syslog.log",
-                "/opt/var/log/messages"
-            ],
-            "skynet_log_path": "/opt/share/skynet/skynet.log",
-            "skynet_ipset_path": "/opt/share/skynet/skynet.ipset",
-
-            # Processing Options
-            "batch_size": 50,  # Events per HEC batch
-            "state_file": "/tmp/mnt/OTX/skynet_otx_state.json",
-            "cache_file": "/tmp/mnt/OTX/otx_cache.json",
-            "log_file": "/tmp/mnt/OTX/skynet_otx.log",
-            "max_events_per_run": 500,  # Limit events per execution
-            "dedupe_window": 300,  # Dedupe same IP within 5 minutes
-
-            # Router Info
-            "router_ip": "192.168.50.1",
-            "router_hostname": "GT-AX11000"
-        }
-
-        self.config = self._load_config()
-
-    def _load_config(self) -> dict:
-        """Load configuration from file, merging with defaults"""
-        config = self.defaults.copy()
-
-        if Path(self.config_path).exists():
-            try:
-                with open(self.config_path, 'r') as f:
-                    user_config = json.load(f)
-                    config.update(user_config)
-            except (json.JSONDecodeError, IOError) as e:
-                logging.warning(f"Failed to load config file: {e}")
-
-        return config
-
-    def save_config(self):
-        """Save current configuration to file"""
-        try:
-            with open(self.config_path, 'w') as f:
-                json.dump(self.config, f, indent=2)
-        except IOError as e:
-            logging.error(f"Failed to save config: {e}")
-
-    def __getattr__(self, name):
-        """Allow attribute-style access to config values"""
-        if name in ('config', 'defaults', 'config_path', 'script_dir'):
-            return object.__getattribute__(self, name)
-        return self.config.get(name)
+    # Router
+    "router_hostname": "GT-AX11000",
+    "router_ip": "192.168.50.1"
+}
 
 
 # ============================================================================
-# Logging Setup
+# Logging
 # ============================================================================
 
-def setup_logging(log_file: str, debug: bool = False):
-    """Configure logging for the script"""
+def setup_logging(debug=False):
     level = logging.DEBUG if debug else logging.INFO
-
-    # Create formatter
-    formatter = logging.Formatter(
-        '%(asctime)s - %(levelname)s - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S'
+    logging.basicConfig(
+        level=level,
+        format='%(asctime)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.StreamHandler(),
+            logging.FileHandler(CONFIG["log_file"])
+        ]
     )
 
-    # Console handler
-    console_handler = logging.StreamHandler()
-    console_handler.setFormatter(formatter)
-    console_handler.setLevel(level)
-
-    # File handler
-    try:
-        Path(log_file).parent.mkdir(parents=True, exist_ok=True)
-        file_handler = logging.FileHandler(log_file)
-        file_handler.setFormatter(formatter)
-        file_handler.setLevel(level)
-    except IOError:
-        file_handler = None
-
-    # Configure root logger
-    logger = logging.getLogger()
-    logger.setLevel(level)
-    logger.addHandler(console_handler)
-    if file_handler:
-        logger.addHandler(file_handler)
-
-    return logger
-
 
 # ============================================================================
-# State Management
+# OTX Cache
 # ============================================================================
 
-class StateManager:
-    """Manage processing state to avoid duplicate events"""
-
-    def __init__(self, state_file: str):
-        self.state_file = Path(state_file)
-        self.state = self._load_state()
-
-    def _load_state(self) -> dict:
-        """Load state from file"""
-        default_state = {
-            "last_position": {},  # file -> byte position
-            "processed_events": {},  # event_hash -> timestamp
-            "last_run": None
-        }
-
-        if self.state_file.exists():
-            try:
-                with open(self.state_file, 'r') as f:
-                    state = json.load(f)
-                    # Clean old entries (older than 1 hour)
-                    cutoff = time.time() - 3600
-                    state["processed_events"] = {
-                        k: v for k, v in state.get("processed_events", {}).items()
-                        if v > cutoff
-                    }
-                    return state
-            except (json.JSONDecodeError, IOError):
-                pass
-
-        return default_state
-
-    def save_state(self):
-        """Save state to file"""
-        self.state["last_run"] = time.time()
-        try:
-            self.state_file.parent.mkdir(parents=True, exist_ok=True)
-            with open(self.state_file, 'w') as f:
-                json.dump(self.state, f)
-        except IOError as e:
-            logging.error(f"Failed to save state: {e}")
-
-    def get_file_position(self, filepath: str) -> int:
-        """Get last read position for a file"""
-        return self.state.get("last_position", {}).get(filepath, 0)
-
-    def set_file_position(self, filepath: str, position: int):
-        """Set last read position for a file"""
-        if "last_position" not in self.state:
-            self.state["last_position"] = {}
-        self.state["last_position"][filepath] = position
-
-    def is_processed(self, event_hash: str, window: int = 300) -> bool:
-        """Check if event was recently processed (within window seconds)"""
-        if event_hash in self.state.get("processed_events", {}):
-            if time.time() - self.state["processed_events"][event_hash] < window:
-                return True
-        return False
-
-    def mark_processed(self, event_hash: str):
-        """Mark event as processed"""
-        if "processed_events" not in self.state:
-            self.state["processed_events"] = {}
-        self.state["processed_events"][event_hash] = time.time()
-
-
-# ============================================================================
-# OTX Client
-# ============================================================================
-
-class OTXClient:
-    """AlienVault OTX API client with caching"""
-
-    def __init__(self, api_key: str, base_url: str, cache_file: str,
-                 cache_ttl: int = 3600, rate_limit: float = 0.5):
-        self.api_key = api_key
-        self.base_url = base_url.rstrip('/')
+class OTXCache:
+    def __init__(self, cache_file: str, ttl_hours: int = 24):
         self.cache_file = Path(cache_file)
-        self.cache_ttl = cache_ttl
-        self.rate_limit = rate_limit
-        self.last_request = 0
-        self.cache = self._load_cache()
-        self.session = None
+        self.ttl_seconds = ttl_hours * 3600
+        self.cache = self._load()
 
-        if REQUESTS_AVAILABLE:
-            self.session = requests.Session()
-            self.session.headers.update({
-                'X-OTX-API-KEY': self.api_key,
-                'Accept': 'application/json',
-                'User-Agent': 'Skynet-OTX-Collector/1.0'
-            })
-
-    def _load_cache(self) -> dict:
-        """Load OTX cache from file"""
+    def _load(self) -> dict:
         if self.cache_file.exists():
             try:
-                with open(self.cache_file, 'r') as f:
-                    cache = json.load(f)
-                    # Clean expired entries
-                    cutoff = time.time() - self.cache_ttl
-                    return {
-                        k: v for k, v in cache.items()
-                        if v.get('timestamp', 0) > cutoff
-                    }
-            except (json.JSONDecodeError, IOError):
+                with open(self.cache_file) as f:
+                    data = json.load(f)
+                # Clean expired
+                cutoff = time.time() - self.ttl_seconds
+                return {k: v for k, v in data.items() if v.get('ts', 0) > cutoff}
+            except:
                 pass
         return {}
 
-    def _save_cache(self):
-        """Save OTX cache to file"""
-        try:
-            self.cache_file.parent.mkdir(parents=True, exist_ok=True)
-            with open(self.cache_file, 'w') as f:
-                json.dump(self.cache, f)
-        except IOError as e:
-            logging.warning(f"Failed to save OTX cache: {e}")
+    def save(self):
+        self.cache_file.parent.mkdir(parents=True, exist_ok=True)
+        with open(self.cache_file, 'w') as f:
+            json.dump(self.cache, f)
 
-    def _rate_limit_wait(self):
-        """Enforce rate limiting"""
-        elapsed = time.time() - self.last_request
-        if elapsed < self.rate_limit:
-            time.sleep(self.rate_limit - elapsed)
-        self.last_request = time.time()
+    def get(self, ip: str) -> Optional[dict]:
+        if ip in self.cache:
+            entry = self.cache[ip]
+            if time.time() - entry.get('ts', 0) < self.ttl_seconds:
+                return entry.get('data')
+        return None
 
-    def get_ip_reputation(self, ip: str) -> Optional[Dict]:
-        """Get OTX reputation data for an IP address"""
-        if not REQUESTS_AVAILABLE or not self.session:
-            return self._get_fallback_data(ip)
-
-        cache_key = f"ip:{ip}"
-
-        # Check cache
-        if cache_key in self.cache:
-            cached = self.cache[cache_key]
-            if time.time() - cached.get('timestamp', 0) < self.cache_ttl:
-                logging.debug(f"OTX cache hit for {ip}")
-                return cached.get('data')
-
-        # Rate limit
-        self._rate_limit_wait()
-
-        try:
-            # Get general indicator info
-            url = f"{self.base_url}/indicators/IPv4/{ip}/general"
-            response = self.session.get(url, timeout=10)
-
-            if response.status_code == 200:
-                data = response.json()
-
-                # Extract relevant threat intelligence
-                result = {
-                    'ip': ip,
-                    'pulse_count': data.get('pulse_info', {}).get('count', 0),
-                    'reputation': data.get('reputation', 0),
-                    'country': data.get('country_code', 'Unknown'),
-                    'asn': data.get('asn', 'Unknown'),
-                    'categories': [],
-                    'malware_families': [],
-                    'threat_types': [],
-                    'pulses': [],
-                    'validation': data.get('validation', []),
-                    'whois': data.get('whois', ''),
-                    'otx_url': f"https://otx.alienvault.com/indicator/ip/{ip}"
-                }
-
-                # Extract pulse information
-                pulses = data.get('pulse_info', {}).get('pulses', [])[:10]  # Limit to 10
-                for pulse in pulses:
-                    pulse_info = {
-                        'id': pulse.get('id', ''),
-                        'name': pulse.get('name', ''),
-                        'description': pulse.get('description', '')[:200],
-                        'created': pulse.get('created', ''),
-                        'tags': pulse.get('tags', [])[:5],
-                        'targeted_countries': pulse.get('targeted_countries', []),
-                        'malware_families': pulse.get('malware_families', []),
-                        'attack_ids': pulse.get('attack_ids', []),
-                        'industries': pulse.get('industries', [])
-                    }
-                    result['pulses'].append(pulse_info)
-
-                    # Aggregate categories and malware families
-                    result['malware_families'].extend(pulse.get('malware_families', []))
-                    for tag in pulse.get('tags', []):
-                        if tag not in result['categories']:
-                            result['categories'].append(tag)
-
-                # Dedupe
-                result['malware_families'] = list(set(result['malware_families']))[:10]
-                result['categories'] = result['categories'][:10]
-
-                # Cache result
-                self.cache[cache_key] = {
-                    'timestamp': time.time(),
-                    'data': result
-                }
-                self._save_cache()
-
-                logging.debug(f"OTX fetched data for {ip}: {result['pulse_count']} pulses")
-                return result
-
-            elif response.status_code == 404:
-                # IP not found in OTX - cache negative result
-                result = self._get_fallback_data(ip)
-                self.cache[cache_key] = {
-                    'timestamp': time.time(),
-                    'data': result
-                }
-                return result
-            else:
-                logging.warning(f"OTX API error for {ip}: {response.status_code}")
-                return self._get_fallback_data(ip)
-
-        except requests.exceptions.RequestException as e:
-            logging.warning(f"OTX request failed for {ip}: {e}")
-            return self._get_fallback_data(ip)
-
-    def _get_fallback_data(self, ip: str) -> Dict:
-        """Return minimal data when OTX is unavailable"""
-        return {
-            'ip': ip,
-            'pulse_count': 0,
-            'reputation': 0,
-            'country': 'Unknown',
-            'asn': 'Unknown',
-            'categories': [],
-            'malware_families': [],
-            'threat_types': [],
-            'pulses': [],
-            'otx_url': f"https://otx.alienvault.com/indicator/ip/{ip}"
-        }
+    def set(self, ip: str, data: dict):
+        self.cache[ip] = {'ts': time.time(), 'data': data}
 
 
 # ============================================================================
-# Skynet Log Parser
+# State Tracker (which IPs we've already sent)
 # ============================================================================
 
-class SkynetLogParser:
-    """Parse Skynet firewall logs"""
+class StateTracker:
+    def __init__(self, state_file: str):
+        self.state_file = Path(state_file)
+        self.sent_ips = self._load()
 
-    # Regex patterns for log parsing
-    BLOCKED_PATTERN = re.compile(
-        r'(?P<timestamp>\w+\s+\d+\s+\d+:\d+:\d+).*?'
-        r'\[BLOCKED\s*-\s*(?P<direction>INBOUND|OUTBOUND|INVALID|IOT)\].*?'
-        r'(?:PROTO=(?P<proto>\w+))?.*?'
-        r'(?:SRC=(?P<src_ip>\d+\.\d+\.\d+\.\d+))?.*?'
-        r'(?:DST=(?P<dst_ip>\d+\.\d+\.\d+\.\d+))?.*?'
-        r'(?:SPT=(?P<src_port>\d+))?.*?'
-        r'(?:DPT=(?P<dst_port>\d+))?'
-    )
-
-    # RFC1918 private IP ranges
-    PRIVATE_RANGES = [
-        re.compile(r'^10\.'),
-        re.compile(r'^172\.(1[6-9]|2[0-9]|3[0-1])\.'),
-        re.compile(r'^192\.168\.'),
-        re.compile(r'^127\.'),
-        re.compile(r'^169\.254\.'),
-    ]
-
-    def __init__(self, ipset_path: str):
-        self.ipset_path = ipset_path
-        self.ban_reasons = self._load_ipset_comments()
-
-    def _load_ipset_comments(self) -> Dict[str, str]:
-        """Load ban reasons from ipset file or command"""
-        reasons = {}
-
-        # Try to read from file first
-        if Path(self.ipset_path).exists():
+    def _load(self) -> set:
+        if self.state_file.exists():
             try:
-                with open(self.ipset_path, 'r') as f:
-                    for line in f:
-                        match = re.match(
-                            r'add\s+\S+\s+(\d+\.\d+\.\d+\.\d+(?:/\d+)?)\s+comment\s+"([^"]+)"',
-                            line.strip()
-                        )
-                        if match:
-                            ip, comment = match.groups()
-                            reasons[ip.split('/')[0]] = comment
-            except IOError:
+                with open(self.state_file) as f:
+                    data = json.load(f)
+                return set(data.get('sent_ips', []))
+            except:
                 pass
+        return set()
 
-        # Also try ipset list command
+    def save(self):
+        self.state_file.parent.mkdir(parents=True, exist_ok=True)
+        with open(self.state_file, 'w') as f:
+            json.dump({'sent_ips': list(self.sent_ips), 'updated': time.time()}, f)
+
+    def is_sent(self, ip: str) -> bool:
+        return ip in self.sent_ips
+
+    def mark_sent(self, ip: str):
+        self.sent_ips.add(ip)
+
+
+# ============================================================================
+# Get IPs from Skynet IPSet
+# ============================================================================
+
+def get_skynet_ips() -> List[Dict[str, str]]:
+    """Get blocked IPs from Skynet ipset with their ban reasons"""
+    ips = []
+
+    # Try ipset command
+    for ipset_name in ['Skynet-Blacklist', 'Skynet-BlockedRanges']:
         try:
             result = subprocess.run(
-                ['ipset', 'list', '-t'],
-                capture_output=True,
-                text=True,
-                timeout=10
+                ['ipset', 'list', ipset_name],
+                capture_output=True, text=True, timeout=60
             )
-            # Parse ipset output for set names
-            sets_to_check = ['Skynet-Blacklist', 'Skynet-BlockedRanges']
-
-            for ipset_name in sets_to_check:
-                try:
-                    result = subprocess.run(
-                        ['ipset', 'list', ipset_name],
-                        capture_output=True,
-                        text=True,
-                        timeout=30
+            if result.returncode == 0:
+                for line in result.stdout.split('\n'):
+                    # Parse: 1.2.3.4 comment "BanMalware: source.ipset"
+                    match = re.match(
+                        r'^(\d+\.\d+\.\d+\.\d+)(?:/\d+)?.*?comment\s+"([^"]*)"',
+                        line.strip()
                     )
-                    if result.returncode == 0:
-                        for line in result.stdout.split('\n'):
-                            # Parse: 1.2.3.4 comment "BanMalware: source.ipset"
-                            match = re.match(
-                                r'(\d+\.\d+\.\d+\.\d+)(?:/\d+)?.*comment\s+"([^"]+)"',
-                                line.strip()
-                            )
-                            if match:
-                                ip, comment = match.groups()
-                                reasons[ip] = comment
-                except subprocess.TimeoutExpired:
-                    pass
-        except (subprocess.SubprocessError, FileNotFoundError):
-            pass
+                    if match:
+                        ip, reason = match.groups()
+                        ips.append({'ip': ip, 'reason': reason})
+        except Exception as e:
+            logging.warning(f"Error reading {ipset_name}: {e}")
 
-        logging.info(f"Loaded {len(reasons)} ban reasons from ipset")
-        return reasons
-
-    def is_private_ip(self, ip: str) -> bool:
-        """Check if IP is in private range"""
-        return any(pattern.match(ip) for pattern in self.PRIVATE_RANGES)
-
-    def parse_log_line(self, line: str) -> Optional[Dict]:
-        """Parse a single log line"""
-        match = self.BLOCKED_PATTERN.search(line)
-        if not match:
-            return None
-
-        data = match.groupdict()
-
-        # Determine threat IP based on direction
-        direction = data.get('direction', 'UNKNOWN')
-        src_ip = data.get('src_ip', '')
-        dst_ip = data.get('dst_ip', '')
-
-        if direction == 'INBOUND':
-            threat_ip = src_ip  # External attacker
-            victim_ip = dst_ip
-        elif direction == 'OUTBOUND':
-            threat_ip = dst_ip  # C2 or malware destination
-            victim_ip = src_ip
-        else:
-            # For INVALID/IOT, use non-private IP as threat
-            if src_ip and not self.is_private_ip(src_ip):
-                threat_ip = src_ip
-                victim_ip = dst_ip
-            else:
-                threat_ip = dst_ip
-                victim_ip = src_ip
-
-        if not threat_ip or self.is_private_ip(threat_ip):
-            return None
-
-        # Get ban reason
-        ban_reason = self.ban_reasons.get(threat_ip, 'Unknown')
-
-        # Parse timestamp
-        timestamp_str = data.get('timestamp', '')
-        try:
-            # Add current year to timestamp
-            current_year = datetime.now().year
-            parsed_time = datetime.strptime(
-                f"{current_year} {timestamp_str}",
-                "%Y %b %d %H:%M:%S"
-            )
-            epoch_time = parsed_time.timestamp()
-        except ValueError:
-            epoch_time = time.time()
-
-        return {
-            'timestamp': epoch_time,
-            'timestamp_str': timestamp_str,
-            'direction': direction,
-            'threat_ip': threat_ip,
-            'victim_ip': victim_ip,
-            'src_ip': src_ip,
-            'dst_ip': dst_ip,
-            'src_port': data.get('src_port', ''),
-            'dst_port': data.get('dst_port', ''),
-            'protocol': data.get('proto', 'UNKNOWN'),
-            'ban_reason': ban_reason,
-            'raw_log': line.strip()
-        }
-
-    def parse_log_file(self, filepath: str, start_position: int = 0,
-                       max_lines: int = 1000) -> Tuple[List[Dict], int]:
-        """Parse log file from given position"""
-        events = []
-        current_position = start_position
-
-        try:
-            file_size = os.path.getsize(filepath)
-
-            # Handle log rotation - if file is smaller than last position
-            if file_size < start_position:
-                logging.info(f"Log rotation detected for {filepath}")
-                start_position = 0
-
-            with open(filepath, 'r', errors='ignore') as f:
-                f.seek(start_position)
-                lines_read = 0
-
-                # Use readline() instead of for loop to allow f.tell()
-                while True:
-                    line = f.readline()
-                    if not line:
-                        break
-
-                    lines_read += 1
-                    if lines_read > max_lines:
-                        break
-
-                    if '[BLOCKED' in line:
-                        event = self.parse_log_line(line)
-                        if event:
-                            events.append(event)
-
-                current_position = f.tell()
-
-        except IOError as e:
-            logging.error(f"Error reading {filepath}: {e}")
-
-        logging.info(f"Parsed {len(events)} events from {filepath}")
-        return events, current_position
+    logging.info(f"Found {len(ips)} IPs in Skynet blocklist")
+    return ips
 
 
 # ============================================================================
-# Splunk HEC Client
+# OTX API Client
 # ============================================================================
 
-class SplunkHECClient:
-    """Splunk HTTP Event Collector client"""
+def fetch_otx_intel(ip: str, api_key: str) -> Optional[Dict]:
+    """Fetch threat intelligence from OTX for an IP"""
+    url = f"{CONFIG['otx_base_url']}/indicators/IPv4/{ip}/general"
+    headers = {
+        'X-OTX-API-KEY': api_key,
+        'Accept': 'application/json'
+    }
 
-    def __init__(self, hec_url: str, token: str, index: str,
-                 sourcetype: str, source: str, verify_ssl: bool = False):
-        self.hec_url = hec_url
-        self.token = token
-        self.index = index
-        self.sourcetype = sourcetype
-        self.source = source
-        self.verify_ssl = verify_ssl
-        self.session = None
+    try:
+        resp = requests.get(url, headers=headers, timeout=15)
+        if resp.status_code == 200:
+            data = resp.json()
 
-        if REQUESTS_AVAILABLE:
-            self.session = requests.Session()
-            self.session.headers.update({
-                'Authorization': f'Splunk {self.token}',
-                'Content-Type': 'application/json'
-            })
+            # Extract key threat intel
+            pulses = data.get('pulse_info', {}).get('pulses', [])
 
-    def send_events(self, events: List[Dict]) -> bool:
-        """Send batch of events to Splunk HEC"""
-        if not REQUESTS_AVAILABLE or not self.session:
-            logging.error("Requests library not available")
-            return False
-
-        if not events:
-            return True
-
-        # Build HEC payload
-        payload = ""
-        for event in events:
-            hec_event = {
-                'time': event.get('_time', time.time()),
-                'host': event.get('host', 'skynet'),
-                'source': self.source,
-                'sourcetype': self.sourcetype,
-                'index': self.index,
-                'event': event
+            intel = {
+                'ip': ip,
+                'pulse_count': data.get('pulse_info', {}).get('count', 0),
+                'reputation': data.get('reputation', 0),
+                'country_code': data.get('country_code', ''),
+                'country_name': data.get('country_name', ''),
+                'asn': data.get('asn', ''),
+                'city': data.get('city', ''),
+                'whois': data.get('whois', '')[:500] if data.get('whois') else '',
+                'pulses': [],
+                'tags': [],
+                'malware_families': [],
+                'targeted_countries': [],
+                'attack_ids': []
             }
-            payload += json.dumps(hec_event) + "\n"
 
-        try:
-            response = self.session.post(
-                self.hec_url,
-                data=payload,
-                verify=self.verify_ssl,
-                timeout=30
-            )
+            # Extract from pulses
+            for pulse in pulses[:20]:
+                intel['pulses'].append({
+                    'id': pulse.get('id', ''),
+                    'name': pulse.get('name', ''),
+                    'description': pulse.get('description', '')[:300],
+                    'created': pulse.get('created', ''),
+                    'modified': pulse.get('modified', ''),
+                    'author': pulse.get('author_name', ''),
+                    'adversary': pulse.get('adversary', ''),
+                    'tlp': pulse.get('tlp', ''),
+                    'industries': pulse.get('industries', []),
+                })
+                intel['tags'].extend(pulse.get('tags', []))
+                intel['malware_families'].extend(pulse.get('malware_families', []))
+                intel['targeted_countries'].extend(pulse.get('targeted_countries', []))
+                intel['attack_ids'].extend(pulse.get('attack_ids', []))
 
-            if response.status_code == 200:
-                result = response.json()
-                if result.get('text') == 'Success':
-                    logging.info(f"Successfully sent {len(events)} events to Splunk")
-                    return True
-                else:
-                    logging.error(f"Splunk HEC error: {result}")
-                    return False
-            else:
-                logging.error(f"Splunk HEC HTTP error: {response.status_code} - {response.text}")
-                return False
+            # Dedupe
+            intel['tags'] = list(set(intel['tags']))[:20]
+            intel['malware_families'] = list(set(intel['malware_families']))[:10]
+            intel['targeted_countries'] = list(set(intel['targeted_countries']))[:10]
+            intel['attack_ids'] = list(set(intel['attack_ids']))[:10]
 
-        except requests.exceptions.RequestException as e:
-            logging.error(f"Splunk HEC request failed: {e}")
+            return intel
+
+        elif resp.status_code == 404:
+            return {'ip': ip, 'pulse_count': 0, 'not_found': True}
+        else:
+            logging.warning(f"OTX API error for {ip}: {resp.status_code}")
+            return None
+
+    except Exception as e:
+        logging.error(f"OTX request failed for {ip}: {e}")
+        return None
+
+
+# ============================================================================
+# Build Splunk CIM Event
+# ============================================================================
+
+def build_cim_event(ip_info: Dict, otx_intel: Dict) -> Dict:
+    """Build CIM-compliant threat intel event for Splunk"""
+
+    pulse_count = otx_intel.get('pulse_count', 0)
+
+    # Determine severity based on pulse count
+    if pulse_count >= 10:
+        severity = 'critical'
+        severity_id = 5
+    elif pulse_count >= 5:
+        severity = 'high'
+        severity_id = 4
+    elif pulse_count >= 2:
+        severity = 'medium'
+        severity_id = 3
+    elif pulse_count >= 1:
+        severity = 'low'
+        severity_id = 2
+    else:
+        severity = 'informational'
+        severity_id = 1
+
+    event = {
+        '_time': time.time(),
+
+        # CIM Threat Intelligence fields
+        'threat_key': ip_info['ip'],
+        'threat_match_field': 'src_ip',
+        'threat_match_value': ip_info['ip'],
+        'threat_collection': 'alienvault_otx',
+        'threat_collection_key': ip_info['ip'],
+        'threat_source_name': 'AlienVault OTX',
+        'threat_source_id': otx_intel.get('pulses', [{}])[0].get('id', ''),
+
+        # Threat details
+        'threat_category': otx_intel.get('tags', [])[:5],
+        'threat_description': otx_intel.get('pulses', [{}])[0].get('description', ''),
+        'malware_family': otx_intel.get('malware_families', []),
+        'mitre_technique_id': otx_intel.get('attack_ids', []),
+
+        # Severity
+        'severity': severity,
+        'severity_id': severity_id,
+        'priority': severity,
+
+        # IP details
+        'src_ip': ip_info['ip'],
+        'ip': ip_info['ip'],
+        'dest_ip': CONFIG['router_ip'],
+
+        # GeoIP from OTX
+        'src_country': otx_intel.get('country_code', ''),
+        'src_country_name': otx_intel.get('country_name', ''),
+        'src_city': otx_intel.get('city', ''),
+        'src_asn': otx_intel.get('asn', ''),
+
+        # OTX specific
+        'otx_pulse_count': pulse_count,
+        'otx_reputation': otx_intel.get('reputation', 0),
+        'otx_url': f"https://otx.alienvault.com/indicator/ip/{ip_info['ip']}",
+        'otx_pulses': [p.get('name', '') for p in otx_intel.get('pulses', [])[:5]],
+        'otx_tags': otx_intel.get('tags', [])[:10],
+        'otx_malware_families': otx_intel.get('malware_families', []),
+        'otx_targeted_countries': otx_intel.get('targeted_countries', []),
+        'otx_adversary': otx_intel.get('pulses', [{}])[0].get('adversary', ''),
+
+        # Skynet context
+        'skynet_ban_reason': ip_info.get('reason', 'Unknown'),
+        'signature': ip_info.get('reason', 'Skynet Block'),
+
+        # Device context
+        'dvc': CONFIG['router_hostname'],
+        'dvc_ip': CONFIG['router_ip'],
+        'vendor': 'ASUS',
+        'vendor_product': 'Skynet Firewall',
+        'app': 'skynet',
+
+        # Action
+        'action': 'blocked',
+        'status': 'success'
+    }
+
+    return event
+
+
+# ============================================================================
+# Send to Splunk HEC
+# ============================================================================
+
+def send_to_splunk(events: List[Dict]) -> bool:
+    """Send events to Splunk HEC"""
+    if not events:
+        return True
+
+    payload = ""
+    for event in events:
+        hec_event = {
+            'time': event.get('_time', time.time()),
+            'host': CONFIG['router_hostname'],
+            'source': CONFIG['splunk_source'],
+            'sourcetype': CONFIG['splunk_sourcetype'],
+            'index': CONFIG['splunk_index'],
+            'event': event
+        }
+        payload += json.dumps(hec_event) + "\n"
+
+    try:
+        resp = requests.post(
+            CONFIG['splunk_hec_url'],
+            headers={
+                'Authorization': f"Splunk {CONFIG['splunk_hec_token']}",
+                'Content-Type': 'application/json'
+            },
+            data=payload,
+            verify=False,
+            timeout=30
+        )
+
+        if resp.status_code == 200:
+            logging.info(f"Sent {len(events)} threat intel events to Splunk")
+            return True
+        else:
+            logging.error(f"Splunk HEC error: {resp.status_code} - {resp.text}")
             return False
 
-
-# ============================================================================
-# CIM Event Builder
-# ============================================================================
-
-class CIMEventBuilder:
-    """Build Splunk CIM-compliant events for threat intelligence"""
-
-    def __init__(self, router_ip: str, router_hostname: str):
-        self.router_ip = router_ip
-        self.router_hostname = router_hostname
-
-    def build_threat_event(self, log_event: Dict, otx_data: Optional[Dict]) -> Dict:
-        """Build a CIM-compliant threat intelligence event"""
-
-        # Base event with Splunk CIM Network Traffic fields
-        event = {
-            # Timestamps
-            '_time': log_event['timestamp'],
-            'timestamp': datetime.fromtimestamp(log_event['timestamp']).isoformat(),
-
-            # CIM: Network Traffic
-            'action': 'blocked',
-            'app': 'skynet',
-            'bytes': 0,
-            'bytes_in': 0,
-            'bytes_out': 0,
-            'dest': log_event['dst_ip'],
-            'dest_ip': log_event['dst_ip'],
-            'dest_port': log_event.get('dst_port', ''),
-            'direction': log_event['direction'].lower(),
-            'dvc': self.router_hostname,
-            'dvc_ip': self.router_ip,
-            'protocol': log_event.get('protocol', 'unknown').lower(),
-            'src': log_event['src_ip'],
-            'src_ip': log_event['src_ip'],
-            'src_port': log_event.get('src_port', ''),
-            'transport': log_event.get('protocol', 'unknown').lower(),
-            'vendor': 'ASUS',
-            'vendor_product': 'Skynet Firewall',
-
-            # CIM: Intrusion Detection
-            'category': 'network',
-            'ids_type': 'network',
-            'severity': 'medium',
-            'signature': log_event['ban_reason'],
-            'signature_id': self._generate_signature_id(log_event['ban_reason']),
-
-            # CIM: Threat Intelligence
-            'threat_match_field': 'src_ip' if log_event['direction'] == 'INBOUND' else 'dest_ip',
-            'threat_match_value': log_event['threat_ip'],
-            'threat_key': log_event['threat_ip'],
-
-            # Skynet-specific fields
-            'skynet_direction': log_event['direction'],
-            'skynet_ban_reason': log_event['ban_reason'],
-            'threat_ip': log_event['threat_ip'],
-            'victim_ip': log_event.get('victim_ip', ''),
-
-            # Device context
-            'host': self.router_hostname,
-            'host_ip': self.router_ip
-        }
-
-        # Extract threat source from ban reason
-        threat_source = self._parse_threat_source(log_event['ban_reason'])
-        event['threat_collection'] = threat_source.get('collection', 'unknown')
-        event['threat_collection_key'] = threat_source.get('source_file', 'unknown')
-
-        # Enrich with OTX data if available
-        if otx_data:
-            event.update(self._build_otx_fields(otx_data))
-
-        return event
-
-    def _generate_signature_id(self, ban_reason: str) -> str:
-        """Generate a signature ID from ban reason"""
-        # Create deterministic ID from ban reason
-        import hashlib
-        return hashlib.md5(ban_reason.encode()).hexdigest()[:8]
-
-    def _parse_threat_source(self, ban_reason: str) -> Dict:
-        """Parse the threat source from ban reason"""
-        result = {
-            'type': 'unknown',
-            'collection': 'skynet',
-            'source_file': ''
-        }
-
-        if not ban_reason:
-            return result
-
-        # Parse different ban reason formats
-        # "BanMalware: cybercrime.ipset"
-        # "ManualBan: reason"
-        # "BanAiProtect: malware.example.com"
-        # "Ban Country: CN"
-
-        if ban_reason.startswith('BanMalware:'):
-            result['type'] = 'malware_list'
-            result['collection'] = 'firehol'
-            source = ban_reason.replace('BanMalware:', '').strip()
-            result['source_file'] = source
-
-            # Map source file to threat category
-            if 'cybercrime' in source.lower():
-                result['threat_category'] = 'cybercrime'
-            elif 'spamhaus' in source.lower():
-                result['threat_category'] = 'spam'
-            elif 'firehol' in source.lower():
-                result['threat_category'] = 'malicious'
-            elif 'compromised' in source.lower():
-                result['threat_category'] = 'compromised'
-            elif 'dyndns' in source.lower() or 'ponmocup' in source.lower():
-                result['threat_category'] = 'botnet'
-            else:
-                result['threat_category'] = 'malware'
-
-        elif ban_reason.startswith('ManualBan:'):
-            result['type'] = 'manual'
-            result['collection'] = 'manual'
-            result['source_file'] = ban_reason.replace('ManualBan:', '').strip()
-            result['threat_category'] = 'suspicious'
-
-        elif ban_reason.startswith('BanAiProtect:'):
-            result['type'] = 'aiprotect'
-            result['collection'] = 'asus_aiprotect'
-            result['source_file'] = ban_reason.replace('BanAiProtect:', '').strip()
-            result['threat_category'] = 'malware'
-
-        elif 'Country' in ban_reason:
-            result['type'] = 'geo_block'
-            result['collection'] = 'country_block'
-            match = re.search(r':\s*(\w+)', ban_reason)
-            if match:
-                result['source_file'] = match.group(1)
-            result['threat_category'] = 'geographic'
-
-        return result
-
-    def _build_otx_fields(self, otx_data: Dict) -> Dict:
-        """Build OTX-specific fields for CIM"""
-        fields = {
-            # OTX enrichment
-            'otx_pulse_count': otx_data.get('pulse_count', 0),
-            'otx_reputation': otx_data.get('reputation', 0),
-            'otx_country': otx_data.get('country', 'Unknown'),
-            'otx_asn': otx_data.get('asn', 'Unknown'),
-            'otx_url': otx_data.get('otx_url', ''),
-
-            # CIM threat intel fields from OTX
-            'threat_category': [],
-            'threat_description': '',
-            'threat_source_id': '',
-            'threat_source_name': 'AlienVault OTX'
-        }
-
-        # Extract categories and malware families
-        categories = otx_data.get('categories', [])
-        malware_families = otx_data.get('malware_families', [])
-
-        if categories:
-            fields['threat_category'] = categories[:5]
-            fields['otx_categories'] = categories
-
-        if malware_families:
-            fields['otx_malware_families'] = malware_families
-            fields['malware_family'] = malware_families[0] if malware_families else ''
-
-        # Build threat description from pulses
-        pulses = otx_data.get('pulses', [])
-        if pulses:
-            first_pulse = pulses[0]
-            fields['threat_source_id'] = first_pulse.get('id', '')
-            fields['threat_description'] = first_pulse.get('description', '')[:500]
-
-            # Extract all pulse names
-            pulse_names = [p.get('name', '') for p in pulses if p.get('name')]
-            fields['otx_pulse_names'] = pulse_names[:5]
-
-            # Extract targeted countries and industries
-            targeted_countries = []
-            industries = []
-            attack_ids = []
-
-            for pulse in pulses:
-                targeted_countries.extend(pulse.get('targeted_countries', []))
-                industries.extend(pulse.get('industries', []))
-                attack_ids.extend(pulse.get('attack_ids', []))
-
-            if targeted_countries:
-                fields['otx_targeted_countries'] = list(set(targeted_countries))[:10]
-            if industries:
-                fields['otx_targeted_industries'] = list(set(industries))[:10]
-            if attack_ids:
-                # MITRE ATT&CK IDs
-                fields['mitre_technique_id'] = list(set(attack_ids))[:10]
-
-        # Set severity based on pulse count and reputation
-        pulse_count = otx_data.get('pulse_count', 0)
-        if pulse_count >= 10:
-            fields['severity'] = 'critical'
-            fields['severity_id'] = 5
-        elif pulse_count >= 5:
-            fields['severity'] = 'high'
-            fields['severity_id'] = 4
-        elif pulse_count >= 2:
-            fields['severity'] = 'medium'
-            fields['severity_id'] = 3
-        elif pulse_count >= 1:
-            fields['severity'] = 'low'
-            fields['severity_id'] = 2
-        else:
-            fields['severity'] = 'informational'
-            fields['severity_id'] = 1
-
-        return fields
+    except Exception as e:
+        logging.error(f"Splunk HEC failed: {e}")
+        return False
 
 
 # ============================================================================
-# Main Collector
+# Main
 # ============================================================================
 
-class SkynetOTXCollector:
-    """Main collector class orchestrating the data pipeline"""
+def run_collection():
+    """Main collection routine"""
+    cache = OTXCache(CONFIG['cache_file'], CONFIG['otx_cache_hours'])
+    state = StateTracker(CONFIG['state_file'])
 
-    def __init__(self, config: Config):
-        self.config = config
-        self.state = StateManager(config.state_file)
-        self.parser = SkynetLogParser(config.skynet_ipset_path)
-        self.otx = OTXClient(
-            api_key=config.otx_api_key,
-            base_url=config.otx_base_url,
-            cache_file=config.cache_file,
-            cache_ttl=config.otx_cache_ttl,
-            rate_limit=config.otx_rate_limit
-        )
-        self.splunk = SplunkHECClient(
-            hec_url=config.splunk_hec_url,
-            token=config.splunk_hec_token,
-            index=config.splunk_index,
-            sourcetype=config.splunk_sourcetype,
-            source=config.splunk_source,
-            verify_ssl=config.splunk_verify_ssl
-        )
-        self.cim_builder = CIMEventBuilder(
-            router_ip=config.router_ip,
-            router_hostname=config.router_hostname
-        )
+    # Get IPs from Skynet
+    skynet_ips = get_skynet_ips()
 
-    def collect_and_send(self) -> int:
-        """Main collection and sending workflow"""
-        all_events = []
+    # Filter to IPs we haven't sent yet
+    new_ips = [ip for ip in skynet_ips if not state.is_sent(ip['ip'])]
+    logging.info(f"Found {len(new_ips)} new IPs to process")
 
-        # Find available log files
-        log_files = []
-        for log_path in self.config.syslog_paths:
-            if Path(log_path).exists():
-                log_files.append(log_path)
+    if not new_ips:
+        logging.info("No new IPs to process")
+        return 0
 
-        # Also check skynet-specific log
-        if Path(self.config.skynet_log_path).exists():
-            log_files.append(self.config.skynet_log_path)
+    # Limit per run
+    new_ips = new_ips[:CONFIG['max_ips_per_run']]
 
-        if not log_files:
-            logging.warning("No log files found")
-            return 0
+    events = []
+    for ip_info in new_ips:
+        ip = ip_info['ip']
 
-        logging.info(f"Processing log files: {log_files}")
+        # Check cache first
+        otx_intel = cache.get(ip)
 
-        # Parse each log file
-        for log_file in log_files:
-            start_pos = self.state.get_file_position(log_file)
-            events, end_pos = self.parser.parse_log_file(
-                log_file,
-                start_pos,
-                max_lines=self.config.max_events_per_run
-            )
-            self.state.set_file_position(log_file, end_pos)
-            all_events.extend(events)
+        if not otx_intel:
+            # Fetch from OTX
+            otx_intel = fetch_otx_intel(ip, CONFIG['otx_api_key'])
+            if otx_intel:
+                cache.set(ip, otx_intel)
+            time.sleep(0.5)  # Rate limit
 
-        if not all_events:
-            logging.info("No new events found")
-            self.state.save_state()
-            return 0
+        if otx_intel:
+            event = build_cim_event(ip_info, otx_intel)
+            events.append(event)
+            state.mark_sent(ip)
 
-        # Deduplicate events
-        unique_events = []
-        seen_ips = defaultdict(list)
+        # Batch send
+        if len(events) >= CONFIG['batch_size']:
+            send_to_splunk(events)
+            events = []
 
-        for event in all_events:
-            event_hash = f"{event['threat_ip']}:{event['direction']}:{event['dst_port']}"
+    # Send remaining
+    if events:
+        send_to_splunk(events)
 
-            if not self.state.is_processed(event_hash, self.config.dedupe_window):
-                unique_events.append(event)
-                self.state.mark_processed(event_hash)
-                seen_ips[event['threat_ip']].append(event)
+    # Save state
+    cache.save()
+    state.save()
 
-        logging.info(f"Processing {len(unique_events)} unique events ({len(all_events)} total)")
-
-        # Get unique threat IPs for OTX lookup
-        unique_ips = list(set(e['threat_ip'] for e in unique_events))
-        logging.info(f"Looking up {len(unique_ips)} unique IPs in OTX")
-
-        # Fetch OTX data for each unique IP
-        otx_cache = {}
-        for ip in unique_ips[:100]:  # Limit OTX lookups
-            otx_data = self.otx.get_ip_reputation(ip)
-            if otx_data:
-                otx_cache[ip] = otx_data
-
-        # Build CIM-compliant events
-        cim_events = []
-        for event in unique_events:
-            otx_data = otx_cache.get(event['threat_ip'])
-            cim_event = self.cim_builder.build_threat_event(event, otx_data)
-            cim_events.append(cim_event)
-
-        # Send to Splunk in batches
-        sent_count = 0
-        batch_size = self.config.batch_size
-
-        for i in range(0, len(cim_events), batch_size):
-            batch = cim_events[i:i + batch_size]
-            if self.splunk.send_events(batch):
-                sent_count += len(batch)
-            else:
-                logging.error(f"Failed to send batch {i // batch_size + 1}")
-
-        # Save state
-        self.state.save_state()
-
-        logging.info(f"Collection complete: {sent_count}/{len(cim_events)} events sent to Splunk")
-        return sent_count
+    logging.info(f"Processed {len(new_ips)} IPs")
+    return len(new_ips)
 
 
-# ============================================================================
-# CLI Interface
-# ============================================================================
+def test_connections():
+    """Test Splunk and OTX connectivity"""
+    print("Testing Splunk HEC...")
+    test_event = {'_time': time.time(), 'message': 'OTX collector test', 'test': True}
+    if send_to_splunk([test_event]):
+        print("✓ Splunk HEC OK")
+    else:
+        print("✗ Splunk HEC FAILED")
+
+    print("\nTesting OTX API...")
+    result = fetch_otx_intel('8.8.8.8', CONFIG['otx_api_key'])
+    if result:
+        print(f"✓ OTX API OK - Google DNS has {result.get('pulse_count', 0)} pulses")
+    else:
+        print("✗ OTX API FAILED")
+
 
 def main():
-    """Main entry point"""
     import argparse
-
-    parser = argparse.ArgumentParser(
-        description='Skynet OTX Threat Intelligence Collector for Splunk ES',
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  %(prog)s                     # Run collection once
-  %(prog)s --debug             # Run with debug logging
-  %(prog)s --daemon --interval 300  # Run every 5 minutes
-  %(prog)s --test-splunk       # Test Splunk HEC connectivity
-  %(prog)s --test-otx          # Test OTX API connectivity
-  %(prog)s --config /path/to/config.json  # Use custom config
-        """
-    )
-
-    parser.add_argument('--config', '-c', help='Path to config file')
-    parser.add_argument('--debug', '-d', action='store_true', help='Enable debug logging')
-    parser.add_argument('--daemon', action='store_true', help='Run continuously')
-    parser.add_argument('--interval', type=int, default=300, help='Interval in seconds for daemon mode')
-    parser.add_argument('--test-splunk', action='store_true', help='Test Splunk HEC connectivity')
-    parser.add_argument('--test-otx', action='store_true', help='Test OTX API connectivity')
-    parser.add_argument('--dry-run', action='store_true', help='Parse logs but do not send to Splunk')
-    parser.add_argument('--version', action='version', version='Skynet OTX Collector v1.0.0')
-
+    parser = argparse.ArgumentParser(description='Skynet OTX Threat Intel Collector')
+    parser.add_argument('--test', action='store_true', help='Test connections')
+    parser.add_argument('--debug', action='store_true', help='Debug logging')
+    parser.add_argument('--reset', action='store_true', help='Reset state (re-send all)')
     args = parser.parse_args()
 
-    # Load configuration
-    config = Config(args.config)
+    setup_logging(args.debug)
 
-    # Setup logging
-    setup_logging(config.log_file, args.debug)
+    if args.reset:
+        Path(CONFIG['state_file']).unlink(missing_ok=True)
+        print("State reset - will re-process all IPs")
+        return
 
-    # Check for requests library
-    if not REQUESTS_AVAILABLE:
-        logging.error("Required 'requests' library is not installed")
-        logging.error("Install with: opkg install python3-requests")
-        logging.error("         or: pip3 install requests")
-        sys.exit(1)
+    if args.test:
+        test_connections()
+        return
 
-    # Test modes
-    if args.test_splunk:
-        logging.info("Testing Splunk HEC connectivity...")
-        splunk = SplunkHECClient(
-            hec_url=config.splunk_hec_url,
-            token=config.splunk_hec_token,
-            index=config.splunk_index,
-            sourcetype=config.splunk_sourcetype,
-            source=config.splunk_source,
-            verify_ssl=config.splunk_verify_ssl
-        )
-        test_event = {
-            '_time': time.time(),
-            'message': 'Skynet OTX Collector test event',
-            'test': True
-        }
-        if splunk.send_events([test_event]):
-            logging.info("SUCCESS: Splunk HEC connection working")
-            sys.exit(0)
-        else:
-            logging.error("FAILED: Could not connect to Splunk HEC")
-            sys.exit(1)
-
-    if args.test_otx:
-        logging.info("Testing OTX API connectivity...")
-        otx = OTXClient(
-            api_key=config.otx_api_key,
-            base_url=config.otx_base_url,
-            cache_file=config.cache_file
-        )
-        # Test with a known malicious IP
-        result = otx.get_ip_reputation('8.8.8.8')  # Google DNS as test
-        if result:
-            logging.info(f"SUCCESS: OTX API working - Got data for 8.8.8.8")
-            logging.info(f"  Pulse count: {result.get('pulse_count', 0)}")
-            logging.info(f"  Country: {result.get('country', 'Unknown')}")
-            sys.exit(0)
-        else:
-            logging.error("FAILED: Could not connect to OTX API")
-            sys.exit(1)
-
-    # Main collection
-    collector = SkynetOTXCollector(config)
-
-    if args.daemon:
-        logging.info(f"Starting daemon mode with {args.interval}s interval")
-        while True:
-            try:
-                if not args.dry_run:
-                    collector.collect_and_send()
-                else:
-                    logging.info("Dry run - would collect and send events")
-            except KeyboardInterrupt:
-                logging.info("Shutdown requested")
-                break
-            except Exception as e:
-                logging.error(f"Collection error: {e}")
-
-            time.sleep(args.interval)
-    else:
-        try:
-            if not args.dry_run:
-                count = collector.collect_and_send()
-                logging.info(f"Sent {count} events")
-            else:
-                logging.info("Dry run mode - parsing logs only")
-                # Just parse and display
-                for log_path in config.syslog_paths:
-                    if Path(log_path).exists():
-                        events, _ = collector.parser.parse_log_file(log_path, 0, 100)
-                        for event in events[:10]:
-                            print(json.dumps(event, indent=2))
-        except KeyboardInterrupt:
-            logging.info("Interrupted")
-        except Exception as e:
-            logging.error(f"Error: {e}")
-            if args.debug:
-                import traceback
-                traceback.print_exc()
-            sys.exit(1)
+    run_collection()
 
 
 if __name__ == '__main__':
