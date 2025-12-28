@@ -564,7 +564,12 @@ class SkynetLogParser:
                 f.seek(start_position)
                 lines_read = 0
 
-                for line in f:
+                # Use readline() instead of for loop to allow f.tell()
+                while True:
+                    line = f.readline()
+                    if not line:
+                        break
+
                     lines_read += 1
                     if lines_read > max_lines:
                         break
