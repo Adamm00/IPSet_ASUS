@@ -1,0 +1,31 @@
+{
+  "splunk_hec_url": "https://192.168.50.213:8088/services/collector/event",
+  "splunk_hec_token": "935af03b-c11c-403a-98e7-904eaf7d88e5",
+  "splunk_index": "threat_activity",
+  "splunk_sourcetype": "skynet:otx:threat",
+  "splunk_source": "skynet_firewall",
+  "splunk_verify_ssl": false,
+
+  "otx_api_key": "85d7363b64fff612405535891cffaab7d269f89324da10bc1165f45aea103eaa",
+  "otx_base_url": "https://otx.alienvault.com/api/v1",
+  "otx_cache_ttl": 3600,
+  "otx_rate_limit": 0.5,
+
+  "syslog_paths": [
+    "/tmp/syslog.log",
+    "/jffs/syslog.log",
+    "/opt/var/log/messages"
+  ],
+  "skynet_log_path": "/opt/share/skynet/skynet.log",
+  "skynet_ipset_path": "/opt/share/skynet/skynet.ipset",
+
+  "batch_size": 50,
+  "state_file": "/tmp/mnt/OTX/skynet_otx_state.json",
+  "cache_file": "/tmp/mnt/OTX/otx_cache.json",
+  "log_file": "/tmp/mnt/OTX/skynet_otx.log",
+  "max_events_per_run": 500,
+  "dedupe_window": 300,
+
+  "router_ip": "192.168.50.1",
+  "router_hostname": "GT-AX11000"
+}
