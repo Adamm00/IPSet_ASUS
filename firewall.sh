@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            29/11/2025 - v8.0.8                                            #
+#                                            04/01/2026 - v8.0.8                                            #
 #############################################################################################################
 
 
@@ -1573,7 +1573,7 @@ Run_Stats() {
 						ipset test Skynet-Blacklist "$4" && found2=true
 						ipset test Skynet-BlockedRanges "$4" && found3=true
 						echo;echo
-						if [ -n "$found1" ]; then Red "Whitelist Reason;"; grep -F "add Skynet-Whitelist $(echo "$4" | cut -d '.' -f1-3)." "$skynetipset" | awk '{$1=$2=$4=""; print $0}' | tr -s " "; echo; echo; fi
+						if [ -n "$found1" ]; then Red "Whitelist Reason;"; grep -F "add Skynet-Whitelist $(echo "$4" | cut -d '.' -f1-3)." "$skynetipset" | awk '{$1=$2=$4=""; print $0}' | tr -s " "; echo;echo; fi
 						if [ -n "$found2" ] || [ -n "$found3" ]; then
 							Red "Ban Reasons;"
 							grep -E '^add Skynet-(Blacklist|BlockedRanges) ' "$skynetipset" | awk -v ip="$4" '
@@ -1633,11 +1633,11 @@ Run_Stats() {
 						echo;echo
 						Red "$counter Most Recent Blocks From $4;"
 						grep -F "=$4 " "$skynetlog" | tail -"$counter"
-						echo; echo
+						echo;echo
 						Red "Top $counter Targeted Ports From $4 (Inbound);"
 						Display_Header "3"
 						grep -E "INBOUND.*SRC=$4 " "$skynetlog" | grep -oE 'DPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{printf "%-10s | %-10s | %-60s\n", $1 "x", $2, "https://www.speedguide.net/port.php?port=" $2 }'
-						echo; echo
+						echo;echo
 						Red "Top $counter Sourced Ports From $4 (Inbound);"
 						Display_Header "3"
 						grep -E "INBOUND.*SRC=$4 " "$skynetlog" | grep -oE 'SPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{printf "%-10s | %-10s | %-60s\n", $1 "x", $2, "https://www.speedguide.net/port.php?port=" $2 }'
@@ -1695,7 +1695,7 @@ Run_Stats() {
 							echo
 							ip2="$(echo "$ip" | sed 's~\.~\\.~g')"
 							Show_Associated_Domains "$ip2"
-							echo; echo
+							echo;echo
 							if [ -n "$found2" ] || [ -n "$found3" ]; then
 								if Is_Enabled "$lookupcountry"; then
 									country="$(curl -fsSL --retry 3 --max-time 6 -A "ASUSWRT-Merlin $model v$(nvram get buildno)_$(nvram get extendno)" "https://api.db-ip.com/v2/free/${ip}/countryCode/" 2>/dev/null | grep -E '^[A-Z]{2}$' || echo '**')"
@@ -1712,11 +1712,11 @@ Run_Stats() {
 								echo;echo
 								Red "$counter Most Recent Blocks From $ip;"
 								grep -F "=$ip " "$skynetlog" | tail -"$counter"
-								echo; echo
+								echo;echo
 								Red "Top $counter Targeted Ports From $ip (Inbound);"
 								Display_Header "3"
 								grep -E "INBOUND.*SRC=$ip " "$skynetlog" | grep -oE 'DPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{printf "%-10s | %-10s | %-60s\n", $1 "x", $2, "https://www.speedguide.net/port.php?port=" $2 }'
-								echo; echo
+								echo;echo
 								Red "Top $counter Sourced Ports From $ip (Inbound);"
 								Display_Header "3"
 								grep -E "INBOUND.*SRC=$ip " "$skynetlog" | grep -oE 'SPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -"$counter" | awk '{printf "%-10s | %-10s | %-60s\n", $1 "x", $2, "https://www.speedguide.net/port.php?port=" $2 }'
@@ -1776,13 +1776,13 @@ Run_Stats() {
 						echo;echo
 						Red "$counter Most Recent Blocks From $4;"
 						grep -E "OUTBOUND.* SRC=$4 " "$skynetlog" | tail -"$counter"
-						echo; echo
+						echo;echo
 						Red "Top $counter HTTP(s) Blocks (Outbound);"
 						Display_Header "2"
 						grep -E 'DPT=80 |DPT=443 ' "$skynetlog" | grep -E "OUTBOUND.*$proto" | grep -F "SRC=${4} " | grep -oE ' DST=[0-9,\.]*' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | while IFS= read -r "statdata"; do
 							Generate_Ban_Stats "2"
 						done
-						echo; echo
+						echo;echo
 						Red "Top $counter Blocks From (Outbound);"
 						Display_Header "2"
 						grep -E "OUTBOUND.*$proto" "$skynetlog" | grep -vE 'DPT=80 |DPT=443 ' | grep -F "SRC=${4} " | grep -oE ' DST=[0-9,\.]*' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | while IFS= read -r "statdata"; do
@@ -2680,20 +2680,19 @@ Write_Config() {
 Load_Menu() {
 	. "$skynetcfg"
 	Display_Header "9"
-	echo "Router Model; $model"
-	echo "Skynet Version; $localver ($(Filter_Date < "$0")) ($(md5sum "$0" | awk '{print $1}'))"
-	echo "$(iptables --version) - ($iface @ $(nvram get lan_ipaddr))"
-	ipset -v 2>/dev/null
-	echo "IP Address; ($(if nvram get wan0_ipaddr | Is_PrivateIP; then Red "$(nvram get wan0_ipaddr)"; else nvram get wan0_ipaddr; fi))$(if [ "$(nvram get ipv6_service)" != "disabled" ]; then echo " - ($(nvram get ipv6_prefix)/$(nvram get ipv6_prefix_length))"; fi)"
-	echo "FW Version; $(nvram get buildno)_$(nvram get extendno) ($(uname -v | awk '{printf "%s %s %s\n", $5, $6, $9}')) ($(uname -r))"
-	echo "Install Dir; ${skynetloc} ($(df -h "${skynetloc}" | xargs | awk '{printf "%s / %s\n", $11, $9}') Space Available)"
-	if [ -n "$swaplocation" ]; then
-		echo "SWAP File; $swaplocation ($(du -h "$swaplocation" | awk '{print $1}'))"
-		if [ "$(du "$swaplocation" | awk '{print $1}')" -lt "1048576" ]; then
-			Red "SWAP File Too Small - 1GB Minimum Required - Please Fix Immediately!"
-		fi
-	fi
-	if [ -n "$countrylist" ]; then echo "Banned Countries; $countrylist"; fi
+	printf '╔═════════════════════ System ══════════════════════════════════════════════════════════════════════════════╗\n'
+	printf '║ %-20s │ %-82s ║\n' "Router Model"   "$(nvram get productid)"
+	printf '║ %-20s │ %-82s ║\n' "Skynet Version" "$localver ($(Filter_Date < "$0"))"
+	printf '║ └── %-16s │ %-82s ║\n' "Hash" "$(md5sum "$0" | awk "{print \$1}")"
+	printf '║ %-20s │ %-82s ║\n' "Install Dir"    "${skynetloc}"
+	printf '║ %-20s │ %-82s ║\n' "FW Version"     "$(uname -o) v$(nvram get buildno)_$(nvram get extendno) (Kernel $(uname -r)) ($(uname -v | awk "{printf \"%s %s %s\n\", \$5,\$6,\$9}"))"
+	printf '║ %-20s │ %-82s ║\n' "iptables"       "$(iptables --version)"
+	printf '║ %-20s │ %-82s ║\n' "ipset"          "$(ipset -v 2>/dev/null | head -n1)"
+	printf '║ %-20s │ %-82s ║\n' "Public IP"      "$(if nvram get wan0_ipaddr | Is_PrivateIP; then Red "$(nvram get wan0_ipaddr)"; else nvram get wan0_ipaddr; fi)"
+	printf '║ %-20s │ %-82s ║\n' "WAN Info"       "${iface} - $(nvram get wan0_proto)"
+	[ -n "$countrylist" ] && printf '║ %-20s │ %-82s ║\n' "Banned Countries" "$countrylist"
+	[ -n "$customlisturl" ] && printf '║ %-20s │ %-82s ║\n' "Custom Filter URL" "$customlisturl"
+	printf '╚══════════════════════╧════════════════════════════════════════════════════════════════════════════════════╝\n\n\n'
 	if [ -f "$LOCK_FILE" ] && ! flock -n 9 9<"$LOCK_FILE"; then
 		locked_cmd=$(cut -d'|' -f1 "$LOCK_FILE")
 		locked_pid=$(cut -d'|' -f2 "$LOCK_FILE")
@@ -2702,12 +2701,11 @@ Load_Menu() {
 		if [ -n "$locked_pid" ] && [ -d "/proc/$locked_pid" ]; then
 			current_time=$(date +%s)
 			runtime=$(( current_time - lock_timestamp ))
-			echo
 			Red "[*] Lock File Detected ($locked_cmd) (pid=$locked_pid, runtime=${runtime}s)"
 			Ylow '[*] Locked Processes Generally Take 1-2 Minutes To Complete And May Result In Temporarily "Failed" Tests'
+			echo;echo
 		fi
 	fi
-	echo
 	if ! Check_Connection >/dev/null 2>&1; then
 		printf '%-35s | %-8s\n' "Internet-Connectivity" "$(Red "[Failed]")"
 	fi
@@ -2737,7 +2735,7 @@ Load_Menu() {
 	unset "option1" "option2" "option3" "option4" "option5"
 	reloadmenu="1"
 	Purge_Logs
-	echo
+	echo;echo
 	while true; do
 		Show_Menu "Select Menu Option" \
 			"Unban" \
@@ -3339,8 +3337,8 @@ Load_Menu() {
 									;;
 									2)
 										Prompt_Typed "option3" "Size" "Input Custom Log Size (in MB):"
-										if ! Is_Numeric "$option3"; then echo; echo "[*] $option3 Is Not A Valid Size"; echo; unset "option3"; continue; fi
-										if [ "$option3" -lt 10 ]; then echo; echo "[*] $option3 Is Not A Valid Size - Must Be At Least 10MB"; echo; unset "option3"; continue; fi
+										if ! Is_Numeric "$option3"; then echo;echo "[*] $option3 Is Not A Valid Size"; echo; unset "option3"; continue; fi
+										if [ "$option3" -lt 10 ]; then echo;echo "[*] $option3 Is Not A Valid Size - Must Be At Least 10MB"; echo; unset "option3"; continue; fi
 										break
 									;;
 									e|exit|back|menu)
@@ -4386,7 +4384,7 @@ case "$1" in
 				echo "[i] Removing Bans With Comment Containing ($3)"
 				sed "\\~add Skynet-Whitelist ~d;\\~$3~!d;s~ comment.*~~;s~add~del~g" "$skynetipset" | ipset restore -!
 				echo "[i] Removing Old Logs - This May Take Awhile (To Skip Type ctrl+c)"
-				trap 'echo; echo; echo "[*] Interrupted"; break' INT
+				trap 'echo;echo;echo "[*] Interrupted"; break' INT
 				sed "\\~add Skynet-Whitelist ~d;\\~$3~!d;s~ comment.*~~" "$skynetipset" | cut -d' ' -f3 | while IFS= read -r "ip"; do
 					sed -i "\\~\\(BLOCKED.*=$ip \\|Manual Ban.*=$ip \\)~d" "$skynetlog" "$skynetevents"
 				done
@@ -4833,7 +4831,7 @@ case "$1" in
 						echo "[i] Removing All Entries With Comment Matching \"$4\" From Whitelist"
 						sed "\\~add Skynet-Whitelist ~!d;\\~$4~!d;s~ comment.*~~;s~add~del~g" "$skynetipset" | ipset restore -!
 						echo "[i] Removing Old Logs - This May Take Awhile (To Skip Type ctrl+c)"
-						trap 'echo; echo; echo "[*] Interrupted"; break' INT
+						trap 'echo;echo;echo "[*] Interrupted"; break' INT
 						sed "\\~add Skynet-Whitelist ~!d;\\~$4~!d" "$skynetipset" | cut -d' ' -f3 | while IFS= read -r "ip"; do
 							sed -i "\\~=$ip ~d" "$skynetlog" "$skynetevents"
 						done
@@ -5762,7 +5760,7 @@ case "$1" in
 			watch)
 				if ! Check_IPSets || ! Check_IPTables; then echo "[*] Skynet Not Running - Exiting"; echo; exit 1; fi
 				if [ "$logmode" = "disabled" ]; then echo "[*] Logging Is Disabled - Exiting!"; echo; exit 2; fi
-				trap 'echo; echo; echo "[*] Interrupted"; break; Purge_Logs' INT
+				trap 'echo;echo;echo "[*] Interrupted"; break; Purge_Logs' INT
 				echo "[i] Watching Syslog For Log Entries (ctrl +c) To Stop"
 				echo
 				Purge_Logs
@@ -5988,7 +5986,7 @@ case "$1" in
 				printf '║ %-20s │ %-82s ║\n' "iptables"       "$(iptables --version)"
 				printf '║ %-20s │ %-82s ║\n' "ipset"          "$(ipset -v 2>/dev/null | head -n1)"
 				printf '║ %-20s │ %-82s ║\n' "Public IP"      "$(if nvram get wan0_ipaddr | Is_PrivateIP; then Red "$(nvram get wan0_ipaddr)"; else nvram get wan0_ipaddr; fi)"
-
+				printf '║ %-20s │ %-82s ║\n' "WAN Info"       "${iface} - $(nvram get wan0_proto)"
 				printf '╚══════════════════════╧════════════════════════════════════════════════════════════════════════════════════╝\n\n\n'
 				printf '╔═════════════════════ Storage ═════════════════════════════════════════════════════════════════════════════╗\n'
 				printf '║ %-20s │ %-82s ║\n' "Install Dir"    "${skynetloc}"
@@ -6139,10 +6137,10 @@ case "$1" in
 				printf '║ %-33s ║ %-80s ║\n' "CDN Whitelisting" "$(if Is_Enabled "$cdnwhitelist"; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
 				printf '║ %-33s ║ %-80s ║\n' "Display WebUI" "$(if Is_Enabled "$displaywebui"; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
 				printf '╚═══════════════════════════════════╩═══════════════════════════════════════════════════════════════════════╝\n'
-				if [ -n "$fail" ]; then echo; echo "[*] Rule Integrity Violation - [ ${fail}]"; unset fail; fi
-				if [ -n "$localfail" ]; then echo; echo "[*] Local File Missing - [ ${localfail}]"; fi
-				if [ -n "$mountedfail" ]; then echo; echo "[*] Mounted File Missing - [ ${mountedfail}]"; fi
-				if [ "$3" = "extended" ]; then echo; echo; cat "$skynetcfg"; fi
+				if [ -n "$fail" ]; then echo;echo "[*] Rule Integrity Violation - [ ${fail}]"; unset fail; fi
+				if [ -n "$localfail" ]; then echo;echo "[*] Local File Missing - [ ${localfail}]"; fi
+				if [ -n "$mountedfail" ]; then echo;echo "[*] Mounted File Missing - [ ${mountedfail}]"; fi
+				if [ "$3" = "extended" ]; then echo;echo; cat "$skynetcfg"; fi
 				nocfg="1"
 			;;
 			genstats)
@@ -6617,5 +6615,5 @@ Display_Header "9"
 if [ "$nolog" != "2" ]; then Print_Log "$@"; echo; fi
 if [ "$nocfg" != "1" ]; then Write_Config; fi
 if [ "$restartfirewall" = "1" ]; then service restart_firewall; echo; fi
-if [ -n "$reloadmenu" ]; then Release_Lock; echo; echo; printf "[i] Press Enter To Continue..."; read -r "continue"; exec "$0"; fi
+if [ -n "$reloadmenu" ]; then Release_Lock; echo;echo; printf "[i] Press Enter To Continue..."; read -r "continue"; exec "$0"; fi
 printf '\033[?7h'
