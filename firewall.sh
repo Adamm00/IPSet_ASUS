@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                            04/01/2026 - v8.0.8                                            #
+#                                            05/01/2026 - v8.0.9                                            #
 #############################################################################################################
 
 
@@ -2690,7 +2690,13 @@ Load_Menu() {
 	printf '║ %-20s │ %-82s ║\n' "ipset"          "$(ipset -v 2>/dev/null | head -n1)"
 	printf '║ %-20s │ %-82s ║\n' "Public IP"      "$(if nvram get wan0_ipaddr | Is_PrivateIP; then Red "$(nvram get wan0_ipaddr)"; else nvram get wan0_ipaddr; fi)"
 	printf '║ %-20s │ %-82s ║\n' "WAN Info"       "${iface} - $(nvram get wan0_proto)"
-	[ -n "$countrylist" ] && printf '║ %-20s │ %-82s ║\n' "Banned Countries" "$countrylist"
+	if [ -n "$countrylist" ]; then
+		countries="$countrylist"
+		if [ "${#countries}" -gt 82 ]; then
+			countries="$(printf '%.81s+' "$countries")"
+		fi
+		printf '║ %-20s │ %-82s ║\n' "Banned Countries" "$countries"
+	fi
 	[ -n "$customlisturl" ] && printf '║ %-20s │ %-82s ║\n' "Custom Filter URL" "$customlisturl"
 	printf '╚══════════════════════╧════════════════════════════════════════════════════════════════════════════════════╝\n\n\n'
 	if [ -f "$LOCK_FILE" ] && ! flock -n 9 9<"$LOCK_FILE"; then
@@ -5143,7 +5149,7 @@ case "$1" in
 		elif [ "$2" = "-f" ]; then
 			echo "[i] Forcing Update"
 		fi
-		if [ "$localmd5" != "$remotemd5" ] || [ "$2" = "-f" ]; then
+		if [ "$localmd5" != "$remotemd5" ] || [ "$2" = "-f" ] && [ "$nolog" != "2" ]; then
 			Log info "New Version Detected - Updating To $remotever (${remotemd5})"
 			echo "[i] Saving Changes"
 			Save_IPSets
@@ -6013,7 +6019,13 @@ case "$1" in
 				printf '║ %-20s │ %-82s ║\n' "Skynet Log"       "${skynetlog}"
 				SZ="$(du -h "${skynetlog}" | awk '{print $1}')"
 				printf '║ └── %-16s │ %-82s ║\n' "Used/Total" "$SZ / ${logsize}MB"
-				[ -n "$countrylist" ] && printf '║ %-20s │ %-82s ║\n' "Banned Countries" "$countrylist"
+				if [ -n "$countrylist" ]; then
+					countries="$countrylist"
+					if [ "${#countries}" -gt 82 ]; then
+						countries="$(printf '%.81s+' "$countries")"
+					fi
+					printf '║ %-20s │ %-82s ║\n' "Banned Countries" "$countries"
+				fi
 				[ -n "$customlisturl" ] && printf '║ %-20s │ %-82s ║\n' "Custom Filter URL" "$customlisturl"
 				Generate_Blocked_Events
 				printf '║ %-20s │ %-84s ║\n' "Monitor Span"      "$(grep -m1 -F "BLOCKED -" "$skynetlog" | awk '{printf "%s %s %s\n", $1, $2, $3}') → $(grep -F "BLOCKED -" "$skynetlog" | tail -1 | awk '{printf "%s %s %s\n", $1, $2, $3}')"
