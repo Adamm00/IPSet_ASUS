@@ -1,0 +1,14 @@
+{
+    "splunk_url": "https://192.168.50.213:8088/services/collector/event",
+    "splunk_token": "935af03b-c11c-403a-98e7-904eaf7d88e5",
+    "splunk_index": "threat_activity",
+    "splunk_sourcetype": "otx:threat:intel",
+    "otx_key": "85d7363b64fff612405535891cffaab7d269f89324da10bc1165f45aea103eaa",
+    "router_hostname": "GT-AX11000",
+    "batch_size": 50,
+    "max_ips_per_run": 100,
+    "otx_cache_hours": 24,
+    "otx_rate_limit": 0.5,
+    "max_retries": 3,
+    "retry_backoff": 2
+}
