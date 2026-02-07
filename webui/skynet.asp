@@ -98,8 +98,6 @@
     <script language="JavaScript" type="text/javascript" src="/popup.js"></script>
     <script language="JavaScript" type="text/javascript" src="/help.js"></script>
     <script language="JavaScript" type="text/javascript" src="/detect.js"></script>
-    <script language="JavaScript" type="text/javascript" src="/tmhist.js"></script>
-    <script language="JavaScript" type="text/javascript" src="/tmmenu.js"></script>
     <script language="JavaScript" type="text/javascript" src="/validator.js"></script>
     <script>
         var ChartInPortHits;
@@ -197,7 +195,7 @@
                             return data.labels[tooltipItem[0].index];
                         },
                         label: function(tooltipItem, data) {
-                            return comma(data.datasets[tooltipItem.datasetIndex].data[tooltipItem.index]);
+                            return parseInt(data.datasets[tooltipItem.datasetIndex].data[tooltipItem.index]).toLocaleString();
                         }
                     },
                     mode: 'point',
