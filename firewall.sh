@@ -5062,7 +5062,7 @@ case "$1" in
 		if [ -f "$skynetipset" ]; then ipset restore -! -f "$skynetipset"; else Log info -s "Setting Up Skynet"; touch "$skynetipset"; fi
 		if ! ipset -L -n Skynet-Whitelist >/dev/null 2>&1; then ipset -q create Skynet-Whitelist hash:net hashsize 64 maxelem "$((65536 * 6))" comment; fi
 		if ! ipset -L -n Skynet-WhitelistDomains >/dev/null 2>&1; then ipset -q create Skynet-WhitelistDomains hash:ip hashsize 64 maxelem "$((65536 * 8))" comment timeout 86400; fi
-		if ! ipset -L -n Skynet-Blacklist >/dev/null 2>&1; then ipset -q create Skynet-Blacklist hash:ip hashsize 64 maxelem "$((65536 * 32))" comment; fi
+		if ! ipset -L -n Skynet-Blacklist >/dev/null 2>&1; then ipset -q create Skynet-Blacklist hash:ip hashsize 64 maxelem "$((65536 * 16))" comment; fi
 		if ! ipset -L -n Skynet-BlockedRanges >/dev/null 2>&1; then ipset -q create Skynet-BlockedRanges hash:net hashsize 64 maxelem "$((65536 * 6))" comment; fi
 		if ! ipset -L -n Skynet-Master >/dev/null 2>&1; then ipset -q create Skynet-Master list:set; ipset -q -A Skynet-Master Skynet-Blacklist; ipset -q -A Skynet-Master Skynet-BlockedRanges; fi
 		if ! ipset -L -n Skynet-MasterWL >/dev/null 2>&1; then ipset -q create Skynet-MasterWL list:set; ipset -q -A Skynet-MasterWL Skynet-Whitelist; ipset -q -A Skynet-MasterWL Skynet-WhitelistDomains; fi
