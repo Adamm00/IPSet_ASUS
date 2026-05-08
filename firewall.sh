@@ -539,24 +539,6 @@ IPSet_Wrapper() {
 }
 
 Unload_IPTables() {
-	# Allow outbound DNS/NTP exceptions
-	iptables -t raw -D PREROUTING -i br+ -p udp -m multiport --dports 53,123 -j ACCEPT 2>/dev/null
-	iptables -t raw -D PREROUTING -i br+ -p tcp -m multiport --dports 53,123 -j ACCEPT 2>/dev/null
-	iptables -t raw -D OUTPUT -p udp -m multiport --dports 53,123 -j ACCEPT 2>/dev/null
-	iptables -t raw -D OUTPUT -p tcp -m multiport --dports 53,123 -j ACCEPT 2>/dev/null
-    # Original
-	iptables -t raw -D PREROUTING -i wgs+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null
-	iptables -t raw -D PREROUTING -i tun2+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null
-	iptables -t raw -D PREROUTING -i "$iface" -m set ! --match-set Skynet-MasterWL src -m set --match-set Skynet-Master src -j DROP 2>/dev/null
-	iptables -t raw -D PREROUTING -i br+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null
-	iptables -t raw -D OUTPUT -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null
-	iptables -D logdrop -m state --state NEW -j LOG --log-prefix "DROP " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
-	ip6tables -D logdrop -m state --state NEW -j LOG --log-prefix "DROP " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
-	iptables -D logdrop -m state --state NEW -m limit --limit 4/sec -j LOG --log-prefix "DROP " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
-	ip6tables -D logdrop -m state --state NEW -m limit --limit 4/sec -j LOG --log-prefix "DROP " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
-}
-
-Unload_IPTables() {
 	iptables -t raw -D PREROUTING -i wgs+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null
 	iptables -t raw -D PREROUTING -i tun2+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null
 	iptables -t raw -D PREROUTING -i "$iface" -m set ! --match-set Skynet-MasterWL src -m set --match-set Skynet-Master src -j DROP 2>/dev/null
@@ -590,22 +572,6 @@ Load_IPTables() {
 		iptables -t raw -I OUTPUT -o "$iface" -p tcp -m multiport --dports 53,123 -j ACCEPT 2>/dev/null
 		iptables -t raw -I OUTPUT -o "$iface" -p udp -m multiport --dports 53,123 -j ACCEPT 2>/dev/null
 		###############################################################################################
-	fi
-}
-
-Load_IPTables() {
-	if [ "$(nvram get wgs_enable)" = "1" ]; then
-		iptables -t raw -I PREROUTING -i wgs+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null
-	fi
-	if [ "$(nvram get vpn_server1_state)" != "0" ] || [ "$(nvram get vpn_server2_state)" != "0" ]; then
-		iptables -t raw -I PREROUTING -i tun2+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null
-	fi
-	if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "inbound" ]; then
-		iptables -t raw -I PREROUTING -i "$iface" -m set ! --match-set Skynet-MasterWL src -m set --match-set Skynet-Master src -j DROP 2>/dev/null
-	fi
-	if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "outbound" ]; then
-		iptables -t raw -I PREROUTING -i br+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null
-		iptables -t raw -I OUTPUT -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null
 	fi
 }
 
