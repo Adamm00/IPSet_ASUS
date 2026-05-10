@@ -4899,7 +4899,7 @@ case "$1" in
 		Save_IPSets
 	;;
 
-		import)
+	import)
 		case "$2" in
 			blacklist)
 				Check_Lock "$@"
