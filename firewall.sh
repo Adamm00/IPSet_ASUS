@@ -4942,16 +4942,17 @@ case "$1" in
 				echo "[i] This Function Extracts All IPs And Adds Them ALL To Whitelist"
 				if [ -f "$3" ]; then
 					echo "[i] Local Custom List Detected: $3"
-					grep -E '^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)$' "$3" > /tmp/skynet/iplist-unfiltered.txt
+					sed 's/[[:space:]]*#.*$//' "$3" > /tmp/skynet/iplist-cleaned.txt
+					grep -E '^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)$' /tmp/skynet/iplist-cleaned.txt > /tmp/skynet/iplist-unfiltered.txt
 				elif [ -n "$3" ]; then
 					echo "[i] Remote Custom List Detected: $3"
-					curl -fsSL --retry 3 --max-time 6 "$3" | dos2unix | grep -E '^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)$' > /tmp/skynet/iplist-unfiltered.txt || { echo "[*] 404 Error Detected - Stopping Import"; rm -rf /tmp/skynet/iplist-unfiltered.txt; echo; exit 1; }
+					curl -fsSL --retry 3 --max-time 6 "$3" | dos2unix | sed 's/[[:space:]]*#.*$//' | grep -E '^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)$' > /tmp/skynet/iplist-unfiltered.txt || { echo "[*] 404 Error Detected - Stopping Import"; rm -rf /tmp/skynet/iplist-cleaned.txt /tmp/skynet/iplist-unfiltered.txt; echo; exit 1; }
 				else
 					echo "[*] URL/File Field Can't Be Empty - Please Try Again"
 					echo; exit 2
 				fi
 				dos2unix /tmp/skynet/iplist-unfiltered.txt
-				if ! Is_IPRange < /tmp/skynet/iplist-unfiltered.txt; then echo "[*] No Content Detected - Stopping Import"; rm -rf /tmp/skynet/iplist-unfiltered.txt; echo; exit 1; fi
+				if ! Is_IPRange < /tmp/skynet/iplist-unfiltered.txt; then echo "[*] No Content Detected - Stopping Import"; rm -rf /tmp/skynet/iplist-cleaned.txt /tmp/skynet/iplist-unfiltered.txt; echo; exit 1; fi
 				echo "[i] Processing List"
 				if [ -n "$4" ] && [ "${#4}" -le "245" ]; then
 					Filter_PrivateIP < /tmp/skynet/iplist-unfiltered.txt | awk -v desc="Imported: $4" -v reg="^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9]))$" '{ip=$1; if(ip ~ reg) ip=ip"/32"; printf "add Skynet-Whitelist %s comment \"%s\"\n", ip, desc }' > /tmp/skynet/iplist-filtered.txt
@@ -4961,7 +4962,7 @@ case "$1" in
 				fi
 				echo "[i] Adding IPs To Whitelist"
 				ipset restore -! -f "/tmp/skynet/iplist-filtered.txt"
-				rm -rf /tmp/skynet/iplist-unfiltered.txt /tmp/skynet/iplist-filtered.txt
+				rm -rf /tmp/skynet/iplist-cleaned.txt /tmp/skynet/iplist-unfiltered.txt /tmp/skynet/iplist-filtered.txt
 				echo "[i] Saving Changes"
 				Save_IPSets
 			;;
