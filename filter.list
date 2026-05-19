@@ -6,3 +6,8 @@ https://iplists.firehol.org/files/et_compromised.ipset
 https://iplists.firehol.org/files/firehol_level2.netset
 https://iplists.firehol.org/files/firehol_level3.netset
 https://iplists.firehol.org/files/spamhaus_drop.netset
+https://iplists.firehol.org/files/firehol_level4.netset
+https://lists.blocklist.de/lists/all.txt
+https://blocklist.greensnow.co/greensnow.txt
+https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/ips/doh.txt
+https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/ips/tif.txt
