@@ -3848,7 +3848,7 @@ Load_Menu() {
 							break
 						;;
 						*)
-							Invalid_Option "$menu"
+							Invalid_Option "$menu2"
 						;;
 					esac
 				done
