@@ -111,7 +111,7 @@ Check_Lock() {
 
 	# We now hold the lock — record this invocation
 	: > "$LOCK_FILE"
-	echo "$0 $*|$$|$(date +%s)" >&9
+	echo "$0 $*|$$|$(date +%s)" > "$LOCK_FILE"
 }
 
 Release_Lock() {
