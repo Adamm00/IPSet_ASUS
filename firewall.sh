@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                           20/07/2026 - v8.1.1                                             #
+#                                           24/08/2026 - v8.1.2                                             #
 #############################################################################################################
 
 
@@ -384,6 +384,9 @@ Check_Files() {
 				/jffs/scripts/service-event \
 				/jffs/scripts/post-mount \
 				/jffs/scripts/unmount
+
+	# 7) Remove legacy WebUI files
+	rm -rf "${skynetloc}/webui/hammerjs.js" "${skynetloc}/webui/chartjs-plugin-zoom.js" "${skynetloc}/webui/chart.js"
 }
 
 Check_Security() {
@@ -2240,9 +2243,6 @@ Install_WebUI_Page() {
 						echo "Skynet" > "/www/user/$MyPageTitle"
 					fi
 					mkdir -p "/www/user/skynet"
-					ln -s "${skynetloc}/webui/chart.js" "/www/user/skynet/chart.js" 2>/dev/null
-					ln -s "${skynetloc}/webui/chartjs-plugin-zoom.js" "/www/user/skynet/chartjs-plugin-zoom.js" 2>/dev/null
-					ln -s "${skynetloc}/webui/hammerjs.js" "/www/user/skynet/hammerjs.js" 2>/dev/null
 					ln -s "${skynetloc}/webui/stats.js" "/www/user/skynet/stats.js" 2>/dev/null
 					Unload_Cron "genstats"
 					Load_Cron "genstats"
@@ -5174,9 +5174,6 @@ case "$1" in
 			iptables -t raw -F
 			Uninstall_WebUI_Page
 			mkdir -p "${skynetloc}/webui"
-			Download_File "webui/chart.js" "${skynetloc}/webui/chart.js" "$2"
-			Download_File "webui/chartjs-plugin-zoom.js" "${skynetloc}/webui/chartjs-plugin-zoom.js" "$2"
-			Download_File "webui/hammerjs.js" "${skynetloc}/webui/hammerjs.js" "$2"
 			Download_File "webui/skynet.asp" "${skynetloc}/webui/skynet.asp" "$2"
 			Download_File "firewall.sh" "$0" "$2"
 			Log info "Restarting Firewall Service"
@@ -6117,18 +6114,12 @@ case "$1" in
 				printf '%-80s ║\n' "$result"
 				if Is_Enabled "$displaywebui"; then
 					printf "║ %-33s ║ " "Local WebUI Files"
-					[ -f "${skynetloc}/webui/chart.js" ] || localfail="${localfail}chart.js "
-					[ -f "${skynetloc}/webui/chartjs-plugin-zoom.js" ] || localfail="${localfail}chartjs-plugin-zoom.js "
-					[ -f "${skynetloc}/webui/hammerjs.js" ] || localfail="${localfail}hammerjs.js "
 					[ -f "${skynetloc}/webui/skynet.asp" ] || localfail="${localfail}skynet.asp "
 					[ -f "${skynetloc}/webui/stats.js" ] || localfail="${localfail}stats.js "
 					if [ -z "$localfail" ]; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
 					printf '%-80s ║\n' "$result"
 					printf "║ %-33s ║ " "Mounted WebUI Files"
 					Get_WebUI_Page "${skynetloc}/webui/skynet.asp" 2>/dev/null
-					[ -f "/www/user/skynet/chart.js" ] || mountedfail="${mountedfail}chart.js "
-					[ -f "/www/user/skynet/chartjs-plugin-zoom.js" ] || mountedfail="${mountedfail}chartjs-plugin-zoom.js "
-					[ -f "/www/user/skynet/hammerjs.js" ] || mountedfail="${mountedfail}hammerjs.js "
 					[ -f "/www/user/${MyPage}" ] || mountedfail="${mountedfail}skynet.asp "
 					[ -f "/www/user/skynet/stats.js" ] || mountedfail="${mountedfail}stats.js "
 					if [ -z "$mountedfail" ]; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
@@ -6501,9 +6492,6 @@ case "$1" in
 		touch "${device}/skynet/skynet.log"
 		remotedir="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master"
 		mkdir -p "${skynetloc}/webui"
-		Download_File "webui/chart.js" "${skynetloc}/webui/chart.js"
-		Download_File "webui/chartjs-plugin-zoom.js" "${skynetloc}/webui/chartjs-plugin-zoom.js"
-		Download_File "webui/hammerjs.js" "${skynetloc}/webui/hammerjs.js"
 		Download_File "webui/skynet.asp" "${skynetloc}/webui/skynet.asp"
 		[ -z "$(nvram get odmpid)" ] && model="$(nvram get productid)" || model="$(nvram get odmpid)"
 		if [ -z "$loginvalid" ]; then loginvalid="disabled"; fi
