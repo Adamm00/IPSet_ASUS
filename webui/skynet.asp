@@ -140,6 +140,13 @@
         .skynet-meta {
             color:#b8c4c8; text-align:center; font-size:11px; margin:2px 0 8px 0;
         }
+        .skynet-update-result {
+            min-height:15px;
+            margin-top:3px;
+            color:#b8c4c8;
+            font-size:10px;
+        }
+        .skynet-update-result.error { color:#f2afb5; }
         .skynet-actionbar {
             background:#3a464a !important; border:1px solid #607780 !important;
             border-radius:5px; padding:7px !important;
@@ -187,6 +194,42 @@
             --skynet-heading: #dfe7ea;
             --skynet-link: #8fd1f5;
             --skynet-green: #65c18c;
+        }
+
+        .skynet-tabs {
+            display: flex;
+            margin: 0 0 10px 0;
+            border-bottom: 1px solid var(--skynet-border);
+        }
+
+        .skynet-tab {
+            min-width: 92px;
+            padding: 7px 14px;
+            border: 0;
+            border-bottom: 2px solid transparent;
+            background: transparent;
+            color: var(--skynet-muted);
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .skynet-tab:hover,
+        .skynet-tab.active {
+            color: var(--skynet-text);
+            background: rgba(255,255,255,0.04);
+        }
+
+        .skynet-tab.active {
+            border-bottom-color: var(--skynet-link);
+        }
+
+        .skynet-tab:focus-visible {
+            outline: 2px solid var(--skynet-link);
+            outline-offset: -2px;
+        }
+
+        .skynet-view-hidden {
+            display: none;
         }
 
 
@@ -264,6 +307,112 @@
             outline-offset: 2px;
         }
 
+        .skynet-settings-reload {
+            border-color: var(--skynet-border) !important;
+            background: var(--skynet-panel-alt) !important;
+            color: var(--skynet-heading) !important;
+            box-shadow: none;
+            text-shadow: none;
+        }
+
+        .skynet-settings {
+            margin: 10px 0;
+            overflow: hidden;
+            border: 1px solid var(--skynet-border);
+            border-radius: 5px;
+            background: var(--skynet-panel);
+        }
+
+        .skynet-settings-table {
+            margin: 0 !important;
+            border: 0 !important;
+        }
+
+        .skynet-settings-table th {
+            width: 42%;
+        }
+
+        .skynet-settings-group th {
+            width: auto;
+            padding: 7px 10px;
+            background: var(--skynet-panel-alt);
+            color: var(--skynet-heading);
+            font-size: 10px;
+            letter-spacing: 0.6px;
+            text-transform: uppercase;
+        }
+
+        .skynet-setting-name,
+        .skynet-setting-help {
+            display: block;
+        }
+
+        .skynet-setting-help {
+            margin-top: 3px;
+            color: var(--skynet-muted);
+            font-size: 11px;
+            font-weight: normal;
+            line-height: 1.4;
+        }
+
+        .skynet-settings-table select {
+            width: 210px;
+            max-width: 100%;
+        }
+
+        .skynet-settings-table input[type="number"] {
+            width: 70px;
+        }
+
+        .skynet-settings-table input[type="url"] {
+            width: 100%;
+            max-width: 360px;
+            height: 30px;
+            padding: 5px 9px;
+            border: 1px solid var(--skynet-border);
+            border-radius: 4px;
+            background: var(--skynet-bg);
+            color: var(--skynet-text);
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.28);
+            box-sizing: border-box;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .skynet-settings-table input[type="url"]::placeholder {
+            color: var(--skynet-muted);
+            opacity: 0.72;
+        }
+
+        .skynet-settings-table input[type="url"]:hover {
+            border-color: var(--skynet-heading);
+        }
+
+        .skynet-settings-table input[type="url"]:focus {
+            outline: none;
+            border-color: var(--skynet-link);
+            box-shadow: 0 0 0 2px rgba(143,209,245,0.18),
+                inset 0 1px 2px rgba(0,0,0,0.2);
+        }
+
+        .skynet-settings-actions {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 10px;
+            padding: 8px 10px;
+            border-top: 1px solid var(--skynet-border-soft);
+        }
+
+        .skynet-settings-result {
+            flex: 1;
+            color: var(--skynet-muted);
+            font-size: 10px;
+        }
+
+        .skynet-settings-result.error {
+            color: #f2afb5;
+        }
+
         @media (max-width: 500px) {
             .skynet-update-bar {
                 align-items: stretch;
@@ -271,6 +420,16 @@
             }
 
             .skynet-update-button {
+                width: 100%;
+            }
+
+            .skynet-settings-actions {
+                align-items: stretch;
+                flex-direction: column;
+            }
+
+            .skynet-settings-table select,
+            .skynet-settings-actions .skynet-update-button {
                 width: 100%;
             }
         }
@@ -431,6 +590,21 @@
             justify-content: flex-end;
             gap: 6px;
             margin-top: 10px;
+        }
+        .skynet-detail-lookup {
+            min-width: 108px;
+            height: 26px;
+            padding: 0 9px !important;
+            border-color: #668a9e !important;
+            background: #405b67 !important;
+            color: #e4f3f8 !important;
+            font-size: 10px !important;
+            font-weight: bold;
+            letter-spacing: 0.1px;
+        }
+        .skynet-detail-lookup:hover {
+            background: #4b6a77 !important;
+            border-color: #7eacbf !important;
         }
 
         .skynet-context-link {
@@ -736,6 +910,19 @@
             opacity: 0.9;
         }
 
+        .skynet-empty-badge {
+            display: inline-block;
+            margin-left: 8px;
+            padding: 1px 6px;
+            border: 1px solid var(--skynet-border);
+            border-radius: 8px;
+            color: var(--skynet-muted);
+            font-size: 9px;
+            font-weight: normal;
+            letter-spacing: 0.2px;
+            vertical-align: 1px;
+        }
+
         .skynet-controls {
             background: var(--skynet-panel) !important;
             border-left: 1px solid var(--skynet-border) !important;
@@ -762,9 +949,35 @@
             padding: 8px;
         }
 
+        .skynet-chart-shell.skynet-activity-shell {
+            height: 285px;
+            overflow: hidden;
+            background:
+                radial-gradient(circle at 50% 0, rgba(53, 216, 255, 0.08), transparent 58%),
+                #11191c;
+            box-shadow: inset 0 0 28px rgba(57, 239, 157, 0.04);
+        }
+
+        .skynet-chart-shell::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(255, 255, 255, 0.018) 0,
+                rgba(255, 255, 255, 0.018) 1px,
+                transparent 1px,
+                transparent 4px
+            );
+        }
+
 
         .skynet-chart-shell canvas {
             display: block;
+            position: relative;
+            z-index: 1;
             max-width: 100%;
         }
 
@@ -835,6 +1048,15 @@
 
         .StatsTable.skynet-modern-table th:nth-child(5),
         .StatsTable.skynet-modern-table td:nth-child(5) {
+            text-align: left !important;
+        }
+
+        .StatsTable.skynet-modern-table .skynet-table-details,
+        .StatsTable.skynet-modern-table .skynet-table-country {
+            text-align: center !important;
+        }
+
+        .StatsTable.skynet-modern-table .skynet-table-domains {
             text-align: left !important;
         }
 
@@ -914,11 +1136,15 @@
             position: relative;
             width: 100%;
             height: 360px;
-            background: var(--skynet-bg);
+            overflow: hidden;
+            background:
+                radial-gradient(circle at 50% 0, rgba(53, 216, 255, 0.07), transparent 58%),
+                #11191c;
             border: 1px solid #43565d;
             border-radius: 0 0 7px 7px;
             box-sizing: border-box;
             padding: 8px;
+            box-shadow: inset 0 0 28px rgba(57, 239, 157, 0.035);
         }
 
         .skynet-chart-shell canvas {
@@ -1034,6 +1260,10 @@
             .skynet-chart-shell {
                 height: 320px;
             }
+
+            .skynet-chart-shell.skynet-activity-shell {
+                height: 270px;
+            }
         }
         .StatsTable td.skynet-nodata {
             height:180px !important;
@@ -1049,6 +1279,7 @@
     </style>
     <script src="/js/chart.min.js"></script>
     <script src="/ext/skynet/stats.js"></script>
+    <script src="/ext/skynet/settings.js"></script>
     <script src="/js/jquery.js"></script>
     <script src="/js/httpApi.js"></script>
     <script src="/state.js"></script>
@@ -1059,6 +1290,12 @@
     <script src="/detect.js"></script>
     <script src="/validator.js"></script>
     <script>
+        var custom_settings = <% get_custom_settings(); %>;
+
+        if (!custom_settings || typeof custom_settings !== "object" || Array.isArray(custom_settings)) {
+            custom_settings = {};
+        }
+
         /*
          * Skynet WebUI client layer.
          * Integrates Skynet statistics with the native Asuswrt-Merlin page.
@@ -1070,10 +1307,15 @@
             chartData: Object.create(null),
             theme: Object.create(null),
             chartColors: [
-                "#5DADE2", "#58D68D", "#F5B041", "#EC7063", "#AF7AC5",
-                "#48C9B0", "#F4D03F", "#5499C7", "#45B39D", "#DC7633"
+                "#35D8FF", "#39EF9D", "#FFCF5C", "#FF5F6D", "#C875FF",
+                "#2FE1C4", "#FF8C42", "#65A5FF", "#E96BFF", "#8CFF66"
             ],
             chartDefinitions: {
+                ActivityToday: {
+                    title: "Block Activity Today",
+                    multiLabel: false,
+                    activity: true
+                },
                 TCConnHits: {
                     title: "Top 10 Blocked Devices (Outbound)",
                     multiLabel: false,
@@ -1094,6 +1336,18 @@
                     multiLabel: true,
                     legendLabel: "IP ADDRESS"
                 },
+                TInvConnHits: {
+                    title: "Top 10 Blocks (Invalid)",
+                    multiLabel: true,
+                    legendLabel: "IP ADDRESS",
+                    setting: "loginvalid"
+                },
+                TIOTConnHits: {
+                    title: "Top 10 IoT Blocks (Outbound)",
+                    multiLabel: true,
+                    legendLabel: "IP ADDRESS",
+                    setting: "iotblocked"
+                },
                 SPortHits: {
                     title: "Top 10 Source Ports (Inbound)",
                     multiLabel: false,
@@ -1111,8 +1365,17 @@
                 InConn: "Last 10 Unique Connections Blocked (Inbound)"
             },
             selectors: {
-                statsAnchor: "skynet_table_keystats",
-                updateButton: "skynetUpdateStats"
+                statsContent: "skynetDynamicContent",
+                updateButton: "skynetUpdateStats",
+                updateResult: "skynetUpdateResult",
+                settingsButton: "skynetApplySettings",
+                settingsReloadButton: "skynetReloadSettings",
+                settingsDefaultsButton: "skynetRestoreDefaults",
+                settingsResult: "skynetSettingsResult",
+                overviewTab: "skynetOverviewTab",
+                settingsTab: "skynetSettingsTab",
+                overviewView: "skynetOverviewView",
+                settingsView: "skynetSettingsView"
             }
         };
 
@@ -1270,6 +1533,42 @@
             return this.chartData[chartName];
         };
 
+        SkynetUI.canGroupByCountry = function(chartName) {
+            const settings = window.SkynetSettings;
+            const countries = window["Label" + chartName + "_Country"];
+
+            if (settings && settings.lookupcountry === "disabled") {
+                return false;
+            }
+
+            return Array.isArray(countries) && countries.some(function(country) {
+                const value = String(country || "").trim();
+                return value && value !== "*" && value !== "**";
+            });
+        };
+
+        SkynetUI.getChartCountry = function(chartName, index) {
+            const settings = window.SkynetSettings;
+
+            if (settings && settings.lookupcountry === "disabled") {
+                return "";
+            }
+
+            const countries = window["Label" + chartName + "_Country"];
+            const country = Array.isArray(countries)
+                ? String(countries[index] || "").trim()
+                : "";
+
+            return country === "*" || country === "**" ? "" : country;
+        };
+
+        SkynetUI.isChartEnabled = function(definition) {
+            const settings = window.SkynetSettings;
+
+            return !definition.setting ||
+                (settings && settings[definition.setting] === "enabled");
+        };
+
         SkynetUI.restoreSelect = function(id, minimum, maximum) {
             const element = this.getElement(id);
 
@@ -1372,6 +1671,7 @@
 
             parent.style.position = "relative";
             parent.appendChild(message);
+            this.setChartEmpty(chartName, true);
         };
 
         SkynetUI.clearNoData = function(chartName) {
@@ -1393,6 +1693,36 @@
 
             if (existing) {
                 existing.remove();
+            }
+
+            this.setChartEmpty(chartName, false);
+        };
+
+        SkynetUI.setChartEmpty = function(chartName, empty) {
+            const section = this.getElement("skynet_chart_" + chartName);
+
+            if (!section) {
+                return;
+            }
+
+            section.classList.toggle("skynet-section-empty", empty);
+
+            const title = section.querySelector("td:first-child");
+            const existing = title
+                ? title.querySelector(".skynet-empty-badge")
+                : null;
+
+            if (empty && title && !existing) {
+                const badge = document.createElement("span");
+                badge.className = "skynet-empty-badge";
+                badge.textContent = "No activity";
+                title.appendChild(badge);
+            } else if (!empty && existing) {
+                existing.remove();
+            }
+
+            if (empty && this.getCookie(section.id) !== "expanded") {
+                this.setSectionState(section, false, false);
             }
         };
 
@@ -1428,7 +1758,7 @@
 
             if (layout === 2) {
                 return {
-                    type: "pie",
+                    type: "doughnut",
                     indexAxis: "x"
                 };
             }
@@ -1642,11 +1972,13 @@
 
                 details.actions.forEach(function(action) {
                     html +=
-                        '<input type="button" class="button_gen" ' +
+                        '<input type="button" class="button_gen skynet-detail-action' +
+                        (["AlienVault", "SpeedGuide"].indexOf(action.label) !== -1 ? ' skynet-detail-lookup' : '') + '" ' +
                         'data-skynet-detail-url="' +
                         SkynetUI.escapeHtml(action.url) +
                         '" value="' +
                         SkynetUI.escapeHtml(action.label) +
+                        (["AlienVault", "SpeedGuide"].indexOf(action.label) !== -1 ? ' ↗' : '') +
                         '" /> ';
                 });
 
@@ -1688,6 +2020,7 @@
                 chartName === "SPortHits") return "Inbound";
             if (chartName === "TOConnHits" ||
                 chartName === "THConnHits" ||
+                chartName === "TIOTConnHits" ||
                 chartName === "TCConnHits") return "Outbound";
             return "";
         };
@@ -1697,6 +2030,8 @@
                 return "Blocked Connections";
             }
             if (chartName === "THConnHits") return "HTTP(s) Blocks";
+            if (chartName === "TInvConnHits") return "Invalid Packet Blocks";
+            if (chartName === "TIOTConnHits") return "IoT Blocks";
             if (chartName === "TCConnHits") return "Blocked Connections From Device";
             if (chartName === "InPortHits") return "Targeted Ports";
             if (chartName === "SPortHits") return "Source Ports";
@@ -1714,10 +2049,18 @@
         };
 
         SkynetUI.getAssociatedDomains = function(chartName, index) {
+            const settings = window.SkynetSettings;
+
+            if (settings && settings.extendedstats === "disabled") {
+                return "";
+            }
+
             const domains = window["Label" + chartName + "_AssDomains"];
-            return Array.isArray(domains) && domains[index]
+            const value = Array.isArray(domains) && domains[index]
                 ? String(domains[index]).trim()
                 : "";
+
+            return value === "*" ? "" : value;
         };
 
         SkynetUI.showChartDetails = function(chartName, multiLabel, index) {
@@ -1776,11 +2119,10 @@
                 return;
             }
 
-            const countries = window["Label" + chartName + "_Country"];
             const reasons = window["Label" + chartName + "_BanReason"];
             const alienVault = window["Label" + chartName + "_AlienVault"];
             const domains = this.getAssociatedDomains(chartName, index);
-            const country = Array.isArray(countries) ? (countries[index] || "") : "";
+            const country = this.getChartCountry(chartName, index);
             const reason = Array.isArray(reasons) ? (reasons[index] || "") : "";
 
             const fields = [
@@ -1901,10 +2243,12 @@
                         return;
                     }
 
-                    const cells = row.querySelectorAll("td");
-                    const reason = cells[1] ? cells[1].textContent.trim() : "";
-                    const country = cells[3] ? cells[3].textContent.trim() : "";
-                    const domains = cells[4] ? cells[4].textContent.trim() : "";
+                    const reasonCell = row.querySelector(".skynet-table-reason");
+                    const countryCell = row.querySelector(".skynet-table-country");
+                    const domainsCell = row.querySelector(".skynet-table-domains");
+                    const reason = reasonCell ? reasonCell.textContent.trim() : "";
+                    const country = countryCell ? countryCell.textContent.trim() : "";
+                    const domains = domainsCell ? domainsCell.textContent.trim() : "";
                     const link = row.querySelector("a[href]");
 
                     const fields = [
@@ -2041,8 +2385,9 @@
                 };
             }
 
-            const countries = window["Label" + chartName + "_Country"];
             const reasons = window["Label" + chartName + "_BanReason"];
+            const country = this.getChartCountry(chartName, index);
+            const domains = this.getAssociatedDomains(chartName, index);
 
             const meta = {
                 title: "IP: " + label,
@@ -2050,13 +2395,17 @@
                 detail: this.getDirection(chartName)
             };
 
-            if (Array.isArray(countries) && countries[index]) {
+            if (country) {
                 meta.country = "Country: " +
-                    this.getCountryName(countries[index]);
+                    this.getCountryName(country);
             }
 
             if (Array.isArray(reasons) && reasons[index]) {
                 meta.reason = "Ban Reason: " + reasons[index];
+            }
+
+            if (domains) {
+                meta.domains = domains.split(/\s+/);
             }
 
             return meta;
@@ -2091,10 +2440,13 @@
             this.clearNoData(chartName);
 
             const configuration = this.getChartConfiguration(chartName);
-            const isPie = configuration.type === "pie";
+            const isPie = configuration.type === "doughnut";
             const singleItem = !isPie && source.data.length === 1;
             const textColor = this.getChartTextColor();
             const gridColor = this.getChartGridColor();
+            const context = canvas.getContext("2d");
+            const chartWidth = canvas.clientWidth || canvas.width;
+            const chartHeight = canvas.clientHeight || canvas.height;
 
             /*
              * Use a compact scale for single-result bar charts so the result
@@ -2109,21 +2461,53 @@
             const colors = source.data.map(function(_, index) {
                 return SkynetUI.getChartColor(index);
             });
+            const fills = isPie ? colors : colors.map(function(color) {
+                const gradient = configuration.indexAxis === "y"
+                    ? context.createLinearGradient(0, 0, chartWidth, 0)
+                    : context.createLinearGradient(0, chartHeight, 0, 0);
+
+                gradient.addColorStop(0, "rgba(17, 25, 28, 0.72)");
+                gradient.addColorStop(1, color);
+                return gradient;
+            });
 
             const dataset = {
                 data: source.data,
                 borderWidth: 1,
-                borderColor: isPie ? "#1F2528" : colors,
-                backgroundColor: colors
+                borderColor: isPie ? "#11191c" : colors,
+                backgroundColor: fills,
+                hoverBackgroundColor: colors,
+                hoverBorderColor: "#dffaff",
+                hoverBorderWidth: 2,
+                borderRadius: isPie ? 0 : 5,
+                borderSkipped: false,
+                maxBarThickness: 28,
+                barPercentage: 0.74,
+                categoryPercentage: 0.82,
+                spacing: isPie ? 2 : 0,
+                hoverOffset: isPie ? 7 : 0
+            };
+
+            const glowPlugin = {
+                id: "skynetChartGlow",
+                beforeDatasetDraw: function(chart) {
+                    chart.ctx.save();
+                    chart.ctx.shadowColor = "rgba(53, 216, 255, 0.34)";
+                    chart.ctx.shadowBlur = isPie ? 6 : 8;
+                },
+                afterDatasetDraw: function(chart) {
+                    chart.ctx.restore();
+                }
             };
 
             const options = {
                 responsive: true,
                 maintainAspectRatio: false,
                 animation: {
-                    duration: 250,
+                    duration: 400,
                     easing: "easeOutQuart"
                 },
+                cutout: isPie ? "56%" : undefined,
                 layout: {
                     padding: {
                         top: 8,
@@ -2194,6 +2578,9 @@
                     mode: "nearest",
                     intersect: true,
                     displayColors: false,
+                    backgroundColor: "rgba(8, 14, 16, 0.94)",
+                    borderColor: "#43565d",
+                    borderWidth: 1,
                     boxPadding: 0,
                     padding: 10,
                     caretPadding: 8,
@@ -2266,6 +2653,13 @@
                                 lines.push(meta.reason);
                             }
 
+                            if (meta.domains && meta.domains.length) {
+                                lines.push("Associated Domains:");
+                                meta.domains.forEach(function(domain) {
+                                    lines.push("  " + domain);
+                                });
+                            }
+
                             return lines;
                         },
                         footer: function() {
@@ -2282,7 +2676,9 @@
                     x: {
                         beginAtZero: true,
                         grid: {
-                            color: gridColor
+                            color: "rgba(143, 209, 245, 0.08)",
+                            borderColor: gridColor,
+                            tickColor: "rgba(143, 209, 245, 0.12)"
                         },
                         ticks: {
                             color: textColor,
@@ -2301,7 +2697,9 @@
                     y: {
                         beginAtZero: true,
                         grid: {
-                            color: gridColor
+                            color: "rgba(143, 209, 245, 0.08)",
+                            borderColor: gridColor,
+                            tickColor: "rgba(143, 209, 245, 0.12)"
                         },
                         ticks: {
                             color: textColor,
@@ -2338,13 +2736,14 @@
             }
 
             this.charts[chartName] = new Chart(
-                canvas.getContext("2d"),
+                context,
                 {
                     type: configuration.type,
                     data: {
                         labels: chartLabels,
                         datasets: [dataset]
                     },
+                    plugins: [glowPlugin],
                     options: options
                 }
             );
@@ -2380,6 +2779,196 @@
 
                 canvas.dataset.skynetClickBound = "true";
             }
+        };
+
+        SkynetUI.drawActivityChart = function(chartName) {
+            const canvas = this.getElement("divChart" + chartName);
+
+            if (!canvas) {
+                return;
+            }
+
+            this.destroyChart(chartName);
+
+            const labels = window.LabelActivityToday;
+
+            if (!Array.isArray(labels) || !labels.length || labels[0] === "") {
+                this.showNoData(chartName);
+                return;
+            }
+
+            const series = [
+                {
+                    label: "Inbound",
+                    values: window.DataActivityInbound,
+                    color: "#35d8ff",
+                    fill: "rgba(53, 216, 255, 0.18)"
+                },
+                {
+                    label: "Outbound",
+                    values: window.DataActivityOutbound,
+                    color: "#39ef9d",
+                    fill: "rgba(57, 239, 157, 0.14)"
+                },
+                {
+                    label: "Invalid",
+                    values: window.DataActivityInvalid,
+                    color: "#ff5f6d",
+                    fill: "rgba(255, 95, 109, 0.12)",
+                    setting: "loginvalid"
+                },
+                {
+                    label: "IoT",
+                    values: window.DataActivityIOT,
+                    color: "#c875ff",
+                    fill: "rgba(200, 117, 255, 0.12)",
+                    setting: "iotblocked"
+                }
+            ];
+            const context = canvas.getContext("2d");
+            const datasets = series.filter(function(item) {
+                return (!item.setting ||
+                    (window.SkynetSettings &&
+                        window.SkynetSettings[item.setting] === "enabled")) &&
+                    Array.isArray(item.values);
+            }).map(function(item) {
+                const gradient = context.createLinearGradient(0, 0, 0, 270);
+                gradient.addColorStop(0, item.fill);
+                gradient.addColorStop(1, "rgba(17, 25, 28, 0)");
+
+                return {
+                    label: item.label,
+                    data: item.values.map(function(value) {
+                        return Number(value) || 0;
+                    }),
+                    borderColor: item.color,
+                    backgroundColor: gradient,
+                    borderWidth: 2,
+                    pointRadius: 1.5,
+                    pointHoverRadius: 5,
+                    pointBackgroundColor: item.color,
+                    pointBorderColor: "#11191c",
+                    pointBorderWidth: 1,
+                    tension: 0.35,
+                    fill: true
+                };
+            });
+
+            const hasActivity = datasets.some(function(dataset) {
+                return dataset.data.some(function(value) {
+                    return value > 0;
+                });
+            });
+
+            if (!hasActivity) {
+                this.showNoData(chartName);
+                return;
+            }
+
+            this.clearNoData(chartName);
+
+            const textColor = this.getChartTextColor();
+            const glowPlugin = {
+                id: "skynetActivityGlow",
+                beforeDatasetDraw: function(chart, args) {
+                    chart.ctx.save();
+                    chart.ctx.shadowColor = chart.data.datasets[args.index].borderColor;
+                    chart.ctx.shadowBlur = 8;
+                },
+                afterDatasetDraw: function(chart) {
+                    chart.ctx.restore();
+                }
+            };
+
+            this.charts[chartName] = new Chart(context, {
+                type: "line",
+                data: {
+                    labels: labels,
+                    datasets: datasets
+                },
+                plugins: [glowPlugin],
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: {
+                        duration: 450,
+                        easing: "easeOutQuart"
+                    },
+                    interaction: {
+                        mode: "index",
+                        intersect: false
+                    },
+                    layout: {
+                        padding: {
+                            top: 4,
+                            right: 5,
+                            bottom: 2,
+                            left: 2
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: "top",
+                            align: "end",
+                            labels: {
+                                color: textColor,
+                                boxWidth: 8,
+                                boxHeight: 8,
+                                usePointStyle: true,
+                                padding: 14,
+                                font: {
+                                    size: 11
+                                }
+                            }
+                        },
+                        tooltip: {
+                            mode: "index",
+                            intersect: false,
+                            backgroundColor: "rgba(8, 14, 16, 0.94)",
+                            borderColor: "#43565d",
+                            borderWidth: 1,
+                            titleColor: "#ffffff",
+                            bodyColor: "#dbe4e7",
+                            padding: 10,
+                            callbacks: {
+                                label: function(item) {
+                                    return item.dataset.label + ": " +
+                                        SkynetUI.formatNumber(item.parsed.y);
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                color: "rgba(143, 209, 245, 0.06)"
+                            },
+                            ticks: {
+                                color: textColor,
+                                maxTicksLimit: 8,
+                                maxRotation: 0
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: "rgba(143, 209, 245, 0.10)"
+                            },
+                            ticks: {
+                                color: textColor,
+                                precision: 0,
+                                callback: function(value) {
+                                    return SkynetUI.formatNumber(value);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            canvas.setAttribute("role", "img");
+            canvas.setAttribute("aria-label", "Hourly block activity today");
         };
 
         SkynetUI.groupCountries = function(chartName) {
@@ -2426,9 +3015,14 @@
                 this.destroyChart(chartName);
             }
 
+            if (this.chartDefinitions[chartName].activity) {
+                this.drawActivityChart(chartName);
+                return;
+            }
+
             this.restoreSelect(chartName + "_Type", 0, 2);
 
-            if (multiLabel === "true") {
+            if (multiLabel === "true" && this.canGroupByCountry(chartName)) {
                 this.restoreSelect(chartName + "_Group", 0, 1);
                 this.groupCountries(chartName);
             }
@@ -2448,7 +3042,7 @@
             this.drawChart(chartName, multiLabel);
         };
 
-        SkynetUI.setSectionState = function(section, expanded) {
+        SkynetUI.setSectionState = function(section, expanded, persist) {
             const table = section.closest(".skynet-section > table") ||
                 section.parentElement;
 
@@ -2463,6 +3057,13 @@
             bodyRows.forEach(function(row) {
                 row.style.display = expanded ? "" : "none";
             });
+
+            if (persist !== false) {
+                this.setCookie(
+                    section.id,
+                    expanded ? "expanded" : "collapsed"
+                );
+            }
 
             if (!expanded) {
                 const chartName = section.id.replace("skynet_chart_", "");
@@ -2488,10 +3089,6 @@
                 toggle.textContent = expanded ? "▾" : "▸";
             }
 
-            this.setCookie(
-                section.id,
-                expanded ? "expanded" : "collapsed"
-            );
         };
 
         SkynetUI.setupCollapsibles = function() {
@@ -2540,7 +3137,7 @@
             html += '<table class="skynet-controls-table" border="0" cellpadding="0" cellspacing="0">';
             html += '<tr>';
 
-            if (multiLabel === "true") {
+            if (multiLabel === "true" && this.canGroupByCountry(name)) {
                 html += '<td class="skynet-controls skynet-control-cell">';
                 html += '<span class="skynet-control-label">Group</span> ';
                 html += '<select class="input_option" id="' + name + '_Group">';
@@ -2558,7 +3155,7 @@
             html += '<select class="input_option" id="' + name + '_Type">';
             html += '<option value="0">Horizontal</option>';
             html += '<option value="1">Vertical</option>';
-            html += '<option value="2">Pie</option>';
+            html += '<option value="2">Doughnut</option>';
             html += '</select>';
             html += '</td>';
 
@@ -2579,8 +3176,36 @@
             return html;
         };
 
+        SkynetUI.buildActivityChartHtml = function(title, name) {
+            let html = "";
+            html += '<div class="skynet-section">';
+            html += '<table width="100%" border="0" cellpadding="0" cellspacing="0">';
+            html += '<thead class="collapsible expanded skynet-section-head" id="skynet_chart_' + name + '" aria-expanded="true" role="button" tabindex="0">';
+            html += '<tr>';
+            html += '<td>' + this.escapeHtml(title) + '</td>';
+            html += '<td><span class="skynet-section-toggle" aria-hidden="true">▾</span></td>';
+            html += '</tr>';
+            html += '</thead>';
+            html += '<tbody>';
+            html += '<tr class="skynet-section-body-row">';
+            html += '<td colspan="2" style="padding:0;">';
+            html += '<div class="skynet-chart-shell skynet-activity-shell">';
+            html += '<canvas id="divChart' + name + '"></canvas>';
+            html += '</div>';
+            html += '</td>';
+            html += '</tr>';
+            html += '</tbody>';
+            html += '</table>';
+            html += '</div>';
+
+            return html;
+        };
+
         SkynetUI.buildTableHtml = function(title, name) {
             const ips = window["Label" + name + "_IPs"];
+            const settings = window.SkynetSettings;
+            const showCountry = !settings || settings.lookupcountry !== "disabled";
+            const columnCount = showCountry ? 5 : 4;
             const noData = !Array.isArray(ips) ||
                 !ips.length ||
                 (ips.length === 1 && ips[0] === "");
@@ -2604,42 +3229,53 @@
             html += '<table class="FormTable StatsTable skynet-modern-table">';
 
             if (noData) {
-                html += '<tr><td colspan="5" class="skynet-nodata skynet-table-nodata">No data to display</td></tr>';
+                html += '<tr><td colspan="' + columnCount + '" class="skynet-nodata skynet-table-nodata">No data to display</td></tr>';
             } else {
                 html += '<col style="width:120px;">';
-                html += '<col style="width:245px;">';
+                html += '<col style="width:' + (showCountry ? '245px' : '285px') + ';">';
                 html += '<col style="width:82px;">';
-                html += '<col style="width:70px;">';
+                if (showCountry) {
+                    html += '<col style="width:70px;">';
+                }
                 html += '<col style="width:auto;">';
 
                 html += '<thead><tr>';
                 html += '<th>IP Address</th>';
                 html += '<th>Ban Reason</th>';
-                html += '<th>Details</th>';
-                html += '<th>Country</th>';
-                html += '<th>Associated Domains</th>';
+                html += '<th class="skynet-table-details">Details</th>';
+                if (showCountry) {
+                    html += '<th class="skynet-table-country">Country</th>';
+                }
+                html += '<th class="skynet-table-domains">Associated Domains</th>';
                 html += '</tr></thead>';
 
                 const reasons = window["Label" + name + "_BanReason"] || [];
                 const alienVault = window["Label" + name + "_AlienVault"] || [];
-                const countries = window["Label" + name + "_Country"] || [];
+                const countries = showCountry
+                    ? window["Label" + name + "_Country"] || []
+                    : [];
                 const domains = window["Label" + name + "_AssDomains"] || [];
 
                 ips.forEach(function(ip, index) {
                     const escapedIp = SkynetUI.escapeHtml(ip);
                     const escapedReason = SkynetUI.escapeHtml(reasons[index] || "");
                     const escapedCountry = SkynetUI.escapeHtml(countries[index] || "");
-                    const escapedDomains = SkynetUI.escapeHtml(domains[index] || "")
+                    const domainValue = domains[index] === "*"
+                        ? ""
+                        : domains[index] || "";
+                    const escapedDomains = SkynetUI.escapeHtml(domainValue)
                         .replace(/ /g, "\n");
                     const url = SkynetUI.escapeHtml(alienVault[index] || "#");
 
                     html += '<tr>';
                     html += '<td><span class="skynet-ip-value">' + escapedIp + '</span></td>';
-                    html += '<td>' + escapedReason + '</td>';
-                    html += '<td><a class="skynet-external-link" target="_blank" rel="noopener" href="' +
+                    html += '<td class="skynet-table-reason">' + escapedReason + '</td>';
+                    html += '<td class="skynet-table-details"><a class="skynet-external-link" target="_blank" rel="noopener" href="' +
                         url + '">View</a></td>';
-                    html += '<td>' + escapedCountry + '</td>';
-                    html += '<td style="white-space:pre;">' + escapedDomains + '</td>';
+                    if (showCountry) {
+                        html += '<td class="skynet-table-country">' + escapedCountry + '</td>';
+                    }
+                    html += '<td class="skynet-table-domains" style="white-space:pre;">' + escapedDomains + '</td>';
                     html += '</tr>';
                 });
             }
@@ -2670,25 +3306,400 @@
             }
         };
 
-        SkynetUI.updateStats = function() {
-            document.form.action_script.value = "start_SkynetStats";
+        SkynetUI.applyStatsPayload = function() {
+            [
+                "SetStatsDate", "SetStatsSize", "SetBLCount1", "SetBLCount2",
+                "SetHits1", "SetHits2"
+            ].forEach(function(functionName) {
+                if (typeof window[functionName] === "function") {
+                    window[functionName]();
+                }
+            });
 
-            const wait = Number(document.form.action_wait.value) || 45;
-
-            parent.showLoading(wait, "waiting");
-            document.form.submit();
         };
 
-        SkynetUI.bindControls = function() {
+        SkynetUI.populateSettings = function() {
+            const settings = window.SkynetSettings || {};
+            const apply = this.getElement(this.selectors.settingsButton);
+            const fields = {
+                skynetAutoUpdate: settings.autoupdate,
+                skynetMalwareUpdates: settings.banmalwareupdate,
+                skynetMalwareUrl: settings.customlisturl,
+                skynetFilterTraffic: settings.filtertraffic,
+                skynetUnbanPrivate: settings.unbanprivateip,
+                skynetAiProtect: settings.banaiprotect,
+                skynetSecureMode: settings.securemode,
+                skynetLogInvalid: settings.loginvalid,
+                skynetLogSize: settings.logsize,
+                skynetExtendedStats: settings.extendedstats,
+                skynetCountryLookup: settings.lookupcountry,
+                skynetCdnWhitelist: settings.cdnwhitelist,
+                skynetIotBlocking: settings.iotblocked,
+                skynetIotLogging: settings.iotlogging
+            };
+
+            if (!window.SkynetSettings || !window.SkynetSettingsGenerated) {
+                if (apply) {
+                    apply.disabled = true;
+                }
+                this.setUpdateResult(
+                    "Reload settings to load current values.",
+                    false,
+                    this.selectors.settingsResult
+                );
+                return;
+            }
+
+            Object.keys(fields).forEach(function(id) {
+                const field = SkynetUI.getElement(id);
+
+                if (field && fields[id] !== undefined && fields[id] !== null) {
+                    field.value = fields[id];
+                }
+            });
+
+            if (apply && !this.refreshInProgress) {
+                apply.disabled = false;
+            }
+
+            const result = this.getElement(this.selectors.settingsResult);
+
+            if (result && result.textContent === "Reload settings to load current values.") {
+                result.textContent = "";
+            }
+        };
+
+        SkynetUI.setUpdateResult = function(message, isError, resultSelector) {
+            const result = this.getElement(resultSelector || this.selectors.updateResult);
+
+            if (!result) {
+                return;
+            }
+
+            result.textContent = message || "";
+            result.classList.toggle("error", Boolean(isError));
+        };
+
+        SkynetUI.setActionState = function(active, buttonSelector, label) {
+            [
+                this.selectors.updateButton,
+                this.selectors.settingsButton,
+                this.selectors.settingsReloadButton,
+                this.selectors.settingsDefaultsButton
+            ].forEach(function(id) {
+                const button = SkynetUI.getElement(id);
+
+                if (button) {
+                    button.disabled = active ||
+                        (id === SkynetUI.selectors.settingsButton &&
+                            (!window.SkynetSettings || !window.SkynetSettingsGenerated));
+                    button.classList.toggle("skynet-update-busy", active && id === buttonSelector);
+                }
+            });
+
+            const button = this.getElement(buttonSelector);
+
+            if (button && label) {
+                button.value = label;
+            }
+        };
+
+        SkynetUI.destroyCharts = function() {
+            Object.keys(this.charts).forEach(function(chartName) {
+                const chart = SkynetUI.charts[chartName];
+
+                if (chart && typeof chart.destroy === "function") {
+                    chart.destroy();
+                }
+            });
+
+            this.charts = Object.create(null);
+            this.chartData = Object.create(null);
+        };
+
+        SkynetUI.loadScript = function(file, error) {
+            return new Promise(function(resolve, reject) {
+                const script = document.createElement("script");
+
+                script.src = "/ext/skynet/" + file + "?_=" + new Date().getTime();
+                script.async = true;
+                script.onload = function() {
+                    script.parentNode.removeChild(script);
+                    resolve();
+                };
+                script.onerror = function() {
+                    script.parentNode.removeChild(script);
+                    reject(new Error(error));
+                };
+                document.head.appendChild(script);
+            });
+        };
+
+        SkynetUI.loadStatsScript = function() {
+            return this.loadScript("stats.js", "Unable to load refreshed statistics");
+        };
+
+        SkynetUI.loadSettingsScript = function() {
+            return this.loadScript("settings.js", "Unable to load current settings");
+        };
+
+        SkynetUI.refreshRenderedStats = function() {
+            this.destroyCharts();
+            this.renderChartsAndTables();
+            this.applyStatsPayload();
+            this.bindChartControls();
+
+            Object.keys(this.chartDefinitions).forEach(function(chartName) {
+                const definition = SkynetUI.chartDefinitions[chartName];
+                SkynetUI.setupChart(chartName, definition.multiLabel ? "true" : "false");
+            });
+
+            this.setupCollapsibles();
+            this.bindTableDetails();
+            this.scheduleChartResize();
+        };
+
+        SkynetUI.waitForUpdate = function(previousStamp, attempts, requestType) {
+            const self = this;
+            const settingsRequest = requestType !== "stats";
+            const applyRequest = requestType === "settings";
+            const buttonSelector = settingsRequest
+                ? (applyRequest ? this.selectors.settingsButton : this.selectors.settingsReloadButton)
+                : this.selectors.updateButton;
+            const resultSelector = settingsRequest
+                ? this.selectors.settingsResult
+                : this.selectors.updateResult;
+            const buttonLabel = settingsRequest
+                ? (applyRequest ? "Apply Settings" : "Reload Settings")
+                : "Update Stats";
+            const request = settingsRequest
+                ? this.loadSettingsScript()
+                : this.loadStatsScript();
+
+            request.then(function() {
+                const currentStamp = settingsRequest
+                    ? window.SkynetSettingsGenerated
+                    : window.SkynetStatsGenerated;
+
+                if (String(currentStamp || "") !== String(previousStamp || "")) {
+                    if (settingsRequest) {
+                        self.populateSettings();
+                        self.refreshRenderedStats();
+                    } else {
+                        self.refreshRenderedStats();
+                    }
+                    self.refreshInProgress = false;
+                    if (applyRequest && window.SkynetSettingsResult !== "success") {
+                        self.setUpdateResult("Unable to apply settings.", true, resultSelector);
+                        self.setActionState(false, buttonSelector, "Try Again");
+                    } else {
+                        self.setUpdateResult(
+                            applyRequest
+                                ? "Settings applied successfully."
+                                : (settingsRequest ? "Settings reloaded." : "Statistics refreshed successfully."),
+                            false,
+                            resultSelector
+                        );
+                        self.setActionState(false, buttonSelector, buttonLabel);
+                    }
+                    return;
+                }
+
+                if (attempts > 0) {
+                    window.setTimeout(function() {
+                        self.waitForUpdate(previousStamp, attempts - 1, requestType);
+                    }, 1000);
+                    return;
+                }
+
+                self.refreshInProgress = false;
+                self.setUpdateResult(
+                    applyRequest
+                        ? "Settings update did not complete."
+                        : (settingsRequest ? "Settings reload did not complete." : "Statistics refresh did not complete."),
+                    true,
+                    resultSelector
+                );
+                self.setActionState(false, buttonSelector, "Try Again");
+            }).catch(function() {
+                if (attempts > 0) {
+                    window.setTimeout(function() {
+                        self.waitForUpdate(previousStamp, attempts - 1, requestType);
+                    }, 1000);
+                    return;
+                }
+
+                self.refreshInProgress = false;
+                self.setUpdateResult(
+                    settingsRequest ? "Unable to load current settings." : "Unable to load refreshed data.",
+                    true,
+                    resultSelector
+                );
+                self.setActionState(false, buttonSelector, "Try Again");
+            });
+        };
+
+        SkynetUI.updateStats = function() {
+            if (this.refreshInProgress) {
+                return;
+            }
+
+            this.refreshInProgress = true;
+            this.setUpdateResult("Generating statistics...", false);
+            this.setActionState(true, this.selectors.updateButton, "Updating...");
+            this.submitBackgroundAction("start_SkynetStats");
+            this.waitForUpdate(window.SkynetStatsGenerated, 180, "stats");
+        };
+
+        SkynetUI.submitBackgroundAction = function(action) {
+            const settings = this.getElement("amng_custom");
+
+            document.form.action_script.value = action;
+            document.form.submit();
+
+            if (settings) {
+                settings.value = "";
+            }
+        };
+
+        SkynetUI.restoreDefaultSettings = function() {
+            const defaults = {
+                skynetAutoUpdate: "enabled",
+                skynetMalwareUpdates: "daily",
+                skynetMalwareUrl: "",
+                skynetFilterTraffic: "all",
+                skynetUnbanPrivate: "enabled",
+                skynetAiProtect: "enabled",
+                skynetSecureMode: "enabled",
+                skynetLogInvalid: "disabled",
+                skynetLogSize: "10",
+                skynetExtendedStats: "enabled",
+                skynetCountryLookup: "enabled",
+                skynetCdnWhitelist: "enabled",
+                skynetIotBlocking: "disabled",
+                skynetIotLogging: "enabled"
+            };
+
+            Object.keys(defaults).forEach(function(id) {
+                const field = SkynetUI.getElement(id);
+
+                if (field) {
+                    field.value = defaults[id];
+                }
+            });
+
+            this.setUpdateResult(
+                "Default values loaded. Apply Settings to save.",
+                false,
+                this.selectors.settingsResult
+            );
+        };
+
+        SkynetUI.updateSettings = function() {
+            if (this.refreshInProgress) {
+                return;
+            }
+
+            const logsize = this.getElement("skynetLogSize").value;
+            const customlisturl = this.getElement("skynetMalwareUrl").value.trim();
+
+            if (!/^\d+$/.test(logsize) || Number(logsize) < 10) {
+                this.setUpdateResult(
+                    "Log size must be at least 10MB.",
+                    true,
+                    this.selectors.settingsResult
+                );
+                return;
+            }
+
+            if (customlisturl &&
+                (customlisturl.length > 512 ||
+                    !/^https?:\/\/[A-Za-z0-9._~:/?&=#%@+,-]+$/i.test(customlisturl))) {
+                this.setUpdateResult(
+                    "Enter a valid HTTP(S) filter list URL.",
+                    true,
+                    this.selectors.settingsResult
+                );
+                return;
+            }
+
+            custom_settings.skynet_autoupdate = this.getElement("skynetAutoUpdate").value;
+            custom_settings.skynet_banmalwareupdate = this.getElement("skynetMalwareUpdates").value;
+            custom_settings.skynet_customlisturl = customlisturl;
+            custom_settings.skynet_filtertraffic = this.getElement("skynetFilterTraffic").value;
+            custom_settings.skynet_unbanprivateip = this.getElement("skynetUnbanPrivate").value;
+            custom_settings.skynet_banaiprotect = this.getElement("skynetAiProtect").value;
+            custom_settings.skynet_securemode = this.getElement("skynetSecureMode").value;
+            custom_settings.skynet_loginvalid = this.getElement("skynetLogInvalid").value;
+            custom_settings.skynet_logsize = logsize;
+            custom_settings.skynet_extendedstats = this.getElement("skynetExtendedStats").value;
+            custom_settings.skynet_lookupcountry = this.getElement("skynetCountryLookup").value;
+            custom_settings.skynet_cdnwhitelist = this.getElement("skynetCdnWhitelist").value;
+            custom_settings.skynet_iotblocked = this.getElement("skynetIotBlocking").value;
+            custom_settings.skynet_iotlogging = this.getElement("skynetIotLogging").value;
+
+            this.refreshInProgress = true;
+            this.setUpdateResult("Applying settings...", false, this.selectors.settingsResult);
+            this.setActionState(true, this.selectors.settingsButton, "Applying...");
+            document.form.amng_custom.value = JSON.stringify(custom_settings);
+            this.submitBackgroundAction("start_SkynetSettings");
+            this.waitForUpdate(window.SkynetSettingsGenerated, 180, "settings");
+        };
+
+        SkynetUI.reloadSettings = function() {
+            if (this.refreshInProgress) {
+                return;
+            }
+
+            this.refreshInProgress = true;
+            this.setUpdateResult("Reloading settings...", false, this.selectors.settingsResult);
+            this.setActionState(true, this.selectors.settingsReloadButton, "Reloading...");
+            this.submitBackgroundAction("start_SkynetSettingsLoad");
+            this.waitForUpdate(window.SkynetSettingsGenerated, 60, "reload");
+        };
+
+        SkynetUI.showView = function(view) {
+            const settings = view === "settings";
+            const overviewTab = this.getElement(this.selectors.overviewTab);
+            const settingsTab = this.getElement(this.selectors.settingsTab);
+            const overviewView = this.getElement(this.selectors.overviewView);
+            const settingsView = this.getElement(this.selectors.settingsView);
+
+            if (overviewTab) {
+                overviewTab.classList.toggle("active", !settings);
+                overviewTab.setAttribute("aria-selected", String(!settings));
+            }
+
+            if (settingsTab) {
+                settingsTab.classList.toggle("active", settings);
+                settingsTab.setAttribute("aria-selected", String(settings));
+            }
+
+            if (overviewView) {
+                overviewView.classList.toggle("skynet-view-hidden", settings);
+            }
+
+            if (settingsView) {
+                settingsView.classList.toggle("skynet-view-hidden", !settings);
+            }
+
+            if (settings) {
+                this.populateSettings();
+            } else {
+                this.scheduleChartResize();
+            }
+        };
+
+        SkynetUI.bindChartControls = function() {
             document.querySelectorAll("[id$='_Type']").forEach(function(element) {
                 const chartName = element.id.substring(
                     0,
                     element.id.indexOf("_")
                 );
-                const multiLabel =
-                    ["TOConnHits", "TIConnHits", "THConnHits"].indexOf(chartName) !== -1
-                        ? "true"
-                        : "false";
+                const definition = SkynetUI.chartDefinitions[chartName];
+                const multiLabel = definition && definition.multiLabel
+                    ? "true"
+                    : "false";
 
                 element.addEventListener("change", function() {
                     SkynetUI.changeChart(this, multiLabel);
@@ -2705,26 +3716,61 @@
                     SkynetUI.changeChart(this, "true");
                 });
             });
+        };
+
+        SkynetUI.bindControls = function() {
+            this.bindChartControls();
 
             const update = this.getElement(this.selectors.updateButton);
 
             if (update) {
                 update.addEventListener("click", function() {
-                    if (this.disabled) {
-                        return;
-                    }
-
-                    this.disabled = true;
-                    this.value = "Updating...";
-                    this.classList.add("skynet-update-busy");
-
                     SkynetUI.updateStats();
+                });
+            }
+
+            const apply = this.getElement(this.selectors.settingsButton);
+
+            if (apply) {
+                apply.addEventListener("click", function() {
+                    SkynetUI.updateSettings();
+                });
+            }
+
+            const reload = this.getElement(this.selectors.settingsReloadButton);
+
+            if (reload) {
+                reload.addEventListener("click", function() {
+                    SkynetUI.reloadSettings();
+                });
+            }
+
+            const defaults = this.getElement(this.selectors.settingsDefaultsButton);
+
+            if (defaults) {
+                defaults.addEventListener("click", function() {
+                    SkynetUI.restoreDefaultSettings();
+                });
+            }
+
+            const overviewTab = this.getElement(this.selectors.overviewTab);
+            const settingsTab = this.getElement(this.selectors.settingsTab);
+
+            if (overviewTab) {
+                overviewTab.addEventListener("click", function() {
+                    SkynetUI.showView("overview");
+                });
+            }
+
+            if (settingsTab) {
+                settingsTab.addEventListener("click", function() {
+                    SkynetUI.showView("settings");
                 });
             }
         };
 
         SkynetUI.renderChartsAndTables = function() {
-            const anchor = this.getElement(this.selectors.statsAnchor);
+            const anchor = this.getElement(this.selectors.statsContent);
 
             if (!anchor) {
                 return false;
@@ -2735,13 +3781,17 @@
             Object.keys(this.chartDefinitions).forEach(function(chartName) {
                 const definition = SkynetUI.chartDefinitions[chartName];
 
-                content.push(
-                    SkynetUI.buildChartHtml(
+                if (!SkynetUI.isChartEnabled(definition)) {
+                    return;
+                }
+
+                content.push(definition.activity
+                    ? SkynetUI.buildActivityChartHtml(definition.title, chartName)
+                    : SkynetUI.buildChartHtml(
                         definition.title,
                         chartName,
                         definition.multiLabel ? "true" : "false"
-                    )
-                );
+                    ));
             });
 
             Object.keys(this.tableDefinitions).forEach(function(tableName) {
@@ -2753,7 +3803,7 @@
                 );
             });
 
-            anchor.insertAdjacentHTML("afterend", content.join(""));
+            anchor.innerHTML = content.join("");
 
             return true;
         };
@@ -2818,12 +3868,8 @@
                 window.addEventListener("orientationchange", resizeHandler, false);
             }
 
-            SetStatsDate();
-            SetStatsSize();
-            SetBLCount1();
-            SetBLCount2();
-            SetHits1();
-            SetHits2();
+            this.applyStatsPayload();
+            this.populateSettings();
         };
     </script>
 </head>
@@ -2839,6 +3885,8 @@
         <input type="hidden" name="modified" value="0" />
         <input type="hidden" name="action_mode" value="apply" />
         <input type="hidden" name="action_wait" value="45" />
+        <input type="hidden" name="flag" value="background" />
+        <input type="hidden" name="amng_custom" id="amng_custom" value="" />
         <input type="hidden" name="first_time" value="" />
         <input type="hidden" name="SystemCmd" value="" />
         <input type="hidden" name="preferred_lang" id="preferred_lang" value="<% nvram_get( preferred_lang ); %>" />
@@ -2861,7 +3909,227 @@
                                             <td valign="top">
                                                 <div style="line-height:10px;">&nbsp;</div>
 
+                                                <div class="skynet-tabs" role="tablist" aria-label="Skynet views">
+                                                    <input type="button"
+                                                        id="skynetOverviewTab"
+                                                        value="Overview"
+                                                        class="skynet-tab active"
+                                                        role="tab"
+                                                        aria-controls="skynetOverviewView"
+                                                        aria-selected="true" />
+                                                    <input type="button"
+                                                        id="skynetSettingsTab"
+                                                        value="Settings"
+                                                        class="skynet-tab"
+                                                        role="tab"
+                                                        aria-controls="skynetSettingsView"
+                                                        aria-selected="false" />
+                                                </div>
 
+                                                <div id="skynetSettingsView" class="skynet-view-hidden" role="tabpanel">
+                                                    <div class="skynet-settings">
+                                                        <table class="FormTable skynet-settings-table">
+                                                            <tr class="skynet-settings-group">
+                                                                <th colspan="2">Updates</th>
+                                                            </tr>
+                                                            <tr>
+                                                                <th>
+                                                                    <span class="skynet-setting-name">Automatic Updates</span>
+                                                                    <span class="skynet-setting-help">Installs Skynet updates weekly.</span>
+                                                                </th>
+                                                                <td>
+                                                                    <select class="input_option" id="skynetAutoUpdate">
+                                                                        <option value="enabled">Enabled (Default)</option>
+                                                                        <option value="disabled">Disabled</option>
+                                                                    </select>
+                                                                </td>
+                                                            </tr>
+                                                            <tr>
+                                                                <th>
+                                                                    <span class="skynet-setting-name">Malware List Updates</span>
+                                                                    <span class="skynet-setting-help">Refreshes the malware blacklist on schedule.</span>
+                                                                </th>
+                                                                <td>
+                                                                    <select class="input_option" id="skynetMalwareUpdates">
+                                                                        <option value="daily">Daily (Default)</option>
+                                                                        <option value="weekly">Weekly</option>
+                                                                        <option value="disabled">Disabled</option>
+                                                                    </select>
+                                                                </td>
+                                                            </tr>
+                                                            <tr>
+                                                                <th>
+                                                                    <span class="skynet-setting-name">Malware Filter List</span>
+                                                                    <span class="skynet-setting-help">Leave blank to use Skynet's default filter list. Applying a change rebuilds the malware blacklist.</span>
+                                                                </th>
+                                                                <td>
+                                                                    <input type="url"
+                                                                        id="skynetMalwareUrl"
+                                                                        maxlength="512"
+                                                                        placeholder="Default Skynet filter list"
+                                                                        autocomplete="off"
+                                                                        autocorrect="off"
+                                                                        autocapitalize="off"
+                                                                        spellcheck="false" />
+                                                                </td>
+                                                            </tr>
+                                                            <tr class="skynet-settings-group">
+                                                                <th colspan="2">Protection</th>
+                                                            </tr>
+                                                            <tr>
+                                                                <th>
+                                                                    <span class="skynet-setting-name">Traffic Filtering</span>
+                                                                    <span class="skynet-setting-help">Selects which traffic directions Skynet blocks.</span>
+                                                                </th>
+                                                                <td>
+                                                                    <select class="input_option" id="skynetFilterTraffic">
+                                                                        <option value="all">Inbound &amp; Outbound (Default)</option>
+                                                                        <option value="inbound">Inbound Only</option>
+                                                                        <option value="outbound">Outbound Only</option>
+                                                                    </select>
+                                                                </td>
+                                                            </tr>
+                                                            <tr>
+                                                                <th>
+                                                                    <span class="skynet-setting-name">Unban Private IPs</span>
+                                                                    <span class="skynet-setting-help">Automatically whitelists private addresses found in blocked traffic.</span>
+                                                                </th>
+                                                                <td>
+                                                                    <select class="input_option" id="skynetUnbanPrivate">
+                                                                        <option value="enabled">Enabled (Default)</option>
+                                                                        <option value="disabled">Disabled</option>
+                                                                    </select>
+                                                                </td>
+                                                            </tr>
+                                                            <tr>
+                                                                <th>
+                                                                    <span class="skynet-setting-name">IoT Blocking</span>
+                                                                    <span class="skynet-setting-help">Blocks internet access for devices in the IoT list. Disabling keeps the saved list.</span>
+                                                                </th>
+                                                                <td>
+                                                                    <select class="input_option" id="skynetIotBlocking">
+                                                                        <option value="enabled">Enabled</option>
+                                                                        <option value="disabled">Disabled (Default)</option>
+                                                                    </select>
+                                                                </td>
+                                                            </tr>
+                                                            <tr>
+                                                                <th>
+                                                                    <span class="skynet-setting-name">IoT Block Logging</span>
+                                                                    <span class="skynet-setting-help">Records blocked IoT traffic for statistics when IoT blocking is enabled.</span>
+                                                                </th>
+                                                                <td>
+                                                                    <select class="input_option" id="skynetIotLogging">
+                                                                        <option value="enabled">Enabled (Default)</option>
+                                                                        <option value="disabled">Disabled</option>
+                                                                    </select>
+                                                                </td>
+                                                            </tr>
+                                                            <tr>
+                                                                <th>
+                                                                    <span class="skynet-setting-name">Import AiProtection Bans</span>
+                                                                    <span class="skynet-setting-help">Imports threats detected by AiProtection into Skynet.</span>
+                                                                </th>
+                                                                <td>
+                                                                    <select class="input_option" id="skynetAiProtect">
+                                                                        <option value="enabled">Enabled (Default)</option>
+                                                                        <option value="disabled">Disabled</option>
+                                                                    </select>
+                                                                </td>
+                                                            </tr>
+                                                            <tr>
+                                                                <th>
+                                                                    <span class="skynet-setting-name">Secure Mode</span>
+                                                                    <span class="skynet-setting-help">Disables WAN access to SSH and the router WebUI.</span>
+                                                                </th>
+                                                                <td>
+                                                                    <select class="input_option" id="skynetSecureMode">
+                                                                        <option value="enabled">Enabled (Default)</option>
+                                                                        <option value="disabled">Disabled</option>
+                                                                    </select>
+                                                                </td>
+                                                            </tr>
+                                                            <tr>
+                                                                <th>
+                                                                    <span class="skynet-setting-name">CDN Whitelisting</span>
+                                                                    <span class="skynet-setting-help">Whitelists common CDN address ranges to reduce false positives.</span>
+                                                                </th>
+                                                                <td>
+                                                                    <select class="input_option" id="skynetCdnWhitelist">
+                                                                        <option value="enabled">Enabled (Default)</option>
+                                                                        <option value="disabled">Disabled</option>
+                                                                    </select>
+                                                                </td>
+                                                            </tr>
+                                                            <tr class="skynet-settings-group">
+                                                                <th colspan="2">Statistics</th>
+                                                            </tr>
+                                                            <tr>
+                                                                <th>
+                                                                    <span class="skynet-setting-name">Invalid Packet Logging</span>
+                                                                    <span class="skynet-setting-help">Logs invalid connection-state packets for statistics.</span>
+                                                                </th>
+                                                                <td>
+                                                                    <select class="input_option" id="skynetLogInvalid">
+                                                                        <option value="enabled">Enabled</option>
+                                                                        <option value="disabled">Disabled (Default)</option>
+                                                                    </select>
+                                                                </td>
+                                                            </tr>
+                                                            <tr>
+                                                                <th>
+                                                                    <span class="skynet-setting-name">Log Size</span>
+                                                                    <span class="skynet-setting-help">Sets the log limit before statistics are saved and old entries are cleared. Default: 10MB.</span>
+                                                                </th>
+                                                                <td>
+                                                                    <input type="number" id="skynetLogSize" min="10" step="1" /> MB
+                                                                </td>
+                                                            </tr>
+                                                            <tr>
+                                                                <th>
+                                                                    <span class="skynet-setting-name">Extended Statistics</span>
+                                                                    <span class="skynet-setting-help">Adds associated domain names to blocked IP statistics when available.</span>
+                                                                </th>
+                                                                <td>
+                                                                    <select class="input_option" id="skynetExtendedStats">
+                                                                        <option value="enabled">Enabled (Default)</option>
+                                                                        <option value="disabled">Disabled</option>
+                                                                    </select>
+                                                                </td>
+                                                            </tr>
+                                                            <tr>
+                                                                <th>
+                                                                    <span class="skynet-setting-name">Country Lookup</span>
+                                                                    <span class="skynet-setting-help">Adds country information and grouping to IP statistics.</span>
+                                                                </th>
+                                                                <td>
+                                                                    <select class="input_option" id="skynetCountryLookup">
+                                                                        <option value="enabled">Enabled (Default)</option>
+                                                                        <option value="disabled">Disabled</option>
+                                                                    </select>
+                                                                </td>
+                                                            </tr>
+                                                        </table>
+                                                        <div class="skynet-settings-actions">
+                                                            <div class="skynet-settings-result" id="skynetSettingsResult" aria-live="polite"></div>
+                                                            <input type="button"
+                                                                id="skynetRestoreDefaults"
+                                                                value="Restore Defaults"
+                                                                class="button_gen skynet-update-button skynet-settings-reload" />
+                                                            <input type="button"
+                                                                id="skynetReloadSettings"
+                                                                value="Reload Settings"
+                                                                class="button_gen skynet-update-button skynet-settings-reload" />
+                                                            <input type="button"
+                                                                id="skynetApplySettings"
+                                                                value="Apply Settings"
+                                                                class="button_gen skynet-update-button"
+                                                                disabled="disabled" />
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div id="skynetOverviewView" role="tabpanel">
                                                 <!-- Skynet dashboard. -->
                                                 <div id="skynet_dashboard">
                                                     <div class="skynet-hero">
@@ -2915,6 +4183,7 @@
                                                         <div class="skynet-update-info">
                                                             <div class="skynet-update-title">Statistics</div>
                                                             <div>Refresh the current Skynet statistics from the router log.</div>
+                                                            <div class="skynet-update-result" id="skynetUpdateResult" aria-live="polite"></div>
                                                         </div>
                                                         <input type="button"
                                                             id="skynetUpdateStats"
@@ -2928,10 +4197,8 @@
                                                 </div>
 
                                                 <!-- Statistics content insertion point. -->
-                                                <table width="100%" border="0" cellpadding="0" cellspacing="0"
-                                                       id="skynet_table_keystats" style="display:none;">
-                                                    <tr><td></td></tr>
-                                                </table>
+                                                <div id="skynetDynamicContent"></div>
+                                                </div>
 
 
                                                 <!-- Statistics content. -->

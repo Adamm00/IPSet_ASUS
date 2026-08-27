@@ -131,6 +131,7 @@ amtm
 - `firewall settings fs google.com/filter.list|disable`: Configure/disable fast malware list switching.
 - `firewall settings syslog|syslog1 /tmp/syslog.log|default`: Configure custom syslog/syslog-1 location.
 - `firewall settings iot unban|ban 8.8.8.8,9.9.9.9`: Unban/ban IOT device(s) (or CIDR) from accessing WAN (allow NTP/remote access via OpenVPN/Wireguard only).
+- `firewall settings iot enable|disable`: Enable/disable IOT blocking without clearing the device list.
 - `firewall settings iot view`: View currently banned IOT devices.
 - `firewall settings iot ports 123,124,125`: Allow port(s) to access WAN.
 - `firewall settings iot ports reset`: Reset allowed port list to default.
