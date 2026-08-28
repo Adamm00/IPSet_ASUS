@@ -12,7 +12,27 @@
     <link rel="stylesheet" type="text/css" href="index_style.css" />
     <link rel="stylesheet" type="text/css" href="form_style.css" />
     <style>
+        /* Theme. */
+        :root {
+            --skynet-bg: #2f3e44;
+            --skynet-panel: #354247;
+            --skynet-panel-alt: #39484e;
+            --skynet-border: #607780;
+            --skynet-border-soft: #53666d;
+            --skynet-text: #eef2f3;
+            --skynet-muted: #b8c4c8;
+            --skynet-heading: #dfe7ea;
+            --skynet-link: #8fd1f5;
+            --skynet-title: #ffffff;
+            --skynet-body: #d7e0e3;
+            --skynet-muted-2: #aebcc1;
+            --skynet-border-faint: rgba(155, 177, 185, 0.18);
+            --skynet-border-medium: rgba(155, 177, 185, 0.34);
+            --skynet-surface: #34464c;
+            --skynet-surface-2: #2d3d43;
+        }
 
+        /* Merlin page integration. */
         thead.collapsible {
             color: white;
             padding: 0px;
@@ -59,99 +79,8 @@
         .StatsTable td:last-child {
             border-right: none !important;
         }
-        #skynet_dashboard { margin:0 0 10px 0; }
-        .skynet-hero {
-            position:relative;
-            background:
-                linear-gradient(180deg,#3c4b50 0%,#303d41 100%);
-            border:1px solid #6b8fa3;
-            border-radius:6px;
-            padding:15px 16px 14px 16px;
-            margin-bottom:10px;
-            box-shadow:
-                inset 0 1px 0 rgba(255,255,255,0.08),
-                0 1px 2px rgba(0,0,0,0.14);
-            text-align:center;
-        }
 
-        .skynet-hero-title {
-            display:inline-block;
-            position:relative;
-            color:#ffffff !important;
-            font-size:17px;
-            font-weight:bold;
-            letter-spacing:0.15px;
-            line-height:24px;
-            text-shadow:0 1px 1px rgba(0,0,0,0.22);
-            padding-bottom:4px;
-        }
-
-        .skynet-hero-title::after {
-            content:"";
-            display:block;
-            width:34px;
-            height:2px;
-            margin:4px auto 0 auto;
-            border-radius:2px;
-            background:#79b7d3;
-            opacity:0.9;
-        }
-
-        .skynet-hero-sub {
-            margin-top:2px;
-            color:#bfcacd !important;
-            font-size:11px;
-            line-height:16px;
-        }
-
-        .skynet-status {
-            position:absolute;
-            top:11px;
-            right:12px;
-            margin:0;
-            padding:5px 10px;
-            border-radius:12px;
-            background:#30483b;
-            color:#a9e5bf;
-            border:1px solid #4c8061;
-            font-weight:bold;
-            font-size:11px;
-        }
-        .skynet-status-dot {
-            display:inline-block; width:7px; height:7px; border-radius:50%;
-            background:#65c18c; margin-right:5px;
-        }
-        .skynet-kpis {
-            width:100%; border-collapse:separate !important;
-            border-spacing:6px !important; margin:-6px 0 4px -6px;
-        }
-        .skynet-kpi {
-            background:#354247 !important; border:1px solid #607780 !important;
-            border-radius:5px; text-align:center; padding:9px 5px !important;
-            width:25%;
-        }
-        .skynet-kpi-label {
-            display:block; color:#b8c4c8; font-size:11px; font-weight:bold;
-        }
-        .skynet-kpi-value {
-            display:block; color:#fff; font-size:22px; line-height:25px;
-            font-weight:bold; margin-top:3px;
-        }
-        .skynet-meta {
-            color:#b8c4c8; text-align:center; font-size:11px; margin:2px 0 8px 0;
-        }
-        .skynet-update-result {
-            min-height:15px;
-            margin-top:3px;
-            color:#b8c4c8;
-            font-size:10px;
-        }
-        .skynet-update-result.error { color:#f2afb5; }
-        .skynet-actionbar {
-            background:#3a464a !important; border:1px solid #607780 !important;
-            border-radius:5px; padding:7px !important;
-        }
-#FormTitle > tbody > tr > td {
+        #FormTitle > tbody > tr > td {
             width: 760px !important;
             max-width: 760px !important;
             box-sizing: border-box !important;
@@ -181,21 +110,158 @@
             box-sizing: border-box;
         }
 
-
-        :root {
-            --skynet-bg: #2f3e44;
-            --skynet-panel: #354247;
-            --skynet-panel-alt: #39484e;
-            --skynet-border: #607780;
-            --skynet-border-soft: #53666d;
-            --skynet-row-border: rgba(115, 137, 145, 0.14);
-            --skynet-text: #eef2f3;
-            --skynet-muted: #b8c4c8;
-            --skynet-heading: #dfe7ea;
-            --skynet-link: #8fd1f5;
-            --skynet-green: #65c18c;
+        /* Header and summary. */
+        #skynet_dashboard { margin:0 0 10px 0; }
+        .skynet-hero {
+            position:relative;
+            overflow:hidden;
+            background:
+                radial-gradient(circle at 50% 130%,rgba(73,171,207,0.18),transparent 55%),
+                repeating-linear-gradient(90deg,rgba(121,183,211,0.025) 0,rgba(121,183,211,0.025) 1px,transparent 1px,transparent 24px),
+                linear-gradient(180deg,#35454b 0%,#28363b 100%);
+            border:1px solid #63879a;
+            border-radius:6px;
+            padding:16px 110px 14px 110px;
+            margin-bottom:10px;
+            box-shadow:
+                inset 0 1px 0 rgba(255,255,255,0.08),
+                inset 0 -1px 0 rgba(48,120,151,0.12),
+                0 1px 2px rgba(0,0,0,0.18);
+            text-align:center;
         }
 
+        .skynet-hero::before {
+            content:"";
+            position:absolute;
+            top:0;
+            right:0;
+            bottom:0;
+            left:0;
+            background:repeating-linear-gradient(0deg,transparent 0,transparent 4px,rgba(0,0,0,0.045) 5px);
+            pointer-events:none;
+        }
+
+        .skynet-hero::after {
+            content:"";
+            position:absolute;
+            right:14%;
+            bottom:0;
+            left:14%;
+            height:1px;
+            background:linear-gradient(90deg,transparent,#78c6e7,transparent);
+            opacity:0.75;
+        }
+
+        .skynet-hero-core {
+            position:relative;
+            z-index:1;
+        }
+
+        .skynet-hero-title {
+            display:inline-block;
+            position:relative;
+            color:#ffffff !important;
+            font-family:monospace;
+            font-size:23px;
+            font-weight:bold;
+            letter-spacing:4px;
+            line-height:27px;
+            text-shadow:0 0 10px rgba(121,198,231,0.22),0 1px 1px rgba(0,0,0,0.3);
+            padding-bottom:4px;
+        }
+
+        .skynet-hero-title::after {
+            content:"";
+            display:block;
+            width:48px;
+            height:1px;
+            margin:3px auto 0 auto;
+            background:linear-gradient(90deg,transparent,#78c6e7,transparent);
+            box-shadow:0 0 5px rgba(120,198,231,0.45);
+        }
+
+        .skynet-hero-sub {
+            margin-top:1px;
+            color:#bfcacd !important;
+            font-family:monospace;
+            font-size:11px;
+            letter-spacing:0.45px;
+            line-height:15px;
+        }
+
+        .skynet-status {
+            position:absolute;
+            top:11px;
+            right:12px;
+            margin:0;
+            padding:5px 10px;
+            border-radius:12px;
+            background:#30483b;
+            color:#a9e5bf;
+            border:1px solid #4c8061;
+            font-weight:bold;
+            font-size:11px;
+            z-index:2;
+        }
+        .skynet-status-dot {
+            display:inline-block; width:7px; height:7px; border-radius:50%;
+            background:#65c18c; margin-right:5px;
+        }
+
+        .skynet-project-link {
+            position:absolute;
+            top:11px;
+            left:12px;
+            padding:5px 10px;
+            border:1px solid #547d93;
+            border-radius:12px;
+            background:#2d414b;
+            color:#9fd5f1 !important;
+            font-size:10px;
+            font-weight:bold;
+            text-decoration:none;
+            z-index:2;
+        }
+
+        .skynet-project-link:hover,
+        .skynet-project-link:focus-visible {
+            border-color:#79b7d3;
+            background:#344e5a;
+            color:#d1efff !important;
+            outline:none;
+        }
+        .skynet-kpis {
+            width:100%; border-collapse:separate !important;
+            border-spacing:6px !important; margin:-6px 0 4px -6px;
+        }
+        .skynet-kpi {
+            background:#354247 !important; border:1px solid #607780 !important;
+            border-radius:5px; text-align:center; padding:9px 5px !important;
+            width:25%;
+        }
+        .skynet-kpi-label {
+            display:block; color:var(--skynet-muted-2) !important; font-size:11px; font-weight:bold;
+        }
+        .skynet-kpi-value {
+            display:block; color:var(--skynet-title) !important; font-size:22px; line-height:25px;
+            font-weight:bold; margin-top:3px;
+        }
+        .skynet-meta {
+            color:var(--skynet-muted-2) !important; text-align:center; font-size:11px; margin:2px 0 8px 0;
+        }
+        .skynet-update-result {
+            min-height:15px;
+            margin-top:3px;
+            color:#b8c4c8;
+            font-size:10px;
+        }
+        .skynet-update-result.error { color:#f2afb5; }
+        .skynet-actionbar {
+            background:#3a464a !important; border:1px solid #607780 !important;
+            border-radius:5px; padding:7px !important;
+        }
+
+        /* Navigation and settings. */
         .skynet-tabs {
             display: flex;
             margin: 0 0 10px 0;
@@ -238,11 +304,13 @@
             align-items: center;
             justify-content: space-between;
             gap: 10px;
+            min-height: 52px;
             margin: 8px 0 10px 0;
             padding: 8px 10px;
-            background: var(--skynet-panel);
-            border: 1px solid var(--skynet-border);
+            background: var(--skynet-surface);
+            border: 1px solid var(--skynet-border-medium);
             border-radius: 5px;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
             box-sizing: border-box;
             width: 100%;
             max-width: 760px;
@@ -254,19 +322,15 @@
             color: var(--skynet-muted-2) !important;
         }
 
-        .skynet-update-bar {
-            min-height: 52px;
-        }
-
         .skynet-update-info {
             min-width: 0;
-            color: var(--skynet-muted);
+            color: var(--skynet-muted-2) !important;
             font-size: 11px;
             line-height: 15px;
         }
 
         .skynet-update-title {
-            color: var(--skynet-heading);
+            color: var(--skynet-title) !important;
             font-size: 12px;
             font-weight: bold;
         }
@@ -275,9 +339,9 @@
             min-width: 112px;
             height: 32px;
             padding: 0 14px !important;
-            border: 1px solid #7ba6bb !important;
+            border: 1px solid #8ab0c2 !important;
             border-radius: 5px !important;
-            background: linear-gradient(#6ea6bf, #4f7f95) !important;
+            background: linear-gradient(180deg, #6ea6bf 0%, #4f7f95 100%) !important;
             color: #fff !important;
             font-weight: bold !important;
             text-shadow: 0 1px 1px rgba(0,0,0,0.35);
@@ -287,18 +351,21 @@
             transition: transform 120ms ease, filter 120ms ease;
         }
 
-        .skynet-update-button:disabled,
-        .skynet-update-button.skynet-update-busy {
+        .skynet-update-button:disabled {
             opacity: 0.72;
-            cursor: wait;
+            cursor: default;
             filter: saturate(0.75);
         }
 
-        .skynet-update-button:hover {
+        .skynet-update-button.skynet-update-busy {
+            cursor: wait;
+        }
+
+        .skynet-update-button:not(:disabled):hover {
             filter: brightness(1.08);
         }
 
-        .skynet-update-button:active {
+        .skynet-update-button:not(:disabled):active {
             transform: translateY(1px);
         }
 
@@ -430,6 +497,89 @@
             font-size: 10px;
         }
 
+        .skynet-country-editor {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .skynet-country-row th {
+            padding-top: 13px !important;
+            vertical-align: top;
+        }
+
+        .skynet-country-picker {
+            width: 100% !important;
+            max-width: 360px !important;
+        }
+
+        .skynet-country-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            min-height: 26px;
+        }
+
+        .skynet-country-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            min-height: 25px;
+            padding: 0 5px 0 8px;
+            border: 1px solid var(--skynet-border);
+            border-radius: 13px;
+            background: var(--skynet-panel-alt);
+            color: var(--skynet-text);
+            font-size: 10px;
+        }
+
+        .skynet-country-code {
+            color: var(--skynet-muted);
+            font-size: 9px;
+            text-transform: uppercase;
+        }
+
+        .skynet-country-remove {
+            width: 18px;
+            height: 18px;
+            padding: 0;
+            border: 0;
+            border-radius: 50%;
+            background: transparent;
+            color: var(--skynet-muted);
+            font-size: 15px;
+            line-height: 18px;
+            cursor: pointer;
+        }
+
+        .skynet-country-remove:hover,
+        .skynet-country-remove:focus-visible {
+            background: rgba(255,95,109,0.18);
+            color: #ff9ca6;
+            outline: none;
+        }
+
+        .skynet-country-empty,
+        .skynet-country-status {
+            color: var(--skynet-muted);
+            font-size: 10px;
+        }
+
+        .skynet-country-status.error {
+            color: #f2afb5;
+        }
+
+        .skynet-country-actions {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+
+        .skynet-country-actions .skynet-update-button {
+            min-width: 100px;
+        }
+
         .skynet-settings-actions {
             display: flex;
             align-items: center;
@@ -449,47 +599,20 @@
             color: #f2afb5;
         }
 
-        @media (max-width: 500px) {
-            .skynet-update-bar {
-                align-items: stretch;
-                flex-direction: column;
-            }
-
-            .skynet-update-button {
-                width: 100%;
-            }
-
-            .skynet-settings-actions {
-                align-items: stretch;
-                flex-direction: column;
-            }
-
-            .skynet-settings-table select,
-            .skynet-settings-actions .skynet-update-button {
-                width: 100%;
-            }
-
-            .skynet-malware-controls {
-                align-items: stretch;
-                flex-direction: column;
-            }
-
-            .skynet-malware-update {
-                width: 100%;
-            }
-        }
-
+        /* Details. */
         .skynet-detail {
             display: none;
             width: 100% !important;
             max-width: 760px !important;
             margin: 8px 0 10px 0;
-            background: var(--skynet-panel);
-            border: 1px solid var(--skynet-border);
+            background: var(--skynet-surface);
+            border: 1px solid var(--skynet-border-medium);
             border-radius: 6px;
             box-sizing: border-box;
             overflow: hidden;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.16);
+            box-shadow:
+                0 2px 6px rgba(0,0,0,0.18),
+                inset 0 1px 0 rgba(255,255,255,0.03);
         }
 
         .skynet-detail.visible {
@@ -502,12 +625,13 @@
             justify-content: space-between;
             min-height: 38px;
             box-sizing: border-box;
-            background: linear-gradient(#6f7d82, #536167);
-            border-bottom: 1px solid #71848a;
+            background: linear-gradient(180deg, #66767b 0%, #536267 100%);
+            border-bottom: 1px solid #75858a;
             color: #fff;
             padding: 6px 8px 6px 12px;
             font-size: 13px;
             font-weight: bold;
+            text-shadow: 0 1px 1px rgba(0,0,0,0.24);
         }
 
         .skynet-detail-close {
@@ -523,8 +647,8 @@
             gap: 10px;
             margin: 10px;
             padding: 9px 11px;
-            background: #2f3e44;
-            border: 1px solid #50656d;
+            background: var(--skynet-surface-2);
+            border: 1px solid var(--skynet-border-medium);
             border-radius: 5px;
             box-sizing: border-box;
         }
@@ -534,7 +658,7 @@
         }
 
         .skynet-detail-identity-label {
-            color: var(--skynet-muted);
+            color: var(--skynet-muted-2);
             font-size: 10px;
             font-weight: bold;
             text-transform: uppercase;
@@ -543,10 +667,11 @@
 
         .skynet-detail-identity-value {
             margin-top: 2px;
-            color: #fff;
+            color: var(--skynet-title);
             font-size: 17px;
             line-height: 21px;
             font-weight: bold;
+            letter-spacing: 0.15px;
             word-break: break-word;
         }
 
@@ -562,12 +687,13 @@
             width: 100%;
             border-collapse: collapse;
             table-layout: fixed;
-            background: #354247;
+            background: var(--skynet-surface);
         }
 
         .skynet-detail-grid td {
             padding: 7px 8px;
-            border-bottom: 1px solid rgba(115, 137, 145, 0.16);
+            border-bottom: 1px solid var(--skynet-border-faint);
+            color: var(--skynet-body);
             vertical-align: middle;
         }
 
@@ -577,18 +703,17 @@
 
         .skynet-detail-grid td:first-child {
             width: 150px;
-            color: var(--skynet-muted);
+            color: var(--skynet-muted-2);
+            font-size: 10px;
             font-weight: bold;
+            letter-spacing: 0.2px;
+            text-transform: uppercase;
+            white-space: nowrap;
         }
 
         .skynet-detail-grid td + td {
-            border-left: 1px solid rgba(115, 137, 145, 0.24);
-            color: var(--skynet-text);
-        }
-
-
-        .skynet-detail-grid td:first-child {
-            white-space: nowrap;
+            border-left: 1px solid var(--skynet-border-faint);
+            color: var(--skynet-body);
         }
 
         .skynet-detail-grid td:nth-child(2) {
@@ -609,6 +734,7 @@
 
         .skynet-detail-value {
             min-width: 0;
+            color: var(--skynet-title);
             font-weight: bold;
             word-break: break-word;
         }
@@ -654,7 +780,7 @@
 
         .skynet-context-link {
             cursor: pointer;
-            color: #f4d03f !important;
+            color: #f0cf52 !important;
             font-weight: bold !important;
             text-decoration: none !important;
         }
@@ -668,179 +794,7 @@
         }
 
 
-        /* Skynet visual theme. */
-        :root {
-            --skynet-title: #ffffff;
-            --skynet-body: #d7e0e3;
-            --skynet-muted-2: #aebcc1;
-            --skynet-accent: #8fd1f5;
-            --skynet-border-faint: rgba(155, 177, 185, 0.18);
-            --skynet-border-medium: rgba(155, 177, 185, 0.34);
-            --skynet-surface: #34464c;
-            --skynet-surface-2: #2d3d43;
-        }
-
-        .skynet-section-head {
-            background: linear-gradient(180deg, #66767b 0%, #536267 100%) !important;
-            border: 1px solid #75858a !important;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.10);
-        }
-
-        .skynet-section-head td {
-            color: var(--skynet-title) !important;
-            line-height: 18px !important;
-        }
-
-        .skynet-controls {
-            background: var(--skynet-surface-2) !important;
-            border-color: var(--skynet-border-medium) !important;
-        }
-
-        .skynet-control-label {
-            color: var(--skynet-body) !important;
-            letter-spacing: 0.25px;
-        }
-
-        .skynet-chart-shell {
-            background: var(--skynet-surface-2);
-            border: 1px solid var(--skynet-border-faint);
-        }
-
-        .skynet-chart-shell canvas {
-            display: block;
-        }
-
-        .skynet-modern-table {
-            background: var(--skynet-surface) !important;
-        }
-
-
-        .StatsTable.skynet-modern-table thead th,
-        .StatsTable.skynet-modern-table tbody td {
-            font-family: inherit !important;
-            box-sizing: border-box !important;
-        }
-
-        .StatsTable.skynet-modern-table th,
-        .StatsTable.skynet-modern-table td {
-            line-height: 16px !important;
-        }
-
-        .StatsTable.skynet-modern-table th {
-            color: #dbe4e7 !important;
-            background: #2f4046 !important;
-            border-bottom: 1px solid var(--skynet-border-medium) !important;
-            line-height: 16px !important;
-        }
-
-        .StatsTable.skynet-modern-table td {
-            color: var(--skynet-body) !important;
-            border-bottom: 1px solid var(--skynet-border-faint) !important;
-            line-height: 16px !important;
-        }
-
-        .StatsTable.skynet-modern-table th + th,
-        .StatsTable.skynet-modern-table td + td {
-            border-left: 1px solid var(--skynet-border-faint) !important;
-        }
-
-        .StatsTable.skynet-modern-table tr:nth-child(even) td {
-            background: #3a4a50 !important;
-        }
-
-        .StatsTable.skynet-modern-table tr:hover td {
-            background: #42545a !important;
-        }
-
-        .skynet-kpi-label,
-        .skynet-meta,
-        .skynet-update-info {
-            color: var(--skynet-muted-2) !important;
-        }
-
-        .skynet-kpi-value {
-            color: var(--skynet-title) !important;
-        }
-
-        .skynet-detail {
-            background: var(--skynet-surface);
-            border-color: var(--skynet-border-medium);
-            box-shadow:
-                0 2px 6px rgba(0,0,0,0.18),
-                inset 0 1px 0 rgba(255,255,255,0.03);
-        }
-
-        .skynet-detail-head {
-            background: linear-gradient(180deg, #66767b 0%, #536267 100%);
-            border-bottom-color: #75858a;
-            text-shadow: 0 1px 1px rgba(0,0,0,0.24);
-        }
-
-        .skynet-detail-identity {
-            background: var(--skynet-surface-2);
-            border-color: var(--skynet-border-medium);
-        }
-
-        .skynet-detail-identity-label {
-            color: var(--skynet-muted-2);
-        }
-
-        .skynet-detail-identity-value {
-            color: var(--skynet-title);
-            letter-spacing: 0.15px;
-        }
-
-        .skynet-detail-grid {
-            background: var(--skynet-surface);
-        }
-
-        .skynet-detail-grid td {
-            color: var(--skynet-body);
-            border-bottom-color: var(--skynet-border-faint);
-        }
-
-        .skynet-detail-grid td:first-child {
-            color: var(--skynet-muted-2);
-            text-transform: uppercase;
-            font-size: 10px;
-            letter-spacing: 0.2px;
-        }
-
-        .skynet-detail-grid td + td {
-            border-left-color: var(--skynet-border-faint);
-            color: var(--skynet-body);
-        }
-
-        .skynet-detail-value {
-            color: var(--skynet-title);
-        }
-
-        .skynet-context-link,
-        .skynet-external-link {
-            color: #f0cf52 !important;
-        }
-
-        .skynet-update-bar {
-            background: var(--skynet-surface);
-            border-color: var(--skynet-border-medium);
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
-        }
-
-        .skynet-update-title {
-            color: var(--skynet-title) !important;
-        }
-
-        .skynet-update-button {
-            border-color: #8ab0c2 !important;
-            background: linear-gradient(180deg, #6ea6bf 0%, #4f7f95 100%) !important;
-        }
-
-        .skynet-nodata {
-            color: var(--skynet-muted-2) !important;
-            background: var(--skynet-surface-2);
-        }
-
-        /* Skynet visual theme. */
+        /* Statistics. */
         .skynet-section {
             width: 100% !important;
             max-width: 760px !important;
@@ -897,9 +851,9 @@
             border-left: 1px solid var(--skynet-border-soft) !important;
         }
 
-        .skynet-modern-table th + th,
-        .skynet-modern-table td + td {
-            border-left: 1px solid #60767d !important;
+        .StatsTable.skynet-modern-table th + th,
+        .StatsTable.skynet-modern-table td + td {
+            border-left: 1px solid var(--skynet-border-faint) !important;
         }
 
         .skynet-modern-table thead th {
@@ -921,7 +875,9 @@
 
         .skynet-modern-table th,
         .skynet-modern-table td {
-            box-sizing: border-box;
+            box-sizing: border-box !important;
+            font-family: inherit !important;
+            line-height: 16px !important;
         }
 
         .skynet-section-head {
@@ -931,11 +887,14 @@
             border-radius: 4px 4px 0 0;
             height: 34px;
             box-sizing: border-box;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.10);
         }
 
         .skynet-section-head td {
+            color: var(--skynet-title) !important;
             font-size: 13px !important;
             font-weight: bold !important;
+            line-height: 18px !important;
             padding: 7px 10px !important;
         }
 
@@ -970,6 +929,7 @@
 
         .skynet-controls {
             background: var(--skynet-panel) !important;
+            border-top-color: var(--skynet-border-medium) !important;
             border-left: 1px solid var(--skynet-border) !important;
             border-right: 1px solid var(--skynet-border) !important;
             border-bottom: 1px solid var(--skynet-border) !important;
@@ -977,21 +937,26 @@
         }
 
         .skynet-control-label {
-            color: #d7dfe2;
+            color: var(--skynet-body) !important;
             font-size: 11px;
             font-weight: bold;
+            letter-spacing: 0.25px;
             margin-right: 5px;
             text-transform: uppercase;
         }
-.skynet-chart-shell {
+        .skynet-chart-shell {
             position: relative;
             width: 100%;
             height: 360px;
-            background: var(--skynet-bg);
+            overflow: hidden;
+            background:
+                radial-gradient(circle at 50% 0, rgba(53, 216, 255, 0.07), transparent 58%),
+                #11191c;
             border: 1px solid #43565d;
             border-radius: 0 0 7px 7px;
             box-sizing: border-box;
             padding: 8px;
+            box-shadow: inset 0 0 28px rgba(57, 239, 157, 0.035);
         }
 
         .skynet-chart-shell.skynet-activity-shell {
@@ -1023,6 +988,8 @@
             display: block;
             position: relative;
             z-index: 1;
+            width: 100% !important;
+            height: 100% !important;
             max-width: 100%;
         }
 
@@ -1055,7 +1022,7 @@
             border: 0 !important;
             border-bottom: 1px solid #52656c !important;
             font-size: 11px !important;
-            padding: 7px 8px !important;
+            padding: 7px 6px !important;
             text-align: left !important;
             text-transform: uppercase;
             vertical-align: middle !important;
@@ -1064,7 +1031,7 @@
         .StatsTable.skynet-modern-table td {
             border: 0 !important;
             border-bottom: 1px solid #4b5b61 !important;
-            padding: 7px 8px !important;
+            padding: 7px 6px !important;
             color: var(--skynet-text) !important;
             font-size: 11px !important;
             vertical-align: middle !important;
@@ -1127,135 +1094,6 @@
             font-weight: bold !important;
         }
 
-
-        /* Skynet visual theme. */
-
-        .skynet-section-head {
-            background: linear-gradient(#6f7d82, #536167) !important;
-            color: #fff !important;
-            border: 1px solid #7f9197 !important;
-            border-radius: 4px 4px 0 0;
-            height: 34px;
-            box-sizing: border-box;
-        }
-
-        .skynet-section-head td {
-            font-size: 13px !important;
-            font-weight: bold !important;
-            padding: 7px 10px !important;
-        }
-
-        .skynet-section-head td:first-child {
-            letter-spacing: 0.1px;
-        }
-
-        .skynet-section-head td:last-child {
-            text-align: right;
-            width: 30px;
-            color: #dce4e7 !important;
-        }
-
-        .skynet-section-toggle {
-            font-size: 15px;
-            line-height: 12px;
-            opacity: 0.9;
-        }
-
-        .skynet-controls {
-            background: var(--skynet-panel) !important;
-            border-left: 1px solid var(--skynet-border) !important;
-            border-right: 1px solid var(--skynet-border) !important;
-            border-bottom: 1px solid var(--skynet-border) !important;
-            padding: 7px 9px !important;
-        }
-
-        .skynet-control-label {
-            color: #d7dfe2;
-            font-size: 11px;
-            font-weight: bold;
-            margin-right: 5px;
-            text-transform: uppercase;
-        }
-
-        .skynet-chart-shell {
-            position: relative;
-            width: 100%;
-            height: 360px;
-            overflow: hidden;
-            background:
-                radial-gradient(circle at 50% 0, rgba(53, 216, 255, 0.07), transparent 58%),
-                #11191c;
-            border: 1px solid #43565d;
-            border-radius: 0 0 7px 7px;
-            box-sizing: border-box;
-            padding: 8px;
-            box-shadow: inset 0 0 28px rgba(57, 239, 157, 0.035);
-        }
-
-        .skynet-chart-shell canvas {
-            width: 100% !important;
-            height: 100% !important;
-        }
-
-        .skynet-table-shell {
-            background: var(--skynet-panel);
-            border-left: 1px solid var(--skynet-border);
-            border-right: 1px solid var(--skynet-border);
-            border-bottom: 1px solid var(--skynet-border);
-            border-radius: 0 0 5px 5px;
-            padding: 0;
-            overflow: hidden;
-        }
-
-        .StatsTable.skynet-modern-table {
-            width: 100% !important;
-            table-layout: fixed !important;
-            border: 0 !important;
-            background: var(--skynet-panel) !important;
-        }
-
-        .StatsTable.skynet-modern-table th {
-            background: var(--skynet-bg) !important;
-            color: var(--skynet-heading) !important;
-            border: 0 !important;
-            border-bottom: 1px solid #52656c !important;
-            font-size: 11px !important;
-            padding: 7px 6px !important;
-            text-align: left !important;
-            text-transform: uppercase;
-        }
-
-        .StatsTable.skynet-modern-table td {
-            border: 0 !important;
-            border-bottom: 1px solid #4b5b61 !important;
-            padding: 7px 6px !important;
-            color: var(--skynet-text) !important;
-            font-size: 11px !important;
-            vertical-align: top;
-        }
-
-        .StatsTable.skynet-modern-table tr:nth-child(even) td {
-            background: var(--skynet-panel-alt) !important;
-        }
-
-        .StatsTable.skynet-modern-table tr:hover td {
-            background: #42545b !important;
-        }
-
-        .StatsTable.skynet-modern-table tr:last-child td {
-            border-bottom: 0 !important;
-        }
-
-        .skynet-ip-value {
-            font-weight: bold;
-            white-space: nowrap;
-        }
-
-        .skynet-external-link {
-            color: var(--skynet-link) !important;
-            font-weight: bold !important;
-        }
-
         .skynet-nodata {
             min-height: 180px;
             box-sizing: border-box;
@@ -1263,7 +1101,7 @@
             display: flex !important;
             align-items: center;
             justify-content: center;
-            color: #cfd7da;
+            color: var(--skynet-muted-2) !important;
             font-size: 22px;
             line-height: 28px;
             font-weight: bold;
@@ -1276,40 +1114,6 @@
             height: 150px !important;
         }
 
-        .skynet-nodata {
-            min-height: 180px;
-            box-sizing: border-box;
-            padding: 24px;
-            display: flex !important;
-            align-items: center;
-            justify-content: center;
-            color: #cfd7da;
-            font-size: 22px;
-            line-height: 28px;
-            font-weight: bold;
-            text-align: center;
-            background: var(--skynet-bg);
-        }
-
-        .skynet-table-nodata {
-            min-height: 150px;
-            height: 150px !important;
-        }
-
-        @media (max-width: 900px) {
-            .skynet-control-group {
-                display: block;
-                margin: 0 0 6px 0;
-            }
-
-            .skynet-chart-shell {
-                height: 320px;
-            }
-
-            .skynet-chart-shell.skynet-activity-shell {
-                height: 270px;
-            }
-        }
         .StatsTable td.skynet-nodata {
             height:180px !important;
             min-height:0;
@@ -1319,6 +1123,71 @@
             font-family:Arial !important;
             color:#cfd7da !important;
             background:var(--skynet-bg) !important;
+        }
+
+        /* Responsive. */
+        @media (max-width: 900px) {
+            .skynet-chart-shell {
+                height: 320px;
+            }
+
+            .skynet-chart-shell.skynet-activity-shell {
+                height: 270px;
+            }
+        }
+
+        @media (max-width: 500px) {
+            .skynet-hero {
+                padding:42px 10px 12px 10px;
+            }
+
+            .skynet-hero-title {
+                font-size:20px;
+                letter-spacing:3px;
+            }
+
+            .skynet-project-link {
+                position:static;
+                display:inline-block;
+                margin-top:8px;
+            }
+
+            .skynet-update-bar {
+                align-items: stretch;
+                flex-direction: column;
+            }
+
+            .skynet-update-button {
+                width: 100%;
+            }
+
+            .skynet-settings-actions {
+                align-items: stretch;
+                flex-direction: column;
+            }
+
+            .skynet-settings-table select,
+            .skynet-settings-actions .skynet-update-button {
+                width: 100%;
+            }
+
+            .skynet-malware-controls {
+                align-items: stretch;
+                flex-direction: column;
+            }
+
+            .skynet-malware-update {
+                width: 100%;
+            }
+
+            .skynet-country-actions {
+                align-items: stretch;
+                flex-direction: column;
+            }
+
+            .skynet-country-actions .skynet-update-button {
+                width: 100%;
+            }
         }
 
     </style>
@@ -1348,13 +1217,23 @@
 
 
         const SkynetUI = {
+            /* Runtime state. */
             charts: Object.create(null),
             chartData: Object.create(null),
             theme: Object.create(null),
+            refreshInProgress: false,
+            chartResizeBound: false,
+            countryNames: Object.create(null),
+            countryDisplayNames: null,
+            countrySelection: [],
+            countryOriginal: "",
+
+            /* Static definitions. */
             chartColors: [
                 "#35D8FF", "#39EF9D", "#FFCF5C", "#FF5F6D", "#C875FF",
                 "#2FE1C4", "#FF8C42", "#65A5FF", "#E96BFF", "#8CFF66"
             ],
+            countryCodes: "AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BV BW BY BZ CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK FM FO FR GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY HK HM HN HR HT HU ID IE IL IM IN IO IQ IR IS IT JE JM JO JP KE KG KH KI KM KN KP KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MF MG MH MK ML MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ NA NC NE NF NG NI NL NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS PT PW PY QA RE RO RS RU RW SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TF TG TH TJ TK TL TM TN TO TR TT TV TW TZ UA UG UM US UY UZ VA VC VE VG VI VN VU WF WS YE YT ZA ZM ZW".split(" "),
             chartDefinitions: {
                 ActivityToday: {
                     title: "Block Activity Today",
@@ -1418,14 +1297,72 @@
                 settingsDefaultsButton: "skynetRestoreDefaults",
                 malwareButton: "skynetUpdateMalware",
                 malwareStatus: "skynetMalwareStatus",
+                countryPicker: "skynetCountryPicker",
+                countryList: "skynetCountryList",
+                countryButton: "skynetApplyCountries",
+                countryClear: "skynetClearCountries",
+                countryResult: "skynetCountryStatus",
                 settingsResult: "skynetSettingsResult",
                 overviewTab: "skynetOverviewTab",
                 settingsTab: "skynetSettingsTab",
                 overviewView: "skynetOverviewView",
                 settingsView: "skynetSettingsView"
+            },
+            actionDefinitions: {
+                stats: {
+                    button: "updateButton",
+                    result: "updateResult",
+                    label: "Update Stats",
+                    success: "Statistics refreshed successfully.",
+                    timeout: "Statistics refresh did not complete.",
+                    loadError: "Unable to load refreshed data."
+                },
+                settings: {
+                    button: "settingsButton",
+                    result: "settingsResult",
+                    label: "Apply Settings",
+                    success: "Settings applied successfully.",
+                    failure: "Unable to apply settings.",
+                    timeout: "Settings update did not complete.",
+                    loadError: "Unable to load current settings.",
+                    source: "settings",
+                    requireSuccess: true
+                },
+                reload: {
+                    button: "settingsReloadButton",
+                    result: "settingsResult",
+                    label: "Reload Settings",
+                    success: "Settings reloaded.",
+                    timeout: "Settings reload did not complete.",
+                    loadError: "Unable to load current settings.",
+                    source: "settings"
+                },
+                malware: {
+                    button: "malwareButton",
+                    result: "settingsResult",
+                    label: "Update Now",
+                    success: "Malware lists updated successfully.",
+                    failure: "Unable to update malware lists.",
+                    timeout: "Malware list update did not complete.",
+                    loadError: "Unable to load current settings.",
+                    source: "settings",
+                    requireSuccess: true
+                },
+                countries: {
+                    button: "countryButton",
+                    result: "countryResult",
+                    label: "Apply Countries",
+                    success: "Country blocking updated successfully.",
+                    failure: "Unable to update country blocking.",
+                    timeout: "Country blocking update did not complete.",
+                    loadError: "Unable to load current country settings.",
+                    source: "settings",
+                    requireSuccess: true
+                }
             }
         };
 
+        /* Shared utilities. */
         SkynetUI.getElement = function(id) {
             return document.getElementById(id);
         };
@@ -1470,6 +1407,12 @@
                 return "";
             }
 
+            if (Object.prototype.hasOwnProperty.call(this.countryNames, code)) {
+                return this.countryNames[code];
+            }
+
+            let name = code;
+
             /*
              * Convert compact country codes to localized display names when
              * supported by the browser, with the original code as fallback.
@@ -1477,20 +1420,23 @@
             if (typeof Intl !== "undefined" &&
                 typeof Intl.DisplayNames === "function") {
                 try {
-                    const names = new Intl.DisplayNames(["en-AU"], {
-                        type: "region"
-                    });
-                    const name = names.of(code);
+                    if (!this.countryDisplayNames) {
+                        this.countryDisplayNames = new Intl.DisplayNames(["en-AU"], {
+                            type: "region"
+                        });
+                    }
+                    const displayName = this.countryDisplayNames.of(code);
 
-                    if (name && name !== code) {
-                        return name;
+                    if (displayName && displayName !== code) {
+                        name = displayName;
                     }
                 } catch (error) {
-                    /* Retain the original value when the clipboard API is unavailable. */
+                    /* Retain the original country code. */
                 }
             }
 
-            return code;
+            this.countryNames[code] = name;
+            return name;
         };
         SkynetUI.formatChartLabels = function(labels, dataType) {
             if (!Array.isArray(labels) || dataType !== "country") {
@@ -1644,6 +1590,7 @@
             this.setCookie(element.id, Number(element.value));
         };
 
+        /* Chart data and state. */
         SkynetUI.resizeCharts = function() {
             Object.keys(this.charts).forEach(function(chartName) {
                 const chart = SkynetUI.charts[chartName];
@@ -1843,6 +1790,7 @@
                 : (axis === "x" ? "IP Address" : "Hits");
         };
 
+        /* Detail panel. */
         SkynetUI.closeDetails = function() {
             const panel = this.getElement("skynetDetail");
 
@@ -2362,35 +2310,6 @@
             });
         };
 
-        SkynetUI.getChartTarget = function(chartName, multiLabel, index) {
-            if (chartName === "InPortHits" || chartName === "SPortHits") {
-                const labels = window["Label" + chartName];
-
-                return labels && labels[index]
-                    ? "https://www.speedguide.net/port.php?port=" +
-                        encodeURIComponent(labels[index])
-                    : "";
-            }
-
-            if (chartName === "TCConnHits") {
-                return "";
-            }
-
-            const group = this.getElement(chartName + "_Group");
-            const groupValue = group ? Number(group.value) : 0;
-
-            if (multiLabel === "true" && groupValue === 1) {
-                return "";
-            }
-
-            const labels = window["Label" + chartName + "_IPs"];
-
-            return labels && labels[index]
-                ? "https://otx.alienvault.com/indicator/ip/" +
-                    encodeURIComponent(labels[index])
-                : "";
-        };
-
         SkynetUI.getChartTooltipMeta = function(chartName, multiLabel, index) {
             const source = this.getChartData(chartName, multiLabel);
 
@@ -2458,6 +2377,7 @@
             return meta;
         };
 
+        /* Chart rendering. */
         SkynetUI.drawChart = function(chartName, multiLabel) {
             const canvas = this.getElement("divChart" + chartName);
 
@@ -3347,20 +3267,6 @@
             return html;
         };
 
-        SkynetUI.setCurrentPage = function() {
-            const page = window.location.pathname.substring(1);
-            const current = this.getElement("current_page");
-            const next = this.getElement("next_page");
-
-            if (current) {
-                current.value = page;
-            }
-
-            if (next) {
-                next.value = page;
-            }
-        };
-
         SkynetUI.applyStatsPayload = function() {
             [
                 "SetStatsDate", "SetStatsSize", "SetBLCount1", "SetBLCount2",
@@ -3373,6 +3279,7 @@
 
         };
 
+        /* Settings and country management. */
         SkynetUI.populateMalwareStatus = function() {
             const status = this.getElement(this.selectors.malwareStatus);
             const settings = window.SkynetSettings || {};
@@ -3400,6 +3307,214 @@
 
             return Boolean(settings && window.SkynetSettingsGenerated &&
                 Object.prototype.hasOwnProperty.call(settings, "banmalwarelastupdated"));
+        };
+
+        SkynetUI.populateBlacklistCounts = function(settings) {
+            const counters = {
+                blcount1: settings.blacklist1count,
+                blcount2: settings.blacklist2count
+            };
+
+            Object.keys(counters).forEach(function(id) {
+                const counter = SkynetUI.getElement(id);
+
+                if (counter && /^\d+$/.test(String(counters[id] || ""))) {
+                    counter.textContent = SkynetUI.formatNumber(counters[id]);
+                }
+            });
+        };
+
+        SkynetUI.normaliseCountries = function(value) {
+            const countries = [];
+
+            String(value || "").toLowerCase().split(/\s+/).forEach(function(code) {
+                if (/^[a-z]{2}$/.test(code) && countries.indexOf(code) === -1) {
+                    countries.push(code);
+                }
+            });
+
+            return countries.sort();
+        };
+
+        SkynetUI.canManageCountries = function() {
+            const settings = window.SkynetSettings;
+
+            return Boolean(settings && window.SkynetSettingsGenerated &&
+                Object.prototype.hasOwnProperty.call(settings, "countrylist"));
+        };
+
+        SkynetUI.isCountryDirty = function() {
+            return this.countrySelection.join(" ") !== this.countryOriginal;
+        };
+
+        SkynetUI.populateCountryPicker = function() {
+            const picker = this.getElement(this.selectors.countryPicker);
+
+            if (!picker) {
+                return;
+            }
+
+            while (picker.firstChild) {
+                picker.removeChild(picker.firstChild);
+            }
+
+            const placeholder = document.createElement("option");
+            placeholder.value = "";
+            placeholder.textContent = "Add a country...";
+            picker.appendChild(placeholder);
+
+            this.countryCodes.slice().sort(function(first, second) {
+                return SkynetUI.getCountryName(first).localeCompare(
+                    SkynetUI.getCountryName(second)
+                );
+            }).forEach(function(code) {
+                const option = document.createElement("option");
+
+                option.value = code.toLowerCase();
+                option.textContent = SkynetUI.getCountryName(code) + " (" + code + ")";
+                option.disabled = SkynetUI.countrySelection.indexOf(option.value) !== -1;
+                picker.appendChild(option);
+            });
+
+            picker.value = "";
+        };
+
+        SkynetUI.updateCountryControls = function() {
+            const supported = this.canManageCountries();
+            const busy = this.refreshInProgress;
+            const picker = this.getElement(this.selectors.countryPicker);
+            const apply = this.getElement(this.selectors.countryButton);
+            const clear = this.getElement(this.selectors.countryClear);
+
+            if (picker) {
+                picker.disabled = busy || !supported;
+            }
+            if (apply) {
+                apply.disabled = busy || !supported || !this.isCountryDirty();
+            }
+            if (clear) {
+                clear.disabled = busy || !supported || !this.countrySelection.length;
+            }
+            document.querySelectorAll(".skynet-country-remove").forEach(function(button) {
+                button.disabled = busy || !supported;
+            });
+        };
+
+        SkynetUI.renderCountries = function() {
+            const list = this.getElement(this.selectors.countryList);
+
+            if (!list) {
+                return;
+            }
+
+            while (list.firstChild) {
+                list.removeChild(list.firstChild);
+            }
+
+            if (!this.countrySelection.length) {
+                const empty = document.createElement("span");
+                empty.className = "skynet-country-empty";
+                empty.textContent = "No countries are currently blocked.";
+                list.appendChild(empty);
+            } else {
+                this.countrySelection.forEach(function(code) {
+                    const tag = document.createElement("span");
+                    const name = document.createElement("span");
+                    const countryCode = document.createElement("span");
+                    const remove = document.createElement("button");
+
+                    tag.className = "skynet-country-tag";
+                    name.textContent = SkynetUI.getCountryName(code);
+                    countryCode.className = "skynet-country-code";
+                    countryCode.textContent = code;
+                    remove.type = "button";
+                    remove.className = "skynet-country-remove";
+                    remove.dataset.country = code;
+                    remove.title = "Remove " + SkynetUI.getCountryName(code);
+                    remove.setAttribute("aria-label", remove.title);
+                    remove.textContent = "×";
+                    remove.disabled = SkynetUI.refreshInProgress;
+                    tag.appendChild(name);
+                    tag.appendChild(countryCode);
+                    tag.appendChild(remove);
+                    list.appendChild(tag);
+                });
+            }
+
+            const apply = this.getElement(this.selectors.countryButton);
+            if (apply && !this.refreshInProgress) {
+                apply.value = "Apply Countries";
+            }
+
+            this.setUpdateResult(
+                this.isCountryDirty()
+                    ? "Unsaved country blocking changes."
+                    : (this.countrySelection.length
+                        ? this.countrySelection.length +
+                            (this.countrySelection.length === 1 ? " country blocked." : " countries blocked.")
+                        : ""),
+                false,
+                this.selectors.countryResult
+            );
+            this.updateCountryControls();
+        };
+
+        SkynetUI.populateCountries = function() {
+            if (!this.canManageCountries()) {
+                this.countrySelection = [];
+                this.countryOriginal = "";
+                this.populateCountryPicker();
+                this.renderCountries();
+                this.setUpdateResult(
+                    "Reload settings after updating Skynet.",
+                    false,
+                    this.selectors.countryResult
+                );
+                return;
+            }
+
+            this.countrySelection = this.normaliseCountries(
+                window.SkynetSettings.countrylist
+            );
+            this.countryOriginal = this.countrySelection.join(" ");
+            this.populateCountryPicker();
+            this.renderCountries();
+        };
+
+        SkynetUI.addCountry = function(code) {
+            code = String(code || "").toLowerCase();
+
+            if (!/^[a-z]{2}$/.test(code) ||
+                this.countrySelection.indexOf(code) !== -1) {
+                return;
+            }
+
+            this.countrySelection.push(code);
+            this.countrySelection.sort();
+            this.populateCountryPicker();
+            this.renderCountries();
+        };
+
+        SkynetUI.removeCountry = function(code) {
+            const index = this.countrySelection.indexOf(code);
+
+            if (index === -1 || this.refreshInProgress) {
+                return;
+            }
+
+            this.countrySelection.splice(index, 1);
+            this.populateCountryPicker();
+            this.renderCountries();
+        };
+
+        SkynetUI.clearCountries = function() {
+            if (this.refreshInProgress || !this.countrySelection.length) {
+                return;
+            }
+
+            this.countrySelection = [];
+            this.populateCountryPicker();
+            this.renderCountries();
         };
 
         SkynetUI.populateSettings = function() {
@@ -3430,6 +3545,7 @@
                 if (malware) {
                     malware.disabled = true;
                 }
+                this.populateCountries();
                 this.setUpdateResult(
                     "Reload settings to load current values.",
                     false,
@@ -3447,6 +3563,8 @@
             });
 
             this.populateMalwareStatus();
+            this.populateBlacklistCounts(settings);
+            this.populateCountries();
 
             if (apply && !this.refreshInProgress) {
                 apply.disabled = false;
@@ -3462,6 +3580,7 @@
             }
         };
 
+        /* Background actions. */
         SkynetUI.setUpdateResult = function(message, isError, resultSelector) {
             const result = this.getElement(resultSelector || this.selectors.updateResult);
 
@@ -3479,7 +3598,9 @@
                 this.selectors.settingsButton,
                 this.selectors.settingsReloadButton,
                 this.selectors.settingsDefaultsButton,
-                this.selectors.malwareButton
+                this.selectors.malwareButton,
+                this.selectors.countryButton,
+                this.selectors.countryClear
             ].forEach(function(id) {
                 const button = SkynetUI.getElement(id);
 
@@ -3488,9 +3609,24 @@
                         (id === SkynetUI.selectors.settingsButton &&
                             (!window.SkynetSettings || !window.SkynetSettingsGenerated)) ||
                         (id === SkynetUI.selectors.malwareButton &&
-                            !SkynetUI.canUpdateMalware());
+                            !SkynetUI.canUpdateMalware()) ||
+                        ((id === SkynetUI.selectors.countryButton ||
+                            id === SkynetUI.selectors.countryClear) &&
+                            !SkynetUI.canManageCountries()) ||
+                        (id === SkynetUI.selectors.countryButton &&
+                            !SkynetUI.isCountryDirty()) ||
+                        (id === SkynetUI.selectors.countryClear &&
+                            !SkynetUI.countrySelection.length);
                     button.classList.toggle("skynet-update-busy", active && id === buttonSelector);
                 }
+            });
+
+            const picker = this.getElement(this.selectors.countryPicker);
+            if (picker) {
+                picker.disabled = active || !this.canManageCountries();
+            }
+            document.querySelectorAll(".skynet-country-remove").forEach(function(remove) {
+                remove.disabled = active || !SkynetUI.canManageCountries();
             });
 
             const button = this.getElement(buttonSelector);
@@ -3539,6 +3675,27 @@
             return this.loadScript("settings.js", "Unable to load current settings");
         };
 
+        SkynetUI.getCountryUpdateError = function() {
+            const result = String(window.SkynetSettingsResult || "error");
+            const parts = result.split(":");
+            const country = this.getCountryName(parts[1]);
+
+            if (parts[0] === "download" && country) {
+                return "Unable to download the " + country + " country list.";
+            }
+            if (parts[0] === "invalid" && country) {
+                return country + " returned no valid IPv4 ranges.";
+            }
+            if (result === "restore") {
+                return "Unable to apply country blocking. Previous bans restored.";
+            }
+            if (result === "connection") {
+                return "Unable to update country blocking. Check the router connection.";
+            }
+
+            return "Unable to update country blocking.";
+        };
+
         SkynetUI.refreshRenderedStats = function() {
             this.destroyCharts();
             this.renderChartsAndTables();
@@ -3557,60 +3714,45 @@
 
         SkynetUI.waitForUpdate = function(previousStamp, attempts, requestType) {
             const self = this;
-            const settingsRequest = requestType !== "stats";
-            const applyRequest = requestType === "settings";
-            const malwareRequest = requestType === "malware";
-            const buttonSelector = malwareRequest
-                ? this.selectors.malwareButton
-                : (settingsRequest
-                    ? (applyRequest ? this.selectors.settingsButton : this.selectors.settingsReloadButton)
-                    : this.selectors.updateButton);
-            const resultSelector = settingsRequest
-                ? this.selectors.settingsResult
-                : this.selectors.updateResult;
-            const buttonLabel = malwareRequest
-                ? "Update Now"
-                : (settingsRequest
-                    ? (applyRequest ? "Apply Settings" : "Reload Settings")
-                    : "Update Stats");
-            const request = settingsRequest
+            const action = this.actionDefinitions[requestType] ||
+                this.actionDefinitions.stats;
+            const button = this.selectors[action.button];
+            const result = this.selectors[action.result];
+            const loadSettings = action.source === "settings";
+            const request = loadSettings
                 ? this.loadSettingsScript()
                 : this.loadStatsScript();
 
             request.then(function() {
-                const currentStamp = settingsRequest
+                const currentStamp = loadSettings
                     ? window.SkynetSettingsGenerated
                     : window.SkynetStatsGenerated;
 
                 if (String(currentStamp || "") !== String(previousStamp || "")) {
-                    if (settingsRequest) {
-                        self.populateSettings();
+                    const failed = action.requireSuccess &&
+                        window.SkynetSettingsResult !== "success";
+
+                    if (loadSettings) {
                         self.refreshRenderedStats();
+                        if (requestType !== "countries" || !failed) {
+                            self.populateSettings();
+                        }
                     } else {
                         self.refreshRenderedStats();
                     }
                     self.refreshInProgress = false;
-                    if ((applyRequest || malwareRequest) &&
-                        window.SkynetSettingsResult !== "success") {
+                    if (failed) {
                         self.setUpdateResult(
-                            malwareRequest
-                                ? "Unable to update malware lists."
-                                : "Unable to apply settings.",
+                            requestType === "countries"
+                                ? self.getCountryUpdateError()
+                                : action.failure,
                             true,
-                            resultSelector
+                            result
                         );
-                        self.setActionState(false, buttonSelector, "Try Again");
+                        self.setActionState(false, button, "Try Again");
                     } else {
-                        self.setUpdateResult(
-                            malwareRequest
-                                ? "Malware lists updated successfully."
-                                : (applyRequest
-                                    ? "Settings applied successfully."
-                                    : (settingsRequest ? "Settings reloaded." : "Statistics refreshed successfully.")),
-                            false,
-                            resultSelector
-                        );
-                        self.setActionState(false, buttonSelector, buttonLabel);
+                        self.setUpdateResult(action.success, false, result);
+                        self.setActionState(false, button, action.label);
                     }
                     return;
                 }
@@ -3623,16 +3765,8 @@
                 }
 
                 self.refreshInProgress = false;
-                self.setUpdateResult(
-                    malwareRequest
-                        ? "Malware list update did not complete."
-                        : (applyRequest
-                            ? "Settings update did not complete."
-                            : (settingsRequest ? "Settings reload did not complete." : "Statistics refresh did not complete.")),
-                    true,
-                    resultSelector
-                );
-                self.setActionState(false, buttonSelector, "Try Again");
+                self.setUpdateResult(action.timeout, true, result);
+                self.setActionState(false, button, "Try Again");
             }).catch(function() {
                 if (attempts > 0) {
                     window.setTimeout(function() {
@@ -3642,12 +3776,8 @@
                 }
 
                 self.refreshInProgress = false;
-                self.setUpdateResult(
-                    settingsRequest ? "Unable to load current settings." : "Unable to load refreshed data.",
-                    true,
-                    resultSelector
-                );
-                self.setActionState(false, buttonSelector, "Try Again");
+                self.setUpdateResult(action.loadError, true, result);
+                self.setActionState(false, button, "Try Again");
             });
         };
 
@@ -3677,6 +3807,27 @@
             this.setActionState(true, this.selectors.malwareButton, "Updating...");
             this.submitBackgroundAction("start_SkynetBanMalware");
             this.waitForUpdate(window.SkynetSettingsGenerated, 300, "malware");
+        };
+
+        SkynetUI.updateCountries = function() {
+            if (this.refreshInProgress || !this.canManageCountries() ||
+                !this.isCountryDirty()) {
+                return;
+            }
+
+            custom_settings.skynet_countrylist = this.countrySelection.join(" ");
+            this.refreshInProgress = true;
+            this.setUpdateResult(
+                this.countrySelection.length
+                    ? "Updating country blocking..."
+                    : "Removing country blocking...",
+                false,
+                this.selectors.countryResult
+            );
+            this.setActionState(true, this.selectors.countryButton, "Applying...");
+            document.form.amng_custom.value = JSON.stringify(custom_settings);
+            this.submitBackgroundAction("start_SkynetCountries");
+            this.waitForUpdate(window.SkynetSettingsGenerated, 300, "countries");
         };
 
         SkynetUI.submitBackgroundAction = function(action) {
@@ -3786,6 +3937,21 @@
             this.waitForUpdate(window.SkynetSettingsGenerated, 60, "reload");
         };
 
+        /* Page rendering and controls. */
+        SkynetUI.setCurrentPage = function() {
+            const page = window.location.pathname.substring(1);
+            const current = this.getElement("current_page");
+            const next = this.getElement("next_page");
+
+            if (current) {
+                current.value = page;
+            }
+
+            if (next) {
+                next.value = page;
+            }
+        };
+
         SkynetUI.showView = function(view) {
             const settings = view === "settings";
             const overviewTab = this.getElement(this.selectors.overviewTab);
@@ -3862,6 +4028,42 @@
             if (malware) {
                 malware.addEventListener("click", function() {
                     SkynetUI.updateMalware();
+                });
+            }
+
+            const countryPicker = this.getElement(this.selectors.countryPicker);
+
+            if (countryPicker) {
+                countryPicker.addEventListener("change", function() {
+                    SkynetUI.addCountry(this.value);
+                });
+            }
+
+            const countryList = this.getElement(this.selectors.countryList);
+
+            if (countryList) {
+                countryList.addEventListener("click", function(event) {
+                    const button = event.target;
+
+                    if (button.classList.contains("skynet-country-remove")) {
+                        SkynetUI.removeCountry(button.dataset.country);
+                    }
+                });
+            }
+
+            const countryClear = this.getElement(this.selectors.countryClear);
+
+            if (countryClear) {
+                countryClear.addEventListener("click", function() {
+                    SkynetUI.clearCountries();
+                });
+            }
+
+            const countryApply = this.getElement(this.selectors.countryButton);
+
+            if (countryApply) {
+                countryApply.addEventListener("click", function() {
+                    SkynetUI.updateCountries();
                 });
             }
 
@@ -4206,6 +4408,43 @@
                                                                 </td>
                                                             </tr>
                                                             <tr class="skynet-settings-group">
+                                                                <th colspan="2">Country Blocking</th>
+                                                            </tr>
+                                                            <tr class="skynet-country-row">
+                                                                <th>
+                                                                    <span class="skynet-setting-name">Blocked Countries</span>
+                                                                    <span class="skynet-setting-help">Blocks known IPv4 ranges assigned to the selected countries.</span>
+                                                                </th>
+                                                                <td>
+                                                                    <div class="skynet-country-editor">
+                                                                        <select class="input_option skynet-country-picker"
+                                                                            id="skynetCountryPicker"
+                                                                            aria-label="Add a country"
+                                                                            disabled="disabled">
+                                                                            <option value="">Add a country...</option>
+                                                                        </select>
+                                                                        <div class="skynet-country-list" id="skynetCountryList">
+                                                                            <span class="skynet-country-empty">Loading blocked countries...</span>
+                                                                        </div>
+                                                                        <div class="skynet-country-status"
+                                                                            id="skynetCountryStatus"
+                                                                            aria-live="polite"></div>
+                                                                        <div class="skynet-country-actions">
+                                                                            <input type="button"
+                                                                                id="skynetClearCountries"
+                                                                                value="Clear All"
+                                                                                class="button_gen skynet-update-button skynet-settings-reload"
+                                                                                disabled="disabled" />
+                                                                            <input type="button"
+                                                                                id="skynetApplyCountries"
+                                                                                value="Apply Countries"
+                                                                                class="button_gen skynet-update-button"
+                                                                                disabled="disabled" />
+                                                                        </div>
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                            <tr class="skynet-settings-group">
                                                                 <th colspan="2">Statistics</th>
                                                             </tr>
                                                             <tr>
@@ -4285,8 +4524,15 @@
                                                 <div id="skynet_dashboard">
                                                     <div class="skynet-hero">
                                                         <span class="skynet-status"><span class="skynet-status-dot"></span>PROTECTED</span>
-                                                        <div class="skynet-hero-title">Skynet Firewall</div>
-                                                        <div class="skynet-hero-sub">Network security overview and threat statistics</div>
+                                                        <div class="skynet-hero-core">
+                                                            <div class="skynet-hero-title">SKYNET</div>
+                                                            <div class="skynet-hero-sub">Router Firewall And Security Enhancements</div>
+                                                        </div>
+                                                        <a class="skynet-project-link"
+                                                            href="https://github.com/Adamm00/IPSet_ASUS"
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            title="Official Skynet repository">ADAMM00 / GITHUB</a>
                                                     </div>
 
                                                     <div class="skynet-detail" id="skynetDetail" aria-hidden="true">

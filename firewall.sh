@@ -1963,7 +1963,7 @@ Generate_WebUI_Settings() {
 	settingsfile="${skynetloc}/webui/settings.js"
 	settingstmp="${settingsfile}.tmp.$$"
 	customlistjs="$(printf '%s' "$customlisturl" | sed 's/\\/\\\\/g;s/"/\\"/g')"
-	printf 'var SkynetSettings = {"autoupdate":"%s","banmalwareupdate":"%s","banmalwarelastupdated":"%s","customlisturl":"%s","filtertraffic":"%s","unbanprivateip":"%s","banaiprotect":"%s","securemode":"%s","loginvalid":"%s","logsize":"%s","extendedstats":"%s","lookupcountry":"%s","cdnwhitelist":"%s","iotblocked":"%s","iotlogging":"%s"};\n' "$autoupdate" "$banmalwareupdate" "$banmalwarelastupdated" "$customlistjs" "$filtertraffic" "$unbanprivateip" "$banaiprotect" "$securemode" "$loginvalid" "$logsize" "$extendedstats" "$lookupcountry" "$cdnwhitelist" "$iotblocked" "$iotlogging" > "$settingstmp"
+	printf 'var SkynetSettings = {"autoupdate":"%s","banmalwareupdate":"%s","banmalwarelastupdated":"%s","blacklist1count":"%s","blacklist2count":"%s","countrylist":"%s","customlisturl":"%s","filtertraffic":"%s","unbanprivateip":"%s","banaiprotect":"%s","securemode":"%s","loginvalid":"%s","logsize":"%s","extendedstats":"%s","lookupcountry":"%s","cdnwhitelist":"%s","iotblocked":"%s","iotlogging":"%s"};\n' "$autoupdate" "$banmalwareupdate" "$banmalwarelastupdated" "$blacklist1count" "$blacklist2count" "$countrylist" "$customlistjs" "$filtertraffic" "$unbanprivateip" "$banaiprotect" "$securemode" "$loginvalid" "$logsize" "$extendedstats" "$lookupcountry" "$cdnwhitelist" "$iotblocked" "$iotlogging" > "$settingstmp"
 	printf 'var SkynetSettingsGenerated = "%s.%s";\n' "$(date +%s)" "$$" >> "$settingstmp"
 	printf 'var SkynetSettingsResult = "%s";\n' "${settingsresult:-ready}" >> "$settingstmp"
 	mv -f "$settingstmp" "$settingsfile"
@@ -2851,6 +2851,43 @@ Apply_WebUI_Settings() {
 				sh "$0" banmalware "$webuicustomlist" >/dev/null 2>&1 || settingsresult="error"
 			else
 				sh "$0" banmalware reset >/dev/null 2>&1 || settingsresult="error"
+			fi
+		fi
+	fi
+
+	. "$skynetcfg"
+	Generate_WebUI_Settings
+}
+
+Apply_WebUI_Countries() {
+	settingsresult="error"
+	if [ -f "/usr/sbin/helper.sh" ]; then
+		. /usr/sbin/helper.sh
+		webuicountries="$(am_settings_get skynet_countrylist | awk '{$1=$1; print tolower($0)}')"
+
+		if [ -z "$webuicountries" ] || printf '%s\n' "$webuicountries" | grep -qE '^([a-z][a-z])( [a-z][a-z])*$'; then
+			if [ "$webuicountries" = "$countrylist" ]; then
+				settingsresult="success"
+			elif [ -n "$webuicountries" ]; then
+				webuicountryresult="$(sh "$0" ban country $webuicountries 2>&1)"
+				if [ "$?" = "0" ]; then
+					settingsresult="success"
+				else
+					case "$webuicountryresult" in
+						*"Failed To Download Country List"*)
+							webuicountry="$(printf '%s\n' "$webuicountryresult" | sed -n 's~.*Failed To Download Country List (\([^)]*\)).*~\1~p' | tail -1)"
+							settingsresult="download:${webuicountry}"
+						;;
+						*"No Valid IPv4 Ranges Found"*)
+							webuicountry="$(printf '%s\n' "$webuicountryresult" | sed -n 's~.*No Valid IPv4 Ranges Found For (\([^)]*\)).*~\1~p' | tail -1)"
+							settingsresult="invalid:${webuicountry}"
+						;;
+						*"Previous Bans Restored"*) settingsresult="restore" ;;
+						*"Connection Error Detected"*) settingsresult="connection" ;;
+					esac
+				fi
+			else
+				sh "$0" unban country >/dev/null 2>&1 && settingsresult="success"
 			fi
 		fi
 	fi
@@ -4729,25 +4766,47 @@ case "$1" in
 					exit 2
 				fi
 
-				# Remove any previous country bans (anything with "Country:" comment)
+				countrytmp="/tmp/skynet/country.$$"
+				countryold="${countrytmp}.old"
+				countryzone="${countrytmp}.zone"
+				true > "$countrytmp"
+				grep -F 'comment "Country:' "$skynetipset" > "$countryold"
+
+				echo "[i] Banning Known IP Ranges For (${countrylinklist})"
+				echo "[i] Downloading Lists, Filtering IPv4 Ranges & Applying Blacklists"
+
+				for country in $countrylinklist; do
+					if ! curl -fskL --retry 3 --connect-timeout 3 --max-time 6 --retry-delay 1 --retry-all-errors \
+						"https://ipdeny.com/ipblocks/data/aggregated/${country}-aggregated.zone" \
+						-o "$countryzone"; then
+						rm -f "$countrytmp" "$countryold" "$countryzone"
+						echo "[*] Failed To Download Country List (${country})"
+						exit 1
+					fi
+					if ! grep -qE '^[0-9.]+/[0-9]+$' "$countryzone"; then
+						rm -f "$countrytmp" "$countryold" "$countryzone"
+						echo "[*] No Valid IPv4 Ranges Found For (${country})"
+						exit 1
+					fi
+					grep -E '^[0-9.]+/[0-9]+$' "$countryzone" | sed "s/^/add Skynet-BlockedRanges /;s/$/& comment \"Country: ${country}\"/" >> "$countrytmp"
+				done
+				rm -f "$countryzone"
+
 				if [ -n "$countrylist" ]; then
 					echo "[i] Removing Previous Country Bans (${countrylist})"
 					sed '\~add Skynet-Whitelist ~d;\~Country: ~!d;s~ comment.*~~;s~add~del~g' "$skynetipset" | ipset restore -!
 				fi
 
-				# For logging / other uses, keep the filtered list as-is
+				if ! ipset restore -! < "$countrytmp"; then
+					sed 's~^add~del~;s~ comment.*~~' "$countrytmp" | ipset restore -!
+					ipset restore -! < "$countryold"
+					rm -f "$countrytmp" "$countryold"
+					echo "[*] Failed To Apply Country Bans - Previous Bans Restored"
+					exit 1
+				fi
+
 				countrylist="$countrylinklist"
-
-				echo "[i] Banning Known IP Ranges For (${countrylist})"
-				echo "[i] Downloading Lists, Filtering IPv4 Ranges & Applying Blacklists"
-
-				for country in $countrylist; do
-					curl -fskL --retry 3 --connect-timeout 3 --max-time 6 --retry-delay 1 --retry-all-errors \
-						"https://ipdeny.com/ipblocks/data/aggregated/${country}-aggregated.zone" \
-					| grep -F "/" \
-					| sed -n "/^[0-9,\\.,\\/]*$/s/^/add Skynet-BlockedRanges /;s/$/& comment \"Country: ${country}\"/p" \
-					| ipset restore -!
-				done
+				rm -f "$countrytmp" "$countryold"
 			;;
 			asn)
 				if [ -z "$3" ]; then echo "[*] ASN Field Can't Be Empty - Please Try Again"; echo; exit 2; fi
@@ -5966,6 +6025,9 @@ case "$1" in
 				. "$skynetcfg"
 				if [ -n "$banmalwarelastupdated" ] && [ "$banmalwarelastupdated" != "$malwareupdated" ]; then settingsresult="success"; else settingsresult="error"; fi
 				Generate_WebUI_Settings
+			;;
+			SkynetCountries|countries)
+				Apply_WebUI_Countries
 			;;
 			*)
 				Command_Not_Recognized
