@@ -360,13 +360,35 @@
             max-width: 100%;
         }
 
+        .skynet-malware-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .skynet-malware-status {
+            display: block;
+            margin-top: 5px;
+            color: var(--skynet-muted);
+            font-size: 10px;
+        }
+
+        .skynet-malware-update {
+            min-width: 96px;
+            height: 30px;
+        }
+
         .skynet-settings-table input[type="number"] {
-            width: 70px;
+            width: 82px;
         }
 
         .skynet-settings-table input[type="url"] {
             width: 100%;
             max-width: 360px;
+        }
+
+        .skynet-settings-table input[type="number"],
+        .skynet-settings-table input[type="url"] {
             height: 30px;
             padding: 5px 9px;
             border: 1px solid var(--skynet-border);
@@ -378,20 +400,34 @@
             transition: border-color 0.15s ease, box-shadow 0.15s ease;
         }
 
+        .skynet-settings-table input[type="number"]::placeholder,
         .skynet-settings-table input[type="url"]::placeholder {
             color: var(--skynet-muted);
             opacity: 0.72;
         }
 
+        .skynet-settings-table input[type="number"]:hover,
         .skynet-settings-table input[type="url"]:hover {
             border-color: var(--skynet-heading);
         }
 
+        .skynet-settings-table input[type="number"]:focus,
         .skynet-settings-table input[type="url"]:focus {
             outline: none;
             border-color: var(--skynet-link);
             box-shadow: 0 0 0 2px rgba(143,209,245,0.18),
                 inset 0 1px 2px rgba(0,0,0,0.2);
+        }
+
+        .skynet-number-control {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+
+        .skynet-input-note {
+            color: var(--skynet-muted);
+            font-size: 10px;
         }
 
         .skynet-settings-actions {
@@ -430,6 +466,15 @@
 
             .skynet-settings-table select,
             .skynet-settings-actions .skynet-update-button {
+                width: 100%;
+            }
+
+            .skynet-malware-controls {
+                align-items: stretch;
+                flex-direction: column;
+            }
+
+            .skynet-malware-update {
                 width: 100%;
             }
         }
@@ -1371,6 +1416,8 @@
                 settingsButton: "skynetApplySettings",
                 settingsReloadButton: "skynetReloadSettings",
                 settingsDefaultsButton: "skynetRestoreDefaults",
+                malwareButton: "skynetUpdateMalware",
+                malwareStatus: "skynetMalwareStatus",
                 settingsResult: "skynetSettingsResult",
                 overviewTab: "skynetOverviewTab",
                 settingsTab: "skynetSettingsTab",
@@ -1721,7 +1768,7 @@
                 existing.remove();
             }
 
-            if (empty && this.getCookie(section.id) !== "expanded") {
+            if (empty) {
                 this.setSectionState(section, false, false);
             }
         };
@@ -3045,6 +3092,7 @@
         SkynetUI.setSectionState = function(section, expanded, persist) {
             const table = section.closest(".skynet-section > table") ||
                 section.parentElement;
+            const empty = section.classList.contains("skynet-section-empty");
 
             const bodyRows = table
                 ? table.querySelectorAll(".skynet-section-body-row")
@@ -3058,7 +3106,7 @@
                 row.style.display = expanded ? "" : "none";
             });
 
-            if (persist !== false) {
+            if (persist !== false && !empty) {
                 this.setCookie(
                     section.id,
                     expanded ? "expanded" : "collapsed"
@@ -3071,7 +3119,7 @@
                 if (section.id.indexOf("skynet_chart_") === 0) {
                     this.destroyChart(chartName);
                 }
-            } else if (section.id.indexOf("skynet_chart_") === 0) {
+            } else if (!empty && section.id.indexOf("skynet_chart_") === 0) {
                 const chartName = section.id.replace("skynet_chart_", "");
                 const definition = this.chartDefinitions[chartName];
 
@@ -3214,15 +3262,22 @@
             html += '<div class="skynet-section">';
             html += '<table width="100%" border="0" cellpadding="0" cellspacing="0">';
 
-            html += '<thead class="collapsible expanded skynet-section-head" id="skynet_table_' + name + '" aria-expanded="true" role="button" tabindex="0">';
+            html += '<thead class="collapsible ' +
+                (noData ? 'collapsed skynet-section-empty' : 'expanded') +
+                ' skynet-section-head" id="skynet_table_' + name +
+                '" aria-expanded="' + (noData ? 'false' : 'true') +
+                '" role="button" tabindex="0">';
             html += '<tr>';
-            html += '<td>' + this.escapeHtml(title) + '</td>';
+            html += '<td>' + this.escapeHtml(title) +
+                (noData ? '<span class="skynet-empty-badge">No activity</span>' : '') +
+                '</td>';
             html += '<td><span class="skynet-section-toggle" aria-hidden="true">▾</span></td>';
             html += '</tr>';
             html += '</thead>';
 
             html += '<tbody>';
-            html += '<tr class="skynet-section-body-row">';
+            html += '<tr class="skynet-section-body-row"' +
+                (noData ? ' style="display:none;"' : '') + '>';
             html += '<td colspan="2" style="padding:0;">';
             html += '<div class="skynet-table-shell">';
 
@@ -3318,9 +3373,39 @@
 
         };
 
+        SkynetUI.populateMalwareStatus = function() {
+            const status = this.getElement(this.selectors.malwareStatus);
+            const settings = window.SkynetSettings || {};
+            const updated = Number(settings.banmalwarelastupdated);
+
+            if (!status) {
+                return;
+            }
+
+            if (!this.canUpdateMalware()) {
+                status.textContent = "Reload settings after updating Skynet.";
+                return;
+            }
+
+            if (Number.isFinite(updated) && updated > 0) {
+                status.textContent = "Last updated " +
+                    new Date(updated * 1000).toLocaleString();
+            } else {
+                status.textContent = "Last update not recorded";
+            }
+        };
+
+        SkynetUI.canUpdateMalware = function() {
+            const settings = window.SkynetSettings;
+
+            return Boolean(settings && window.SkynetSettingsGenerated &&
+                Object.prototype.hasOwnProperty.call(settings, "banmalwarelastupdated"));
+        };
+
         SkynetUI.populateSettings = function() {
             const settings = window.SkynetSettings || {};
             const apply = this.getElement(this.selectors.settingsButton);
+            const malware = this.getElement(this.selectors.malwareButton);
             const fields = {
                 skynetAutoUpdate: settings.autoupdate,
                 skynetMalwareUpdates: settings.banmalwareupdate,
@@ -3342,6 +3427,9 @@
                 if (apply) {
                     apply.disabled = true;
                 }
+                if (malware) {
+                    malware.disabled = true;
+                }
                 this.setUpdateResult(
                     "Reload settings to load current values.",
                     false,
@@ -3358,8 +3446,13 @@
                 }
             });
 
+            this.populateMalwareStatus();
+
             if (apply && !this.refreshInProgress) {
                 apply.disabled = false;
+            }
+            if (malware && !this.refreshInProgress) {
+                malware.disabled = !this.canUpdateMalware();
             }
 
             const result = this.getElement(this.selectors.settingsResult);
@@ -3385,14 +3478,17 @@
                 this.selectors.updateButton,
                 this.selectors.settingsButton,
                 this.selectors.settingsReloadButton,
-                this.selectors.settingsDefaultsButton
+                this.selectors.settingsDefaultsButton,
+                this.selectors.malwareButton
             ].forEach(function(id) {
                 const button = SkynetUI.getElement(id);
 
                 if (button) {
                     button.disabled = active ||
                         (id === SkynetUI.selectors.settingsButton &&
-                            (!window.SkynetSettings || !window.SkynetSettingsGenerated));
+                            (!window.SkynetSettings || !window.SkynetSettingsGenerated)) ||
+                        (id === SkynetUI.selectors.malwareButton &&
+                            !SkynetUI.canUpdateMalware());
                     button.classList.toggle("skynet-update-busy", active && id === buttonSelector);
                 }
             });
@@ -3463,15 +3559,20 @@
             const self = this;
             const settingsRequest = requestType !== "stats";
             const applyRequest = requestType === "settings";
-            const buttonSelector = settingsRequest
-                ? (applyRequest ? this.selectors.settingsButton : this.selectors.settingsReloadButton)
-                : this.selectors.updateButton;
+            const malwareRequest = requestType === "malware";
+            const buttonSelector = malwareRequest
+                ? this.selectors.malwareButton
+                : (settingsRequest
+                    ? (applyRequest ? this.selectors.settingsButton : this.selectors.settingsReloadButton)
+                    : this.selectors.updateButton);
             const resultSelector = settingsRequest
                 ? this.selectors.settingsResult
                 : this.selectors.updateResult;
-            const buttonLabel = settingsRequest
-                ? (applyRequest ? "Apply Settings" : "Reload Settings")
-                : "Update Stats";
+            const buttonLabel = malwareRequest
+                ? "Update Now"
+                : (settingsRequest
+                    ? (applyRequest ? "Apply Settings" : "Reload Settings")
+                    : "Update Stats");
             const request = settingsRequest
                 ? this.loadSettingsScript()
                 : this.loadStatsScript();
@@ -3489,14 +3590,23 @@
                         self.refreshRenderedStats();
                     }
                     self.refreshInProgress = false;
-                    if (applyRequest && window.SkynetSettingsResult !== "success") {
-                        self.setUpdateResult("Unable to apply settings.", true, resultSelector);
+                    if ((applyRequest || malwareRequest) &&
+                        window.SkynetSettingsResult !== "success") {
+                        self.setUpdateResult(
+                            malwareRequest
+                                ? "Unable to update malware lists."
+                                : "Unable to apply settings.",
+                            true,
+                            resultSelector
+                        );
                         self.setActionState(false, buttonSelector, "Try Again");
                     } else {
                         self.setUpdateResult(
-                            applyRequest
-                                ? "Settings applied successfully."
-                                : (settingsRequest ? "Settings reloaded." : "Statistics refreshed successfully."),
+                            malwareRequest
+                                ? "Malware lists updated successfully."
+                                : (applyRequest
+                                    ? "Settings applied successfully."
+                                    : (settingsRequest ? "Settings reloaded." : "Statistics refreshed successfully.")),
                             false,
                             resultSelector
                         );
@@ -3514,9 +3624,11 @@
 
                 self.refreshInProgress = false;
                 self.setUpdateResult(
-                    applyRequest
-                        ? "Settings update did not complete."
-                        : (settingsRequest ? "Settings reload did not complete." : "Statistics refresh did not complete."),
+                    malwareRequest
+                        ? "Malware list update did not complete."
+                        : (applyRequest
+                            ? "Settings update did not complete."
+                            : (settingsRequest ? "Settings reload did not complete." : "Statistics refresh did not complete.")),
                     true,
                     resultSelector
                 );
@@ -3549,6 +3661,22 @@
             this.setActionState(true, this.selectors.updateButton, "Updating...");
             this.submitBackgroundAction("start_SkynetStats");
             this.waitForUpdate(window.SkynetStatsGenerated, 180, "stats");
+        };
+
+        SkynetUI.updateMalware = function() {
+            if (this.refreshInProgress || !this.canUpdateMalware()) {
+                return;
+            }
+
+            this.refreshInProgress = true;
+            this.setUpdateResult(
+                "Updating malware lists...",
+                false,
+                this.selectors.settingsResult
+            );
+            this.setActionState(true, this.selectors.malwareButton, "Updating...");
+            this.submitBackgroundAction("start_SkynetBanMalware");
+            this.waitForUpdate(window.SkynetSettingsGenerated, 300, "malware");
         };
 
         SkynetUI.submitBackgroundAction = function(action) {
@@ -3726,6 +3854,14 @@
             if (update) {
                 update.addEventListener("click", function() {
                     SkynetUI.updateStats();
+                });
+            }
+
+            const malware = this.getElement(this.selectors.malwareButton);
+
+            if (malware) {
+                malware.addEventListener("click", function() {
+                    SkynetUI.updateMalware();
                 });
             }
 
@@ -3950,11 +4086,19 @@
                                                                     <span class="skynet-setting-help">Refreshes the malware blacklist on schedule.</span>
                                                                 </th>
                                                                 <td>
-                                                                    <select class="input_option" id="skynetMalwareUpdates">
-                                                                        <option value="daily">Daily (Default)</option>
-                                                                        <option value="weekly">Weekly</option>
-                                                                        <option value="disabled">Disabled</option>
-                                                                    </select>
+                                                                    <div class="skynet-malware-controls">
+                                                                        <select class="input_option" id="skynetMalwareUpdates">
+                                                                            <option value="daily">Daily (Default)</option>
+                                                                            <option value="weekly">Weekly</option>
+                                                                            <option value="disabled">Disabled</option>
+                                                                        </select>
+                                                                        <input type="button"
+                                                                            id="skynetUpdateMalware"
+                                                                            value="Update Now"
+                                                                            class="button_gen skynet-update-button skynet-malware-update"
+                                                                            disabled="disabled" />
+                                                                    </div>
+                                                                    <span class="skynet-malware-status" id="skynetMalwareStatus">Loading malware list status...</span>
                                                                 </td>
                                                             </tr>
                                                             <tr>
@@ -4079,10 +4223,17 @@
                                                             <tr>
                                                                 <th>
                                                                     <span class="skynet-setting-name">Log Size</span>
-                                                                    <span class="skynet-setting-help">Sets the log limit before statistics are saved and old entries are cleared. Default: 10MB.</span>
+                                                                    <span class="skynet-setting-help">Sets the log limit before statistics are saved and old entries are cleared.</span>
                                                                 </th>
                                                                 <td>
-                                                                    <input type="number" id="skynetLogSize" min="10" step="1" /> MB
+                                                                    <div class="skynet-number-control">
+                                                                        <input type="number"
+                                                                            id="skynetLogSize"
+                                                                            min="10"
+                                                                            step="1"
+                                                                            placeholder="10" />
+                                                                        <span class="skynet-input-note">MB · Default: 10MB</span>
+                                                                    </div>
                                                                 </td>
                                                             </tr>
                                                             <tr>

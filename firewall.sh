@@ -1963,7 +1963,7 @@ Generate_WebUI_Settings() {
 	settingsfile="${skynetloc}/webui/settings.js"
 	settingstmp="${settingsfile}.tmp.$$"
 	customlistjs="$(printf '%s' "$customlisturl" | sed 's/\\/\\\\/g;s/"/\\"/g')"
-	printf 'var SkynetSettings = {"autoupdate":"%s","banmalwareupdate":"%s","customlisturl":"%s","filtertraffic":"%s","unbanprivateip":"%s","banaiprotect":"%s","securemode":"%s","loginvalid":"%s","logsize":"%s","extendedstats":"%s","lookupcountry":"%s","cdnwhitelist":"%s","iotblocked":"%s","iotlogging":"%s"};\n' "$autoupdate" "$banmalwareupdate" "$customlistjs" "$filtertraffic" "$unbanprivateip" "$banaiprotect" "$securemode" "$loginvalid" "$logsize" "$extendedstats" "$lookupcountry" "$cdnwhitelist" "$iotblocked" "$iotlogging" > "$settingstmp"
+	printf 'var SkynetSettings = {"autoupdate":"%s","banmalwareupdate":"%s","banmalwarelastupdated":"%s","customlisturl":"%s","filtertraffic":"%s","unbanprivateip":"%s","banaiprotect":"%s","securemode":"%s","loginvalid":"%s","logsize":"%s","extendedstats":"%s","lookupcountry":"%s","cdnwhitelist":"%s","iotblocked":"%s","iotlogging":"%s"};\n' "$autoupdate" "$banmalwareupdate" "$banmalwarelastupdated" "$customlistjs" "$filtertraffic" "$unbanprivateip" "$banaiprotect" "$securemode" "$loginvalid" "$logsize" "$extendedstats" "$lookupcountry" "$cdnwhitelist" "$iotblocked" "$iotlogging" > "$settingstmp"
 	printf 'var SkynetSettingsGenerated = "%s.%s";\n' "$(date +%s)" "$$" >> "$settingstmp"
 	printf 'var SkynetSettingsResult = "%s";\n' "${settingsresult:-ready}" >> "$settingstmp"
 	mv -f "$settingstmp" "$settingsfile"
@@ -2305,7 +2305,7 @@ Install_WebUI_Page() {
 					Log error "Unable To Mount Skynet Web Page - No Mount Points Avilable"
 				else
 					Log info "Mounting Skynet Web Page As $MyPage"
-					cp -f "${skynetloc}/webui/skynet.asp" "/www/user/$MyPage"
+					ln -sf "${skynetloc}/webui/skynet.asp" "/www/user/$MyPage"
 					if [ "$(uname -o)" = "ASUSWRT-Merlin" ]; then
 						if [ ! -f "/tmp/menuTree.js" ]; then
 							cp -f "/www/require/modules/menuTree.js" "/tmp/"
@@ -2319,8 +2319,8 @@ Install_WebUI_Page() {
 						echo "Skynet" > "/www/user/$MyPageTitle"
 					fi
 					mkdir -p "/www/user/skynet"
-					ln -s "${skynetloc}/webui/stats.js" "/www/user/skynet/stats.js" 2>/dev/null
-					ln -s "${skynetloc}/webui/settings.js" "/www/user/skynet/settings.js" 2>/dev/null
+					ln -sf "${skynetloc}/webui/stats.js" "/www/user/skynet/stats.js"
+					ln -sf "${skynetloc}/webui/settings.js" "/www/user/skynet/settings.js"
 					Unload_Cron "genstats"
 					Load_Cron "genstats"
 				fi
@@ -2729,6 +2729,7 @@ Write_Config() {
 		printf '%s="%s"\n' "blacklist2count" "$blacklist2count"
 		printf '%s="%s"\n' "customlisturl" "$customlisturl"
 		printf '%s="%s"\n' "customlist2url" "$customlist2url"
+		printf '%s="%s"\n' "banmalwarelastupdated" "$banmalwarelastupdated"
 		printf '%s="%s"\n' "countrylist" "$countrylist"
 		printf '%s="%s"\n' "excludelists" "$excludelists"
 		printf '\n%s\n' "## Settings ##"
@@ -4971,7 +4972,9 @@ case "$1" in
 		Display_Result
 		Display_Message "[i] Saving Changes"
 		Save_IPSets
+		savestatus="$?"
 		Display_Result
+		if [ "$nocfg" != "1" ] && [ "$savestatus" = "0" ]; then banmalwarelastupdated="$(date +%s)"; else nocfg="1"; fi
 		forcebanmalwareupdate="disabled"
 		echo
 		echo "[i] For Whitelisting Assistance -"
@@ -5955,6 +5958,13 @@ case "$1" in
 				Apply_WebUI_Settings
 			;;
 			SkynetSettingsLoad|load)
+				Generate_WebUI_Settings
+			;;
+			SkynetBanMalware|banmalware)
+				malwareupdated="$banmalwarelastupdated"
+				sh "$0" banmalware >/dev/null 2>&1
+				. "$skynetcfg"
+				if [ -n "$banmalwarelastupdated" ] && [ "$banmalwarelastupdated" != "$malwareupdated" ]; then settingsresult="success"; else settingsresult="error"; fi
 				Generate_WebUI_Settings
 			;;
 			*)
