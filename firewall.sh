@@ -961,7 +961,7 @@ Load_Cron() {
 			;;
 			genstats)
 				min=$(Generate_Random_Number 28 57)
-				cru a Skynet_genstats "$min */12 * * * sh /jffs/scripts/firewall debug genstats"
+				cru a Skynet_genstats "$min 11,23 * * * sh /jffs/scripts/firewall debug genstats"
 			;;
 			*)
 				echo "[*] Warning: Unknown Cron Job '$job'"
@@ -1027,93 +1027,33 @@ LAN_CIDR_Lookup() {
 Generate_Ban_Stats() {
 	case "$1" in
 		1)
-			if Is_Enabled "$lookupcountry"; then
-				country="$(Curl_Lookup "https://api.db-ip.com/v2/free/${statdata}/countryCode/" 2>/dev/null | grep -E '^[A-Z]{2}$' || echo '**')"
-			fi
-			# banreason: single AWK for both blacklist and CIDR, star only on CIDR
-			banreason="$(
-				grep -E '^add Skynet-(Blacklist|BlockedRanges) ' "$skynetipset" |
-				awk -v ip="$statdata" '
-					function trim(s) { sub(/^ +| +$/, "", s); return s }
-					function do_print(cidr) {
-					pos = index($0, "comment \"")
-					if (pos) {
-						s = substr($0, pos+9); sub(/"$/, "", s)
-						printf "%s", trim(s)
-						if (cidr) printf "*"
-						printf "\n"
-					}
-					}
-					BEGIN { split(ip,A,"."); ipn=A[1]*16777216 + A[2]*65536 + A[3]*256 + A[4] }
-					# exact blacklist
-					$1=="add" && $2=="Skynet-Blacklist" && $3==ip { do_print(0); exit }
-					# CIDR ranges
-					$1=="add" && $2=="Skynet-BlockedRanges" {
-					split($3,P,"/"); net=P[1]; prefix=P[2]
-					split(net,B,"."); netn=B[1]*16777216 + B[2]*65536 + B[3]*256 + B[4]
-					if (prefix==32 && ipn==netn)              { do_print(0); exit }
-					else if (prefix==24 && A[1]==B[1]&&A[2]==B[2]&&A[3]==B[3]) { do_print(1); exit }
-					else if (prefix==16 && A[1]==B[1]&&A[2]==B[2])           { do_print(1); exit }
-					else if (prefix==8  && A[1]==B[1])                       { do_print(1); exit }
-					else {
-						sh=32-prefix; div=1
-						for(i=0;i<sh;i++) div*=2
-						if (int(ipn/div)==int(netn/div)) { do_print(1); exit }
-					}
-					}
-				'
-			)"
-			[ -z "$banreason" ] && ! ipset -q test Skynet-Blacklist "$ipaddr" && ! ipset -q test Skynet-BlockedRanges "$ipaddr" && banreason="No Longer Blacklisted"
-			[ "${#banreason}" -gt 45 ] && banreason="$(printf '%s' "$banreason" | cut -c1-45)"
-			printf '%-15s %-4s | %-55s | %-45s | %-60s \n' "$statdata" "$country" "https://otx.alienvault.com/indicator/ip/${statdata}" "$banreason" "$(grep -F "$statdata" "$TMP_DIR/skynetstats.txt" | awk '{print $1}' | xargs)"
+			statsbanip="$statdata"
+			statsbanhits=""
 		;;
 		2)
-			hits="$(echo "$statdata" | awk '{print $1}')"
-			ipaddr="$(echo "$statdata" | awk '{print $2}')"
-			if Is_Enabled "$lookupcountry"; then
-				country="$(Curl_Lookup "https://api.db-ip.com/v2/free/${ipaddr}/countryCode/" 2>/dev/null | grep -E '^[A-Z]{2}$' || echo '**')"
-			fi
-			# banreason: single AWK for both blacklist and CIDR, star only on CIDR
-			banreason="$(
-				grep -E '^add Skynet-(Blacklist|BlockedRanges) ' "$skynetipset" |
-				awk -v ip="$ipaddr" '
-					function trim(s) { sub(/^ +| +$/, "", s); return s }
-					function do_print(cidr) {
-					pos = index($0, "comment \"")
-					if (pos) {
-						s = substr($0, pos+9); sub(/"$/, "", s)
-						printf "%s", trim(s)
-						if (cidr) printf "*"
-						printf "\n"
-					}
-					}
-					BEGIN { split(ip,A,"."); ipn=A[1]*16777216 + A[2]*65536 + A[3]*256 + A[4] }
-					# exact blacklist
-					$1=="add" && $2=="Skynet-Blacklist" && $3==ip { do_print(0); exit }
-					# CIDR ranges
-					$1=="add" && $2=="Skynet-BlockedRanges" {
-					split($3,P,"/"); net=P[1]; prefix=P[2]
-					split(net,B,"."); netn=B[1]*16777216 + B[2]*65536 + B[3]*256 + B[4]
-					if (prefix==32 && ipn==netn)              { do_print(0); exit }
-					else if (prefix==24 && A[1]==B[1]&&A[2]==B[2]&&A[3]==B[3]) { do_print(1); exit }
-					else if (prefix==16 && A[1]==B[1]&&A[2]==B[2])           { do_print(1); exit }
-					else if (prefix==8  && A[1]==B[1])                       { do_print(1); exit }
-					else {
-						sh=32-prefix; div=1
-						for(i=0;i<sh;i++) div*=2
-						if (int(ipn/div)==int(netn/div)) { do_print(1); exit }
-					}
-					}
-				'
-			)"
-			[ -z "$banreason" ] && ! ipset -q test Skynet-Blacklist "$ipaddr" && ! ipset -q test Skynet-BlockedRanges "$ipaddr" && banreason="No Longer Blacklisted"
-			[ "${#banreason}" -gt 45 ] && banreason="$(printf '%s' "$banreason" | cut -c1-45)"
-			printf '%-10s | %-15s %-4s | %-55s | %-45s | %-60s\n' "${hits}x" "$ipaddr" "$country" "https://otx.alienvault.com/indicator/ip/${ipaddr}" "$banreason" "$(grep -F "$ipaddr" "$TMP_DIR/skynetstats.txt" | awk '{print $1}' | xargs)"
+			statsbanline="$(printf '%s\n' "$statdata" | sed 's/^[[:space:]]*//')"
+			statsbanhits="${statsbanline%% *}"
+			statsbanip="${statsbanline##* }"
 		;;
 		*)
 			echo "[*] Error - No Stats Specified To Load"
+			return 1
 		;;
 	esac
+
+	statsbancountry="$(Lookup_Stats_Country "$statsbanip" code)"
+	statsbanreason="$(Lookup_Stats_Ban_Reason "$statsbanip")"
+	if [ -z "$statsbanreason" ] && ! ipset -q test Skynet-Blacklist "$statsbanip" && ! ipset -q test Skynet-BlockedRanges "$statsbanip"; then
+		statsbanreason="No Longer Blacklisted"
+	fi
+	[ "${#statsbanreason}" -le 45 ] || statsbanreason="$(printf '%s' "$statsbanreason" | cut -c1-45)"
+	statsbandomains="$(awk -v ip="$statsbanip" '$2 == ip {print $1}' "$TMP_DIR/skynetstats.txt" | xargs)"
+
+	if [ -n "$statsbanhits" ]; then
+		printf '%-10s | %-15s %-4s | %-55s | %-45s | %-60s\n' "${statsbanhits}x" "$statsbanip" "$statsbancountry" "https://otx.alienvault.com/indicator/ip/${statsbanip}" "$statsbanreason" "$statsbandomains"
+	else
+		printf '%-15s %-4s | %-55s | %-45s | %-60s \n' "$statsbanip" "$statsbancountry" "https://otx.alienvault.com/indicator/ip/${statsbanip}" "$statsbanreason" "$statsbandomains"
+	fi
 }
 
 
@@ -1627,6 +1567,216 @@ Write_Data_ToJS() {
 	done
 }
 
+Build_Stats_Log_Index() {
+	statsindexsource="$1"
+	statsindexpath="$2"
+	for statsindexfile in inbound-src inbound-dpt inbound-spt outbound-src outbound-dst outbound-http-dst invalid-src iot-dst activity; do
+		true > "${statsindexpath}/${statsindexfile}.txt" || return 1
+	done
+
+	awk -v path="$statsindexpath" -v today="$(date '+%b %e')" -v hour="$(date '+%H')" '
+		function field_value(field, position, value) {
+			position = index($0, field "=")
+			if (!position) return ""
+			value = substr($0, position + length(field) + 1)
+			sub(/[ ,].*/, "", value)
+			return value
+		}
+		BEGIN { hour += 0 }
+		{
+			if ($0 ~ /INBOUND/) {
+				if ((value = field_value("SRC")) != "") print value >> path "/inbound-src.txt"
+				if ((value = field_value("DPT")) != "") print value >> path "/inbound-dpt.txt"
+				if ((value = field_value("SPT")) != "") print value >> path "/inbound-spt.txt"
+			} else if ($0 ~ /OUTBOUND/) {
+				if ((value = field_value("SRC")) != "") print value >> path "/outbound-src.txt"
+				if ((value = field_value("DST")) != "") {
+					if ($0 ~ /DPT=(80|443) /) print value >> path "/outbound-http-dst.txt"
+					else print value >> path "/outbound-dst.txt"
+				}
+			} else if ($0 ~ /INVALID/) {
+				if ((value = field_value("SRC")) != "") print value >> path "/invalid-src.txt"
+			} else if ($0 ~ /IOT/) {
+				if ((value = field_value("DST")) != "") print value >> path "/iot-dst.txt"
+			}
+
+			if (substr($0, 1, 6) == today) {
+				loghour = substr($0, 8, 2) + 0
+				if ($0 ~ /\[BLOCKED - INBOUND\]/) inbound[loghour]++
+				else if ($0 ~ /\[BLOCKED - OUTBOUND\]/) outbound[loghour]++
+				else if ($0 ~ /\[BLOCKED - INVALID\]/) invalid[loghour]++
+				else if ($0 ~ /\[BLOCKED - IOT\]/) iot[loghour]++
+			}
+		}
+		END {
+			for (i = 0; i <= hour; i++)
+				printf "%02d:00~%d~%d~%d~%d\n", i, inbound[i] + 0, outbound[i] + 0, invalid[i] + 0, iot[i] + 0 > path "/activity.txt"
+		}
+	' "$statsindexsource"
+}
+
+Extract_Stats_Values() {
+	# $1 = source, $2 = include pattern, $3 = exclude pattern
+	# $4 = field, $5 = recent/oldest/top, $6 = result limit
+	statsextractsource="$1"
+	statsextractinclude="$2"
+	statsextractexclude="$3"
+	statsextractfield="$4"
+	statsextractmode="$5"
+	statsextractlimit="$6"
+	if [ -n "$statsextractfield" ]; then
+		statsextractfield="${statsextractfield}="
+	fi
+
+	awk -v matchpattern="$statsextractinclude" -v skippattern="$statsextractexclude" -v field="$statsextractfield" -v mode="$statsextractmode" -v limit="$statsextractlimit" '
+		$0 ~ matchpattern && (skippattern == "" || $0 !~ skippattern) {
+			position = index($0, field)
+			if (field != "" && position > 0) {
+				value = substr($0, position + length(field))
+				sub(/[ ,].*/, "", value)
+			} else if (field == "") {
+				value = $0
+			} else {
+				next
+			}
+
+			if (mode == "top") hits[value]++
+			else values[++entries] = value
+		}
+		END {
+			if (mode == "top") {
+				for (value in hits) printf "%7d %s\n", hits[value], value
+			} else if (mode == "oldest") {
+				for (i = 1; i <= entries && output < limit; i++) {
+					value = values[i]
+					if (!(value in seen)) {
+						print value
+						seen[value] = 1
+						output++
+					}
+				}
+			} else {
+				for (i = entries; i >= 1 && output < limit; i--) {
+					value = values[i]
+					if (!(value in seen)) {
+						print value
+						seen[value] = 1
+						output++
+					}
+				}
+			}
+		}
+	' "$statsextractsource" | {
+		if [ "$statsextractmode" = "top" ]; then
+			sort -nr | head -n "$statsextractlimit"
+		else
+			cat
+		fi
+	}
+}
+
+Lookup_Stats_Ban_Reason() {
+	statslookupip="$1"
+	statslookupsource="${2:-$skynetipset}"
+
+	awk -v ip="$statslookupip" '
+		function trim(value) { sub(/^ +| +$/, "", value); return value }
+		function print_reason(range, position, reason) {
+			position = index($0, "comment \"")
+			if (position) {
+				reason = substr($0, position + 9)
+				sub(/"$/, "", reason)
+				printf "%s", trim(reason)
+				if (range) printf "*"
+				printf "\n"
+			}
+		}
+		BEGIN {
+			split(ip, address, ".")
+			ipnumber = address[1] * 16777216 + address[2] * 65536 + address[3] * 256 + address[4]
+		}
+		$1 == "add" && $2 == "Skynet-Blacklist" && $3 == ip {
+			print_reason(0)
+			exit
+		}
+		$1 == "add" && $2 == "Skynet-BlockedRanges" {
+			split($3, cidr, "/")
+			split(cidr[1], network, ".")
+			prefix = cidr[2]
+			networknumber = network[1] * 16777216 + network[2] * 65536 + network[3] * 256 + network[4]
+			divisor = 1
+			for (i = 0; i < 32 - prefix; i++) divisor *= 2
+			if (int(ipnumber / divisor) == int(networknumber / divisor)) {
+				print_reason(prefix < 32)
+				exit
+			}
+		}
+	' "$statslookupsource"
+}
+
+Lookup_Stats_Country() {
+	statslookupip="$1"
+	statslookupcountrytype="$2"
+	statslookupcountry=""
+
+	if ! Is_Enabled "$lookupcountry"; then
+		return 0
+	fi
+	if [ -n "$statscountrycache" ] && [ -f "$statscountrycache" ]; then
+		statslookupcountry="$(awk -F "~" -v type="$statslookupcountrytype" -v ip="$statslookupip" '$1 == type && $2 == ip {print $3; exit}' "$statscountrycache")"
+	fi
+	if [ -z "$statslookupcountry" ]; then
+		case "$statslookupcountrytype" in
+			name)
+				statslookupcountry="$(Curl_Lookup "https://api.db-ip.com/v2/free/${statslookupip}/countryName/" 2>/dev/null)"
+				[ -n "$statslookupcountry" ] || statslookupcountry="*"
+			;;
+			*)
+				statslookupcountry="$(Curl_Lookup "https://api.db-ip.com/v2/free/${statslookupip}/countryCode/" 2>/dev/null | grep -E '^[A-Z]{2}$' || echo '**')"
+			;;
+		esac
+		[ -n "$statscountrycache" ] && printf '%s~%s~%s\n' "$statslookupcountrytype" "$statslookupip" "$statslookupcountry" >> "$statscountrycache"
+	fi
+	printf '%s\n' "$statslookupcountry"
+}
+
+Lookup_Stats_Domains() {
+	statslookupdomains="$(awk -F "~" -v ip="$1" '$1 == ip {print $2; exit}' "$statsdomaincache")"
+	[ -n "$statslookupdomains" ] || statslookupdomains="*"
+	printf '%s\n' "$statslookupdomains"
+}
+
+Write_Recent_IP_Stats() {
+	statsrecentfile="$1"
+	true > "$statsrecentfile" || return 1
+	while IFS= read -r statsrecentip; do
+		[ -n "$statsrecentip" ] || continue
+		statsrecentreason="$(Lookup_Stats_Ban_Reason "$statsrecentip" "$statsbanlist")"
+		[ -n "$statsrecentreason" ] || statsrecentreason="*"
+		[ "${#statsrecentreason}" -le 45 ] || statsrecentreason="$(printf '%s' "$statsrecentreason" | cut -c1-45)"
+		statsrecentcountry="$(Lookup_Stats_Country "$statsrecentip" code)"
+		statsrecentdomains="$(Lookup_Stats_Domains "$statsrecentip")"
+		printf '%s~%s~https://otx.alienvault.com/indicator/ip/%s~%s~%s\n' "$statsrecentip" "$statsrecentreason" "$statsrecentip" "$statsrecentcountry" "$statsrecentdomains" >> "$statsrecentfile" || return 1
+	done
+}
+
+Write_Top_IP_Stats() {
+	statstopfile="$1"
+	statstopcountrytype="$2"
+	statstopdomains="$3"
+	true > "$statstopfile" || return 1
+	while read -r statstophits statstopip; do
+		[ -n "$statstopip" ] || continue
+		statstopcountry="$(Lookup_Stats_Country "$statstopip" "$statstopcountrytype")"
+		if [ "$statstopdomains" = "domains" ]; then
+			statstopdomainlist="$(Lookup_Stats_Domains "$statstopip")"
+			printf '%s~%s~%s~%s\n' "$statstophits" "$statstopip" "$statstopcountry" "$statstopdomainlist" >> "$statstopfile" || return 1
+		else
+			printf '%s~%s~%s\n' "$statstophits" "$statstopip" "$statstopcountry" >> "$statstopfile" || return 1
+		fi
+	done
+}
+
 Show_Stats_Block() {
 	# Arguments:
 	# $1 = source         ("log" or "events")
@@ -1654,47 +1804,14 @@ Show_Stats_Block() {
 	Red "$statstitle"
 	Display_Header "$statsheader"
 
-	awk -v pat="$statspattern" -v fld="$statsfield=" -v mode="$statsmode" -v mth="$statsmethod" '
-		$0 ~ pat {
-		pos = index($0, fld)
-		if (fld != "" && pos > 0) {
-			val = substr($0, pos + length(fld))
-			sub(/[ ,].*/, "", val)
-		} else if (fld == "") {
-			val = $0
-		} else {
-			next
-		}
-
-		if (mode == 2) {
-			hits[val]++
-		} else {
-			if (!(val in seen)) {
-			order[++n] = val
-			seen[val] = 1
-			}
-		}
-		}
-		END {
-		if (mode == 2) {
-			for (ip in hits) {
-			printf "%7d %s\n", hits[ip], ip
-			}
-		} else {
-			if (mth == "head") {
-			for (i = n; i >= 1 && i > n - 1000; i--) print order[i]
-			} else {
-			for (i = 1; i <= n; i++) print order[i]
-			}
-		}
-		}
-	' "$statssource" | {
-		if [ "$statsmode" -eq 2 ]; then
-			sort -nr | head -n "$statscount"
-		else
-			head -n "$statscount"
-		fi
-	} | while IFS= read -r statdata; do
+	if [ "$statsmode" -eq 2 ]; then
+		statsextractmode="top"
+	elif [ "$statsmethod" = "tail" ]; then
+		statsextractmode="oldest"
+	else
+		statsextractmode="recent"
+	fi
+	Extract_Stats_Values "$statssource" "$statspattern" "" "$statsfield" "$statsextractmode" "$statscount" | while IFS= read -r statdata; do
 		Generate_Ban_Stats "$statsmode"
 	done
 }
@@ -2140,8 +2257,8 @@ Run_Stats() {
 					Show_Stats_Block "log" "INVALID.*$proto" "SRC" "Last $counter Unique Connections Blocked (Invalid)" "head" "$counter" "1" "1"
 				fi
 				Show_Stats_Block "events" "Manual Ban" "SRC" "Last $counter Manual Bans" "tail" "$counter" "1" "1"
-				Show_Stats_Block "log" "(DPT=80|DPT=443).*OUTBOUND.*$proto" "DST" "Last $counter Unique HTTP(s) Blocks (Outbound)" "head" "$counter" "1" "1"
-				Show_Stats_Block "log" "(DPT=80|DPT=443).*OUTBOUND.*$proto" "DST" "Top $counter HTTP(s) Blocks (Outbound)" "head" "$counter" "2" "2"
+				Show_Stats_Block "log" "OUTBOUND.*$proto.*(DPT=80|DPT=443)" "DST" "Last $counter Unique HTTP(s) Blocks (Outbound)" "head" "$counter" "1" "1"
+				Show_Stats_Block "log" "OUTBOUND.*$proto.*(DPT=80|DPT=443)" "DST" "Top $counter HTTP(s) Blocks (Outbound)" "head" "$counter" "2" "2"
 				Show_Stats_Block "log" "INBOUND.*$proto" "SRC" "Top $counter Blocks (Inbound)" "head" "$counter" "2" "2"
 				Show_Stats_Block "log" "OUTBOUND.*$proto" "DST" "Top $counter Blocks (Outbound)" "head" "$counter" "2" "2"
 				if Is_Enabled "$loginvalid"; then
@@ -2153,13 +2270,12 @@ Run_Stats() {
 				Display_Header "9"
 				Red "Top $counter Blocked Devices (Outbound);"
 				Display_Header "4"
-				grep -E "OUTBOUND.*$proto" "$skynetlog" | grep -oE ' SRC=[0-9,\.]*' | cut -c 6- | sort -n | uniq -c | sort -nr | head -"$counter" | while IFS= read -r "statdata"; do
-					hits="$(echo "$statdata" | awk '{print $1}')"
-					ipaddr="$(echo "$statdata" | awk '{print $2}')"
+				Extract_Stats_Values "$skynetlog" "OUTBOUND.*$proto" "" "SRC" "top" "$counter" > "$TMP_DIR/statsclients.txt"
+				while read -r hits ipaddr; do
 					macaddr="$(ip neigh | grep -F "$ipaddr " | awk '{print $5}')"
 					Get_LocalName
 					printf '%-10s | %-16s | %-60s\n' "${hits}x" "${ipaddr}" "$localname"
-				done
+				done < "$TMP_DIR/statsclients.txt"
 			;;
 		esac
 		rm -f "$TMP_DIR/skynetstats.txt"
@@ -2181,310 +2297,161 @@ Generate_WebUI_Settings() {
 }
 
 Generate_Stats() {
-	if nvram get rc_support | grep -qF "am_addons"; then
-		if Is_Enabled "$displaywebui"; then
-			webuistatsactive="1"
-			if ! mkdir -p "${skynetloc}/webui/stats" || [ ! -w "${skynetloc}/webui/stats" ]; then
-				unset "webuistatsactive"
-				Log error "Failed To Create WebUI Statistics Workspace"
-				return 1
-			fi
-			statsfile="${skynetloc}/webui/stats.js"
-			statstmp="${statsfile}.tmp.$$"
-			statsstatus="0"
-			true > "$statstmp" || statsstatus="1"
-			if Is_Enabled "$extendedstats" && [ -f "/opt/var/log/dnsmasq.log" ]; then
-				grep -hE 'reply.* is ([0-9]{1,3}\.){3}[0-9]{1,3}$' /opt/var/log/dnsmasq* | awk '{printf "%s %s\n", $(NF-2), $NF}' | awk '!x[$0]++' | Strip_Domain > "${skynetloc}/webui/stats/skynetstats.txt"
-			else
-				touch "${skynetloc}/webui/stats/skynetstats.txt"
-			fi
+	nvram get rc_support | grep -qF "am_addons" || return 0
+	Is_Enabled "$displaywebui" || return 0
 
-			if iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-MasterWL src -m set --match-set Skynet-Master src -j DROP 2>/dev/null; then
-				hits1="$(iptables -xnvL PREROUTING -t raw | grep -Fv "LOG" | grep -F "Skynet-Master src" | awk '{print $1}')"
-			else
-				hits1="0"
-			fi
-			if iptables -t raw -C PREROUTING -i br+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null; then
-				hits2="$(($(iptables -xnvL PREROUTING -t raw | grep -Fv "LOG" | grep -F "Skynet-Master dst" | grep -vF "tun"| grep -vF "wgs" | awk '{print $1}') + $(iptables -xnvL OUTPUT -t raw | grep -Fv "LOG" | grep -F "Skynet-Master dst" | awk '{print $1}')))"
-				if iptables -t raw -C PREROUTING -i wgs+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null; then
-					hits2="$((hits2 + $(iptables -xnvL PREROUTING -t raw | grep -Fv "LOG" | grep -F "Skynet-Master dst" | grep -F "wgs" | awk '{print $1}')))"
-				fi
-				if iptables -t raw -C PREROUTING -i tun2+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null; then
-					hits2="$((hits2 + $(iptables -xnvL PREROUTING -t raw | grep -Fv "LOG" | grep -F "Skynet-Master dst" | grep -F "tun" | awk '{print $1}')))"
-				fi
-			else
-				hits2="0"
-			fi
+	webuistatsactive="1"
+	statsworkspace="${skynetloc}/webui/stats"
+	if ! mkdir -p "$statsworkspace" || [ ! -w "$statsworkspace" ]; then
+		unset "webuistatsactive"
+		Log error "Failed To Create WebUI Statistics Workspace"
+		return 1
+	fi
 
-			Write_Stats_ToJS "$blacklist1count" "$statstmp" "SetBLCount1" "blcount1" || statsstatus="1"
-			Write_Stats_ToJS "$blacklist2count" "$statstmp" "SetBLCount2" "blcount2" || statsstatus="1"
-			Write_Stats_ToJS "$hits1" "$statstmp" "SetHits1" "hits1" || statsstatus="1"
-			Write_Stats_ToJS "$hits2" "$statstmp" "SetHits2" "hits2" || statsstatus="1"
-			Write_Stats_ToJS "Monitoring From $(grep -m1 -F "BLOCKED -" "$skynetlog" | awk '{printf "%s %s %s\n", $1, $2, $3}') To $(grep -F "BLOCKED -" "$skynetlog" | tail -1 | awk '{printf "%s %s %s\n", $1, $2, $3}')" "$statstmp" "SetStatsDate" "statsdate" || statsstatus="1"
-			Write_Stats_ToJS "Log Size - ($(du -h "$skynetlog" | awk '{print $1}')B)" "$statstmp" "SetStatsSize" "statssize" || statsstatus="1"
-			printf 'var SkynetStatsGenerated = "%s.%s";\n' "$(date +%s)" "$$" >> "$statstmp" || statsstatus="1"
-			# Activity Today
-			awk -v today="$(date '+%b %e')" -v hour="$(date '+%H')" '
-				BEGIN { hour += 0 }
-				substr($0, 1, 6) == today {
-					h = substr($0, 8, 2) + 0
-					if ($0 ~ /\[BLOCKED - INBOUND\]/) inbound[h]++
-					else if ($0 ~ /\[BLOCKED - OUTBOUND\]/) outbound[h]++
-					else if ($0 ~ /\[BLOCKED - INVALID\]/) invalid[h]++
-					else if ($0 ~ /\[BLOCKED - IOT\]/) iot[h]++
-				}
-				END {
-					for (i = 0; i <= hour; i++)
-						printf "%02d:00~%d~%d~%d~%d\n", i, inbound[i]+0, outbound[i]+0, invalid[i]+0, iot[i]+0
-				}
-			' "$skynetlog" > "${skynetloc}/webui/stats/activity.txt"
-			Write_Data_ToJS "${skynetloc}/webui/stats/activity.txt" "$statstmp" "LabelActivityToday" "DataActivityInbound" "DataActivityOutbound" "DataActivityInvalid" "DataActivityIOT" || statsstatus="1"
-			# Inbound Ports
-			grep -F "INBOUND" "$skynetlog" | grep -oE 'DPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -10 | sed "s~^[ \t]*~~;s~ ~\~~g" > "${skynetloc}/webui/stats/iport.txt"
-			Write_Data_ToJS "${skynetloc}/webui/stats/iport.txt" "$statstmp" "DataInPortHits" "LabelInPortHits" || statsstatus="1"
-			# Source Ports
-			grep -F "INBOUND" "$skynetlog" | grep -oE 'SPT=[0-9]{1,5}' | cut -c 5- | sort -n | uniq -c | sort -nr | head -10 | sed "s~^[ \t]*~~;s~ ~\~~g" > "${skynetloc}/webui/stats/sport.txt"
-			Write_Data_ToJS "${skynetloc}/webui/stats/sport.txt" "$statstmp" "DataSPortHits" "LabelSPortHits" || statsstatus="1"
-			# last 10 Connections Blocked Inbound
-			true > "${skynetloc}/webui/stats/liconn.txt"
-			grep -F "INBOUND" "$skynetlog" | grep -oE ' SRC=[0-9,\.]*' | cut -c 6- | awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' | awk '!x[$0]++' | head -10 | while IFS= read -r "statdata"; do
-				banreason="$(
-					grep -E '^add Skynet-(Blacklist|BlockedRanges) ' "$skynetipset" |
-					awk -v ip="$statdata" '
-						function trim(s) { sub(/^ +| +$/, "", s); return s }
-						function do_print(cidr) {
-						pos = index($0, "comment \"")
-						if (pos) {
-							s = substr($0, pos+9); sub(/"$/, "", s)
-							printf "%s", trim(s)
-							if (cidr) printf "*"
-							printf "\n"
-						}
-						}
-						BEGIN { split(ip,A,"."); ipn=A[1]*16777216 + A[2]*65536 + A[3]*256 + A[4] }
-						# exact blacklist
-						$1=="add" && $2=="Skynet-Blacklist" && $3==ip { do_print(0); exit }
-						# CIDR ranges
-						$1=="add" && $2=="Skynet-BlockedRanges" {
-						split($3,P,"/"); net=P[1]; prefix=P[2]
-						split(net,B,"."); netn=B[1]*16777216 + B[2]*65536 + B[3]*256 + B[4]
-						if (prefix==32 && ipn==netn)              { do_print(0); exit }
-						else if (prefix==24 && A[1]==B[1]&&A[2]==B[2]&&A[3]==B[3]) { do_print(1); exit }
-						else if (prefix==16 && A[1]==B[1]&&A[2]==B[2])           { do_print(1); exit }
-						else if (prefix==8  && A[1]==B[1])                       { do_print(1); exit }
-						else {
-							sh=32-prefix; div=1
-							for(i=0;i<sh;i++) div*=2
-							if (int(ipn/div)==int(netn/div)) { do_print(1); exit }
-						}
-						}
-					'
-				)"
-				if [ -z "$banreason" ]; then
-					banreason="$(grep -E "$(echo "$statdata" | cut -d '.' -f1-3)\..*/" "$skynetipset" | grep -m1 -vF "Skynet-Whitelist" | awk -F '"' '{print $2}' | sed "s~BanMalware: ~~g")*"
-				fi
-				if [ "${#banreason}" -gt "45" ]; then banreason="$(echo "$banreason" | cut -c 1-45)"; fi
-				alienvault="https://otx.alienvault.com/indicator/ip/${statdata}"
-				if Is_Enabled "$lookupcountry"; then
-					country="$(Curl_Lookup "https://api.db-ip.com/v2/free/${statdata}/countryCode/" 2>/dev/null | grep -E '^[A-Z]{2}$' || echo '**')"
-				fi
-				assdomains="$(awk -v ip="$statdata" '$2 == ip {print $1}' "${skynetloc}/webui/stats/skynetstats.txt" | xargs)"
-				if [ -z "$assdomains" ]; then assdomains="*"; fi
-				echo "$statdata~$banreason~$alienvault~$country~$assdomains" >> "${skynetloc}/webui/stats/liconn.txt"
-			done
-			Write_Data_ToJS "${skynetloc}/webui/stats/liconn.txt" "$statstmp" "LabelInConn_IPs" "LabelInConn_BanReason" "LabelInConn_AlienVault" "LabelInConn_Country" "LabelInConn_AssDomains" || statsstatus="1"
-			# Last 10 Connections Blocked Outbound
-			true > "${skynetloc}/webui/stats/loconn.txt"
-			grep -F "OUTBOUND" "$skynetlog" | grep -vE 'DPT=80 |DPT=443 ' | grep -oE ' DST=[0-9,\.]*' | cut -c 6- | awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' | awk '!x[$0]++' | head -10 | while IFS= read -r "statdata"; do
-				banreason="$(
-					grep -E '^add Skynet-(Blacklist|BlockedRanges) ' "$skynetipset" |
-					awk -v ip="$statdata" '
-						function trim(s) { sub(/^ +| +$/, "", s); return s }
-						function do_print(cidr) {
-						pos = index($0, "comment \"")
-						if (pos) {
-							s = substr($0, pos+9); sub(/"$/, "", s)
-							printf "%s", trim(s)
-							if (cidr) printf "*"
-							printf "\n"
-						}
-						}
-						BEGIN { split(ip,A,"."); ipn=A[1]*16777216 + A[2]*65536 + A[3]*256 + A[4] }
-						# exact blacklist
-						$1=="add" && $2=="Skynet-Blacklist" && $3==ip { do_print(0); exit }
-						# CIDR ranges
-						$1=="add" && $2=="Skynet-BlockedRanges" {
-						split($3,P,"/"); net=P[1]; prefix=P[2]
-						split(net,B,"."); netn=B[1]*16777216 + B[2]*65536 + B[3]*256 + B[4]
-						if (prefix==32 && ipn==netn)              { do_print(0); exit }
-						else if (prefix==24 && A[1]==B[1]&&A[2]==B[2]&&A[3]==B[3]) { do_print(1); exit }
-						else if (prefix==16 && A[1]==B[1]&&A[2]==B[2])           { do_print(1); exit }
-						else if (prefix==8  && A[1]==B[1])                       { do_print(1); exit }
-						else {
-							sh=32-prefix; div=1
-							for(i=0;i<sh;i++) div*=2
-							if (int(ipn/div)==int(netn/div)) { do_print(1); exit }
-						}
-						}
-					'
-				)"
-				if [ -z "$banreason" ]; then
-					banreason="$(grep -E "$(echo "$statdata" | cut -d '.' -f1-3)\..*/" "$skynetipset" | grep -m1 -vF "Skynet-Whitelist" | awk -F '"' '{print $2}' | sed "s~BanMalware: ~~g")*"
-				fi
-				if [ "${#banreason}" -gt "45" ]; then banreason="$(echo "$banreason" | cut -c 1-45)"; fi
-				alienvault="https://otx.alienvault.com/indicator/ip/${statdata}"
-				if Is_Enabled "$lookupcountry"; then
-					country="$(Curl_Lookup "https://api.db-ip.com/v2/free/${statdata}/countryCode/" 2>/dev/null | grep -E '^[A-Z]{2}$' || echo '**')"
-				fi
-				assdomains="$(awk -v ip="$statdata" '$2 == ip {print $1}' "${skynetloc}/webui/stats/skynetstats.txt" | xargs)"
-				if [ -z "$assdomains" ]; then assdomains="*"; fi
-				echo "$statdata~$banreason~$alienvault~$country~$assdomains" >> "${skynetloc}/webui/stats/loconn.txt"
-			done
-			Write_Data_ToJS "${skynetloc}/webui/stats/loconn.txt" "$statstmp" "LabelOutConn_IPs" "LabelOutConn_BanReason" "LabelOutConn_AlienVault" "LabelOutConn_Country" "LabelOutConn_AssDomains" || statsstatus="1"
-			# Last 10 HTTP Connections Blocked Outbound
-			true > "${skynetloc}/webui/stats/lhconn.txt"
-			grep -E 'DPT=80 |DPT=443 ' "$skynetlog" | grep -F "OUTBOUND" | grep -oE ' DST=[0-9,\.]*' | cut -c 6- | awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' | awk '!x[$0]++' | head -10 | while IFS= read -r "statdata"; do
-				banreason="$(
-					grep -E '^add Skynet-(Blacklist|BlockedRanges) ' "$skynetipset" |
-					awk -v ip="$statdata" '
-						function trim(s) { sub(/^ +| +$/, "", s); return s }
-						function do_print(cidr) {
-						pos = index($0, "comment \"")
-						if (pos) {
-							s = substr($0, pos+9); sub(/"$/, "", s)
-							printf "%s", trim(s)
-							if (cidr) printf "*"
-							printf "\n"
-						}
-						}
-						BEGIN { split(ip,A,"."); ipn=A[1]*16777216 + A[2]*65536 + A[3]*256 + A[4] }
-						# exact blacklist
-						$1=="add" && $2=="Skynet-Blacklist" && $3==ip { do_print(0); exit }
-						# CIDR ranges
-						$1=="add" && $2=="Skynet-BlockedRanges" {
-						split($3,P,"/"); net=P[1]; prefix=P[2]
-						split(net,B,"."); netn=B[1]*16777216 + B[2]*65536 + B[3]*256 + B[4]
-						if (prefix==32 && ipn==netn)              { do_print(0); exit }
-						else if (prefix==24 && A[1]==B[1]&&A[2]==B[2]&&A[3]==B[3]) { do_print(1); exit }
-						else if (prefix==16 && A[1]==B[1]&&A[2]==B[2])           { do_print(1); exit }
-						else if (prefix==8  && A[1]==B[1])                       { do_print(1); exit }
-						else {
-							sh=32-prefix; div=1
-							for(i=0;i<sh;i++) div*=2
-							if (int(ipn/div)==int(netn/div)) { do_print(1); exit }
-						}
-						}
-					'
-				)"
-				if [ -z "$banreason" ]; then
-					banreason="$(grep -E "$(echo "$statdata" | cut -d '.' -f1-3)\..*/" "$skynetipset" | grep -m1 -vF "Skynet-Whitelist" | awk -F '"' '{print $2}' | sed "s~BanMalware: ~~g")*"
-				fi
-				if [ "${#banreason}" -gt "45" ]; then banreason="$(echo "$banreason" | cut -c 1-45)"; fi
-				alienvault="https://otx.alienvault.com/indicator/ip/${statdata}"
-				if Is_Enabled "$lookupcountry"; then
-					country="$(Curl_Lookup "https://api.db-ip.com/v2/free/${statdata}/countryCode/" 2>/dev/null | grep -E '^[A-Z]{2}$' || echo '**')"
-				fi
-				assdomains="$(awk -v ip="$statdata" '$2 == ip {print $1}' "${skynetloc}/webui/stats/skynetstats.txt" | xargs)"
-				if [ -z "$assdomains" ]; then assdomains="*"; fi
-				echo "$statdata~$banreason~$alienvault~$country~$assdomains" >> "${skynetloc}/webui/stats/lhconn.txt"
-			done
-			Write_Data_ToJS "${skynetloc}/webui/stats/lhconn.txt" "$statstmp" "LabelHTTPConn_IPs" "LabelHTTPConn_BanReason" "LabelHTTPConn_AlienVault" "LabelHTTPConn_Country" "LabelHTTPConn_AssDomains" || statsstatus="1"
-			# Top 10 HTTP Connections Blocked Outbound
-			true > "${skynetloc}/webui/stats/thconn.txt"
-			grep -E 'DPT=80 |DPT=443 ' "$skynetlog" | grep -F "OUTBOUND" | grep -oE ' DST=[0-9,\.]*' | cut -c 6- | sort -n | uniq -c | sort -nr | head -10 | while IFS= read -r "statdata"; do
-				hits="$(echo "$statdata" | awk '{print $1}')"
-				ipaddr="$(echo "$statdata" | awk '{print $2}')"
-				if Is_Enabled "$lookupcountry"; then
-					country="$(Curl_Lookup "https://api.db-ip.com/v2/free/${ipaddr}/countryCode/" 2>/dev/null | grep -E '^[A-Z]{2}$' || echo '**')"
-				fi
-				assdomains="$(awk -v ip="$ipaddr" '$2 == ip {print $1}' "${skynetloc}/webui/stats/skynetstats.txt" | xargs)"
-				if [ -z "$assdomains" ]; then assdomains="*"; fi
-				echo "$hits~$ipaddr~$country~$assdomains" >> "${skynetloc}/webui/stats/thconn.txt"
-			done
-			Write_Data_ToJS "${skynetloc}/webui/stats/thconn.txt" "$statstmp" "DataTHConnHits" "LabelTHConnHits_IPs" "LabelTHConnHits_Country" "LabelTHConnHits_AssDomains" || statsstatus="1"
-			# Top 10 Inbound Connections Blocked
-			true > "${skynetloc}/webui/stats/ticonn.txt"
-			grep -F "INBOUND" "$skynetlog" | grep -oE ' SRC=[0-9,\.]*' | cut -c 6- | sort -n | uniq -c | sort -nr | head -10 | while IFS= read -r "statdata"; do
-				hits="$(echo "$statdata" | awk '{print $1}')"
-				ipaddr="$(echo "$statdata" | awk '{print $2}')"
-				if Is_Enabled "$lookupcountry"; then country="$(Curl_Lookup "https://api.db-ip.com/v2/free/${ipaddr}/countryName/" 2>/dev/null)"; else country=""; fi
-				if [ -z "$country" ]; then country="*"; fi
-				echo "$hits~$ipaddr~$country" >> "${skynetloc}/webui/stats/ticonn.txt"
-			done
-			Write_Data_ToJS "${skynetloc}/webui/stats/ticonn.txt" "$statstmp" "DataTIConnHits" "LabelTIConnHits_IPs" "LabelTIConnHits_Country" || statsstatus="1"
-			# Top 10 Outbound Connections Blocked
-			true > "${skynetloc}/webui/stats/toconn.txt"
-			grep -F "OUTBOUND" "$skynetlog" | grep -vE 'DPT=80 |DPT=443 ' | grep -oE ' DST=[0-9,\.]*' | cut -c 6- | sort -n | uniq -c | sort -nr | head -10 | while IFS= read -r "statdata"; do
-				hits="$(echo "$statdata" | awk '{print $1}')"
-				ipaddr="$(echo "$statdata" | awk '{print $2}')"
-				if Is_Enabled "$lookupcountry"; then
-					country="$(Curl_Lookup "https://api.db-ip.com/v2/free/${ipaddr}/countryCode/" 2>/dev/null | grep -E '^[A-Z]{2}$' || echo '**')"
-				fi
-				assdomains="$(awk -v ip="$ipaddr" '$2 == ip {print $1}' "${skynetloc}/webui/stats/skynetstats.txt" | xargs)"
-				if [ -z "$assdomains" ]; then assdomains="*"; fi
-				echo "$hits~$ipaddr~$country~$assdomains" >> "${skynetloc}/webui/stats/toconn.txt"
-			done
-			Write_Data_ToJS "${skynetloc}/webui/stats/toconn.txt" "$statstmp" "DataTOConnHits" "LabelTOConnHits_IPs" "LabelTOConnHits_Country" "LabelTOConnHits_AssDomains" || statsstatus="1"
-			# Top 10 Invalid Connections Blocked
-			true > "${skynetloc}/webui/stats/tinvconn.txt"
-			if Is_Enabled "$loginvalid"; then
-				grep -F "INVALID" "$skynetlog" | grep -oE ' SRC=[0-9,\.]*' | cut -c 6- | sort -n | uniq -c | sort -nr | head -10 | while IFS= read -r "statdata"; do
-					hits="$(echo "$statdata" | awk '{print $1}')"
-					ipaddr="$(echo "$statdata" | awk '{print $2}')"
-					if Is_Enabled "$lookupcountry"; then
-						country="$(Curl_Lookup "https://api.db-ip.com/v2/free/${ipaddr}/countryCode/" 2>/dev/null | grep -E '^[A-Z]{2}$' || echo '**')"
-					fi
-					echo "$hits~$ipaddr~$country" >> "${skynetloc}/webui/stats/tinvconn.txt"
-				done
-			fi
-			Write_Data_ToJS "${skynetloc}/webui/stats/tinvconn.txt" "$statstmp" "DataTInvConnHits" "LabelTInvConnHits_IPs" "LabelTInvConnHits_Country" || statsstatus="1"
-			# Top 10 IoT Connections Blocked Outbound
-			true > "${skynetloc}/webui/stats/tiotconn.txt"
-			if Is_Enabled "$iotblocked"; then
-				grep -F "IOT" "$skynetlog" | grep -oE ' DST=[0-9,\.]*' | cut -c 6- | sort -n | uniq -c | sort -nr | head -10 | while IFS= read -r "statdata"; do
-					hits="$(echo "$statdata" | awk '{print $1}')"
-					ipaddr="$(echo "$statdata" | awk '{print $2}')"
-					if Is_Enabled "$lookupcountry"; then
-						country="$(Curl_Lookup "https://api.db-ip.com/v2/free/${ipaddr}/countryCode/" 2>/dev/null | grep -E '^[A-Z]{2}$' || echo '**')"
-					fi
-					assdomains="$(awk -v ip="$ipaddr" '$2 == ip {print $1}' "${skynetloc}/webui/stats/skynetstats.txt" | xargs)"
-					if [ -z "$assdomains" ]; then assdomains="*"; fi
-					echo "$hits~$ipaddr~$country~$assdomains" >> "${skynetloc}/webui/stats/tiotconn.txt"
-				done
-			fi
-			Write_Data_ToJS "${skynetloc}/webui/stats/tiotconn.txt" "$statstmp" "DataTIOTConnHits" "LabelTIOTConnHits_IPs" "LabelTIOTConnHits_Country" "LabelTIOTConnHits_AssDomains" || statsstatus="1"
-			# Top 10 Clients Blocked
-			true > "${skynetloc}/webui/stats/tcconn.txt"
-			true > "${skynetloc}/webui/stats/tcconn2.txt"
-			grep -F "OUTBOUND" "$skynetlog" | grep -oE ' SRC=[0-9,\.]*' | cut -c 6- | sort -n | uniq -c | sort -nr | head -10 | sed "s~^[ \t]*~~;s~ ~\~~g" > "${skynetloc}/webui/stats/tcconn.txt"
-			while IFS= read -r "line"; do
-				ipaddr="$(echo "$line" | awk -F "~" '{print $2}')"
-				macaddr="$(ip neigh | grep -E '^([0-9]{1,3}\.){3}[0-9]{1,3} ' | grep -F "$ipaddr " | awk '{print $5}')"
-				Get_LocalName
-				if [ "${#localname}" -gt "20" ]; then
-					localname="$(echo "$localname" | cut -c 1-20)"
-				fi
-				echo "$line ($localname)" >> "${skynetloc}/webui/stats/tcconn2.txt"
-			done < "${skynetloc}/webui/stats/tcconn.txt"
-			Write_Data_ToJS "${skynetloc}/webui/stats/tcconn2.txt" "$statstmp" "DataTCConnHits" "LabelTCConnHits" || statsstatus="1"
+	statsfile="${skynetloc}/webui/stats.js"
+	statstmp="${statsfile}.tmp.$$"
+	statsbanlist="${statsworkspace}/banlist.txt"
+	statscountrycache="${statsworkspace}/countries.txt"
+	statsdomaincache="${statsworkspace}/domains.txt"
+	statsdnsmap="${statsworkspace}/dnsmasq.txt"
+	statsstatus="0"
 
-			if [ "$statsstatus" = "0" ] && printf 'var SkynetStatsComplete = true;\n' >> "$statstmp" \
-				&& [ -s "$statstmp" ] && mv -f "$statstmp" "$statsfile"; then
-				rm -rf "${skynetloc}/webui/stats"
-				unset "webuistatsactive"
-				Generate_WebUI_Settings
-				return "$?"
-			fi
-			rm -f "$statstmp"
-			rm -rf "${skynetloc}/webui/stats"
-			unset "webuistatsactive"
-			Log error "Failed To Generate WebUI Statistics - Existing File Retained"
-			Generate_WebUI_Settings
-			return 1
+	true > "$statstmp" || statsstatus="1"
+	true > "$statscountrycache" || statsstatus="1"
+	grep -E '^add Skynet-(Blacklist|BlockedRanges) ' "$skynetipset" > "$statsbanlist" || true
+
+	if Is_Enabled "$extendedstats" && [ -f "/opt/var/log/dnsmasq.log" ]; then
+		grep -hE 'reply.* is ([0-9]{1,3}\.){3}[0-9]{1,3}$' /opt/var/log/dnsmasq* 2>/dev/null |
+			awk '{printf "%s %s\n", $(NF-2), $NF}' |
+			Strip_Domain > "$statsdnsmap"
+	else
+		true > "$statsdnsmap"
+	fi
+	awk '
+		NF >= 2 {
+			if (domains[$2] == "") domains[$2] = $1
+			else domains[$2] = domains[$2] " " $1
+		}
+		END {
+			for (ip in domains) printf "%s~%s\n", ip, domains[ip]
+		}
+	' "$statsdnsmap" > "$statsdomaincache" || statsstatus="1"
+
+	statsprerouting="${statsworkspace}/prerouting.txt"
+	statsoutput="${statsworkspace}/output.txt"
+	iptables -xnvL PREROUTING -t raw > "$statsprerouting" 2>/dev/null || true > "$statsprerouting"
+	iptables -xnvL OUTPUT -t raw > "$statsoutput" 2>/dev/null || true > "$statsoutput"
+
+	hits1="0"
+	if iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-MasterWL src -m set --match-set Skynet-Master src -j DROP 2>/dev/null; then
+		hits1="$(awk '!/LOG/ && /Skynet-Master src/ {hits += $1} END {print hits + 0}' "$statsprerouting")"
+	fi
+
+	hits2="0"
+	if iptables -t raw -C PREROUTING -i br+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null; then
+		hits2="$(awk '
+			!/LOG/ && /Skynet-Master dst/ && $0 !~ /tun|wgs/ {hits += $1}
+			END {print hits + 0}
+		' "$statsprerouting")"
+		hits2="$((hits2 + $(awk '!/LOG/ && /Skynet-Master dst/ {hits += $1} END {print hits + 0}' "$statsoutput")))"
+		if iptables -t raw -C PREROUTING -i wgs+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null; then
+			hits2="$((hits2 + $(awk '!/LOG/ && /Skynet-Master dst/ && /wgs/ {hits += $1} END {print hits + 0}' "$statsprerouting")))"
+		fi
+		if iptables -t raw -C PREROUTING -i tun2+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null; then
+			hits2="$((hits2 + $(awk '!/LOG/ && /Skynet-Master dst/ && /tun/ {hits += $1} END {print hits + 0}' "$statsprerouting")))"
 		fi
 	fi
-}
 
+	Write_Stats_ToJS "$blacklist1count" "$statstmp" "SetBLCount1" "blcount1" || statsstatus="1"
+	Write_Stats_ToJS "$blacklist2count" "$statstmp" "SetBLCount2" "blcount2" || statsstatus="1"
+	Write_Stats_ToJS "$hits1" "$statstmp" "SetHits1" "hits1" || statsstatus="1"
+	Write_Stats_ToJS "$hits2" "$statstmp" "SetHits2" "hits2" || statsstatus="1"
+	Write_Stats_ToJS "Monitoring From $(grep -m1 -F "BLOCKED -" "$skynetlog" | awk '{printf "%s %s %s\n", $1, $2, $3}') To $(grep -F "BLOCKED -" "$skynetlog" | tail -1 | awk '{printf "%s %s %s\n", $1, $2, $3}')" "$statstmp" "SetStatsDate" "statsdate" || statsstatus="1"
+	Write_Stats_ToJS "Log Size - ($(du -h "$skynetlog" | awk '{print $1}')B)" "$statstmp" "SetStatsSize" "statssize" || statsstatus="1"
+	printf 'var SkynetStatsGenerated = "%s.%s";\n' "$(date +%s)" "$$" >> "$statstmp" || statsstatus="1"
+
+	Build_Stats_Log_Index "$skynetlog" "$statsworkspace" || statsstatus="1"
+	Write_Data_ToJS "${statsworkspace}/activity.txt" "$statstmp" "LabelActivityToday" "DataActivityInbound" "DataActivityOutbound" "DataActivityInvalid" "DataActivityIOT" || statsstatus="1"
+
+	# Inbound Ports
+	Extract_Stats_Values "${statsworkspace}/inbound-dpt.txt" ".*" "" "" "top" "10" |
+		sed "s~^[ \t]*~~;s~ ~\~~g" > "${statsworkspace}/iport.txt"
+	Write_Data_ToJS "${statsworkspace}/iport.txt" "$statstmp" "DataInPortHits" "LabelInPortHits" || statsstatus="1"
+
+	# Source Ports
+	Extract_Stats_Values "${statsworkspace}/inbound-spt.txt" ".*" "" "" "top" "10" |
+		sed "s~^[ \t]*~~;s~ ~\~~g" > "${statsworkspace}/sport.txt"
+	Write_Data_ToJS "${statsworkspace}/sport.txt" "$statstmp" "DataSPortHits" "LabelSPortHits" || statsstatus="1"
+
+	# Recent Connections
+	Extract_Stats_Values "${statsworkspace}/inbound-src.txt" ".*" "" "" "recent" "10" |
+		Write_Recent_IP_Stats "${statsworkspace}/liconn.txt" || statsstatus="1"
+	Write_Data_ToJS "${statsworkspace}/liconn.txt" "$statstmp" "LabelInConn_IPs" "LabelInConn_BanReason" "LabelInConn_AlienVault" "LabelInConn_Country" "LabelInConn_AssDomains" || statsstatus="1"
+
+	Extract_Stats_Values "${statsworkspace}/outbound-dst.txt" ".*" "" "" "recent" "10" |
+		Write_Recent_IP_Stats "${statsworkspace}/loconn.txt" || statsstatus="1"
+	Write_Data_ToJS "${statsworkspace}/loconn.txt" "$statstmp" "LabelOutConn_IPs" "LabelOutConn_BanReason" "LabelOutConn_AlienVault" "LabelOutConn_Country" "LabelOutConn_AssDomains" || statsstatus="1"
+
+	Extract_Stats_Values "${statsworkspace}/outbound-http-dst.txt" ".*" "" "" "recent" "10" |
+		Write_Recent_IP_Stats "${statsworkspace}/lhconn.txt" || statsstatus="1"
+	Write_Data_ToJS "${statsworkspace}/lhconn.txt" "$statstmp" "LabelHTTPConn_IPs" "LabelHTTPConn_BanReason" "LabelHTTPConn_AlienVault" "LabelHTTPConn_Country" "LabelHTTPConn_AssDomains" || statsstatus="1"
+
+	# Top Connections
+	Extract_Stats_Values "${statsworkspace}/outbound-http-dst.txt" ".*" "" "" "top" "10" |
+		Write_Top_IP_Stats "${statsworkspace}/thconn.txt" code domains || statsstatus="1"
+	Write_Data_ToJS "${statsworkspace}/thconn.txt" "$statstmp" "DataTHConnHits" "LabelTHConnHits_IPs" "LabelTHConnHits_Country" "LabelTHConnHits_AssDomains" || statsstatus="1"
+
+	Extract_Stats_Values "${statsworkspace}/inbound-src.txt" ".*" "" "" "top" "10" |
+		Write_Top_IP_Stats "${statsworkspace}/ticonn.txt" name nodomains || statsstatus="1"
+	Write_Data_ToJS "${statsworkspace}/ticonn.txt" "$statstmp" "DataTIConnHits" "LabelTIConnHits_IPs" "LabelTIConnHits_Country" || statsstatus="1"
+
+	Extract_Stats_Values "${statsworkspace}/outbound-dst.txt" ".*" "" "" "top" "10" |
+		Write_Top_IP_Stats "${statsworkspace}/toconn.txt" code domains || statsstatus="1"
+	Write_Data_ToJS "${statsworkspace}/toconn.txt" "$statstmp" "DataTOConnHits" "LabelTOConnHits_IPs" "LabelTOConnHits_Country" "LabelTOConnHits_AssDomains" || statsstatus="1"
+
+	if Is_Enabled "$loginvalid"; then
+		Extract_Stats_Values "${statsworkspace}/invalid-src.txt" ".*" "" "" "top" "10" |
+			Write_Top_IP_Stats "${statsworkspace}/tinvconn.txt" code nodomains || statsstatus="1"
+	else
+		true > "${statsworkspace}/tinvconn.txt"
+	fi
+	Write_Data_ToJS "${statsworkspace}/tinvconn.txt" "$statstmp" "DataTInvConnHits" "LabelTInvConnHits_IPs" "LabelTInvConnHits_Country" || statsstatus="1"
+
+	if Is_Enabled "$iotblocked"; then
+		Extract_Stats_Values "${statsworkspace}/iot-dst.txt" ".*" "" "" "top" "10" |
+			Write_Top_IP_Stats "${statsworkspace}/tiotconn.txt" code domains || statsstatus="1"
+	else
+		true > "${statsworkspace}/tiotconn.txt"
+	fi
+	Write_Data_ToJS "${statsworkspace}/tiotconn.txt" "$statstmp" "DataTIOTConnHits" "LabelTIOTConnHits_IPs" "LabelTIOTConnHits_Country" "LabelTIOTConnHits_AssDomains" || statsstatus="1"
+
+	# Top Clients
+	Extract_Stats_Values "${statsworkspace}/outbound-src.txt" ".*" "" "" "top" "10" > "${statsworkspace}/clients.txt"
+	while read -r statsclienthits statsclientip; do
+		[ -n "$statsclientip" ] || continue
+		ipaddr="$statsclientip"
+		macaddr="$(ip neigh | awk -v ip="$statsclientip" '$1 == ip {print $5; exit}')"
+		Get_LocalName
+		[ "${#localname}" -le 20 ] || localname="$(printf '%s' "$localname" | cut -c1-20)"
+		printf '%s~%s (%s)\n' "$statsclienthits" "$statsclientip" "$localname"
+	done < "${statsworkspace}/clients.txt" > "${statsworkspace}/tcconn.txt"
+	Write_Data_ToJS "${statsworkspace}/tcconn.txt" "$statstmp" "DataTCConnHits" "LabelTCConnHits" || statsstatus="1"
+
+	if [ "$statsstatus" = "0" ] && printf 'var SkynetStatsComplete = true;\n' >> "$statstmp" \
+		&& [ -s "$statstmp" ] && mv -f "$statstmp" "$statsfile"; then
+		rm -rf "$statsworkspace"
+		unset "webuistatsactive"
+		Generate_WebUI_Settings
+		return "$?"
+	fi
+
+	rm -f "$statstmp"
+	rm -rf "$statsworkspace"
+	unset "webuistatsactive"
+	Log error "Failed To Generate WebUI Statistics - Existing File Retained"
+	Generate_WebUI_Settings
+	return 1
+}
 Generate_Blocked_Events() {
 	unique_ip_count="$(awk '
 		/INBOUND|INVALID/ {
