@@ -3790,7 +3790,7 @@
             this.setUpdateResult("Generating statistics...", false);
             this.setActionState(true, this.selectors.updateButton, "Updating...");
             this.submitBackgroundAction("start_SkynetStats");
-            this.waitForUpdate(window.SkynetStatsGenerated, 180, "stats");
+            this.waitForUpdate(window.SkynetStatsGenerated, 600, "stats");
         };
 
         SkynetUI.updateMalware = function() {
@@ -3806,7 +3806,7 @@
             );
             this.setActionState(true, this.selectors.malwareButton, "Updating...");
             this.submitBackgroundAction("start_SkynetBanMalware");
-            this.waitForUpdate(window.SkynetSettingsGenerated, 300, "malware");
+            this.waitForUpdate(window.SkynetSettingsGenerated, 600, "malware");
         };
 
         SkynetUI.updateCountries = function() {
@@ -3827,7 +3827,7 @@
             this.setActionState(true, this.selectors.countryButton, "Applying...");
             document.form.amng_custom.value = JSON.stringify(custom_settings);
             this.submitBackgroundAction("start_SkynetCountries");
-            this.waitForUpdate(window.SkynetSettingsGenerated, 300, "countries");
+            this.waitForUpdate(window.SkynetSettingsGenerated, 600, "countries");
         };
 
         SkynetUI.submitBackgroundAction = function(action) {
@@ -3922,7 +3922,7 @@
             this.setActionState(true, this.selectors.settingsButton, "Applying...");
             document.form.amng_custom.value = JSON.stringify(custom_settings);
             this.submitBackgroundAction("start_SkynetSettings");
-            this.waitForUpdate(window.SkynetSettingsGenerated, 180, "settings");
+            this.waitForUpdate(window.SkynetSettingsGenerated, 600, "settings");
         };
 
         SkynetUI.reloadSettings = function() {
