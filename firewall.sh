@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                           27/08/2026 - v8.2.0                                             #
+#                                           29/08/2026 - v8.2.0                                             #
 #############################################################################################################
 
 
@@ -234,6 +234,17 @@ Check_Swap() {
 	grep -qsF "file" "/proc/swaps"
 }
 
+Addon_API_Supported() {
+	if [ "$addonsupportchecked" != "1" ]; then
+		case "$(nvram get rc_support)" in
+			*am_addons*) addonsupported="1" ;;
+			*) addonsupported="0" ;;
+		esac
+		addonsupportchecked="1"
+	fi
+	[ "$addonsupported" = "1" ]
+}
+
 Check_Settings() {
 	# Grab and set local version
 	localver="$(Filter_Version < "$0")"
@@ -403,7 +414,12 @@ Require_Connection() {
 }
 
 Curl_Fetch() {
-	curl -fsSL --retry 3 --connect-timeout 5 --max-time 60 --retry-delay 1 --retry-all-errors "$@"
+	# Keep transient retry errors out of the terminal; callers report the affected file or list.
+	if curl -fsSL --retry 3 --connect-timeout 5 --max-time 60 --retry-delay 1 --retry-all-errors "$@" 2>/dev/null; then
+		return 0
+	fi
+	Log error -s "Download Failed - Check Connection Or URL"
+	return 1
 }
 
 Curl_Lookup() {
@@ -585,13 +601,8 @@ Clean_Stale_Temp() {
 	fi
 }
 
-IPSet_Exists() {
-	ipset -L -n "$1" >/dev/null 2>&1
-}
-
 Ensure_IPSet() {
-	IPSet_Exists "$1" && return
-	ipset -q create "$@" && return
+	ipset -q -! create "$@" && return
 	Log error -s "Failed To Create IPSet ($1)"
 	return 1
 }
@@ -788,63 +799,77 @@ Set_IOTBlocking() {
 }
 
 Check_IPSets() {
-	fail=""
-	IPSet_Exists Skynet-MasterWL || fail="${fail}#1 "
-	IPSet_Exists Skynet-Blacklist || fail="${fail}#2 "
-	IPSet_Exists Skynet-BlockedRanges || fail="${fail}#3 "
-	IPSet_Exists Skynet-Master || fail="${fail}#4 "
-	IPSet_Exists Skynet-IOT || fail="${fail}#5 "
+	fail="$(ipset -n list 2>/dev/null | awk '
+		$0 == "Skynet-MasterWL" { found1 = 1 }
+		$0 == "Skynet-Blacklist" { found2 = 1 }
+		$0 == "Skynet-BlockedRanges" { found3 = 1 }
+		$0 == "Skynet-Master" { found4 = 1 }
+		$0 == "Skynet-IOT" { found5 = 1 }
+		END {
+			if (!found1) printf "#1 "
+			if (!found2) printf "#2 "
+			if (!found3) printf "#3 "
+			if (!found4) printf "#4 "
+			if (!found5) printf "#5 "
+		}
+	')"
 	[ -z "$fail" ]
 }
 
 Check_IPTables() {
 	fail=""
-	raw_rules=$(iptables-save -t raw)
-	filter_rules=$(iptables-save -t filter)
+	checkrawrules="$TMP_DIR/iptables.raw"
+	checkfilterrules="$TMP_DIR/iptables.filter"
+	checkwgs="$(nvram get wgs_enable)"
+	checkvpn1="$(nvram get vpn_server1_state)"
+	checkvpn2="$(nvram get vpn_server2_state)"
+	checkfwlog="$(nvram get fw_log_x)"
+	iptables-save -t raw > "$checkrawrules" 2>/dev/null
+	iptables-save -t filter > "$checkfilterrules" 2>/dev/null
 
 	#6: WireGuard DROP
-	if [ "$(nvram get wgs_enable)" = "1" ]; then
-		echo "$raw_rules" | grep -Fq -- '-A PREROUTING -i wgs+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP' || fail="${fail}#6 "
+	if [ "$checkwgs" = "1" ]; then
+		grep -Fq -- '-A PREROUTING -i wgs+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP' "$checkrawrules" || fail="${fail}#6 "
 	fi
 
 	#7: OpenVPN DROP
-	if [ "$(nvram get vpn_server1_state)" != "0" ] || [ "$(nvram get vpn_server2_state)" != "0" ]; then
-		echo "$raw_rules" | grep -Fq -- '-A PREROUTING -i tun2+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP' || fail="${fail}#7 "
+	if [ "$checkvpn1" != "0" ] || [ "$checkvpn2" != "0" ]; then
+		grep -Fq -- '-A PREROUTING -i tun2+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP' "$checkrawrules" || fail="${fail}#7 "
 	fi
 
 	#8: Inbound on $iface
 	if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "inbound" ]; then
-		echo "$raw_rules" | grep -Fq -- "-A PREROUTING -i $iface -m set ! --match-set Skynet-MasterWL src -m set --match-set Skynet-Master src -j DROP" || fail="${fail}#8 "
+		grep -Fq -- "-A PREROUTING -i $iface -m set ! --match-set Skynet-MasterWL src -m set --match-set Skynet-Master src -j DROP" "$checkrawrules" || fail="${fail}#8 "
 	fi
 
 	#9 & #10: Outbound on br+ and OUTPUT
 	if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "outbound" ]; then
-		echo "$raw_rules" | grep -Fq -- '-A PREROUTING -i br+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP' || fail="${fail}#9 "
-		echo "$raw_rules" | grep -Fq -- '-A OUTPUT -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP' || fail="${fail}#10 "
+		grep -Fq -- '-A PREROUTING -i br+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP' "$checkrawrules" || fail="${fail}#9 "
+		grep -Fq -- '-A OUTPUT -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP' "$checkrawrules" || fail="${fail}#10 "
 	fi
 
 	#11-17: IOT blocking
 	if Is_Enabled "$iotblocked"; then
-		if [ "$(nvram get wgs_enable)" = "1" ]; then
-			echo "$filter_rules" | grep -Fq -- '-A FORWARD -i br+ -o wgs+ -m set --match-set Skynet-IOT src -j ACCEPT' || fail="${fail}#11 "
+		if [ "$checkwgs" = "1" ]; then
+			grep -Fq -- '-A FORWARD -i br+ -o wgs+ -m set --match-set Skynet-IOT src -j ACCEPT' "$checkfilterrules" || fail="${fail}#11 "
 		fi
-		if [ "$(nvram get vpn_server1_state)" != "0" ] || [ "$(nvram get vpn_server2_state)" != "0" ]; then
-			echo "$filter_rules" | grep -Fq -- '-A FORWARD -i br+ -o tun2+ -m set --match-set Skynet-IOT src -j ACCEPT' || fail="${fail}#12 "
+		if [ "$checkvpn1" != "0" ] || [ "$checkvpn2" != "0" ]; then
+			grep -Fq -- '-A FORWARD -i br+ -o tun2+ -m set --match-set Skynet-IOT src -j ACCEPT' "$checkfilterrules" || fail="${fail}#12 "
 		fi
-		echo "$filter_rules" | grep -Fq -- '-A FORWARD -i br+ -m set --match-set Skynet-IOT src -j DROP' || fail="${fail}#13 "
+		grep -Fq -- '-A FORWARD -i br+ -m set --match-set Skynet-IOT src -j DROP' "$checkfilterrules" || fail="${fail}#13 "
 		if [ -n "$iotports" ]; then
 			if [ "$iotproto" = "all" ] || [ "$iotproto" = "udp" ]; then
-				echo "$filter_rules" | grep -Fq -- "-A FORWARD -i br+ -o $iface -p udp -m set --match-set Skynet-IOT src -m udp -m multiport --dports $iotports -j ACCEPT" || fail="${fail}#14 "
+				grep -Fq -- "-A FORWARD -i br+ -o $iface -p udp -m set --match-set Skynet-IOT src -m udp -m multiport --dports $iotports -j ACCEPT" "$checkfilterrules" || fail="${fail}#14 "
 			fi
 			if [ "$iotproto" = "all" ] || [ "$iotproto" = "tcp" ]; then
-				echo "$filter_rules" | grep -Fq -- "-A FORWARD -i br+ -o $iface -p tcp -m set --match-set Skynet-IOT src -m tcp -m multiport --dports $iotports -j ACCEPT" || fail="${fail}#15 "
+				grep -Fq -- "-A FORWARD -i br+ -o $iface -p tcp -m set --match-set Skynet-IOT src -m tcp -m multiport --dports $iotports -j ACCEPT" "$checkfilterrules" || fail="${fail}#15 "
 			fi
 		else
 			if [ "$iotproto" = "all" ] || [ "$iotproto" = "udp" ]; then
-				echo "$filter_rules" | grep -Fq -- "-A FORWARD -i br+ -o $iface -p udp -m set --match-set Skynet-IOT src -m udp --dport 123 -j ACCEPT" || fail="${fail}#16 "
+				grep -Fq -- "-A FORWARD -i br+ -o $iface -p udp -m set --match-set Skynet-IOT src -m udp --dport 123 -j ACCEPT" "$checkfilterrules" || fail="${fail}#16 "
 			fi
 			if [ "$iotproto" = "all" ] || [ "$iotproto" = "tcp" ]; then
-				echo "$filter_rules" | grep -Fq -- "-A FORWARD -i br+ -o $iface -p tcp -m set --match-set Skynet-IOT src -m tcp --dport 123 -j ACCEPT" || fail="${fail}#17 "
+				grep -Fq -- "-A FORWARD -i br+ -o $iface -p tcp -m set --match-set Skynet-IOT src -m tcp --dport 123 -j ACCEPT" "$checkfilterrules" || fail="${fail}#17 "
 			fi
 		fi
 	fi
@@ -852,48 +877,42 @@ Check_IPTables() {
 	#18-24: LOG rules
 	if Is_Enabled "$logmode"; then
 		#18: OpenVPN LOG
-		if { [ "$(nvram get vpn_server1_state)" != "0" ] || [ "$(nvram get vpn_server2_state)" != "0" ]; }; then
-			echo "$raw_rules" \
-			| grep -Fq -- '-A PREROUTING -i tun2+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] "' || fail="${fail}#18 "
+		if [ "$checkvpn1" != "0" ] || [ "$checkvpn2" != "0" ]; then
+			grep -Fq -- '-A PREROUTING -i tun2+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] "' "$checkrawrules" || fail="${fail}#18 "
 		fi
 
 		#19: WireGuard LOG
-		if [ "$(nvram get wgs_enable)" = "1" ]; then
-			echo "$raw_rules" \
-			| grep -Fq -- '-A PREROUTING -i wgs+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] "' || fail="${fail}#19 "
+		if [ "$checkwgs" = "1" ]; then
+			grep -Fq -- '-A PREROUTING -i wgs+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] "' "$checkrawrules" || fail="${fail}#19 "
 		fi
 
 		#20: IoT LOG
 		if Is_Enabled "$iotblocked" && Is_Enabled "$iotlogging"; then
-			echo "$filter_rules" \
-			| grep -Fq -- '-A FORWARD -i br+ -m set --match-set Skynet-IOT src -j LOG --log-prefix "[BLOCKED - IOT] "' || fail="${fail}#20 "
+			grep -Fq -- '-A FORWARD -i br+ -m set --match-set Skynet-IOT src -j LOG --log-prefix "[BLOCKED - IOT] "' "$checkfilterrules" || fail="${fail}#20 "
 		fi
 
 		#21: Inbound LOG
 		if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "inbound" ]; then
-			echo "$raw_rules" \
-			| grep -Fq -- "-A PREROUTING -i $iface -m set ! --match-set Skynet-MasterWL src -m set --match-set Skynet-Master src -j LOG --log-prefix \"[BLOCKED - INBOUND] \"" || fail="${fail}#21 "
+			grep -Fq -- "-A PREROUTING -i $iface -m set ! --match-set Skynet-MasterWL src -m set --match-set Skynet-Master src -j LOG --log-prefix \"[BLOCKED - INBOUND] \"" "$checkrawrules" || fail="${fail}#21 "
 		fi
 
 		#22: Outbound PREROUTING LOG
 		if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "outbound" ]; then
-			echo "$raw_rules" \
-			| grep -Fq -- '-A PREROUTING -i br+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] "' || fail="${fail}#22 "
+			grep -Fq -- '-A PREROUTING -i br+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] "' "$checkrawrules" || fail="${fail}#22 "
 		fi
 
 		#23: Outbound OUTPUT LOG
 		if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "outbound" ]; then
-			echo "$raw_rules" \
-			| grep -Fq -- '-A OUTPUT -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] "' || fail="${fail}#23 "
+			grep -Fq -- '-A OUTPUT -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] "' "$checkrawrules" || fail="${fail}#23 "
 		fi
 
 		#24: Invalid LOG
-		if [ "$(nvram get fw_log_x)" = "drop" ] || [ "$(nvram get fw_log_x)" = "both" ] && Is_Enabled "$loginvalid"; then
-			echo "$filter_rules" \
-			| grep -Fq -- '-A logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - INVALID] "' || fail="${fail}#24 "
+		if [ "$checkfwlog" = "drop" ] || [ "$checkfwlog" = "both" ] && Is_Enabled "$loginvalid"; then
+			grep -Fq -- '-A logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - INVALID] "' "$checkfilterrules" || fail="${fail}#24 "
 		fi
 	fi
 
+	rm -f "$checkrawrules" "$checkfilterrules"
 	[ -z "$fail" ]
 }
 
@@ -2272,8 +2291,9 @@ Run_Stats() {
 				Red "Top $counter Blocked Devices (Outbound);"
 				Display_Header "4"
 				Extract_Stats_Values "$skynetlog" "OUTBOUND.*$proto" "" "SRC" "top" "$counter" > "$TMP_DIR/statsclients.txt"
+				ip neigh > "$TMP_DIR/statsneighbors.txt" 2>/dev/null
 				while read -r hits ipaddr; do
-					macaddr="$(ip neigh | grep -F "$ipaddr " | awk '{print $5}')"
+					macaddr="$(awk -v ip="$ipaddr" '$1 == ip { print $5; exit }' "$TMP_DIR/statsneighbors.txt")"
 					Get_LocalName
 					printf '%-10s | %-16s | %-60s\n' "${hits}x" "${ipaddr}" "$localname"
 				done < "$TMP_DIR/statsclients.txt"
@@ -2298,7 +2318,7 @@ Generate_WebUI_Settings() {
 }
 
 Generate_Stats() {
-	nvram get rc_support | grep -qF "am_addons" || return 0
+	Addon_API_Supported || return 0
 	Is_Enabled "$displaywebui" || return 0
 
 	webuistatsactive="1"
@@ -2342,32 +2362,21 @@ Generate_Stats() {
 	statsoutput="${statsworkspace}/output.txt"
 	iptables -xnvL PREROUTING -t raw > "$statsprerouting" 2>/dev/null || true > "$statsprerouting"
 	iptables -xnvL OUTPUT -t raw > "$statsoutput" 2>/dev/null || true > "$statsoutput"
-
-	hits1="0"
-	if iptables -t raw -C PREROUTING -i "$iface" -m set ! --match-set Skynet-MasterWL src -m set --match-set Skynet-Master src -j DROP 2>/dev/null; then
-		hits1="$(awk '!/LOG/ && /Skynet-Master src/ {hits += $1} END {print hits + 0}' "$statsprerouting")"
-	fi
-
-	hits2="0"
-	if iptables -t raw -C PREROUTING -i br+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null; then
-		hits2="$(awk '
-			!/LOG/ && /Skynet-Master dst/ && $0 !~ /tun|wgs/ {hits += $1}
-			END {print hits + 0}
-		' "$statsprerouting")"
-		hits2="$((hits2 + $(awk '!/LOG/ && /Skynet-Master dst/ {hits += $1} END {print hits + 0}' "$statsoutput")))"
-		if iptables -t raw -C PREROUTING -i wgs+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null; then
-			hits2="$((hits2 + $(awk '!/LOG/ && /Skynet-Master dst/ && /wgs/ {hits += $1} END {print hits + 0}' "$statsprerouting")))"
-		fi
-		if iptables -t raw -C PREROUTING -i tun2+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null; then
-			hits2="$((hits2 + $(awk '!/LOG/ && /Skynet-Master dst/ && /tun/ {hits += $1} END {print hits + 0}' "$statsprerouting")))"
-		fi
-	fi
+	statshits="$(awk '
+		index($0, "LOG") == 0 && index($0, "Skynet-Master src") { inbound += $1 }
+		index($0, "LOG") == 0 && index($0, "Skynet-Master dst") { outbound += $1 }
+		END { print inbound + 0, outbound + 0 }
+	' "$statsprerouting" "$statsoutput")"
+	statshits="${statshits:-0 0}"
+	hits1="${statshits%% *}"
+	hits2="${statshits#* }"
 
 	Write_Stats_ToJS "$blacklist1count" "$statstmp" "SetBLCount1" "blcount1" || statsstatus="1"
 	Write_Stats_ToJS "$blacklist2count" "$statstmp" "SetBLCount2" "blcount2" || statsstatus="1"
 	Write_Stats_ToJS "$hits1" "$statstmp" "SetHits1" "hits1" || statsstatus="1"
 	Write_Stats_ToJS "$hits2" "$statstmp" "SetHits2" "hits2" || statsstatus="1"
-	Write_Stats_ToJS "Monitoring From $(grep -m1 -F "BLOCKED -" "$skynetlog" | awk '{printf "%s %s %s\n", $1, $2, $3}') To $(grep -F "BLOCKED -" "$skynetlog" | tail -1 | awk '{printf "%s %s %s\n", $1, $2, $3}')" "$statstmp" "SetStatsDate" "statsdate" || statsstatus="1"
+	statsspan="$(awk '/BLOCKED -/ { if (first == "") first = $1 " " $2 " " $3; last = $1 " " $2 " " $3 } END { print first " To " last }' "$skynetlog")"
+	Write_Stats_ToJS "Monitoring From $statsspan" "$statstmp" "SetStatsDate" "statsdate" || statsstatus="1"
 	Write_Stats_ToJS "Log Size - ($(du -h "$skynetlog" | awk '{print $1}')B)" "$statstmp" "SetStatsSize" "statssize" || statsstatus="1"
 	printf 'var SkynetStatsGenerated = "%s.%s";\n' "$(date +%s)" "$$" >> "$statstmp" || statsstatus="1"
 
@@ -2428,10 +2437,12 @@ Generate_Stats() {
 
 	# Top Clients
 	Extract_Stats_Values "${statsworkspace}/outbound-src.txt" ".*" "" "" "top" "10" > "${statsworkspace}/clients.txt"
+	statsneighbors="${statsworkspace}/neighbors.txt"
+	ip neigh > "$statsneighbors" 2>/dev/null
 	while read -r statsclienthits statsclientip; do
 		[ -n "$statsclientip" ] || continue
 		ipaddr="$statsclientip"
-		macaddr="$(ip neigh | awk -v ip="$statsclientip" '$1 == ip {print $5; exit}')"
+		macaddr="$(awk -v ip="$statsclientip" '$1 == ip {print $5; exit}' "$statsneighbors")"
 		Get_LocalName
 		[ "${#localname}" -le 20 ] || localname="$(printf '%s' "$localname" | cut -c1-20)"
 		printf '%s~%s (%s)\n' "$statsclienthits" "$statsclientip" "$localname"
@@ -2454,7 +2465,7 @@ Generate_Stats() {
 	return 1
 }
 Generate_Blocked_Events() {
-	unique_ip_count="$(awk '
+	blockedevents="$(awk '
 		/INBOUND|INVALID/ {
 			for (i = 1; i <= NF; i++)
 				if ($i ~ /^SRC=/) {
@@ -2471,17 +2482,18 @@ Generate_Blocked_Events() {
 					break
 				}
 		}
-		END { print length(seen) }
+		END { printf "%d (%d Unique IPs)", NR, length(seen) }
 	' "$skynetlog")"
-	printf '║ %-20s │ %-82s ║\n' "Block Events" "$(wc -l < "$skynetlog") ($unique_ip_count Unique IPs)"
+	printf '║ %-20s │ %-82s ║\n' "Block Events" "$blockedevents"
 }
 
 Get_WebUI_Page() {
-	if nvram get rc_support | grep -qF "am_addons" && Is_Enabled "$displaywebui"; then
+	if Addon_API_Supported && Is_Enabled "$displaywebui"; then
 		MyPage="none"
+		webuipagemd5="$(md5sum < "$1")"
 		for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
 			page="/www/user/user$i.asp"
-			if [ -f "$page" ] && [ "$(md5sum < "$1")" = "$(md5sum < "$page")" ]; then
+			if [ -f "$page" ] && [ "$webuipagemd5" = "$(md5sum < "$page")" ]; then
 				MyPage="user$i.asp"
 				return
 			elif [ "$MyPage" = "none" ] && [ ! -f "$page" ]; then
@@ -2493,7 +2505,7 @@ Get_WebUI_Page() {
 
 Install_WebUI_Page() {
 	if Is_Enabled "$logmode"; then
-		if nvram get rc_support | grep -qF "am_addons"; then
+		if Addon_API_Supported; then
 			if Is_Enabled "$displaywebui"; then
 				Get_WebUI_Page "${skynetloc}/webui/skynet.asp"
 				if [ "$MyPage" = "none" ]; then
@@ -2581,15 +2593,19 @@ Download_File() {
 
 Get_LocalName() {
 	localname=""
+	if [ "$customclientlistloaded" != "1" ]; then
+		customclientlist="$(nvram get custom_clientlist)"
+		customclientlistloaded="1"
+	fi
 	
 	# Check custom client list for MAC address
 	if [ -n "$macaddr" ]; then
-		localname="$(nvram get custom_clientlist | grep -ioE "<.*>$macaddr" | sed -E 's/.*<([^>]+)>[^<]*$/\1/; s/[^a-zA-Z0-9.-]//g')"
+		localname="$(printf '%s\n' "$customclientlist" | grep -ioE "<.*>$macaddr" | sed -E 's/.*<([^>]+)>[^<]*$/\1/; s/[^a-zA-Z0-9.-]//g')"
 	fi
 	
 	# Fallback to dnsmasq leases
 	if [ -z "$localname" ]; then
-		localname="$(grep -F "$ipaddr " /var/lib/misc/dnsmasq.leases | awk '{print $4}')"
+		localname="$(awk -v ip="$ipaddr" '$1 == ip { print $4; exit }' /var/lib/misc/dnsmasq.leases)"
 	fi
 	
 	# If no name found, check OUI DB for MAC address
@@ -2846,6 +2862,17 @@ Purge_Logs() {
 		fi
 	done
 	[ "$archivefailed" = "0" ] || Log error "Failed To Archive Firewall Logs - Source Logs Retained"
+	logcounts="$(awk '
+		/Skynet: \[#\]/ { events++ }
+		/Skynet: \[i\] Startup Initiated/ { starts++ }
+		/Skynet: \[i\] Restarting Firewall Service/ { restarts++ }
+		END { print events + 0, starts + 0, restarts + 0 }
+	' "$syslogloc" 2>/dev/null)"
+	logcounts="${logcounts:-0 0 0}"
+	count_events="${logcounts%% *}"
+	logcounts="${logcounts#* }"
+	start_count="${logcounts%% *}"
+	restart_count="${logcounts#* }"
 
 	# Ensure skynetlog isn’t too large (or force), run stats, and truncate if still big
 	log_kb=$(du -k "$skynetlog" 2>/dev/null | cut -f1) || log_kb=0
@@ -2865,8 +2892,6 @@ Purge_Logs() {
 	fi
 
 	# Move numbered Skynet event lines into events.log, then purge info and lock entries
-	count_events=$(grep -c 'Skynet: \[#\]' "$syslogloc" 2>/dev/null) || count_events=0
-	count_events=${count_events:-0}
 	if [ "$1" = "all" ] || [ "$count_events" -gt 24 ]; then
 		archivefailed="0"
 		for syslogfile in "$syslog1loc" "$syslogloc"; do
@@ -2889,15 +2914,11 @@ Purge_Logs() {
 	fi
 
 	# If more than three startup banners exist, remove them all so only the next one appears
-	start_count=$(grep -c 'Skynet: \[i\] Startup Initiated' "$syslogloc" 2>/dev/null) || start_count=0
-	start_count=${start_count:-0}
 	if [ "$start_count" -gt 3 ]; then
 		sed -i '/Skynet: \[i\] Startup Initiated/d' "$syslog1loc" "$syslogloc" 2>/dev/null
 	fi
 
 	# If more than three restart banners exist, remove them all so only the next one appears
-	restart_count=$(grep -c 'Skynet: \[i\] Restarting Firewall Service' "$syslogloc" 2>/dev/null) || restart_count=0
-	restart_count=${restart_count:-0}
 	if [ "$restart_count" -gt 3 ]; then
 		sed -i '/Skynet: \[i\] Restarting Firewall Service/d' "$syslog1loc" "$syslogloc" 2>/dev/null
 	fi
@@ -2907,32 +2928,36 @@ Purge_Logs() {
 }
 
 Print_Log() {
-	oldips="$blacklist1count"
-	oldranges="$blacklist2count"
-	blacklist1count="$(grep -Foc "add Skynet-Black" "$skynetipset" 2> /dev/null)"
-	blacklist2count="$(grep -Foc "add Skynet-Block" "$skynetipset" 2> /dev/null)"
+	oldips="${blacklist1count:-0}"
+	oldranges="${blacklist2count:-0}"
+	ipsetcounts="$(awk '
+		$1 == "add" && $2 == "Skynet-Blacklist" { ips++ }
+		$1 == "add" && $2 == "Skynet-BlockedRanges" { ranges++ }
+		END { print ips + 0, ranges + 0 }
+	' "$skynetipset" 2>/dev/null)"
+	ipsetcounts="${ipsetcounts:-0 0}"
+	blacklist1count="${ipsetcounts%% *}"
+	blacklist2count="${ipsetcounts#* }"
+	hits1="0"
+	hits2="0"
 	unset fail
 	if Check_IPTables; then
-		if [ "$filtertraffic" != "outbound" ]; then
-			hits1="$(iptables -xnvL PREROUTING -t raw | grep -Fv "LOG" | grep -F "Skynet-Master src" | awk '{print $1}')"
-		else
-			hits1="0"
-		fi
-		if [ "$filtertraffic" != "inbound" ]; then
-			hits2="$(($(iptables -xnvL PREROUTING -t raw | grep -Fv "LOG" | grep -F "Skynet-Master dst" | grep -vF "tun"| grep -vF "wgs" | awk '{print $1}') + $(iptables -xnvL OUTPUT -t raw | grep -Fv "LOG" | grep -F "Skynet-Master dst" | awk '{print $1}')))"
-			if iptables -t raw -C PREROUTING -i wgs+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null; then
-				hits2="$((hits2 + $(iptables -xnvL PREROUTING -t raw | grep -Fv "LOG" | grep -F "Skynet-Master dst" | grep -F "wgs" | awk '{print $1}')))"
-			fi
-			if iptables -t raw -C PREROUTING -i tun2+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null; then
-				hits2="$((hits2 + $(iptables -xnvL PREROUTING -t raw | grep -Fv "LOG" | grep -F "Skynet-Master dst" | grep -F "tun" | awk '{print $1}')))"
-			fi
-		else
-			hits2="0"
-		fi
+		hitcounts="$({ iptables -xnvL PREROUTING -t raw; iptables -xnvL OUTPUT -t raw; } 2>/dev/null | awk '
+			index($0, "LOG") == 0 && index($0, "Skynet-Master src") { inbound += $1 }
+			index($0, "LOG") == 0 && index($0, "Skynet-Master dst") { outbound += $1 }
+			END { print inbound + 0, outbound + 0 }
+		')"
+		hitcounts="${hitcounts:-0 0}"
+		hits1="${hitcounts%% *}"
+		hits2="${hitcounts#* }"
+		[ "$filtertraffic" = "outbound" ] && hits1="0"
+		[ "$filtertraffic" = "inbound" ] && hits2="0"
 	fi
 	ftime="$(($(date +%s) - stime))"
-	if ! echo "$((blacklist1count - oldips))" | grep -qF "-"; then newips="+$((blacklist1count - oldips))"; else newips="$((blacklist1count - oldips))"; fi
-	if ! echo "$((blacklist2count - oldranges))" | grep -qF "-"; then newranges="+$((blacklist2count - oldranges))"; else newranges="$((blacklist2count - oldranges))"; fi
+	ipdelta="$((blacklist1count - oldips))"
+	rangedelta="$((blacklist2count - oldranges))"
+	case "$ipdelta" in -*) newips="$ipdelta" ;; *) newips="+$ipdelta" ;; esac
+	case "$rangedelta" in -*) newranges="$rangedelta" ;; *) newranges="+$rangedelta" ;; esac
 	if [ "$1" = "minimal" ]; then
 		# Only print log to terminal
 		Grn "$blacklist1count IPs (${newips}) -- $blacklist2count Ranges Banned (${newranges}) || $hits1 Inbound -- $hits2 Outbound Connections Blocked!"
@@ -2944,8 +2969,26 @@ Print_Log() {
 }
 
 Write_Config_Value() {
-	# shellcheck disable=SC2016
-	printf '%s="%s"\n' "$1" "$(printf '%s' "$2" | tr '\r\n' '  ' | sed 's/\\/\\\\/g;s/"/\\"/g;s/\$/\\$/g;s/`/\\`/g')"
+	awk -v key="$1" '
+		function escape(value, i, char, output) {
+			for (i = 1; i <= length(value); i++) {
+				char = substr(value, i, 1)
+				if (char == "\\") output = output "\\\\"
+				else if (char == "\"") output = output "\\\""
+				else if (char == "$") output = output "\\$"
+				else if (char == "`") output = output "\\`"
+				else if (char != "\r") output = output char
+			}
+			return output
+		}
+		{
+			if (NR > 1) value = value " "
+			value = value $0
+		}
+		END { printf "%s=\"%s\"\n", key, escape(value) }
+	' <<EOF
+$2
+EOF
 }
 
 Load_Config() {
@@ -6359,7 +6402,7 @@ case "$1" in
 						Check_Lock "$@"
 						Require_Running
 						Purge_Logs
-						if nvram get rc_support | grep -qF "am_addons"; then
+						if Addon_API_Supported; then
 							displaywebui="enabled"
 							Install_WebUI_Page
 							echo "[i] WebUI Enabled"
@@ -6807,7 +6850,7 @@ case "$1" in
 			genstats)
 				Check_Lock "$@"
 				Purge_Logs "all"
-				if nvram get rc_support | grep -qF "am_addons"; then
+				if Addon_API_Supported; then
 					if Is_Enabled "$displaywebui"; then
 						echo "[i] Generating Stats For WebUI"
 						Generate_Stats
