@@ -28,12 +28,12 @@ Cleanup_Runtime() {
 	case "$TMP_DIR" in
 		/tmp/skynet/tmp.[0-9]*) rm -rf "$TMP_DIR" ;;
 	esac
-	for tempfile in "$settingstmp" "$statstmp" "$downloadtmp" "$configtmp" "$saveipsettmp" "$malwareipsettmp" "$serviceeventtmp"; do
+	for tempfile in "$settingstmp" "$statstmp" "$downloadtmp" "$configtmp" "$saveipsettmp" "$malwareipsettmp" "$serviceeventtmp" "$listmanifesttmp" "$feedstatustmp" "$filterpublishtmp"; do
 		[ -n "$tempfile" ] && rm -f "$tempfile"
 	done
 	if [ -n "$skynetloc" ]; then
 		[ "$webuistatsactive" = "1" ] && rm -rf "${skynetloc}/webui/stats"
-		rm -f "${skynetloc}/lists/"*.tmp."$$"
+		rm -f "${skynetloc}/lists/"*.tmp."$$" "${skynetloc}/lists/".*.tmp."$$"
 	fi
 	# BusyBox ash on Merlin does not provide `command -v`; cleanup traps are
 	# installed only after every function is defined, so the worker is safe to call.
@@ -442,6 +442,196 @@ Wait_Background_Job_Batch() {
 	return 0
 }
 
+Build_Threat_Feed_Manifest() {
+	# Resolve every filter URL before applying exclusions. Collision suffixes are
+	# therefore stable when a source is disabled and later re-enabled.
+	awk -v excluded="$3" '
+		BEGIN {
+			OFS = "\t"
+			split(excluded, values, " ")
+			for (i in values) skip[tolower(values[i])] = 1
+		}
+		NF == 1 {
+			sub(/\r$/, "")
+			url = $1
+			if (url !~ /^https?:\/\// || seen_url[url]++) next
+
+			count = split(url, parts, "/")
+			name = parts[count]
+			sub(/[?#].*$/, "", name)
+			gsub(/[^A-Za-z0-9._-]/, "_", name)
+			if (name == "" || name == "." || name == "..") next
+
+			raw_name = name
+			key = tolower(raw_name)
+			name_count[key]++
+			if (name_count[key] > 1) name = raw_name "." (name_count[key] - 1)
+
+			state = (tolower(name) in skip) ? "excluded" : "enabled"
+			print name, url, state
+		}' "$1" > "$2"
+}
+
+Restore_Threat_Feed_Selection() {
+	# The source hostnames are whitelisted before downloads. Restore the previous
+	# shared list if the update later fails so the saved selection remains active.
+	[ "$feedfilterpublished" = "1" ] || return 0
+	if [ "$feedfilterhadold" = "1" ] && [ -s "$feedfilterbackup" ]; then
+		cp -f "$feedfilterbackup" /jffs/addons/shared-whitelists/shared-Skynet-whitelist || return 1
+	else
+		rm -f /jffs/addons/shared-whitelists/shared-Skynet-whitelist
+	fi
+	Whitelist_Shared >/dev/null 2>&1
+}
+
+Format_Threat_Feed_Time() {
+	case "$1" in
+		""|0|*[!0-9]*) printf '%s\n' "Never" ;;
+		*) date -d "@$1" '+%d/%m/%Y %H:%M:%S' 2>/dev/null || printf '%s\n' "$1" ;;
+	esac
+}
+
+Print_Threat_Feed_Status() {
+	feedstatusfile="${skynetloc}/lists/.sources"
+	echo "[i] Malware List Schedule - $banmalwareupdate"
+	echo "[i] Last Successful Update - $(Format_Threat_Feed_Time "$banmalwarelastupdated")"
+	if [ -n "$customlisturl" ]; then
+		echo "[i] Filter List - $customlisturl"
+	else
+		echo "[i] Filter List - Skynet Default"
+	fi
+	if [ ! -s "$feedstatusfile" ]; then
+		echo "[i] Source Details - Available After The Next Malware Update"
+		return 0
+	fi
+	awk -F '\t' '
+		$4 == "current" { current++ }
+		$4 == "cached" { cached++ }
+		$4 == "failed" { failed++ }
+		$4 == "excluded" { excluded++ }
+		END {
+			printf "[i] Sources - %d Total / %d Current / %d Cached / %d Failed / %d Excluded\n",
+				NR, current + 0, cached + 0, failed + 0, excluded + 0
+		}' "$feedstatusfile"
+}
+
+Print_Threat_Feed_Sources() {
+	feedstatusfile="${skynetloc}/lists/.sources"
+	if [ ! -s "$feedstatusfile" ]; then
+		echo "[i] Source Details Available After The Next Malware Update"
+		return 0
+	fi
+	printf '%-34s | %-9s | %-9s | %-19s\n' "Source" "Entries" "State" "Last Success"
+	printf '%-34s-+-%-9s-+-%-9s-+-%-19s\n' "----------------------------------" "---------" "---------" "-------------------"
+	feedtab="$(printf '\t')"
+	while IFS="$feedtab" read -r feedname feedurl feedenabled feedstate feedentries feedchecked feedsuccess; do
+		printf '%-34s | %-9s | %-9s | %-19s\n' "$feedname" "$feedentries" "$feedstate" "$(Format_Threat_Feed_Time "$feedsuccess")"
+		printf '  %s\n' "$feedurl"
+	done < "$feedstatusfile"
+}
+
+Publish_Threat_Feed_Status() {
+	# Merge the requested source selection, background-job results and parser
+	# counts into one complete status snapshot, then publish it atomically. The
+	# tab-separated contract is name, URL, enabled state, result state, usable
+	# entries, last check epoch and last successful check epoch.
+	feedmanifest="$1"
+	feedcounts="$2"
+	feedstatusfile="${skynetloc}/lists/.sources"
+	feedstatustmp="${feedstatusfile}.tmp.$$"
+	feedtab="$(printf '\t')"
+	true > "$feedstatustmp" || return 1
+	while IFS="$feedtab" read -r feedname feedurl feedenabled; do
+		feedstate="excluded"
+		feedentries="$(awk -F '\t' -v name="$feedname" '$1 == name { print $2; exit }' "$feedcounts" 2>/dev/null)"
+		feedchecked="0"
+		feedsuccess="0"
+		if [ -s "$feedstatusfile" ]; then
+			feedold="$(awk -F '\t' -v name="$feedname" -v url="$feedurl" '$1 == name && $2 == url { print $6 "\t" $7; exit }' "$feedstatusfile")"
+			if [ -n "$feedold" ]; then
+				IFS="$feedtab" read -r feedoldchecked feedoldsuccess <<EOF
+$feedold
+EOF
+				feedchecked="${feedoldchecked:-0}"
+				feedsuccess="${feedoldsuccess:-0}"
+			fi
+		fi
+		if [ "$feedenabled" = "enabled" ]; then
+			feedresult="$TMP_DIR/feed.${feedname}.result"
+			if [ -s "$feedresult" ]; then
+				IFS="$feedtab" read -r feedstate feedchecked feedsuccess < "$feedresult"
+			else
+				feedstate="failed"
+			fi
+		fi
+		case "$feedentries" in ""|*[!0-9]*) feedentries="0" ;; esac
+		case "$feedchecked" in ""|*[!0-9]*) feedchecked="0" ;; esac
+		case "$feedsuccess" in ""|*[!0-9]*) feedsuccess="0" ;; esac
+		printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+			"$feedname" "$feedurl" "$feedenabled" "$feedstate" "$feedentries" "$feedchecked" "$feedsuccess" >> "$feedstatustmp" || return 1
+	done < "$feedmanifest"
+	[ -s "$feedstatustmp" ] && mv -f "$feedstatustmp" "$feedstatusfile"
+}
+
+Build_Malware_Restore() {
+	# Parse every retained source once. Counts remain per source while duplicate
+	# addresses are emitted only once across the enabled source set.
+	awk -v manifest="$1" -v countfile="$3" '
+		BEGIN {
+			while ((getline line < manifest) > 0) {
+				split(line, fields, "\t")
+				enabled[fields[1]] = fields[3]
+			}
+			close(manifest)
+		}
+		function usable(value, part_count, prefix, octet_count, first, second, third, fourth) {
+			part_count = split(value, address_parts, "/")
+			if (part_count > 2) return 0
+			if (part_count == 2) {
+				prefix = address_parts[2]
+				if (prefix !~ /^[0-9]+$/ || prefix < 0 || prefix > 32) return 0
+			}
+			octet_count = split(address_parts[1], octets, ".")
+			if (octet_count != 4) return 0
+			for (i = 1; i <= 4; i++) {
+				if (octets[i] !~ /^[0-9]+$/ || octets[i] < 0 || octets[i] > 255) return 0
+			}
+			first = octets[1] + 0
+			second = octets[2] + 0
+			third = octets[3] + 0
+			fourth = octets[4] + 0
+			if (first == 0 || first == 10 || first == 127 || first >= 224) return 0
+			if (first == 100 && second >= 64 && second <= 127) return 0
+			if (first == 169 && second == 254) return 0
+			if (first == 172 && second >= 16 && second <= 31) return 0
+			if (first == 192 && second == 168) return 0
+			if (first == 192 && second == 0 && (third == 0 || third == 2)) return 0
+			if (first == 198 && (second == 18 || second == 19)) return 0
+			if (first == 198 && second == 51 && third == 100) return 0
+			if (first == 203 && second == 0 && third == 113) return 0
+			return 1
+		}
+		{
+			value = $1
+			source = FILENAME
+			gsub(".*/", "", source)
+			if (!usable(value)) next
+			source_key = source SUBSEP value
+			if (!source_seen[source_key]++) source_count[source]++
+			if (enabled[source] != "enabled" || global_seen[value]++) next
+			valid_entries++
+			if (value !~ /\// || value ~ /\/32$/)
+				print "add Skynet-Blacklist " value " comment \"BanMalware: " source "\""
+			else
+				print "add Skynet-BlockedRanges " value " comment \"BanMalware: " source "\""
+		}
+		END {
+			for (source in source_count) print source "\t" source_count[source] > countfile
+			close(countfile)
+			if (valid_entries == 0) exit 1
+		}' "$TMP_DIR/feed-files/"* > "$2"
+}
+
 Download_IPList() {
 	# Keep only complete IPv4 or CIDR lines. The octet branches enforce 0-255
 	# and the optional prefix branch enforces /0-/32.
@@ -620,14 +810,14 @@ Clean_Stale_Temp() {
 		[ -d "/proc/$temppid" ] || rm -rf "$tempdir"
 	done
 	if [ -n "$skynetloc" ]; then
-		for tempfile in "${skynetloc}/lists/"*.tmp.* "${skynetloc}/skynet.cfg.tmp."* "${skynetloc}/skynet.ipset.tmp."* "${skynetloc}/webui/settings.js.tmp."* "${skynetloc}/webui/skynet.asp.tmp."* "${skynetloc}/webui/stats.js.tmp."* "$0.tmp."*; do
+		for tempfile in "${skynetloc}/lists/"*.tmp.* "${skynetloc}/lists/".*.tmp.* "${skynetloc}/skynet.cfg.tmp."* "${skynetloc}/skynet.ipset.tmp."* "${skynetloc}/webui/settings.js.tmp."* "${skynetloc}/webui/skynet.asp.tmp."* "${skynetloc}/webui/stats.js.tmp."* "$0.tmp."*; do
 			[ -f "$tempfile" ] || continue
 			temppid="${tempfile##*.}"
 			[ "$temppid" = "$$" ] && continue
 			[ -d "/proc/$temppid" ] || rm -f "$tempfile"
 		done
 	fi
-	for tempfile in /jffs/scripts/service-event.tmp.*; do
+	for tempfile in /jffs/scripts/service-event.tmp.* /jffs/addons/shared-whitelists/shared-Skynet-whitelist.tmp.*; do
 		[ -f "$tempfile" ] || continue
 		temppid="${tempfile##*.}"
 		[ "$temppid" = "$$" ] && continue
@@ -2978,6 +3168,57 @@ Generate_WebUI_IOT_Data() {
 	rm -f "$iotinventory" "$iotrecords"
 }
 
+Generate_WebUI_Feed_Data() {
+	feedstatusfile="${skynetloc}/lists/.sources"
+	printf 'var SkynetFeeds = [' >> "$settingstmp" || return 1
+	feedfirst="1"
+	feedtotal="0"
+	feedcurrent="0"
+	feedcached="0"
+	feedfailed="0"
+	feedexcluded="0"
+	if [ -s "$feedstatusfile" ]; then
+		feedtab="$(printf '\t')"
+		while IFS="$feedtab" read -r feedname feedurl feedstatusenabled feedstate feedentries feedchecked feedsuccess; do
+			feedenabled="true"
+			feednamelower="$(printf '%s\n' "$feedname" | awk '{ print tolower($0) }')"
+			for feedexcludedname in $excludelists; do
+				feedexcludedlower="$(printf '%s\n' "$feedexcludedname" | awk '{ print tolower($0) }')"
+				if [ "$feedexcludedlower" = "$feednamelower" ]; then
+					feedenabled="false"
+					break
+				fi
+			done
+			if [ "$feedenabled" = "false" ]; then
+				feedstate="excluded"
+			elif [ "$feedstate" = "excluded" ]; then
+				if [ "$feedentries" -gt 0 ] 2>/dev/null; then feedstate="cached"; else feedstate="failed"; fi
+			fi
+			case "$feedstate" in current|cached|failed|excluded) ;; *) feedstate="failed" ;; esac
+			case "$feedentries" in ""|*[!0-9]*) feedentries="0" ;; esac
+			case "$feedchecked" in ""|*[!0-9]*) feedchecked="0" ;; esac
+			case "$feedsuccess" in ""|*[!0-9]*) feedsuccess="0" ;; esac
+			feednamejs="$(printf '%s\n' "$feedname" | Escape_JS)"
+			feedurljs="$(printf '%s\n' "$feedurl" | Escape_JS)"
+			[ "$feedfirst" = "1" ] || printf ',' >> "$settingstmp"
+			printf '\n\t{name:\x27%s\x27,url:\x27%s\x27,enabled:%s,state:\x27%s\x27,entries:%s,checked:%s,success:%s}' \
+				"$feednamejs" "$feedurljs" "$feedenabled" "$feedstate" "$feedentries" "$feedchecked" "$feedsuccess" >> "$settingstmp" || return 1
+			feedfirst="0"
+			feedtotal=$((feedtotal + 1))
+			case "$feedstate" in
+				current) feedcurrent=$((feedcurrent + 1)) ;;
+				cached) feedcached=$((feedcached + 1)) ;;
+				failed) feedfailed=$((feedfailed + 1)) ;;
+				excluded) feedexcluded=$((feedexcluded + 1)) ;;
+			esac
+		done < "$feedstatusfile"
+	fi
+	printf '\n];\n' >> "$settingstmp" || return 1
+	if [ -s "$feedstatusfile" ]; then feedavailable="true"; else feedavailable="false"; fi
+	printf 'var SkynetFeedSummary = {available:%s,total:%s,current:%s,cached:%s,failed:%s,excluded:%s};\n' \
+		"$feedavailable" "$feedtotal" "$feedcurrent" "$feedcached" "$feedfailed" "$feedexcluded" >> "$settingstmp" || return 1
+}
+
 Generate_WebUI_Settings() {
 	# settings.js is a complete point-in-time payload. The epoch.pid generation
 	# stamp is written last and lets the browser distinguish a completed action
@@ -2985,10 +3226,12 @@ Generate_WebUI_Settings() {
 	settingsfile="${skynetloc}/webui/settings.js"
 	settingstmp="${settingsfile}.tmp.$$"
 	customlistjs="$(printf '%s' "$customlisturl" | tr '\r\n' '  ' | sed 's/\\/\\\\/g;s/"/\\"/g')"
+	excludelistsjs="$(printf '%s\n' "$excludelists" | Escape_JS)"
 	iotentries="$(ipset save Skynet-IOT 2>/dev/null | awk '$1 == "add" { if (output != "") output = output " "; output = output $3 } END { print output }')"
 	iotcount="$(IPSet_Entry_Count Skynet-IOT)"
-	if printf 'var SkynetSettings = {"autoupdate":"%s","banmalwareupdate":"%s","banmalwarelastupdated":"%s","blacklist1count":"%s","blacklist2count":"%s","countrylist":"%s","customlisturl":"%s","filtertraffic":"%s","unbanprivateip":"%s","banaiprotect":"%s","securemode":"%s","loginvalid":"%s","logsize":"%s","extendedstats":"%s","lookupcountry":"%s","cdnwhitelist":"%s","iotblocked":"%s","iotlogging":"%s","iotports":"%s","iotproto":"%s","iotentries":"%s","iotcount":"%s"};\n' "$autoupdate" "$banmalwareupdate" "$banmalwarelastupdated" "$blacklist1count" "$blacklist2count" "$countrylist" "$customlistjs" "$filtertraffic" "$unbanprivateip" "$banaiprotect" "$securemode" "$loginvalid" "$logsize" "$extendedstats" "$lookupcountry" "$cdnwhitelist" "$iotblocked" "$iotlogging" "$iotports" "$iotproto" "$iotentries" "$iotcount" > "$settingstmp" \
+	if printf 'var SkynetSettings = {"autoupdate":"%s","banmalwareupdate":"%s","banmalwarelastupdated":"%s","blacklist1count":"%s","blacklist2count":"%s","countrylist":"%s","customlisturl":"%s","excludelists":"%s","filtertraffic":"%s","unbanprivateip":"%s","banaiprotect":"%s","securemode":"%s","loginvalid":"%s","logsize":"%s","extendedstats":"%s","lookupcountry":"%s","cdnwhitelist":"%s","iotblocked":"%s","iotlogging":"%s","iotports":"%s","iotproto":"%s","iotentries":"%s","iotcount":"%s"};\n' "$autoupdate" "$banmalwareupdate" "$banmalwarelastupdated" "$blacklist1count" "$blacklist2count" "$countrylist" "$customlistjs" "$excludelistsjs" "$filtertraffic" "$unbanprivateip" "$banaiprotect" "$securemode" "$loginvalid" "$logsize" "$extendedstats" "$lookupcountry" "$cdnwhitelist" "$iotblocked" "$iotlogging" "$iotports" "$iotproto" "$iotentries" "$iotcount" > "$settingstmp" \
 		&& Generate_WebUI_IOT_Data \
+		&& Generate_WebUI_Feed_Data \
 		&& printf 'var SkynetSettingsGenerated = "%s.%s";\n' "$(date +%s)" "$$" >> "$settingstmp" \
 		&& printf 'var SkynetSettingsResult = "%s";\n' "${settingsresult:-ready}" >> "$settingstmp" \
 		&& [ -s "$settingstmp" ] && mv -f "$settingstmp" "$settingsfile"; then
@@ -3045,9 +3288,9 @@ Generate_Stats() {
 	Write_Stats_ToJS "$blacklist2count" "$statstmp" "SetBLCount2" "blcount2" || statsstatus="1"
 	Write_Stats_ToJS "$hits1" "$statstmp" "SetHits1" "hits1" || statsstatus="1"
 	Write_Stats_ToJS "$hits2" "$statstmp" "SetHits2" "hits2" || statsstatus="1"
-	statsspan="$(awk '/BLOCKED -/ { if (first == "") first = $1 " " $2 " " $3; last = $1 " " $2 " " $3 } END { print first " To " last }' "$skynetlog")"
-	Write_Stats_ToJS "Monitoring From $statsspan" "$statstmp" "SetStatsDate" "statsdate" || statsstatus="1"
-	Write_Stats_ToJS "Log Size - ($(du -h "$skynetlog" | awk '{print $1}')B)" "$statstmp" "SetStatsSize" "statssize" || statsstatus="1"
+	statsspan="$(awk '/BLOCKED -/ { if (first == "") first = $1 " " $2 " " $3; last = $1 " " $2 " " $3 } END { if (first != "") print first " To " last }' "$skynetlog")"
+	Write_Stats_ToJS "${statsspan:-N/A}" "$statstmp" "SetStatsDate" "statsdate" || statsstatus="1"
+	Write_Stats_ToJS "$(du -h "$skynetlog" | awk '{print $1}')B" "$statstmp" "SetStatsSize" "statssize" || statsstatus="1"
 	printf 'var SkynetStatsGenerated = "%s.%s";\n' "$(date +%s)" "$$" >> "$statstmp" || statsstatus="1"
 
 	Build_Stats_Log_Index "$skynetlog" "$statsworkspace" || statsstatus="1"
@@ -3733,7 +3976,6 @@ Load_Config() {
 	case "$banaiprotect" in enabled|disabled) ;; *) banaiprotect="disabled"; configchanged="1" ;; esac
 	case "$securemode" in enabled|disabled) ;; *) securemode="disabled"; configchanged="1" ;; esac
 	case "$extendedstats" in enabled|disabled) ;; *) extendedstats="disabled"; configchanged="1" ;; esac
-	case "$fastswitch" in enabled|disabled) ;; *) fastswitch="disabled"; configchanged="1" ;; esac
 	case "$iotblocked" in enabled|disabled) ;; *) iotblocked="disabled"; configchanged="1" ;; esac
 	case "$iotlogging" in enabled|disabled) ;; *) iotlogging="disabled"; configchanged="1" ;; esac
 	case "$iotproto" in udp|tcp|all) ;; *) iotproto="udp"; configchanged="1" ;; esac
@@ -3856,7 +4098,6 @@ Write_Config() {
 		Write_Config_Value "blacklist1count" "$blacklist1count"
 		Write_Config_Value "blacklist2count" "$blacklist2count"
 		Write_Config_Value "customlisturl" "$customlisturl"
-		Write_Config_Value "customlist2url" "$customlist2url"
 		Write_Config_Value "banmalwarelastupdated" "$banmalwarelastupdated"
 		Write_Config_Value "countrylist" "$countrylist"
 		Write_Config_Value "excludelists" "$excludelists"
@@ -3864,7 +4105,6 @@ Write_Config() {
 		Write_Config_Value "autoupdate" "$autoupdate"
 		Write_Config_Value "banmalwareupdate" "$banmalwareupdate"
 		Write_Config_Value "forcebanmalwareupdate" "$forcebanmalwareupdate"
-		Write_Config_Value "fastswitch" "$fastswitch"
 		printf '\n%s\n' "## Protection ##"
 		Write_Config_Value "filtertraffic" "$filtertraffic"
 		Write_Config_Value "unbanprivateip" "$unbanprivateip"
@@ -4000,6 +4240,61 @@ Apply_WebUI_Settings() {
 		fi
 	fi
 
+	Load_Config || settingsresult="error"
+	Generate_WebUI_Settings
+}
+
+Apply_WebUI_Threat_Feeds() {
+	# Feed selection and blacklist replacement are one CLI transaction. The WebUI
+	# only stages the complete exclusion list and translates the worker result into
+	# compact tokens consumed by the existing settings.js poller.
+	settingsresult="error"
+	webuifeedoutput="$TMP_DIR/webui-feed-output"
+	webuifeedchange="0"
+	if [ -f "/usr/sbin/helper.sh" ]; then
+		# shellcheck disable=SC1091
+		. /usr/sbin/helper.sh
+		webuifeedchange="$(am_settings_get skynet_feedchange)"
+		if [ "$webuifeedchange" = "1" ]; then
+			webuiexclusions="$(am_settings_get skynet_excludelists)"
+			if [ -n "$webuiexclusions" ]; then
+				webuiexclusions="$(Normalize_List "$webuiexclusions")" || settingsresult="filter"
+				for webuiexclusion in $webuiexclusions; do
+					printf '%s\n' "$webuiexclusion" | grep -qE '^[A-Za-z0-9._-]+$' || settingsresult="filter"
+				done
+			fi
+		fi
+
+		if [ "$settingsresult" != "filter" ]; then
+			if [ "$webuifeedchange" = "1" ] && [ -n "$webuiexclusions" ]; then
+				Run_WebUI_Command banmalware exclude "$webuiexclusions" > "$webuifeedoutput" 2>&1
+				webuifeedstatus="$?"
+			elif [ "$webuifeedchange" = "1" ]; then
+				Run_WebUI_Command banmalware exclude reset > "$webuifeedoutput" 2>&1
+				webuifeedstatus="$?"
+			else
+				Run_WebUI_Command banmalware > "$webuifeedoutput" 2>&1
+				webuifeedstatus="$?"
+			fi
+
+			if [ "$webuifeedstatus" = "0" ]; then
+				if awk -F '\t' '$3 == "enabled" && $4 == "cached" { found=1 } END { exit !found }' "${skynetloc}/lists/.sources" 2>/dev/null; then
+					settingsresult="degraded"
+				else
+					settingsresult="success"
+				fi
+			elif grep -q 'No Valid Cached Copy For Malware Source' "$webuifeedoutput" 2>/dev/null; then
+				webuifailedsource="$(sed -n 's~.*No Valid Cached Copy For Malware Source (\([^)]*\)).*~\1~p' "$webuifeedoutput" | tail -1)"
+				case "$webuifailedsource" in ""|*[!A-Za-z0-9._-]*) settingsresult="error" ;; *) settingsresult="failed:$webuifailedsource" ;; esac
+			elif grep -qE 'Failed To Process Filter List|No Valid Malware Sources|At Least One Malware Source|Stopping Banmalware' "$webuifeedoutput" 2>/dev/null; then
+				settingsresult="filter"
+			elif grep -qE 'Unable To (Build|Apply|Save|Publish).*Blacklist|Unable To Refresh AiProtect Bans|Unable To Publish Malware Source Status|Unable To Save Malware Cache Manifest' "$webuifeedoutput" 2>/dev/null; then
+				settingsresult="apply"
+			fi
+		fi
+	fi
+
+	rm -f "$webuifeedoutput"
 	Load_Config || settingsresult="error"
 	Generate_WebUI_Settings
 }
@@ -4222,9 +4517,6 @@ Load_Menu() {
 	fi
 	if ! Check_IPTables; then
 		printf '%-35s | %-8s\n' "Firewall Rules" "$(Red "[Failed]")"; nolog="1"; unset fail
-	fi
-	if Is_Enabled "$fastswitch"; then
-		Ylow "Fast Switch List Is Enabled!"
 	fi
 	if [ "$nolog" != "1" ]; then Print_Command_Summary "minimal"; fi
 	unset "nolog"
@@ -4685,9 +4977,9 @@ Load_Menu() {
 					Prompt_Input "1-5" settingscategory
 					case "$settingscategory" in
 						1)
-							Show_Menu "Updates & Lists:" "Skynet Auto-Updates" "Malware List Auto-Updates" "Fast Switch List" "Exit"
-							Prompt_Input "1-3" settingsitem
-							case "$settingsitem" in 1) menu2="1" ;; 2) menu2="2" ;; 3) menu2="11" ;; *) continue ;; esac
+							Show_Menu "Updates & Lists:" "Skynet Auto-Updates" "Malware List Auto-Updates" "Exit"
+							Prompt_Input "1-2" settingsitem
+							case "$settingsitem" in 1) menu2="1" ;; 2) menu2="2" ;; *) continue ;; esac
 						;;
 						2)
 							Show_Menu "Protection:" "Traffic Filtering" "Unban Private IPs" "Import AiProtection Data" "Secure Mode" "CDN Whitelisting" "Exit"
@@ -5011,36 +5303,6 @@ Load_Menu() {
 							done
 							break
 						;;
-						11)
-							Require_Running
-							option1="fs"
-							while true; do
-								Show_Menu "Select Fast Switch List Option" \
-									"Enable" \
-									"Disable" \
-									"Exit"
-								Prompt_Input "1-2" menu3
-								case "$menu3" in
-									1)
-										Prompt_Typed "option2" "URL" "Input Custom Filter List URL:"
-										if [ -z "$option2" ]; then echo "[*] URL Field Can't Be Empty - Please Try Again"; echo; unset "option2"; continue; fi
-										break
-									;;
-									2)
-										option3="disable"
-										break
-									;;
-									e|exit|back|menu)
-										Return_To_Menu
-										break
-									;;
-									*)
-										Invalid_Option "$menu3"
-									;;
-								esac
-							done
-							break
-						;;
 						12)
 							Require_Running
 							while true; do
@@ -5346,10 +5608,6 @@ Load_Menu() {
 						;;
 					esac
 				done
-				break
-			;;
-			fs)
-				option1="fs"
 				break
 			;;
 			12)
@@ -6124,22 +6382,54 @@ case "$1" in
 		Require_Save_IPSets
 	;;
 
-	banmalware|fs)
+	banmalware)
+		case "$2" in
+			status)
+				Print_Threat_Feed_Status
+				echo
+				exit 0
+			;;
+			sources)
+				Print_Threat_Feed_Sources
+				echo
+				exit 0
+			;;
+		esac
 		Check_Lock "$@"
 		Require_Running
 		Require_Connection
 		Purge_Logs
-		if [ "$2" = "disable" ] && [ "$fastswitch" = "disabled" ] && [ "$1" = "fs" ]; then
-			echo "[*] Fast Switch List Already Disabled - Stopping Banmalware"
-			echo; exit 1
-		fi
-		if Is_Enabled "$fastswitch" && [ "$1" = "fs" ] && [ -z "$2" ] || [ "$2" = "disable" ]; then
-			echo "[i] Fast Switch List Disabled"
-			fastswitch="disabled"
-			set "banmalware"
-		fi
-		if Is_Enabled "$fastswitch" && [ "$1" = "banmalware" ]; then
-			set "fs"
+		if [ "$2" = "include" ]; then
+			includelists="$(Normalize_Arguments_From 3 "$@")" || { echo "[*] Include List Can't Be Empty"; echo; exit 2; }
+			for includelist in $includelists; do
+				if ! printf '%s\n' "$includelist" | grep -qE '^[A-Za-z0-9._-]+$'; then
+					echo "[*] $includelist Is Not A Valid List Name"
+					echo
+					exit 2
+				fi
+				if ! printf '%s\n' "$excludelists" | awk -v name="$includelist" '
+					{ for (i = 1; i <= NF; i++) if (tolower($i) == tolower(name)) found=1 }
+					END { exit !found }'; then
+					echo "[*] $includelist Is Not Currently Excluded"
+					echo
+					exit 2
+				fi
+			done
+			excludelists="$(printf '%s\n' "$excludelists" | awk -v included="$includelists" '
+				BEGIN {
+					split(included, values, " ")
+					for (i in values) remove[tolower(values[i])] = 1
+				}
+				{
+					for (i = 1; i <= NF; i++) {
+						if (tolower($i) in remove) continue
+						if (output != "") output = output " "
+						output = output $i
+					}
+				}
+				END { print output }')"
+			echo "[i] Including Lists: $includelists"
+			set -- "banmalware"
 		fi
 		if [ "$2" = "exclude" ]; then
 			if [ "$3" = "reset" ] || [ -z "$3" ]; then
@@ -6162,25 +6452,10 @@ case "$1" in
 			echo "[i] Filter URL Reset"
 			unset "customlisturl"
 		fi
-		if [ -n "$2" ] && [ "$2" != "reset" ] && [ "$1" != "fs" ]; then
+		if [ -n "$2" ] && [ "$2" != "reset" ]; then
 			customlisturl="$2"
 			listurl="$customlisturl"
 			echo "[i] Custom Filter Detected: $customlisturl"
-		elif [ "$1" = "fs" ]; then
-			if [ -z "$2" ] && [ -z "$customlist2url" ]; then
-				Log error -s "Fast Switch List URL Not Configured - Stopping Banmalware"
-				echo; exit 1
-			else
-				fastswitch="enabled"
-				echo "[i] Fast Switch List Enabled"
-				if [ -z "$customlist2url" ] || [ -n "$2" ]; then
-					customlist2url="$2"
-					listurl="$customlist2url"
-				else
-					listurl="$customlist2url"
-				fi
-				echo "[i] Custom Filter Detected: $customlist2url"
-			fi
 		else
 			if [ -n "$customlisturl" ]; then
 				listurl="$customlisturl"
@@ -6192,29 +6467,42 @@ case "$1" in
 		Display_Message "[i] Downloading filter.list"
 		filtertmp="$TMP_DIR/filter.list"
 		filterout="$TMP_DIR/shared-Skynet-whitelist"
+		feedmanifest="$TMP_DIR/skynet.sources"
+		feedfilterbackup="$TMP_DIR/shared-Skynet-whitelist.old"
+		feedfilterpublished="0"
+		feedfilterhadold="0"
 		Curl_Fetch -o "$filtertmp" "$listurl" || { rm -f "$filtertmp" "$filterout"; echo "[*] Stopping Banmalware"; echo; exit 1; }
-		# Match exclusions against the URL basename only. Query strings and
-		# fragments are not part of the downloaded filename.
-		awk -v excluded="$excludelists" '
-			BEGIN {
-				split(excluded, values, " ")
-				for (i in values) skip[tolower(values[i])] = 1
-			}
-			{
-				sub(/\r$/, "")
-				url = $1
-				sub(/[?#].*/, "", url)
-				parts = split(url, path, "/")
-				if (!(tolower(path[parts]) in skip)) print $1
-			}' "$filtertmp" > "$filterout" || { rm -f "$filterout"; echo "[*] Failed To Process Filter List"; echo; exit 1; }
-		sed -i '\~^http[s]*://\|^www.~!d;' "$filterout"
-		if [ ! -s "$filterout" ]; then
-			rm -f "$filtertmp" "$filterout"
-			echo "[*] No Valid Filter URLs Found - Stopping Banmalware"
+		Build_Threat_Feed_Manifest "$filtertmp" "$feedmanifest" "$excludelists" || {
+			rm -f "$filtertmp" "$filterout" "$feedmanifest"
+			echo "[*] Failed To Process Filter List"
+			echo
+			exit 1
+		}
+		if [ ! -s "$feedmanifest" ]; then
+			rm -f "$filtertmp" "$filterout" "$feedmanifest"
+			echo "[*] No Valid Malware Sources Found - Stopping Banmalware"
 			echo
 			exit 1
 		fi
-		mv -f "$filterout" /jffs/addons/shared-whitelists/shared-Skynet-whitelist
+		awk -F '\t' '$3 == "enabled" { print $2 }' "$feedmanifest" > "$filterout"
+		if [ ! -s "$filterout" ]; then
+			rm -f "$filtertmp" "$filterout" "$feedmanifest"
+			echo "[*] At Least One Malware Source Must Remain Enabled"
+			echo
+			exit 2
+		fi
+		if [ -s /jffs/addons/shared-whitelists/shared-Skynet-whitelist ]; then
+			cp -f /jffs/addons/shared-whitelists/shared-Skynet-whitelist "$feedfilterbackup" || exit 1
+			feedfilterhadold="1"
+		fi
+		filterpublishtmp="/jffs/addons/shared-whitelists/shared-Skynet-whitelist.tmp.$$"
+		if ! cp -f "$filterout" "$filterpublishtmp" || ! mv -f "$filterpublishtmp" /jffs/addons/shared-whitelists/shared-Skynet-whitelist; then
+			rm -f "$filterpublishtmp"
+			echo "[*] Failed To Publish Malware Source List"
+			echo
+			exit 1
+		fi
+		feedfilterpublished="1"
 		rm -f "$filtertmp"
 		Display_Result
 		Display_Message "[i] Refreshing Whitelists"
@@ -6229,221 +6517,257 @@ case "$1" in
 		echo
 
 		if ! mkdir -p "${skynetloc}/lists" || [ ! -w "${skynetloc}/lists" ]; then
+			Restore_Threat_Feed_Selection
 			echo "[*] Unable To Access Malware List Directory - Stopping Banmalware"
 			echo
 			exit 1
 		fi
-		cwd="$(pwd)"
-		cd "${skynetloc}/lists" || exit 1
 
-		# Build a stable "url filename" manifest. Exact duplicate URLs are removed;
-		# different URLs sharing a basename receive deterministic numeric suffixes.
-		awk '
-			NF != 1 { next }
-
-			{
-				# Strip trailing CR if present (CRLF safety)
-				sub("\r$", "", $0)
-				url = $1
-
-				# Basic URL sanity: only keep http/https URLs
-				if (url !~ /^https?:\/\/.*/) {
-					next
-				}
-
-				# Skip exact duplicate URL lines
-				if (seen[url]++) {
-					next
-				}
-
-				n = split(url, parts, "/")
-				name = parts[n]
-				sub(/[?#].*$/, "", name)
-				gsub(/[^A-Za-z0-9._-]/, "_", name)
-				if (name == "" || name == "." || name == "..") {
-					next
-				}
-
-				count[name]++
-				if (count[name] > 1) {
-					# Same basename from another URL → suffix .1, .2, ...
-					printf "%s %s.%d\n", url, name, count[name] - 1
-				} else {
-					printf "%s %s\n", url, name
-				}
-			}
-		' /jffs/addons/shared-whitelists/shared-Skynet-whitelist > "$TMP_DIR/skynet.manifest"
-		manifeststatus="$?"
-		if [ "$manifeststatus" != "0" ] || [ ! -s "$TMP_DIR/skynet.manifest" ]; then
-			echo "[*] No Valid Malware Sources Found - Stopping Banmalware"
-			echo
-			exit 1
-		fi
-
-		# Revalidate cached feeds with If-Modified-Since and limit concurrent curl
-		# processes so first installs do not overwhelm lower-memory routers. The
-		# persisted manifest binds cached content to its source URL; a URL change
-		# always forces a full download even when the basename is unchanged.
+		# Revalidate URL-bound caches with If-Modified-Since. Workers only publish
+		# small result files because assignments made in background subshells are
+		# not visible to the parent BusyBox shell.
 		listmanifest="${skynetloc}/lists/.manifest"
+		feedchecked="$(date +%s)"
+		feedtab="$(printf '\t')"
 		paralleljobs="0"
-		while IFS=' ' read -r url list || [ -n "$url" ]; do
+		while IFS="$feedtab" read -r list url selection; do
+			[ "$selection" = "enabled" ] || continue
 			(
-				[ -n "$url" ] || exit 0
 				listfile="${skynetloc}/lists/$list"
 				listtmp="${skynetloc}/lists/${list}.tmp.$$"
-				listok="$TMP_DIR/feed.${list}.ok"
-				rm -f "$listtmp"
+				feedresult="$TMP_DIR/feed.${list}.result"
+				cachevalid="0"
+				oldsuccess="0"
+				rm -f "$listtmp" "$feedresult"
 				if [ -s "$listfile" ] && [ -s "$listmanifest" ] \
-					&& awk -v url="$url" -v name="$list" '$1 == url && $2 == name {found=1} END {exit !found}' "$listmanifest"; then
-					Curl_Fetch -z "$listfile" -o "$listtmp" "$url" 2>/dev/null
+					&& awk -v url="$url" -v name="$list" '$1 == url && $2 == name { found=1 } END { exit !found }' "$listmanifest"; then
+					cachevalid="1"
+					oldsuccess="$(awk -F '\t' -v url="$url" -v name="$list" '$1 == name && $2 == url { print $7; exit }' "${skynetloc}/lists/.sources" 2>/dev/null)"
+					case "$oldsuccess" in ""|0|*[!0-9]*) oldsuccess="$(date -r "$listfile" +%s 2>/dev/null || printf 0)" ;; esac
+					downloadcode="$(Curl_Fetch -z "$listfile" -o "$listtmp" -w '%{http_code}' "$url")"
+					downloadstatus="$?"
 				else
-					Curl_Fetch -o "$listtmp" "$url" 2>/dev/null
+					downloadcode="$(Curl_Fetch -o "$listtmp" -w '%{http_code}' "$url")"
+					downloadstatus="$?"
 				fi
-				downloadstatus="$?"
-				if [ "$downloadstatus" = "0" ] && [ ! -e "$listtmp" ] && [ -s "$listfile" ]; then
-					true > "$listok"
+
+				if [ "$downloadstatus" = "0" ] && [ "$downloadcode" = "304" ] && [ "$cachevalid" = "1" ]; then
+					rm -f "$listtmp"
+					printf 'current\t%s\t%s\n' "$feedchecked" "$feedchecked" > "$feedresult"
 					echo "[✔] Up To Date $url"
-				elif [ "$downloadstatus" = "0" ] \
-					&& dos2unix "$listtmp" \
-					&& grep -qE '^[[:space:]]*([0-9]{1,3}\.){3}[0-9]{1,3}(\/([0-9]|[1-2][0-9]|3[0-2]))?([[:space:]]|$)' "$listtmp" \
-					&& mv -f "$listtmp" "$listfile"; then
-					true > "$listok"
+				elif [ "$downloadstatus" = "0" ] && [ -s "$listtmp" ] && dos2unix "$listtmp"; then
+					printf 'downloaded\t%s\t%s\n' "$feedchecked" "$feedchecked" > "$feedresult"
 					echo "[✔] Downloaded $url"
+				elif [ "$cachevalid" = "1" ]; then
+					rm -f "$listtmp"
+					printf 'cached\t%s\t%s\n' "$feedchecked" "$oldsuccess" > "$feedresult"
+					echo "[!] Download Failed - Checking Cached $url"
 				else
 					rm -f "$listtmp"
-					echo "[✘] Failed to fetch: $url"
+					printf 'failed\t%s\t0\n' "$feedchecked" > "$feedresult"
+					echo "[✘] Download Failed $url"
 				fi
 			) &
 			Wait_Background_Job_Batch 4
-		done < "$TMP_DIR/skynet.manifest"
+		done < "$feedmanifest"
 		wait
 
-		# Keep the previous URL mapping for failed feeds so cached content is never
-		# relabelled as a different source. Publish the mapping atomically on USB.
-		listmanifesttmp="${skynetloc}/lists/cache-manifest.tmp.$$"
-		true > "$listmanifesttmp" || exit 1
-		while IFS=' ' read -r url list || [ -n "$url" ]; do
-			if [ -f "$TMP_DIR/feed.${list}.ok" ]; then
-				printf '%s %s\n' "$url" "$list" >> "$listmanifesttmp"
-			elif [ -s "$listmanifest" ]; then
-				awk -v name="$list" '$2 == name {print; exit}' "$listmanifest" >> "$listmanifesttmp"
+		# Consolidate staged downloads and retained caches in one parser pass. New
+		# files replace their cache only after the parser confirms usable entries.
+		feedfiles="$TMP_DIR/feed-files"
+		feedcounts="$TMP_DIR/feed-counts"
+		malwaretmp="$TMP_DIR/malware"
+		mkdir -p "$feedfiles" || { Restore_Threat_Feed_Selection; echo "[*] Unable To Prepare Malware Sources"; echo; exit 1; }
+		while IFS="$feedtab" read -r list url selection; do
+			listfile="${skynetloc}/lists/$list"
+			listtmp="${skynetloc}/lists/${list}.tmp.$$"
+			feedresult="$TMP_DIR/feed.${list}.result"
+			if [ "$selection" = "enabled" ] && [ -s "$feedresult" ]; then
+				read -r feedstate feedunused < "$feedresult"
+				case "$feedstate" in
+					downloaded) [ -s "$listtmp" ] && ln -s "$listtmp" "$feedfiles/$list" ;;
+					current|cached) [ -s "$listfile" ] && ln -s "$listfile" "$feedfiles/$list" ;;
+				esac
+			elif [ "$selection" = "excluded" ] && [ -s "$listfile" ] && [ -s "$listmanifest" ] \
+				&& awk -v url="$url" -v name="$list" '$1 == url && $2 == name { found=1 } END { exit !found }' "$listmanifest"; then
+				ln -s "$listfile" "$feedfiles/$list"
 			fi
-		done < "$TMP_DIR/skynet.manifest"
-		if [ -s "$listmanifesttmp" ]; then
-			mv -f "$listmanifesttmp" "$listmanifest" || exit 1
-		else
-			rm -f "$listmanifesttmp"
+		done < "$feedmanifest"
+		Build_Malware_Restore "$feedmanifest" "$malwaretmp" "$feedcounts"
+		buildstatus="$?"
+
+		# A syntactically downloaded file can still contain no usable public IPv4
+		# data. Fall back to its matching validated cache, then rebuild once.
+		feedrebuild="0"
+		while IFS="$feedtab" read -r list url selection; do
+			[ "$selection" = "enabled" ] || continue
+			feedresult="$TMP_DIR/feed.${list}.result"
+			feedstate="failed"
+			feedresultchecked="$feedchecked"
+			feedresultsuccess="0"
+			if [ -s "$feedresult" ]; then
+				IFS="$feedtab" read -r feedstate feedresultchecked feedresultsuccess < "$feedresult"
+			fi
+			feedentries="$(awk -F '\t' -v name="$list" '$1 == name { print $2; exit }' "$feedcounts" 2>/dev/null)"
+			case "$feedentries" in ""|0|*[!0-9]*)
+				listfile="${skynetloc}/lists/$list"
+				if [ "$feedstate" = "downloaded" ] && [ -s "$listfile" ] && [ -s "$listmanifest" ] \
+					&& awk -v url="$url" -v name="$list" '$1 == url && $2 == name { found=1 } END { exit !found }' "$listmanifest"; then
+					oldsuccess="$(awk -F '\t' -v url="$url" -v name="$list" '$1 == name && $2 == url { print $7; exit }' "${skynetloc}/lists/.sources" 2>/dev/null)"
+					case "$oldsuccess" in ""|0|*[!0-9]*) oldsuccess="$(date -r "$listfile" +%s 2>/dev/null || printf 0)" ;; esac
+					rm -f "$feedfiles/$list" "${skynetloc}/lists/${list}.tmp.$$"
+					ln -s "$listfile" "$feedfiles/$list"
+					printf 'cached\t%s\t%s\n' "$feedchecked" "$oldsuccess" > "$feedresult"
+					feedrebuild="1"
+				else
+					rm -f "$feedfiles/$list" "${skynetloc}/lists/${list}.tmp.$$"
+					printf 'failed\t%s\t%s\n' "$feedresultchecked" "$feedresultsuccess" > "$feedresult"
+				fi
+			;;
+			*)
+				if [ "$feedstate" = "downloaded" ]; then
+					if mv -f "${skynetloc}/lists/${list}.tmp.$$" "${skynetloc}/lists/$list" \
+						&& rm -f "$feedfiles/$list" && ln -s "${skynetloc}/lists/$list" "$feedfiles/$list"; then
+						printf 'current\t%s\t%s\n' "$feedresultchecked" "$feedresultsuccess" > "$feedresult"
+					else
+						printf 'failed\t%s\t0\n' "$feedresultchecked" > "$feedresult"
+					fi
+				fi
+			;;
+			esac
+		done < "$feedmanifest"
+		if [ "$feedrebuild" = "1" ]; then
+			rm -f "$feedcounts" "$malwaretmp"
+			Build_Malware_Restore "$feedmanifest" "$malwaretmp" "$feedcounts"
+			buildstatus="$?"
 		fi
 
-		# Remove cached feeds no longer present in the manifest
+		feedfailed="0"
+		feeddegraded="0"
+		feedfailedsource=""
+		feedcachedsources=""
+		while IFS="$feedtab" read -r list url selection; do
+			[ "$selection" = "enabled" ] || continue
+			feedstate="failed"
+			feedresult="$TMP_DIR/feed.${list}.result"
+			[ -s "$feedresult" ] && IFS="$feedtab" read -r feedstate feedunused feedunused < "$feedresult"
+			feedentries="$(awk -F '\t' -v name="$list" '$1 == name { print $2; exit }' "$feedcounts" 2>/dev/null)"
+			case "$feedentries" in ""|0|*[!0-9]*) feedstate="failed"; printf 'failed\t%s\t0\n' "$feedchecked" > "$feedresult" ;; esac
+			case "$feedstate" in
+				cached)
+					feeddegraded="1"
+					feedcachedsources="${feedcachedsources:+$feedcachedsources }$list"
+				;;
+				current) ;;
+				*)
+					feedfailed="1"
+					[ -n "$feedfailedsource" ] || feedfailedsource="$list"
+				;;
+			esac
+		done < "$feedmanifest"
+
+		# Publish cache ownership and source health only after every worker and the
+		# consolidation parser have completed.
+		listmanifesttmp="${listmanifest}.tmp.$$"
+		true > "$listmanifesttmp" || { Restore_Threat_Feed_Selection; echo "[*] Unable To Save Malware Cache Manifest"; echo; exit 1; }
+		while IFS="$feedtab" read -r list url selection; do
+			feedstate="excluded"
+			feedentries="$(awk -F '\t' -v name="$list" '$1 == name { print $2; exit }' "$feedcounts" 2>/dev/null)"
+			[ -s "$TMP_DIR/feed.${list}.result" ] && IFS="$feedtab" read -r feedstate feedunused feedunused < "$TMP_DIR/feed.${list}.result"
+			case "$selection:$feedstate:$feedentries" in
+				enabled:current:[1-9]*|enabled:cached:[1-9]*) printf '%s %s\n' "$url" "$list" >> "$listmanifesttmp" ;;
+				excluded:excluded:[1-9]*)
+					if [ -s "${skynetloc}/lists/$list" ] && [ -s "$listmanifest" ] \
+						&& awk -v url="$url" -v name="$list" '$1 == url && $2 == name { found=1 } END { exit !found }' "$listmanifest"; then
+						printf '%s %s\n' "$url" "$list" >> "$listmanifesttmp"
+					fi
+				;;
+			esac
+		done < "$feedmanifest"
+		mv -f "$listmanifesttmp" "$listmanifest" || { Restore_Threat_Feed_Selection; echo "[*] Unable To Publish Malware Cache Manifest"; echo; exit 1; }
+		Publish_Threat_Feed_Status "$feedmanifest" "$feedcounts" || { Restore_Threat_Feed_Selection; echo "[*] Unable To Publish Malware Source Status"; echo; exit 1; }
+
+		# The published URL/name mapping contains every current or retained cache.
+		# This removes disappeared URLs while keeping excluded sources ready for use;
+		# a changed URL with the same basename cannot retain the old file binding.
 		for file in "${skynetloc}/lists/"*; do
+			[ -f "$file" ] || continue
 			basefile="$(basename "$file")"
-			if ! awk -v name="$basefile" '$2 == name { found=1 } END { exit !found }' "$TMP_DIR/skynet.manifest"; then
+			if ! awk -v name="$basefile" '$2 == name { found=1 } END { exit !found }' "$listmanifest"; then
 				rm -f "$file"
 			fi
 		done
 
-		malwaretmp="$TMP_DIR/malware"
-		if [ -d "${skynetloc}/lists" ] && ls "${skynetloc}/lists/"* 1>/dev/null 2>&1; then
-			if ! awk '
-				BEGIN { valid_entries=0 }
-				{
-					# Match IPv4 with optional CIDR mask
-					if ($1 ~ /^([0-9]{1,3}\.){3}[0-9]{1,3}(\/([0-9]|[1-2][0-9]|3[0-2]))?([[:space:]]|$)/) {
-						ip = $1
-						src = FILENAME
-						gsub(".*/", "", src)
-
-						# Skip non-routable / private / special ranges that shouldn t be blacklisted
-						# 0.0.0.0/8, 10.0.0.0/8, 100.64.0.0/10 (CGNAT), 127.0.0.0/8, 169.254.0.0/16,
-						# 172.16.0.0/12, 192.0.0.0/24, 192.0.2.0/24, 192.168.0.0/16,
-						# 198.18.0.0/15, 198.51.100.0/24, 203.0.113.0/24,
-						# 224.0.0.0–255.255.255.255 (multicast / reserved)
-						if (ip ~ /^0\./ ||
-							ip ~ /^10\./ ||
-							ip ~ /^100\.(6[4-9]|[7-9][0-9]|1[0-1][0-9]|12[0-7])\./ ||
-							ip ~ /^127\./ ||
-							ip ~ /^169\.254\./ ||
-							ip ~ /^172\.1[6-9]\./ ||
-							ip ~ /^172\.2[0-9]\./ ||
-							ip ~ /^172\.3[0-1]\./ ||
-							ip ~ /^192\.0\.0\./ ||
-							ip ~ /^192\.0\.2\./ ||
-							ip ~ /^192\.168\./ ||
-							ip ~ /^198\.(1[8-9])\./ ||
-							ip ~ /^198\.51\.100\./ ||
-							ip ~ /^203\.0\.113\./ ||
-							ip ~ /^2(2[4-9]|[3-4][0-9]|5[0-5])\./) {
-							next
-						}
-
-						# De-duplicate on IP/CIDR
-						if (!x[ip]++) {
-							valid_entries++
-							# Single host or /32 → Skynet-Blacklist
-							if (ip ~ /^([0-9]{1,3}\.){3}[0-9]{1,3}\/32$/ || ip !~ /\//) {
-								print "add Skynet-Blacklist " ip " comment \"BanMalware: " src "\""
-							}
-							# Network ranges (/0–/31) → Skynet-BlockedRanges
-							else if (ip ~ /^([0-9]{1,3}\.){3}[0-9]{1,3}\/([0-9]|[1-2][0-9]|3[0-1])$/) {
-								print "add Skynet-BlockedRanges " ip " comment \"BanMalware: " src "\""
-							}
-						}
-					}
-				}
-				END {
-					if (valid_entries == 0) exit 1
-				}
-			' "${skynetloc}/lists/"* > "$malwaretmp"; then
-				result="$(Red "[$(($(date +%s) - btime))s]")"
-				printf '%-8s\n' "$result"
-				printf '%-35s\n' "[✘] No usable malware entries found in feeds"
-				nocfg="1"
-				commandfailed="1"
-			else
-				malwareipsettmp="${skynetipset}.tmp.$$"
-				if ! sed '\~comment \"BanMalware: ~d' "$skynetipset" > "$malwareipsettmp" \
-					|| ! cat "$malwaretmp" >> "$malwareipsettmp" \
-					|| [ ! -s "$malwareipsettmp" ] \
-					|| ! mv -f "$malwareipsettmp" "$skynetipset"; then
-					rm -f "$malwareipsettmp"
-					printf '%-35s\n' "[✘] Unable To Save Malware Entries - Existing Data Retained"
-					nocfg="1"
-					commandfailed="1"
-				fi
-			fi
-		else
-			printf '%-35s\n' "[✘] No malware feeds found — skipping consolidation"
-			nocfg="1"
-			commandfailed="1"
+		if [ "$feedfailed" = "1" ] || [ "$buildstatus" != "0" ]; then
+			Restore_Threat_Feed_Selection
+			echo "[✘] No Valid Cached Copy For Malware Source ($feedfailedsource)"
+			echo "[*] Existing Blacklist Retained"
+			echo
+			exit 1
 		fi
-		rm -f "$malwaretmp"
+		if [ "$feeddegraded" = "1" ]; then
+			echo "[!] Validated Cached Malware Sources Retained ($feedcachedsources)"
+		fi
+
+		# Build beside the persisted IPSet file and apply it to temporary sets first.
+		# The live and saved blacklist remain untouched unless the complete restore
+		# succeeds.
+		malwareipsettmp="$TMP_DIR/skynet-malware-candidate"
+		malwareipsetbackup="$TMP_DIR/skynet-blacklist-previous"
+		if ! sed '\~comment \"BanMalware: ~d' "$skynetipset" > "$malwareipsettmp" \
+			|| ! cat "$malwaretmp" >> "$malwareipsettmp" || [ ! -s "$malwareipsettmp" ] \
+			|| ! cp -f "$skynetipset" "$malwareipsetbackup"; then
+			Restore_Threat_Feed_Selection
+			echo "[✘] Unable To Build New Blacklist - Existing Entries Retained"
+			echo
+			exit 1
+		fi
 		printf "%-35s | " "[i] Finish Blacklist Consolidation"
 		Display_Result
 		Display_Message "[i] Applying New Blacklist"
-		if Apply_Blacklist_File "$skynetipset"; then
+		if Apply_Blacklist_File "$malwareipsettmp"; then
 			Display_Result
 		else
 			result="$(Red "[$(($(date +%s) - btime))s]")"
 			printf '%-8s\n' "$result"
 			printf '%-35s\n' "[✘] Unable To Apply New Blacklist - Existing Entries Retained"
-			nocfg="1"
-			commandfailed="1"
+			Restore_Threat_Feed_Selection
+			echo
+			exit 1
 		fi
 		Display_Message "[i] Refreshing AiProtect Bans"
-		Refresh_AiProtect
-		Display_Result
-		Display_Message "[i] Saving Changes"
-		Save_IPSets
-		savestatus="$?"
-		Display_Result
-		if [ "$nocfg" != "1" ] && [ "$savestatus" = "0" ]; then
-			banmalwarelastupdated="$(date +%s)"
+		if Refresh_AiProtect; then
+			Display_Result
 		else
-			nocfg="1"
-			commandfailed="1"
+			result="$(Red "[$(($(date +%s) - btime))s]")"
+			printf '%-8s\n' "$result"
+			Apply_Blacklist_File "$malwareipsetbackup" >/dev/null 2>&1
+			Restore_Threat_Feed_Selection
+			echo "[✘] Unable To Refresh AiProtect Bans - Existing Blacklist Restored"
+			echo
+			exit 1
 		fi
+		Display_Message "[i] Saving Changes"
 		forcebanmalwareupdate="disabled"
+		banmalwarelastupdated="$(date +%s)"
+		blacklist1count="$(IPSet_Entry_Count Skynet-Blacklist)"
+		blacklist2count="$(IPSet_Entry_Count Skynet-BlockedRanges)"
+		if Save_IPSets && Write_Config; then
+			nocfg="1"
+			Display_Result
+		else
+			result="$(Red "[$(($(date +%s) - btime))s]")"
+			printf '%-8s\n' "$result"
+			Apply_Blacklist_File "$malwareipsetbackup" >/dev/null 2>&1
+			if ! Save_IPSets; then
+				saveipsettmp="${skynetipset}.tmp.$$"
+				cp -f "$malwareipsetbackup" "$saveipsettmp" && mv -f "$saveipsettmp" "$skynetipset"
+			fi
+			Restore_Threat_Feed_Selection
+			echo "[✘] Unable To Save Malware Update - Existing Blacklist Restored"
+			echo
+			exit 1
+		fi
 		echo
 		echo "[i] For Whitelisting Assistance -"
 		echo "[i] https://www.snbforums.com/threads/release-skynet-router-firewall-security-enhancements.16798/#post-115872"
@@ -7423,10 +7747,7 @@ case "$1" in
 				Generate_WebUI_Settings
 			;;
 			SkynetBanMalware|banmalware)
-				malwareupdated="$banmalwarelastupdated"
-				Run_WebUI_Command banmalware >/dev/null 2>&1
-				if Load_Config && [ -n "$banmalwarelastupdated" ] && [ "$banmalwarelastupdated" != "$malwareupdated" ]; then settingsresult="success"; else settingsresult="error"; fi
-				Generate_WebUI_Settings
+				Apply_WebUI_Threat_Feeds
 			;;
 			SkynetCountries|countries)
 				Apply_WebUI_Countries
@@ -7818,7 +8139,6 @@ case "$1" in
 				printf '║ %-33s ║ %-80s ║\n' "Import AiProtection Threats" "$(if Is_Enabled "$banaiprotect"; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
 				printf '║ %-33s ║ %-80s ║\n' "Secure Mode" "$(if Is_Enabled "$securemode"; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
 				printf '║ %-33s ║ %-80s ║\n' "Extended Stats" "$(if Is_Enabled "$extendedstats"; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
-				printf '║ %-33s ║ %-80s ║\n' "Fast Switch List" "$(if Is_Enabled "$fastswitch"; then Ylow "[Enabled]"; else Grn "[Disabled]"; fi)"
 				printf '║ %-33s ║ %-80s ║\n' "Syslog Location" "$(if { [ "$syslogloc" = "/tmp/syslog.log" ] && [ "$syslog1loc" = "/tmp/syslog.log-1" ]; } || { [ "$syslogloc" = "/jffs/syslog.log" ] && [ "$syslog1loc" = "/jffs/syslog.log-1" ]; } then Grn "[Default]"; else Ylow "[Custom]"; fi)"
 				printf '║ %-33s ║ %-80s ║\n' "IoT Blocking" "$(if Is_Enabled "$iotblocked"; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
 				printf '║ %-33s ║ %-80s ║\n' "IoT Block Logging" "$(if Is_Enabled "$iotlogging"; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
@@ -8178,7 +8498,6 @@ case "$1" in
 		if [ -z "$banaiprotect" ]; then banaiprotect="enabled"; fi
 		if [ -z "$securemode" ]; then securemode="enabled"; fi
 		if [ -z "$extendedstats" ]; then extendedstats="enabled"; fi
-		if [ -z "$fastswitch" ]; then fastswitch="disabled"; fi
 		if [ -z "$syslogloc" ]; then syslogloc="/tmp/syslog.log"; fi
 		if [ -z "$syslog1loc" ]; then syslog1loc="/tmp/syslog.log-1"; fi
 		if [ -z "$iotblocked" ]; then iotblocked="disabled"; fi

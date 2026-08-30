@@ -15,12 +15,12 @@ Skynet is free and open source. Development can be supported through [PayPal](ht
 - Blocks configured sources before inbound traffic reaches the router or forwarded services.
 - Blocks configured destinations for LAN clients, the router itself, and supported VPN server traffic.
 - Maintains separate IPSet collections for individual IPv4 addresses, network ranges, whitelisted entries, and IoT devices.
-- Downloads, validates, consolidates, and labels IPv4 threat feeds from a configurable filter list.
+- Downloads, validates, caches, consolidates, and reports IPv4 threat feeds from a configurable filter list.
 - Supports manual bans and whitelists by IPv4 address, CIDR range, domain, ASN, country, or comment.
 - Imports AiProtection detections and automatically whitelists required router, DNS, VPN, and optional CDN ranges.
 - Restricts selected IoT devices while retaining access to configured services and supported VPN server networks.
 - Records blocked traffic and provides searchable CLI reports, connection details, associated domains, and country information when enabled.
-- Integrates with the Asuswrt-Merlin WebUI for statistics, common settings, malware list updates, and country blocking.
+- Integrates with the Asuswrt-Merlin WebUI for statistics, common settings, threat-feed management, malware list updates, and country blocking.
 
 ## Requirements
 
@@ -90,19 +90,18 @@ Domain commands validate the hostname and resolve its complete IPv4 answer set b
 
 ### Malware Lists
 
-A Skynet filter list contains one HTTP or HTTPS threat-feed URL per line. Skynet downloads the filter list, refreshes required whitelists, conditionally refreshes the listed feeds, validates their IPv4 entries, removes private and reserved ranges, and rebuilds the malware portion of the blacklist. Unchanged feeds are not downloaded again, while a failed or invalid refresh retains the last valid cached copy.
+A Skynet filter list contains one HTTP or HTTPS threat-feed URL per line. Skynet resolves the complete source list before exclusions, refreshes required whitelists, conditionally downloads enabled feeds, validates their IPv4 entries, removes private and reserved ranges, and rebuilds the malware portion of the blacklist. Cached files are bound to their complete source URL so changed URLs cannot inherit stale content with the same filename.
+
+Each source is reported as `current`, `cached`, `failed`, or `excluded`. A validated cache may be used when its source cannot be refreshed. If any enabled source has no valid matching cache, the update fails and the complete existing blacklist and saved source selection are retained.
 
 - `firewall banmalware` - Refresh the malware blacklist using the configured filter list.
 - `firewall banmalware https://example.com/filter.list` - Save the supplied filter-list URL as the primary source and refresh the malware blacklist.
 - `firewall banmalware reset` - Restore the default Skynet filter-list URL and refresh the malware blacklist.
+- `firewall banmalware status` - Display the update schedule, filter list, last update, and source-state totals.
+- `firewall banmalware sources` - Display every source, its usable entry count, state, last successful check, and URL.
 - `firewall banmalware exclude list1.ipset list2.ipset` - Exclude filter-list URLs with the supplied filenames, then refresh the malware blacklist.
+- `firewall banmalware include list1.ipset list2.ipset` - Re-enable one or more excluded source filenames, then refresh the malware blacklist.
 - `firewall banmalware exclude reset` - Clear the excluded filenames and refresh the malware blacklist.
-
-Fast Switch stores a second filter-list URL so the active malware source can be changed without replacing the primary URL:
-
-- `firewall fs https://example.com/alternate.list` - Save and activate the alternate filter list, then refresh the malware blacklist.
-- `firewall fs` - Toggle between the primary and saved alternate filter lists.
-- `firewall fs disable` - Disable Fast Switch and refresh from the primary filter list.
 
 ### Whitelisting
 
@@ -227,7 +226,7 @@ The WebUI provides:
 - IP details including ban reason, country, associated domains, AlienVault OTX, and SpeedGuide links where applicable.
 - Background statistics refresh without navigating away from the page.
 - Common Skynet settings with descriptions and documented defaults.
-- Malware update status, manual list refresh, and primary filter-list configuration.
+- Threat-feed status, usable entry counts, last successful checks, source toggles, manual refresh, and primary filter-list configuration.
 - Country blocking with country selection and removal.
 - IoT isolation with detected client, hostname, IPv4, MAC, online state, device list, port and protocol controls.
 - Copyable MAC addresses in blocked-device details when neighbour data is available.

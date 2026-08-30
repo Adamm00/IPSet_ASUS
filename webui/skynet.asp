@@ -56,7 +56,6 @@
             font-size: 12px !important;
             color: white !important;
             padding: 4px !important;
-            width: 740px !important;
         }
         
         .StatsTable td {
@@ -235,9 +234,16 @@
             border-spacing:6px !important; margin:-6px 0 4px -6px;
         }
         .skynet-kpi {
-            background:#354247 !important; border:1px solid #607780 !important;
+            background:linear-gradient(180deg,#39484e 0%,#344247 100%) !important;
+            border:1px solid #607780 !important;
             border-radius:5px; text-align:center; padding:9px 5px !important;
             width:25%;
+            box-shadow:inset 0 1px 0 rgba(255,255,255,0.035),0 1px 2px rgba(0,0,0,0.12);
+            transition:border-color 140ms ease,transform 140ms ease;
+        }
+        .skynet-kpi:hover {
+            border-color:#7594a0 !important;
+            transform:translateY(-1px);
         }
         .skynet-kpi-label {
             display:block; color:var(--skynet-muted-2) !important; font-size:11px; font-weight:bold;
@@ -247,46 +253,117 @@
             font-weight:bold; margin-top:3px;
         }
         .skynet-meta {
-            color:var(--skynet-muted-2) !important; text-align:center; font-size:11px; margin:2px 0 8px 0;
+            display:flex;
+            flex-wrap:wrap;
+            align-items:baseline;
+            gap:12px;
+            margin:0;
+            color:var(--skynet-muted-2) !important;
+        }
+        .skynet-meta-item {
+            display:flex;
+            align-items:baseline;
+            gap:5px;
+            min-width:0;
+            padding:0;
+        }
+        .skynet-meta-label {
+            color:#86b6c9 !important;
+            font-size:8px;
+            font-weight:bold;
+            letter-spacing:0.35px;
+            line-height:13px;
+            text-transform:uppercase;
+            white-space:nowrap;
+        }
+        .skynet-meta-value {
+            overflow:hidden;
+            color:#c5d0d4 !important;
+            font-family:Arial,sans-serif;
+            font-size:9px;
+            line-height:13px;
+            text-overflow:ellipsis;
+            white-space:nowrap;
+        }
+        .skynet-meta-period {
+            padding-left:7px;
+            border-left:2px solid #5799b4;
+        }
+        .skynet-meta-period .skynet-meta-value {
+            color:#e1edf1 !important;
+            font-size:10px;
+            font-weight:bold;
+            letter-spacing:0.1px;
+        }
+        .skynet-meta-log {
+            padding-left:11px;
+            border-left:1px solid rgba(126,153,163,0.28);
+        }
+        .skynet-meta-log .skynet-meta-value {
+            color:#d3e0e4 !important;
+            font-size:10px;
+            font-weight:bold;
+            letter-spacing:0.1px;
         }
         .skynet-update-result {
-            min-height:15px;
-            margin-top:3px;
+            min-height:0;
+            margin:0;
+            padding-left:10px;
+            border-left:1px solid rgba(126,153,163,0.28);
             color:#b8c4c8;
             font-size:10px;
+            line-height:13px;
+            white-space:nowrap;
         }
+        .skynet-update-result:empty { display:none; }
         .skynet-update-result.error { color:#f2afb5; }
         .skynet-actionbar {
-            background:#3a464a !important; border:1px solid #607780 !important;
-            border-radius:5px; padding:7px !important;
+            padding:0 !important;
+            border:0 !important;
+            background:transparent !important;
         }
 
         /* Navigation and settings. */
         .skynet-tabs {
             display: flex;
+            gap: 3px;
             margin: 0 0 10px 0;
-            border-bottom: 1px solid var(--skynet-border);
+            padding: 4px;
+            border: 1px solid var(--skynet-border-soft);
+            border-radius: 6px;
+            background: #2c3b40;
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.24);
         }
 
         .skynet-tab {
-            min-width: 92px;
-            padding: 7px 14px;
-            border: 0;
+            flex: 1 1 0;
+            min-width: 0;
+            min-height: 30px;
+            padding: 6px;
+            border: 1px solid transparent;
             border-bottom: 2px solid transparent;
-            background: transparent;
+            border-radius: 4px;
+            background: transparent !important;
             color: var(--skynet-muted);
+            font-size: 10px;
             font-weight: bold;
             cursor: pointer;
+            transition: background-color 140ms ease,border-color 140ms ease,
+                        color 140ms ease,box-shadow 140ms ease;
         }
 
         .skynet-tab:hover,
         .skynet-tab.active {
             color: var(--skynet-text);
-            background: rgba(255,255,255,0.04);
+            background: rgba(255,255,255,0.045) !important;
         }
 
         .skynet-tab.active {
+            border-color: #526d78;
             border-bottom-color: var(--skynet-link);
+            background: linear-gradient(180deg,#3b5058 0%,#34474e 100%) !important;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.05),
+                        0 1px 2px rgba(0,0,0,0.18);
         }
 
         .skynet-tab:focus-visible {
@@ -300,39 +377,58 @@
 
 
         .skynet-update-bar {
-            display: flex;
+            display:grid;
+            grid-template-columns:minmax(0,1fr) auto;
             align-items: center;
-            justify-content: space-between;
-            gap: 10px;
-            min-height: 52px;
+            gap:10px;
+            min-height:44px;
             margin: 8px 0 10px 0;
-            padding: 8px 10px;
-            background: var(--skynet-surface);
-            border: 1px solid var(--skynet-border-medium);
-            border-radius: 5px;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+            padding:7px 9px;
+            background:#34464c;
+            border:1px solid #566d76;
+            border-radius:5px;
+            box-shadow:inset 0 1px 0 rgba(255,255,255,0.025);
             box-sizing: border-box;
             width: 100%;
             max-width: 760px;
         }
 
-
-        .skynet-update-info > div:last-child {
-            margin-top: 2px;
-            color: var(--skynet-muted-2) !important;
-        }
-
         .skynet-update-info {
+            display:flex;
+            align-items:center;
+            gap:10px;
             min-width: 0;
             color: var(--skynet-muted-2) !important;
             font-size: 11px;
             line-height: 15px;
         }
 
-        .skynet-update-title {
-            color: var(--skynet-title) !important;
-            font-size: 12px;
-            font-weight: bold;
+        .skynet-update-control {
+            position:relative;
+            width:116px;
+            flex:none;
+        }
+
+        .skynet-update-control .skynet-update-button {
+            width:100%;
+            min-width:0;
+            height:28px;
+            padding:0 10px !important;
+            border-color:#667f89 !important;
+            border-radius:4px !important;
+            background:linear-gradient(180deg,#4a626b 0%,#40565e 100%) !important;
+            color:#e4edf0 !important;
+            font-family:Arial,sans-serif !important;
+            font-size:11px !important;
+            line-height:26px !important;
+            text-shadow:none;
+            box-shadow:inset 0 1px 0 rgba(255,255,255,0.055);
+            white-space:nowrap;
+        }
+
+        .skynet-update-control .skynet-update-button:not(:disabled):hover {
+            border-color:#7d9aa6 !important;
+            background:linear-gradient(180deg,#526d77 0%,#465e67 100%) !important;
         }
 
         .skynet-update-button {
@@ -385,9 +481,15 @@
         .skynet-settings {
             margin: 10px 0;
             overflow: hidden;
-            border: 1px solid var(--skynet-border);
-            border-radius: 5px;
-            background: var(--skynet-panel);
+            border: 1px solid var(--skynet-border-medium);
+            border-radius: 6px;
+            background: var(--skynet-surface);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.025),
+                        0 1px 3px rgba(0,0,0,0.14);
+        }
+
+        .skynet-settings-section-hidden {
+            display: none;
         }
 
         .skynet-settings-table {
@@ -399,10 +501,35 @@
             width: 42%;
         }
 
+        .skynet-settings-table tr:not(.skynet-settings-group) > th,
+        .skynet-settings-table tr:not(.skynet-settings-group) > td {
+            padding-top: 6px !important;
+            padding-bottom: 6px !important;
+            border-color: var(--skynet-border-soft) !important;
+            transition: background-color 120ms ease;
+        }
+
+        .skynet-settings-table tr:not(.skynet-settings-group) > th {
+            background: #2f3e44 !important;
+        }
+
+        .skynet-settings-table tr:not(.skynet-settings-group) > td {
+            background: #35474d !important;
+        }
+
+        .skynet-settings-table tr:not(.skynet-settings-group):hover > th {
+            background: #33454b !important;
+        }
+
+        .skynet-settings-table tr:not(.skynet-settings-group):hover > td {
+            background: #3a4d54 !important;
+        }
+
         .skynet-settings-group th {
             width: auto;
-            padding: 7px 10px;
-            background: var(--skynet-panel-alt);
+            padding: 8px 10px;
+            border-color: var(--skynet-border-soft) !important;
+            background: linear-gradient(180deg,#3a4c53 0%,#35464d 100%);
             color: var(--skynet-heading);
             font-size: 10px;
             letter-spacing: 0.6px;
@@ -425,6 +552,26 @@
         .skynet-settings-table select {
             width: 210px;
             max-width: 100%;
+            height: 30px;
+            padding: 4px 8px;
+            border: 1px solid #70858d;
+            border-radius: 4px;
+            background-color: #536970;
+            color: #ffffff;
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.22);
+            box-sizing: border-box;
+            transition: border-color 120ms ease,box-shadow 120ms ease;
+        }
+
+        .skynet-settings-table select:hover {
+            border-color: #8aa4ae;
+        }
+
+        .skynet-settings-table select:focus {
+            outline: none;
+            border-color: var(--skynet-link);
+            box-shadow: 0 0 0 2px rgba(143,209,245,0.15),
+                        inset 0 1px 2px rgba(0,0,0,0.18);
         }
 
         .skynet-malware-controls {
@@ -436,13 +583,283 @@
         .skynet-malware-status {
             display: block;
             margin-top: 5px;
-            color: var(--skynet-muted);
+            padding: 0 !important;
+            border: 0 !important;
+            background: transparent !important;
+            color: var(--skynet-muted) !important;
             font-size: 10px;
+            line-height: 14px;
         }
 
         .skynet-malware-update {
             min-width: 96px;
             height: 30px;
+        }
+
+        .skynet-feed-manager {
+            overflow: hidden;
+            border: 1px solid var(--skynet-border-soft);
+            border-radius: 5px;
+            background: linear-gradient(180deg, #304148 0%, #2d3d43 100%);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.03),
+                        0 1px 2px rgba(0,0,0,0.16);
+        }
+
+        .skynet-feed-container > td {
+            padding: 6px 10px !important;
+        }
+
+        .skynet-feed-intro {
+            padding: 10px 12px 9px;
+            border-bottom: 1px solid var(--skynet-border-soft);
+            background: rgba(255,255,255,0.025);
+        }
+
+        .skynet-feed-title,
+        .skynet-feed-help {
+            display: block;
+        }
+
+        .skynet-feed-title {
+            padding: 0 !important;
+            border: 0 !important;
+            background: transparent !important;
+            color: var(--skynet-title) !important;
+            font-size: 11px;
+            font-weight: bold;
+            line-height: 15px;
+        }
+
+        .skynet-feed-help {
+            margin-top: 2px;
+            padding: 0 !important;
+            border: 0 !important;
+            background: transparent !important;
+            color: var(--skynet-muted) !important;
+            font-size: 10px;
+            line-height: 1.35;
+        }
+
+        .skynet-feed-header,
+        .skynet-feed-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 76px 140px 68px 54px;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .skynet-feed-header {
+            padding: 7px 12px;
+            border-bottom: 1px solid var(--skynet-border-soft);
+            background: #29383e;
+            color: var(--skynet-muted);
+            font-size: 9px;
+            letter-spacing: 0.4px;
+            line-height: 12px;
+            text-transform: uppercase;
+        }
+
+        .skynet-feed-header > span {
+            display: block;
+            padding: 0 !important;
+            border: 0 !important;
+            background: transparent !important;
+            color: inherit !important;
+        }
+
+        .skynet-feed-row {
+            min-height: 36px;
+            padding: 7px 12px;
+            border-top: 1px solid var(--skynet-border-soft);
+            box-sizing: border-box;
+            line-height: 16px;
+            transition: background-color 120ms ease;
+        }
+
+        .skynet-feed-row:first-child {
+            border-top: 0;
+        }
+
+        .skynet-feed-row:nth-child(even) {
+            background: rgba(255,255,255,0.018);
+        }
+
+        .skynet-feed-row:hover {
+            background: rgba(112,181,212,0.07);
+        }
+
+        .skynet-feed-source {
+            min-width: 0;
+            overflow: hidden;
+            color: var(--skynet-text);
+            font-family: monospace;
+            font-size: 10px;
+            line-height: 16px;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .skynet-feed-entries,
+        .skynet-feed-success {
+            color: var(--skynet-muted-2);
+            font-size: 10px;
+            font-variant-numeric: tabular-nums;
+            line-height: 16px;
+        }
+
+        .skynet-feed-header > span:nth-child(2),
+        .skynet-feed-entries {
+            text-align: right;
+        }
+
+        .skynet-feed-header > span:nth-child(3),
+        .skynet-feed-success {
+            text-align: center;
+        }
+
+        .skynet-feed-header > span:nth-child(4),
+        .skynet-feed-header > span:nth-child(5) {
+            text-align: center;
+        }
+
+        .skynet-feed-state {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .skynet-feed-pill {
+            display: inline-block;
+            min-width: 48px;
+            padding: 3px 6px;
+            border: 1px solid var(--skynet-border);
+            border-radius: 10px;
+            background: var(--skynet-panel-alt);
+            color: var(--skynet-muted-2);
+            font-size: 9px;
+            line-height: 12px;
+            text-align: center;
+        }
+
+        .skynet-feed-pill.current {
+            border-color: #4c8061;
+            background: #30483b;
+            color: #a9e5bf;
+        }
+
+        .skynet-feed-pill.cached {
+            border-color: #8b7841;
+            background: #4b4430;
+            color: #f4d97b;
+        }
+
+        .skynet-feed-pill.failed {
+            border-color: #8a5057;
+            background: #4d3438;
+            color: #f2afb5;
+        }
+
+        .skynet-feed-toggle {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            width: 32px;
+            height: 18px;
+            margin: 0 auto;
+            cursor: pointer;
+        }
+
+        .skynet-feed-toggle input {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            opacity: 0;
+        }
+
+        .skynet-feed-switch {
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            border: 1px solid #667980;
+            border-radius: 10px;
+            background: #25343a;
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.35);
+            transition: background-color 140ms ease, border-color 140ms ease;
+        }
+
+        .skynet-feed-switch::after {
+            content: "";
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #a8b5ba;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.35);
+            transition: left 140ms ease, background-color 140ms ease;
+        }
+
+        .skynet-feed-toggle input:checked + .skynet-feed-switch {
+            border-color: #70aec8;
+            background: #477d94;
+        }
+
+        .skynet-feed-toggle input:checked + .skynet-feed-switch::after {
+            left: 16px;
+            background: #e9f7fc;
+        }
+
+        .skynet-feed-toggle input:focus-visible + .skynet-feed-switch {
+            outline: 2px solid var(--skynet-link);
+            outline-offset: 2px;
+        }
+
+        .skynet-feed-toggle input:disabled + .skynet-feed-switch {
+            opacity: 0.55;
+            cursor: default;
+        }
+
+        .skynet-feed-empty,
+        .skynet-feed-status {
+            color: var(--skynet-muted);
+            font-size: 10px;
+        }
+
+        .skynet-feed-empty {
+            padding: 8px 7px;
+        }
+
+        .skynet-feed-actions {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 8px;
+            padding: 8px 10px;
+            border-top: 1px solid var(--skynet-border-soft);
+            background: rgba(0,0,0,0.08);
+        }
+
+        .skynet-feed-status {
+            flex: 1;
+            padding: 0 !important;
+            border: 0 !important;
+            background: transparent !important;
+            color: var(--skynet-muted) !important;
+        }
+
+        .skynet-feed-status.error {
+            color: #f2afb5 !important;
+        }
+
+        .skynet-feed-status.warning {
+            color: #f4d97b !important;
+        }
+
+        .skynet-settings-result.warning {
+            color: #f4d97b;
         }
 
         .skynet-settings-table input[type="number"] {
@@ -502,7 +919,10 @@
         }
 
         .skynet-input-note {
-            color: var(--skynet-muted);
+            padding: 0 !important;
+            border: 0 !important;
+            background: transparent !important;
+            color: var(--skynet-muted) !important;
             font-size: 10px;
         }
 
@@ -574,19 +994,15 @@
             font-size: 10px;
         }
 
+        .skynet-country-empty {
+            padding: 0 !important;
+            border: 0 !important;
+            background: transparent !important;
+            color: var(--skynet-muted) !important;
+        }
+
         .skynet-country-status.error {
             color: #f2afb5;
-        }
-
-        .skynet-country-actions {
-            display: flex;
-            align-items: center;
-            justify-content: flex-end;
-            gap: 8px;
-        }
-
-        .skynet-country-actions .skynet-update-button {
-            min-width: 100px;
         }
 
         .skynet-iot-add {
@@ -616,12 +1032,22 @@
             gap: 10px;
             padding: 8px 10px;
             border-top: 1px solid var(--skynet-border-soft);
+            background: rgba(0,0,0,0.09);
         }
 
         .skynet-settings-result {
             flex: 1;
             color: var(--skynet-muted);
             font-size: 10px;
+        }
+
+        .skynet-settings-actions .skynet-country-status {
+            flex:1;
+            min-width:0;
+        }
+
+        .skynet-settings-action-hidden {
+            display:none !important;
         }
 
         .skynet-settings-result.error {
@@ -910,13 +1336,26 @@
         }
 
         .skynet-section-head {
-            background: linear-gradient(#6f7d82, #536167) !important;
+            background: linear-gradient(180deg,#405158 0%,#35454b 100%) !important;
             color: #fff !important;
-            border: 1px solid #7f9197 !important;
-            border-radius: 4px 4px 0 0;
-            height: 34px;
+            border: 1px solid #607780 !important;
+            border-radius: 6px 6px 0 0;
+            height: 36px;
             box-sizing: border-box;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.10);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.055),
+                        0 1px 2px rgba(0,0,0,0.12);
+            transition: background 140ms ease,border-color 140ms ease;
+        }
+
+        .skynet-section-head:hover,
+        .skynet-section-head:focus-visible {
+            background: linear-gradient(180deg,#485d65 0%,#3b4e55 100%) !important;
+            border-color: #748e98 !important;
+            outline: none;
+        }
+
+        .skynet-section-head.collapsed {
+            border-radius: 6px;
         }
 
         .skynet-section-head td {
@@ -941,6 +1380,7 @@
             font-size: 15px;
             line-height: 12px;
             opacity: 0.9;
+            transition: color 140ms ease,opacity 140ms ease;
         }
 
         .skynet-empty-badge {
@@ -1097,7 +1537,8 @@
             text-align: center !important;
         }
 
-        .StatsTable.skynet-modern-table .skynet-table-domains {
+        .StatsTable.skynet-modern-table th.skynet-table-domains,
+        .StatsTable.skynet-modern-table td.skynet-table-domains {
             text-align: left !important;
         }
 
@@ -1183,11 +1624,35 @@
 
             .skynet-update-bar {
                 align-items: stretch;
-                flex-direction: column;
+                grid-template-columns:1fr;
             }
 
             .skynet-update-button {
                 width: 100%;
+            }
+
+            .skynet-update-control {
+                width:100%;
+            }
+
+            .skynet-meta-item {
+                flex:0 1 auto;
+            }
+
+            .skynet-meta-value {
+                white-space:normal;
+            }
+
+            .skynet-update-info {
+                align-items:flex-start;
+                flex-direction:column;
+                gap:5px;
+            }
+
+            .skynet-update-result {
+                padding-left:0;
+                border-left:0;
+                white-space:normal;
             }
 
             .skynet-settings-actions {
@@ -1209,14 +1674,68 @@
                 width: 100%;
             }
 
-            .skynet-country-actions {
+            .skynet-feed-header {
+                display: none;
+            }
+
+            .skynet-feed-intro {
+                padding: 9px 10px;
+            }
+
+            .skynet-feed-row {
+                grid-template-columns: minmax(0, 1fr) auto;
+                gap: 4px 10px;
+                padding: 9px 10px;
+            }
+
+            .skynet-feed-source {
+                grid-column: 1;
+                grid-row: 1;
+            }
+
+            .skynet-feed-entries,
+            .skynet-feed-success {
+                grid-column: 1;
+                text-align: left;
+            }
+
+            .skynet-feed-entries::before,
+            .skynet-feed-success::before {
+                color: var(--skynet-muted);
+                font-size: 9px;
+                text-transform: uppercase;
+            }
+
+            .skynet-feed-entries::before {
+                content: "Entries  ";
+            }
+
+            .skynet-feed-success::before {
+                content: "Last success  ";
+            }
+
+            .skynet-feed-state {
+                grid-column: 2;
+                grid-row: 2 / 4;
+                align-self: center;
+            }
+
+            .skynet-feed-toggle {
+                grid-column: 2;
+                grid-row: 1;
+                justify-self: end;
+                margin: 0;
+            }
+
+            .skynet-feed-actions {
                 align-items: stretch;
                 flex-direction: column;
             }
 
-            .skynet-country-actions .skynet-update-button {
+            .skynet-feed-actions .skynet-update-button {
                 width: 100%;
             }
+
         }
 
     </style>
@@ -1260,10 +1779,14 @@
             countrySelection: [],
             countryOriginal: "",
             settingsOriginal: "",
+            feedExclusions: [],
+            feedOriginal: "",
             iotSelection: [],
             iotPortSelection: [],
             iotOriginal: "",
             iotOptionsOriginal: "",
+            settingsSection: "updates",
+            reloadResult: "",
 
             /*
              * Static definitions. A chart "setting" names the backend switch
@@ -1337,6 +1860,9 @@
                 settingsDefaultsButton: "skynetRestoreDefaults",
                 malwareButton: "skynetUpdateMalware",
                 malwareStatus: "skynetMalwareStatus",
+                feedList: "skynetFeedList",
+                feedButton: "skynetApplyFeeds",
+                feedStatus: "skynetFeedStatus",
                 countryPicker: "skynetCountryPicker",
                 countryList: "skynetCountryList",
                 countryButton: "skynetApplyCountries",
@@ -1355,7 +1881,6 @@
                 iotResult: "skynetIotStatus",
                 settingsResult: "skynetSettingsResult",
                 overviewTab: "skynetOverviewTab",
-                settingsTab: "skynetSettingsTab",
                 overviewView: "skynetOverviewView",
                 settingsView: "skynetSettingsView"
             },
@@ -1363,7 +1888,7 @@
                 stats: {
                     button: "updateButton",
                     result: "updateResult",
-                    label: "Update Stats",
+                    label: "Refresh Stats",
                     success: "Statistics refreshed successfully.",
                     timeout: "Statistics refresh did not complete.",
                     loadError: "Unable to load refreshed data."
@@ -1397,7 +1922,20 @@
                     timeout: "Malware list update did not complete.",
                     loadError: "Unable to load current settings.",
                     source: "settings",
-                    requireSuccess: true
+                    requireSuccess: true,
+                    accepted: ["success", "degraded"]
+                },
+                feeds: {
+                    button: "feedButton",
+                    result: "feedStatus",
+                    label: "Apply Sources",
+                    success: "Threat feed selection applied successfully.",
+                    failure: "Unable to apply threat feed selection.",
+                    timeout: "Threat feed update did not complete.",
+                    loadError: "Unable to load current source details.",
+                    source: "settings",
+                    requireSuccess: true,
+                    accepted: ["success", "degraded"]
                 },
                 countries: {
                     button: "countryButton",
@@ -3272,7 +3810,8 @@
             const ips = window["Label" + name + "_IPs"];
             const settings = window.SkynetSettings;
             const showCountry = !settings || settings.lookupcountry !== "disabled";
-            const columnCount = showCountry ? 5 : 4;
+            const showDomains = !settings || settings.extendedstats !== "disabled";
+            const columnCount = 3 + (showCountry ? 1 : 0) + (showDomains ? 1 : 0);
             const noData = !Array.isArray(ips) ||
                 !ips.length ||
                 (ips.length === 1 && ips[0] === "");
@@ -3307,12 +3846,16 @@
                 html += '<tr><td colspan="' + columnCount + '" class="skynet-nodata skynet-table-nodata">No data to display</td></tr>';
             } else {
                 html += '<col style="width:120px;">';
-                html += '<col style="width:' + (showCountry ? '245px' : '285px') + ';">';
+                html += showDomains
+                    ? '<col style="width:' + (showCountry ? '245px' : '285px') + ';">'
+                    : '<col style="width:auto;">';
                 html += '<col style="width:82px;">';
                 if (showCountry) {
                     html += '<col style="width:70px;">';
                 }
-                html += '<col style="width:auto;">';
+                if (showDomains) {
+                    html += '<col style="width:auto;">';
+                }
 
                 html += '<thead><tr>';
                 html += '<th>IP Address</th>';
@@ -3321,7 +3864,9 @@
                 if (showCountry) {
                     html += '<th class="skynet-table-country">Country</th>';
                 }
-                html += '<th class="skynet-table-domains">Associated Domains</th>';
+                if (showDomains) {
+                    html += '<th class="skynet-table-domains">Associated Domains</th>';
+                }
                 html += '</tr></thead>';
 
                 const reasons = window["Label" + name + "_BanReason"] || [];
@@ -3329,17 +3874,14 @@
                 const countries = showCountry
                     ? window["Label" + name + "_Country"] || []
                     : [];
-                const domains = window["Label" + name + "_AssDomains"] || [];
+                const domains = showDomains
+                    ? window["Label" + name + "_AssDomains"] || []
+                    : [];
 
                 ips.forEach(function(ip, index) {
                     const escapedIp = SkynetUI.escapeHtml(ip);
                     const escapedReason = SkynetUI.escapeHtml(reasons[index] || "");
                     const escapedCountry = SkynetUI.escapeHtml(countries[index] || "");
-                    const domainValue = domains[index] === "*"
-                        ? ""
-                        : domains[index] || "";
-                    const escapedDomains = SkynetUI.escapeHtml(domainValue)
-                        .replace(/ /g, "\n");
                     const url = SkynetUI.escapeHtml(alienVault[index] || "#");
 
                     html += '<tr>';
@@ -3350,7 +3892,15 @@
                     if (showCountry) {
                         html += '<td class="skynet-table-country">' + escapedCountry + '</td>';
                     }
-                    html += '<td class="skynet-table-domains" style="white-space:pre;">' + escapedDomains + '</td>';
+                    if (showDomains) {
+                        const domainValue = domains[index] === "*"
+                            ? ""
+                            : domains[index] || "";
+                        const escapedDomains = SkynetUI.escapeHtml(domainValue)
+                            .replace(/ /g, "\n");
+
+                        html += '<td class="skynet-table-domains" style="white-space:pre;">' + escapedDomains + '</td>';
+                    }
                     html += '</tr>';
                 });
             }
@@ -3376,6 +3926,23 @@
                     window[functionName]();
                 }
             });
+
+            /* Accept both the legacy labeled payload and the compact format. */
+            const statsDate = this.getElement("statsdate");
+            const statsSize = this.getElement("statssize");
+
+            if (statsDate) {
+                statsDate.textContent = statsDate.textContent
+                    .replace(/^Monitoring From\s*/i, "")
+                    .replace(/\s+To\s+/i, " — ")
+                    .trim() || "N/A";
+            }
+            if (statsSize) {
+                statsSize.textContent = statsSize.textContent
+                    .replace(/^Log Size\s*-\s*\(?/i, "")
+                    .replace(/\)\s*$/, "")
+                    .trim() || "N/A";
+            }
 
         };
 
@@ -3407,6 +3974,193 @@
 
             return Boolean(settings && window.SkynetSettingsGenerated &&
                 Object.prototype.hasOwnProperty.call(settings, "banmalwarelastupdated"));
+        };
+
+        SkynetUI.normaliseFeedExclusions = function(value) {
+            const names = [];
+            const seen = Object.create(null);
+
+            String(value || "").split(/\s+/).forEach(function(name) {
+                const key = name.toLowerCase();
+
+                if (/^[A-Za-z0-9._-]+$/.test(name) && !seen[key]) {
+                    seen[key] = true;
+                    names.push(name);
+                }
+            });
+            return names;
+        };
+
+        SkynetUI.getFeedSignature = function(names) {
+            return this.normaliseFeedExclusions((names || []).join(" "))
+                .map(function(name) { return name.toLowerCase(); })
+                .sort()
+                .join(" ");
+        };
+
+        SkynetUI.isFeedExcluded = function(name) {
+            const key = String(name || "").toLowerCase();
+
+            return this.feedExclusions.some(function(excluded) {
+                return excluded.toLowerCase() === key;
+            });
+        };
+
+        SkynetUI.canManageFeeds = function() {
+            const summary = window.SkynetFeedSummary;
+
+            return Boolean(window.SkynetSettings && window.SkynetSettingsGenerated &&
+                summary && summary.available && Array.isArray(window.SkynetFeeds));
+        };
+
+        SkynetUI.isFeedDirty = function() {
+            return this.getFeedSignature(this.feedExclusions) !== this.feedOriginal;
+        };
+
+        SkynetUI.getFeedState = function(feed) {
+            if (this.isFeedExcluded(feed.name)) {
+                return "excluded";
+            }
+            if (feed.state === "excluded") {
+                return Number(feed.entries) > 0 ? "cached" : "failed";
+            }
+            return /^(current|cached|failed)$/.test(feed.state)
+                ? feed.state
+                : "failed";
+        };
+
+        SkynetUI.renderFeeds = function() {
+            const list = this.getElement(this.selectors.feedList);
+            const status = this.getElement(this.selectors.feedStatus);
+            const header = this.getElement("skynetFeedHeader");
+            const feeds = Array.isArray(window.SkynetFeeds) ? window.SkynetFeeds : [];
+
+            if (!list) {
+                return;
+            }
+            list.textContent = "";
+
+            if (!this.canManageFeeds() || !feeds.length) {
+                if (header) header.hidden = true;
+                const empty = document.createElement("div");
+                empty.className = "skynet-feed-empty";
+                empty.textContent = "Source details will be available after the next malware update.";
+                list.appendChild(empty);
+                if (status) status.textContent = "";
+                this.updateFeedControls();
+                return;
+            }
+
+            if (header) header.hidden = false;
+            let enabledCount = 0;
+            const stateCounts = {current: 0, cached: 0, failed: 0, excluded: 0};
+            feeds.forEach(function(feed) {
+                const enabled = !SkynetUI.isFeedExcluded(feed.name);
+                const state = SkynetUI.getFeedState(feed);
+                const row = document.createElement("div");
+                const source = document.createElement("div");
+                const entries = document.createElement("div");
+                const success = document.createElement("div");
+                const pillCell = document.createElement("div");
+                const pill = document.createElement("span");
+                const toggleCell = document.createElement("label");
+                const toggle = document.createElement("input");
+                const toggleSwitch = document.createElement("span");
+
+                if (enabled) enabledCount += 1;
+                stateCounts[state] += 1;
+                row.className = "skynet-feed-row";
+                source.className = "skynet-feed-source";
+                source.textContent = feed.name;
+                source.title = feed.url;
+                entries.className = "skynet-feed-entries";
+                entries.textContent = SkynetUI.formatNumber(Number(feed.entries) || 0);
+                success.className = "skynet-feed-success";
+                success.textContent = Number(feed.success) > 0
+                    ? new Date(Number(feed.success) * 1000).toLocaleString()
+                    : "Never";
+                pill.className = "skynet-feed-pill " + state;
+                pill.textContent = state.charAt(0).toUpperCase() + state.substring(1);
+                pillCell.className = "skynet-feed-state";
+                pillCell.appendChild(pill);
+                toggleCell.className = "skynet-feed-toggle";
+                toggle.title = enabled ? "Disable " + feed.name : "Enable " + feed.name;
+                toggle.type = "checkbox";
+                toggle.checked = enabled;
+                toggle.disabled = SkynetUI.refreshInProgress;
+                toggle.setAttribute("aria-label", toggle.title);
+                toggleSwitch.className = "skynet-feed-switch";
+                toggle.addEventListener("change", function() {
+                    SkynetUI.toggleFeed(feed.name, this.checked);
+                });
+                toggleCell.appendChild(toggle);
+                toggleCell.appendChild(toggleSwitch);
+                row.appendChild(source);
+                row.appendChild(entries);
+                row.appendChild(success);
+                row.appendChild(pillCell);
+                row.appendChild(toggleCell);
+                list.appendChild(row);
+            });
+
+            if (status && !this.refreshInProgress) {
+                let message = enabledCount + " of " + feeds.length + " sources enabled";
+                if (stateCounts.cached) message += " · " + stateCounts.cached + " cached";
+                if (stateCounts.failed) message += " · " + stateCounts.failed + " failed";
+                status.textContent = message + ".";
+                status.classList.remove("error", "warning");
+            }
+            this.updateFeedControls();
+        };
+
+        SkynetUI.populateFeeds = function() {
+            const settings = window.SkynetSettings || {};
+
+            this.feedExclusions = this.normaliseFeedExclusions(settings.excludelists);
+            this.feedOriginal = this.getFeedSignature(this.feedExclusions);
+            this.renderFeeds();
+        };
+
+        SkynetUI.toggleFeed = function(name, enabled) {
+            if (this.refreshInProgress || !this.canManageFeeds()) {
+                return;
+            }
+            const feeds = window.SkynetFeeds || [];
+            const enabledCount = feeds.filter(function(feed) {
+                return !SkynetUI.isFeedExcluded(feed.name);
+            }).length;
+            const key = String(name).toLowerCase();
+
+            if (!enabled && enabledCount <= 1) {
+                this.renderFeeds();
+                this.setUpdateResult(
+                    "At least one malware source must remain enabled.",
+                    true,
+                    this.selectors.feedStatus
+                );
+                return;
+            }
+            this.feedExclusions = this.feedExclusions.filter(function(excluded) {
+                return excluded.toLowerCase() !== key;
+            });
+            if (!enabled) {
+                this.feedExclusions.push(name);
+            }
+            this.renderFeeds();
+        };
+
+        SkynetUI.updateFeedControls = function() {
+            const apply = this.getElement(this.selectors.feedButton);
+
+            if (apply) {
+                apply.disabled = this.refreshInProgress || !this.canManageFeeds() ||
+                    !this.isFeedDirty();
+            }
+            document.querySelectorAll("#skynetFeedList input[type='checkbox']")
+                .forEach(function(toggle) {
+                    toggle.disabled = SkynetUI.refreshInProgress ||
+                        !SkynetUI.canManageFeeds();
+                });
         };
 
         SkynetUI.getSettingsOptions = function() {
@@ -4057,6 +4811,7 @@
                 }
                 this.populateIOT();
                 this.populateCountries();
+                this.populateFeeds();
                 this.setUpdateResult(
                     "Reload settings to load current values.",
                     false,
@@ -4079,6 +4834,7 @@
             this.populateBlacklistCounts(settings);
             this.populateIOT();
             this.populateCountries();
+            this.populateFeeds();
 
             this.updateSettingsControls();
             if (malware && !this.refreshInProgress) {
@@ -4097,7 +4853,7 @@
          * The page remains interactive while generated payload timestamps are
          * polled to detect completion.
          */
-        SkynetUI.setUpdateResult = function(message, isError, resultSelector) {
+        SkynetUI.setUpdateResult = function(message, isError, resultSelector, isWarning) {
             const result = this.getElement(resultSelector || this.selectors.updateResult);
 
             if (!result) {
@@ -4106,6 +4862,7 @@
 
             result.textContent = message || "";
             result.classList.toggle("error", Boolean(isError));
+            result.classList.toggle("warning", Boolean(isWarning));
         };
 
         SkynetUI.setActionState = function(active, buttonSelector, label) {
@@ -4119,6 +4876,7 @@
                 this.selectors.settingsReloadButton,
                 this.selectors.settingsDefaultsButton,
                 this.selectors.malwareButton,
+                this.selectors.feedButton,
                 this.selectors.countryButton,
                 this.selectors.countryClear,
                 this.selectors.iotButton,
@@ -4135,6 +4893,8 @@
                                 !SkynetUI.isSettingsDirty())) ||
                         (id === SkynetUI.selectors.malwareButton &&
                             !SkynetUI.canUpdateMalware()) ||
+                        (id === SkynetUI.selectors.feedButton &&
+                            (!SkynetUI.canManageFeeds() || !SkynetUI.isFeedDirty())) ||
                         ((id === SkynetUI.selectors.countryButton ||
                             id === SkynetUI.selectors.countryClear) &&
                             !SkynetUI.canManageCountries()) ||
@@ -4174,6 +4934,9 @@
             document.querySelectorAll(".skynet-iot-remove, .skynet-iot-port-remove").forEach(function(remove) {
                 remove.disabled = active || !SkynetUI.canManageIOT();
             });
+            document.querySelectorAll("#skynetFeedList input[type='checkbox']").forEach(function(toggle) {
+                toggle.disabled = active || !SkynetUI.canManageFeeds();
+            });
 
             const button = this.getElement(buttonSelector);
 
@@ -4181,6 +4944,7 @@
                 button.value = label;
             }
             this.updateIOTControls();
+            this.updateFeedControls();
         };
 
         SkynetUI.destroyCharts = function() {
@@ -4244,6 +5008,22 @@
             return "Unable to update country blocking.";
         };
 
+        SkynetUI.getMalwareUpdateError = function() {
+            const result = String(window.SkynetSettingsResult || "error");
+
+            if (result.indexOf("failed:") === 0) {
+                return "No valid cached copy is available for " +
+                    result.substring(7) + ". The existing blacklist was retained.";
+            }
+            if (result === "filter") {
+                return "Unable to load a valid malware filter list.";
+            }
+            if (result === "apply") {
+                return "Unable to apply the new blacklist. Existing entries were retained.";
+            }
+            return "Unable to update malware lists.";
+        };
+
         SkynetUI.refreshRenderedStats = function() {
             this.destroyCharts();
             this.renderChartsAndTables();
@@ -4266,7 +5046,9 @@
             const action = this.actionDefinitions[requestType] ||
                 this.actionDefinitions.stats;
             const button = this.selectors[action.button];
-            const result = this.selectors[action.result];
+            const result = requestType === "reload" && this.reloadResult
+                ? this.reloadResult
+                : this.selectors[action.result];
             const loadSettings = action.source === "settings";
             const request = loadSettings
                 ? this.loadSettingsScript()
@@ -4278,8 +5060,11 @@
                     : window.SkynetStatsGenerated;
 
                 if (String(currentStamp || "") !== String(previousStamp || "")) {
+                    const response = String(window.SkynetSettingsResult || "error");
+                    const accepted = action.accepted || ["success"];
                     const failed = action.requireSuccess &&
-                        window.SkynetSettingsResult !== "success";
+                        accepted.indexOf(response) === -1;
+                    const degraded = response === "degraded";
 
                     if (loadSettings) {
                         self.refreshRenderedStats();
@@ -4294,11 +5079,21 @@
                         self.setUpdateResult(
                             requestType === "countries"
                                 ? self.getCountryUpdateError()
-                                : action.failure,
+                                : ((requestType === "malware" || requestType === "feeds")
+                                    ? self.getMalwareUpdateError()
+                                    : action.failure),
                             true,
                             result
                         );
                         self.setActionState(false, button, "Try Again");
+                    } else if (degraded) {
+                        self.setUpdateResult(
+                            "Blacklist updated using one or more validated cached sources.",
+                            false,
+                            result,
+                            true
+                        );
+                        self.setActionState(false, button, action.label);
                     } else {
                         self.setUpdateResult(action.success, false, result);
                         self.setActionState(false, button, action.label);
@@ -4337,7 +5132,7 @@
 
             this.refreshInProgress = true;
             this.setUpdateResult("Generating statistics...", false);
-            this.setActionState(true, this.selectors.updateButton, "Updating...");
+            this.setActionState(true, this.selectors.updateButton, "Refreshing...");
             this.submitBackgroundAction("start_SkynetStats");
             this.waitForUpdate(window.SkynetStatsGenerated, 600, "stats");
         };
@@ -4356,6 +5151,26 @@
             this.setActionState(true, this.selectors.malwareButton, "Updating...");
             this.submitBackgroundAction("start_SkynetBanMalware");
             this.waitForUpdate(window.SkynetSettingsGenerated, 600, "malware");
+        };
+
+        SkynetUI.updateFeeds = function() {
+            if (this.refreshInProgress || !this.canManageFeeds() ||
+                !this.isFeedDirty()) {
+                return;
+            }
+
+            custom_settings.skynet_feedchange = "1";
+            custom_settings.skynet_excludelists = this.feedExclusions.join(" ");
+            this.refreshInProgress = true;
+            this.setUpdateResult(
+                "Applying threat feed selection...",
+                false,
+                this.selectors.feedStatus
+            );
+            this.setActionState(true, this.selectors.feedButton, "Applying...");
+            document.form.amng_custom.value = JSON.stringify(custom_settings);
+            this.submitBackgroundAction("start_SkynetBanMalware");
+            this.waitForUpdate(window.SkynetSettingsGenerated, 600, "feeds");
         };
 
         SkynetUI.updateCountries = function() {
@@ -4397,30 +5212,37 @@
 
         SkynetUI.restoreDefaultSettings = function() {
             const defaults = {
-                skynetAutoUpdate: "enabled",
-                skynetMalwareUpdates: "daily",
-                skynetMalwareUrl: "",
-                skynetFilterTraffic: "all",
-                skynetUnbanPrivate: "enabled",
-                skynetAiProtect: "enabled",
-                skynetSecureMode: "enabled",
-                skynetLogInvalid: "disabled",
-                skynetLogSize: "10",
-                skynetExtendedStats: "enabled",
-                skynetCountryLookup: "enabled",
-                skynetCdnWhitelist: "enabled"
+                updates: {
+                    skynetAutoUpdate: "enabled",
+                    skynetMalwareUpdates: "daily",
+                    skynetMalwareUrl: ""
+                },
+                protection: {
+                    skynetFilterTraffic: "all",
+                    skynetUnbanPrivate: "enabled",
+                    skynetAiProtect: "enabled",
+                    skynetSecureMode: "enabled",
+                    skynetCdnWhitelist: "enabled"
+                },
+                statistics: {
+                    skynetLogInvalid: "disabled",
+                    skynetLogSize: "10",
+                    skynetExtendedStats: "enabled",
+                    skynetCountryLookup: "enabled"
+                }
             };
+            const sectionDefaults = defaults[this.settingsSection] || {};
 
-            Object.keys(defaults).forEach(function(id) {
+            Object.keys(sectionDefaults).forEach(function(id) {
                 const field = SkynetUI.getElement(id);
 
                 if (field) {
-                    field.value = defaults[id];
+                    field.value = sectionDefaults[id];
                 }
             });
 
             this.setUpdateResult(
-                "Default values loaded. Apply Settings to save.",
+                "Default values loaded for this section. Apply Settings to save.",
                 false,
                 this.selectors.settingsResult
             );
@@ -4436,6 +5258,7 @@
             const customlisturl = this.getElement("skynetMalwareUrl").value.trim();
 
             if (!/^\d+$/.test(logsize) || Number(logsize) < 10) {
+                this.showView("statistics");
                 this.setUpdateResult(
                     "Log size must be at least 10MB.",
                     true,
@@ -4481,8 +5304,13 @@
                 return;
             }
 
+            this.reloadResult = this.settingsSection === "iot"
+                ? this.selectors.iotResult
+                : (this.settingsSection === "countries"
+                    ? this.selectors.countryResult
+                    : this.selectors.settingsResult);
             this.refreshInProgress = true;
-            this.setUpdateResult("Reloading settings...", false, this.selectors.settingsResult);
+            this.setUpdateResult("Reloading settings...", false, this.reloadResult);
             this.setActionState(true, this.selectors.settingsReloadButton, "Reloading...");
             this.submitBackgroundAction("start_SkynetSettingsLoad");
             this.waitForUpdate(window.SkynetSettingsGenerated, 60, "reload");
@@ -4503,22 +5331,74 @@
             }
         };
 
+        SkynetUI.showSettingsSection = function(section) {
+            const sections = ["updates", "protection", "iot", "countries", "statistics"];
+
+            if (sections.indexOf(section) === -1) {
+                section = "updates";
+            }
+
+            this.settingsSection = section;
+            document.querySelectorAll("[data-settings-section]").forEach(function(row) {
+                row.classList.toggle(
+                    "skynet-settings-section-hidden",
+                    row.getAttribute("data-settings-section") !== section
+                );
+            });
+            document.querySelectorAll("[data-action-sections]").forEach(function(control) {
+                const supported = control.getAttribute("data-action-sections")
+                    .split(/\s+/);
+
+                control.classList.toggle(
+                    "skynet-settings-action-hidden",
+                    supported.indexOf(section) === -1
+                );
+            });
+        };
+
+        SkynetUI.initializeSettingsSections = function() {
+            const table = document.querySelector(".skynet-settings-table");
+            let section = "";
+
+            if (!table) {
+                return;
+            }
+
+            Array.prototype.forEach.call(table.rows, function(row) {
+                if (row.classList.contains("skynet-settings-group")) {
+                    section = row.getAttribute("data-settings-section") || "";
+                }
+                if (section) {
+                    row.setAttribute("data-settings-section", section);
+                }
+            });
+            this.showSettingsSection(this.settingsSection);
+        };
+
         SkynetUI.showView = function(view) {
-            const settings = view === "settings";
+            const settings = view !== "overview";
             const overviewTab = this.getElement(this.selectors.overviewTab);
-            const settingsTab = this.getElement(this.selectors.settingsTab);
             const overviewView = this.getElement(this.selectors.overviewView);
             const settingsView = this.getElement(this.selectors.settingsView);
+
+            if (settings) {
+                this.showSettingsSection(
+                    view === "settings" ? this.settingsSection : view
+                );
+            }
 
             if (overviewTab) {
                 overviewTab.classList.toggle("active", !settings);
                 overviewTab.setAttribute("aria-selected", String(!settings));
             }
 
-            if (settingsTab) {
-                settingsTab.classList.toggle("active", settings);
-                settingsTab.setAttribute("aria-selected", String(settings));
-            }
+            document.querySelectorAll(".skynet-settings-tab").forEach(function(tab) {
+                const active = settings &&
+                    tab.getAttribute("data-settings-target") === SkynetUI.settingsSection;
+
+                tab.classList.toggle("active", active);
+                tab.setAttribute("aria-selected", String(active));
+            });
 
             if (overviewView) {
                 overviewView.classList.toggle("skynet-view-hidden", settings);
@@ -4528,9 +5408,7 @@
                 settingsView.classList.toggle("skynet-view-hidden", !settings);
             }
 
-            if (settings) {
-                this.populateSettings();
-            } else {
+            if (!settings) {
                 this.scheduleChartResize();
             }
         };
@@ -4582,6 +5460,12 @@
                 });
             }
 
+            const feedApply = this.getElement(this.selectors.feedButton);
+            if (feedApply) {
+                feedApply.addEventListener("click", function() {
+                    SkynetUI.updateFeeds();
+                });
+            }
             const countryPicker = this.getElement(this.selectors.countryPicker);
 
             if (countryPicker) {
@@ -4730,7 +5614,6 @@
             }
 
             const overviewTab = this.getElement(this.selectors.overviewTab);
-            const settingsTab = this.getElement(this.selectors.settingsTab);
 
             if (overviewTab) {
                 overviewTab.addEventListener("click", function() {
@@ -4738,11 +5621,11 @@
                 });
             }
 
-            if (settingsTab) {
-                settingsTab.addEventListener("click", function() {
-                    SkynetUI.showView("settings");
+            document.querySelectorAll(".skynet-settings-tab").forEach(function(tab) {
+                tab.addEventListener("click", function() {
+                    SkynetUI.showView(this.getAttribute("data-settings-target"));
                 });
-            }
+            });
         };
 
         SkynetUI.renderChartsAndTables = function() {
@@ -4798,6 +5681,7 @@
                 return;
             }
 
+            this.initializeSettingsSections();
             this.bindControls();
 
             const initialiseCharts = function() {
@@ -4900,9 +5784,42 @@
                                                         aria-controls="skynetOverviewView"
                                                         aria-selected="true" />
                                                     <input type="button"
-                                                        id="skynetSettingsTab"
-                                                        value="Settings"
-                                                        class="skynet-tab"
+                                                        id="skynetUpdatesTab"
+                                                        value="Updates"
+                                                        class="skynet-tab skynet-settings-tab"
+                                                        data-settings-target="updates"
+                                                        role="tab"
+                                                        aria-controls="skynetSettingsView"
+                                                        aria-selected="false" />
+                                                    <input type="button"
+                                                        id="skynetProtectionTab"
+                                                        value="Protection"
+                                                        class="skynet-tab skynet-settings-tab"
+                                                        data-settings-target="protection"
+                                                        role="tab"
+                                                        aria-controls="skynetSettingsView"
+                                                        aria-selected="false" />
+                                                    <input type="button"
+                                                        id="skynetIotTab"
+                                                        value="IoT"
+                                                        class="skynet-tab skynet-settings-tab"
+                                                        data-settings-target="iot"
+                                                        role="tab"
+                                                        aria-controls="skynetSettingsView"
+                                                        aria-selected="false" />
+                                                    <input type="button"
+                                                        id="skynetCountriesTab"
+                                                        value="Countries"
+                                                        class="skynet-tab skynet-settings-tab"
+                                                        data-settings-target="countries"
+                                                        role="tab"
+                                                        aria-controls="skynetSettingsView"
+                                                        aria-selected="false" />
+                                                    <input type="button"
+                                                        id="skynetStatisticsTab"
+                                                        value="Statistics"
+                                                        class="skynet-tab skynet-settings-tab"
+                                                        data-settings-target="statistics"
                                                         role="tab"
                                                         aria-controls="skynetSettingsView"
                                                         aria-selected="false" />
@@ -4911,7 +5828,7 @@
                                                 <div id="skynetSettingsView" class="skynet-view-hidden" role="tabpanel">
                                                     <div class="skynet-settings">
                                                         <table class="FormTable skynet-settings-table">
-                                                            <tr class="skynet-settings-group">
+                                                            <tr class="skynet-settings-group" data-settings-section="updates">
                                                                 <th colspan="2">Updates &amp; Lists</th>
                                                             </tr>
                                                             <tr>
@@ -4963,7 +5880,35 @@
                                                                         spellcheck="false" />
                                                                 </td>
                                                             </tr>
-                                                            <tr class="skynet-settings-group">
+                                                            <tr class="skynet-feed-container">
+                                                                <td colspan="2">
+                                                                    <div class="skynet-feed-manager">
+                                                                        <div class="skynet-feed-intro">
+                                                                            <span class="skynet-feed-title">Threat Feed Sources</span>
+                                                                            <span class="skynet-feed-help">Choose which trusted sources build the malware blacklist.</span>
+                                                                        </div>
+                                                                        <div class="skynet-feed-header" id="skynetFeedHeader">
+                                                                            <span>Source</span>
+                                                                            <span>Entries</span>
+                                                                            <span>Last Success</span>
+                                                                            <span>State</span>
+                                                                            <span>Enabled</span>
+                                                                        </div>
+                                                                        <div id="skynetFeedList">
+                                                                            <div class="skynet-feed-empty">Loading threat feed details...</div>
+                                                                        </div>
+                                                                        <div class="skynet-feed-actions">
+                                                                            <span class="skynet-feed-status" id="skynetFeedStatus" aria-live="polite"></span>
+                                                                            <input type="button"
+                                                                                id="skynetApplyFeeds"
+                                                                                value="Apply Sources"
+                                                                                class="button_gen skynet-update-button"
+                                                                                disabled="disabled" />
+                                                                        </div>
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                            <tr class="skynet-settings-group" data-settings-section="protection">
                                                                 <th colspan="2">Protection</th>
                                                             </tr>
                                                             <tr>
@@ -5027,7 +5972,7 @@
                                                                     </select>
                                                                 </td>
                                                             </tr>
-                                                            <tr class="skynet-settings-group">
+                                                            <tr class="skynet-settings-group" data-settings-section="iot">
                                                                 <th colspan="2">IoT Isolation</th>
                                                             </tr>
                                                             <tr>
@@ -5131,28 +6076,7 @@
                                                                     </select>
                                                                 </td>
                                                             </tr>
-                                                            <tr>
-                                                                <th>
-                                                                    <span class="skynet-setting-name">IoT Changes</span>
-                                                                    <span class="skynet-setting-help">Applies only IoT devices and isolation settings.</span>
-                                                                </th>
-                                                                <td>
-                                                                    <div class="skynet-country-status" id="skynetIotStatus" aria-live="polite"></div>
-                                                                    <div class="skynet-country-actions">
-                                                                        <input type="button"
-                                                                            id="skynetClearIot"
-                                                                            value="Clear Devices"
-                                                                            class="button_gen skynet-update-button skynet-settings-reload"
-                                                                            disabled="disabled" />
-                                                                        <input type="button"
-                                                                            id="skynetApplyIot"
-                                                                            value="Apply IoT"
-                                                                            class="button_gen skynet-update-button"
-                                                                            disabled="disabled" />
-                                                                    </div>
-                                                                </td>
-                                                            </tr>
-                                                            <tr class="skynet-settings-group">
+                                                            <tr class="skynet-settings-group" data-settings-section="countries">
                                                                 <th colspan="2">Country Blocking</th>
                                                             </tr>
                                                             <tr class="skynet-country-row">
@@ -5171,25 +6095,10 @@
                                                                         <div class="skynet-country-list" id="skynetCountryList">
                                                                             <span class="skynet-country-empty">Loading blocked countries...</span>
                                                                         </div>
-                                                                        <div class="skynet-country-status"
-                                                                            id="skynetCountryStatus"
-                                                                            aria-live="polite"></div>
-                                                                        <div class="skynet-country-actions">
-                                                                            <input type="button"
-                                                                                id="skynetClearCountries"
-                                                                                value="Clear All"
-                                                                                class="button_gen skynet-update-button skynet-settings-reload"
-                                                                                disabled="disabled" />
-                                                                            <input type="button"
-                                                                                id="skynetApplyCountries"
-                                                                                value="Apply Countries"
-                                                                                class="button_gen skynet-update-button"
-                                                                                disabled="disabled" />
-                                                                        </div>
                                                                     </div>
                                                                 </td>
                                                             </tr>
-                                                            <tr class="skynet-settings-group">
+                                                            <tr class="skynet-settings-group" data-settings-section="statistics">
                                                                 <th colspan="2">Logging &amp; Statistics</th>
                                                             </tr>
                                                             <tr>
@@ -5246,11 +6155,23 @@
                                                             </tr>
                                                         </table>
                                                         <div class="skynet-settings-actions">
-                                                            <div class="skynet-settings-result" id="skynetSettingsResult" aria-live="polite"></div>
+                                                            <div class="skynet-settings-result"
+                                                                id="skynetSettingsResult"
+                                                                data-action-sections="updates protection statistics"
+                                                                aria-live="polite"></div>
+                                                            <div class="skynet-country-status"
+                                                                id="skynetIotStatus"
+                                                                data-action-sections="iot"
+                                                                aria-live="polite"></div>
+                                                            <div class="skynet-country-status"
+                                                                id="skynetCountryStatus"
+                                                                data-action-sections="countries"
+                                                                aria-live="polite"></div>
                                                             <input type="button"
                                                                 id="skynetRestoreDefaults"
                                                                 value="Restore Defaults"
-                                                                class="button_gen skynet-update-button skynet-settings-reload" />
+                                                                class="button_gen skynet-update-button skynet-settings-reload"
+                                                                data-action-sections="updates protection statistics" />
                                                             <input type="button"
                                                                 id="skynetReloadSettings"
                                                                 value="Reload Settings"
@@ -5259,6 +6180,31 @@
                                                                 id="skynetApplySettings"
                                                                 value="Apply Settings"
                                                                 class="button_gen skynet-update-button"
+                                                                data-action-sections="updates protection statistics"
+                                                                disabled="disabled" />
+                                                            <input type="button"
+                                                                id="skynetClearIot"
+                                                                value="Clear Devices"
+                                                                class="button_gen skynet-update-button skynet-settings-reload"
+                                                                data-action-sections="iot"
+                                                                disabled="disabled" />
+                                                            <input type="button"
+                                                                id="skynetApplyIot"
+                                                                value="Apply IoT"
+                                                                class="button_gen skynet-update-button"
+                                                                data-action-sections="iot"
+                                                                disabled="disabled" />
+                                                            <input type="button"
+                                                                id="skynetClearCountries"
+                                                                value="Clear All"
+                                                                class="button_gen skynet-update-button skynet-settings-reload"
+                                                                data-action-sections="countries"
+                                                                disabled="disabled" />
+                                                            <input type="button"
+                                                                id="skynetApplyCountries"
+                                                                value="Apply Countries"
+                                                                class="button_gen skynet-update-button"
+                                                                data-action-sections="countries"
                                                                 disabled="disabled" />
                                                         </div>
                                                     </div>
@@ -5312,27 +6258,31 @@
                                                         </tr>
                                                     </table>
 
-                                                    <div class="skynet-meta">
-                                                        <span id="statsdate">Monitoring From - N/A</span>
-                                                        &nbsp;&nbsp;•&nbsp;&nbsp;
-                                                        <span id="statssize">Log Size - N/A</span>
-                                                    </div>
-
                                                     <table width="100%" border="0" cellpadding="0" cellspacing="0">
                                                         <tr>
                                                             <td class="skynet-actionbar" align="left" style="padding:0;">
                                                                 <div class="skynet-update-bar" id="skynetUpdateBar">
-                                                        <div class="skynet-update-info">
-                                                            <div class="skynet-update-title">Statistics</div>
-                                                            <div>Refresh the current Skynet statistics from the router log.</div>
-                                                            <div class="skynet-update-result" id="skynetUpdateResult" aria-live="polite"></div>
-                                                        </div>
-                                                        <input type="button"
-                                                            id="skynetUpdateStats"
-                                                            value="Update Stats"
-                                                            class="button_gen skynet-update-button"
-                                                            aria-label="Update Skynet statistics" />
-                                                    </div>
+                                                                    <div class="skynet-update-info">
+                                                                        <div class="skynet-meta" aria-label="Statistics coverage">
+                                                                            <span class="skynet-meta-item skynet-meta-period">
+                                                                                <span class="skynet-meta-label">Monitoring</span>
+                                                                                <span class="skynet-meta-value" id="statsdate">N/A</span>
+                                                                            </span>
+                                                                            <span class="skynet-meta-item skynet-meta-log">
+                                                                                <span class="skynet-meta-label">Log Size</span>
+                                                                                <span class="skynet-meta-value" id="statssize">N/A</span>
+                                                                            </span>
+                                                                        </div>
+                                                                        <div class="skynet-update-result" id="skynetUpdateResult" aria-live="polite"></div>
+                                                                    </div>
+                                                                    <div class="skynet-update-control">
+                                                                        <input type="button"
+                                                                            id="skynetUpdateStats"
+                                                                            value="Refresh Stats"
+                                                                            class="button_gen skynet-update-button"
+                                                                            aria-label="Update Skynet statistics" />
+                                                                    </div>
+                                                                </div>
                                                             </td>
                                                         </tr>
                                                     </table>
