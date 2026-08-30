@@ -2907,7 +2907,7 @@
             });
 
             const hasActivity = datasets.some(function(dataset) {
-                return dataset.data.some(function(value) {
+                return !dataset.disabledBySetting && dataset.data.some(function(value) {
                     return value > 0;
                 });
             });
@@ -3800,7 +3800,10 @@
             if (protocol) protocol.disabled = busy || !supported || !customPorts;
             if (blocking) blocking.disabled = busy || !supported;
             if (logging) logging.disabled = busy || !supported;
-            document.querySelectorAll(".skynet-iot-remove, .skynet-iot-port-remove").forEach(function(button) {
+            document.querySelectorAll(".skynet-iot-remove").forEach(function(button) {
+                button.disabled = busy || !supported;
+            });
+            document.querySelectorAll(".skynet-iot-port-remove").forEach(function(button) {
                 button.disabled = busy || !supported || !customPorts;
             });
         };
@@ -4014,6 +4017,8 @@
             custom_settings.skynet_iotproto = this.getIOTPortMode() === "default"
                 ? "udp"
                 : this.getElement("skynetIotProtocol").value;
+            custom_settings.skynet_iotblocked = this.getElement("skynetIotBlocking").value;
+            custom_settings.skynet_iotlogging = this.getElement("skynetIotLogging").value;
             this.refreshInProgress = true;
             this.setUpdateResult("Applying IoT isolation...", false, this.selectors.iotResult);
             this.setActionState(true, this.selectors.iotButton, "Applying...");
@@ -4798,6 +4803,12 @@
             const initialiseCharts = function() {
                 Object.keys(SkynetUI.chartDefinitions).forEach(function(chartName) {
                     const definition = SkynetUI.chartDefinitions[chartName];
+                    const section = SkynetUI.getElement("skynet_chart_" + chartName);
+
+                    /* Collapsed charts are created only when the user opens them. */
+                    if (!section || !section.classList.contains("expanded")) {
+                        return;
+                    }
 
                     SkynetUI.setupChart(
                         chartName,
@@ -4970,7 +4981,7 @@
                                                             </tr>
                                                             <tr>
                                                                 <th>
-                                                                    <span class="skynet-setting-name">Unban Private IPs</span>
+                                                                    <span class="skynet-setting-name">Whitelist Private IPs</span>
                                                                     <span class="skynet-setting-help">Automatically whitelists private addresses found in blocked traffic.</span>
                                                                 </th>
                                                                 <td>
@@ -4982,7 +4993,7 @@
                                                             </tr>
                                                             <tr>
                                                                 <th>
-                                                                    <span class="skynet-setting-name">Import AiProtection Bans</span>
+                                                                    <span class="skynet-setting-name">Import AiProtection Threats</span>
                                                                     <span class="skynet-setting-help">Imports threats detected by AiProtection into Skynet.</span>
                                                                 </th>
                                                                 <td>
