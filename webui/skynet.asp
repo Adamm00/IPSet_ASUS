@@ -454,8 +454,14 @@
             max-width: 360px;
         }
 
+        .skynet-settings-table input[type="text"] {
+            width: 100%;
+            max-width: 360px;
+        }
+
         .skynet-settings-table input[type="number"],
-        .skynet-settings-table input[type="url"] {
+        .skynet-settings-table input[type="url"],
+        .skynet-settings-table input[type="text"] {
             height: 30px;
             padding: 5px 9px;
             border: 1px solid var(--skynet-border);
@@ -468,18 +474,21 @@
         }
 
         .skynet-settings-table input[type="number"]::placeholder,
-        .skynet-settings-table input[type="url"]::placeholder {
+        .skynet-settings-table input[type="url"]::placeholder,
+        .skynet-settings-table input[type="text"]::placeholder {
             color: var(--skynet-muted);
             opacity: 0.72;
         }
 
         .skynet-settings-table input[type="number"]:hover,
-        .skynet-settings-table input[type="url"]:hover {
+        .skynet-settings-table input[type="url"]:hover,
+        .skynet-settings-table input[type="text"]:hover {
             border-color: var(--skynet-heading);
         }
 
         .skynet-settings-table input[type="number"]:focus,
-        .skynet-settings-table input[type="url"]:focus {
+        .skynet-settings-table input[type="url"]:focus,
+        .skynet-settings-table input[type="text"]:focus {
             outline: none;
             border-color: var(--skynet-link);
             box-shadow: 0 0 0 2px rgba(143,209,245,0.18),
@@ -578,6 +587,26 @@
 
         .skynet-country-actions .skynet-update-button {
             min-width: 100px;
+        }
+
+        .skynet-iot-add {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+
+        .skynet-iot-add .skynet-update-button {
+            min-width: 62px;
+        }
+
+        .skynet-iot-tag-main,
+        .skynet-iot-tag-meta {
+            display: inline-block;
+        }
+
+        .skynet-iot-tag-meta {
+            color: var(--skynet-muted);
+            font-size: 9px;
         }
 
         .skynet-settings-actions {
@@ -1217,7 +1246,10 @@
 
 
         const SkynetUI = {
-            /* Runtime state. */
+            /*
+             * Runtime state. "Original" values are canonical snapshots from
+             * settings.js; their matching selections contain unsaved edits.
+             */
             charts: Object.create(null),
             chartData: Object.create(null),
             theme: Object.create(null),
@@ -1227,8 +1259,16 @@
             countryDisplayNames: null,
             countrySelection: [],
             countryOriginal: "",
+            settingsOriginal: "",
+            iotSelection: [],
+            iotPortSelection: [],
+            iotOriginal: "",
+            iotOptionsOriginal: "",
 
-            /* Static definitions. */
+            /*
+             * Static definitions. A chart "setting" names the backend switch
+             * required for that chart to exist, not merely its default state.
+             */
             chartColors: [
                 "#35D8FF", "#39EF9D", "#FFCF5C", "#FF5F6D", "#C875FF",
                 "#2FE1C4", "#FF8C42", "#65A5FF", "#E96BFF", "#8CFF66"
@@ -1302,6 +1342,17 @@
                 countryButton: "skynetApplyCountries",
                 countryClear: "skynetClearCountries",
                 countryResult: "skynetCountryStatus",
+                iotPicker: "skynetIotPicker",
+                iotList: "skynetIotList",
+                iotManual: "skynetIotManual",
+                iotManualButton: "skynetAddIotManual",
+                iotPortMode: "skynetIotPortMode",
+                iotPortInput: "skynetIotPortInput",
+                iotPortButton: "skynetAddIotPort",
+                iotPortList: "skynetIotPortList",
+                iotButton: "skynetApplyIot",
+                iotClear: "skynetClearIot",
+                iotResult: "skynetIotStatus",
                 settingsResult: "skynetSettingsResult",
                 overviewTab: "skynetOverviewTab",
                 settingsTab: "skynetSettingsTab",
@@ -1356,6 +1407,17 @@
                     failure: "Unable to update country blocking.",
                     timeout: "Country blocking update did not complete.",
                     loadError: "Unable to load current country settings.",
+                    source: "settings",
+                    requireSuccess: true
+                },
+                iot: {
+                    button: "iotButton",
+                    result: "iotResult",
+                    label: "Apply IoT",
+                    success: "IoT isolation updated successfully.",
+                    failure: "Unable to update IoT isolation.",
+                    timeout: "IoT isolation update did not complete.",
+                    loadError: "Unable to load current IoT settings.",
                     source: "settings",
                     requireSuccess: true
                 }
@@ -1481,6 +1543,10 @@
         };
 
         SkynetUI.loadChartData = function(chartName, multiLabel) {
+            /*
+             * stats.js follows Data<Name>/Label<Name> naming. Multi-label
+             * charts expose raw IP rows plus pre-grouped country rows.
+             */
             let data;
             let labels;
 
@@ -1638,6 +1704,11 @@
         };
 
         SkynetUI.showNoData = function(chartName) {
+            /*
+             * Empty sections collapse for the current render only. Their
+             * saved cookie is left untouched so future data restores the
+             * user's explicit open/closed preference.
+             */
             const canvas = this.getElement("divChart" + chartName);
 
             if (!canvas) {
@@ -1882,6 +1953,7 @@
             const seenFields = Object.create(null);
             const copyLabels = {
                 "IP Address": details.title === "Device Details",
+                "MAC Address": details.title === "Device Details",
                 "Port Number": false,
                 "Device Name": false,
                 "Associated Domains": true
@@ -2131,6 +2203,10 @@
 
             if (chartName === "TCConnHits") {
                 const deviceParts = label.match(/^(.+?)\s+\((.+)\)$/);
+                const macAddresses = window.LabelTCConnHits_MAC;
+                const macAddress = Array.isArray(macAddresses)
+                    ? (macAddresses[index] || "Unknown")
+                    : "Unknown";
 
                 if (deviceParts) {
                     fields.push({ label: "IP Address", value: deviceParts[1] });
@@ -2138,6 +2214,8 @@
                 } else {
                     fields.push({ label: "IP Address / Device", value: label });
                 }
+
+                fields.push({ label: "MAC Address", value: macAddress });
 
                 fields.push({ label: "Hits", value: hits });
 
@@ -2530,7 +2608,9 @@
                                             .borderColor,
                                         lineWidth: chart.data.datasets[0]
                                             .borderWidth,
-                                        hidden: false,
+                                        hidden: typeof chart.getDataVisibility === "function"
+                                            ? !chart.getDataVisibility(index)
+                                            : false,
                                         index: index
                                     };
                                 });
@@ -2794,12 +2874,15 @@
             ];
             const context = canvas.getContext("2d");
             const datasets = series.filter(function(item) {
-                return (!item.setting ||
-                    (window.SkynetSettings &&
-                        window.SkynetSettings[item.setting] === "enabled")) &&
-                    Array.isArray(item.values);
+                return Array.isArray(item.values);
             }).map(function(item) {
                 const gradient = context.createLinearGradient(0, 0, 0, 270);
+                /*
+                 * Keep disabled series in the legend for context, but hide
+                 * their data and prevent Chart.js from re-enabling them.
+                 */
+                const disabled = Boolean(item.setting && window.SkynetSettings &&
+                    window.SkynetSettings[item.setting] !== "enabled");
                 gradient.addColorStop(0, item.fill);
                 gradient.addColorStop(1, "rgba(17, 25, 28, 0)");
 
@@ -2817,7 +2900,9 @@
                     pointBorderColor: "#11191c",
                     pointBorderWidth: 1,
                     tension: 0.35,
-                    fill: true
+                    fill: true,
+                    hidden: disabled,
+                    disabledBySetting: disabled
                 };
             });
 
@@ -2887,6 +2972,19 @@
                                 font: {
                                     size: 11
                                 }
+                            },
+                            onClick: function(event, item, legend) {
+                                const chart = legend.chart;
+                                const dataset = chart.data.datasets[item.datasetIndex];
+                                const meta = chart.getDatasetMeta(item.datasetIndex);
+
+                                if (!dataset || dataset.disabledBySetting) {
+                                    return;
+                                }
+                                meta.hidden = meta.hidden === null
+                                    ? !dataset.hidden
+                                    : null;
+                                chart.update();
                             }
                         },
                         tooltip: {
@@ -3026,6 +3124,7 @@
                 row.style.display = expanded ? "" : "none";
             });
 
+            /* Empty auto-collapse must never overwrite the user's cookie. */
             if (persist !== false && !empty) {
                 this.setCookie(
                     section.id,
@@ -3191,7 +3290,8 @@
             html += '<td>' + this.escapeHtml(title) +
                 (noData ? '<span class="skynet-empty-badge">No activity</span>' : '') +
                 '</td>';
-            html += '<td><span class="skynet-section-toggle" aria-hidden="true">▾</span></td>';
+            html += '<td><span class="skynet-section-toggle" aria-hidden="true">' +
+                (noData ? '▸' : '▾') + '</span></td>';
             html += '</tr>';
             html += '</thead>';
 
@@ -3279,7 +3379,7 @@
 
         };
 
-        /* Settings and country management. */
+        /* Settings, country and IoT management. */
         SkynetUI.populateMalwareStatus = function() {
             const status = this.getElement(this.selectors.malwareStatus);
             const settings = window.SkynetSettings || {};
@@ -3309,6 +3409,31 @@
                 Object.prototype.hasOwnProperty.call(settings, "banmalwarelastupdated"));
         };
 
+        SkynetUI.getSettingsOptions = function() {
+            return [
+                "skynetAutoUpdate", "skynetMalwareUpdates", "skynetMalwareUrl",
+                "skynetFilterTraffic", "skynetUnbanPrivate", "skynetAiProtect",
+                "skynetSecureMode", "skynetLogInvalid", "skynetLogSize",
+                "skynetExtendedStats", "skynetCountryLookup", "skynetCdnWhitelist"
+            ].map(function(id) {
+                return (SkynetUI.getElement(id) || {}).value || "";
+            }).join("|");
+        };
+
+        SkynetUI.isSettingsDirty = function() {
+            return this.getSettingsOptions() !== this.settingsOriginal;
+        };
+
+        SkynetUI.updateSettingsControls = function() {
+            const apply = this.getElement(this.selectors.settingsButton);
+
+            if (apply) {
+                apply.disabled = this.refreshInProgress ||
+                    !window.SkynetSettings || !window.SkynetSettingsGenerated ||
+                    !this.isSettingsDirty();
+            }
+        };
+
         SkynetUI.populateBlacklistCounts = function(settings) {
             const counters = {
                 blcount1: settings.blacklist1count,
@@ -3325,6 +3450,7 @@
         };
 
         SkynetUI.normaliseCountries = function(value) {
+            /* Only canonical ISO-style two-letter codes cross the WebUI boundary. */
             const countries = [];
 
             String(value || "").toLowerCase().split(/\s+/).forEach(function(code) {
@@ -3395,7 +3521,7 @@
             if (clear) {
                 clear.disabled = busy || !supported || !this.countrySelection.length;
             }
-            document.querySelectorAll(".skynet-country-remove").forEach(function(button) {
+            document.querySelectorAll(".skynet-country-remove:not(.skynet-iot-remove):not(.skynet-iot-port-remove)").forEach(function(button) {
                 button.disabled = busy || !supported;
             });
         };
@@ -3517,6 +3643,385 @@
             this.renderCountries();
         };
 
+        SkynetUI.isIPv4Range = function(value) {
+            /*
+             * Validate four decimal octets and an optional /0-/32 prefix.
+             * The backend repeats validation before touching the live IPSet.
+             */
+            const parts = String(value || "").split("/");
+            const octets = parts[0].split(".");
+
+            if (parts.length > 2 || octets.length !== 4 ||
+                !octets.every(function(octet) {
+                    return /^\d{1,3}$/.test(octet) && Number(octet) <= 255;
+                })) {
+                return false;
+            }
+
+            return parts.length === 1 ||
+                (/^\d{1,2}$/.test(parts[1]) && Number(parts[1]) <= 32);
+        };
+
+        SkynetUI.normaliseIOTEntries = function(value) {
+            /* Accept legacy commas for display, but keep unique sorted values. */
+            const entries = [];
+
+            String(value || "").split(/[\s,]+/).forEach(function(entry) {
+                if (SkynetUI.isIPv4Range(entry) && entries.indexOf(entry) === -1) {
+                    entries.push(entry);
+                }
+            });
+
+            return entries.sort();
+        };
+
+        SkynetUI.normaliseIOTPorts = function(value) {
+            /* Normalise numeric spelling so values such as 080 and 80 de-duplicate. */
+            const ports = [];
+            const input = String(value || "").trim();
+
+            if (!input) {
+                return ports;
+            }
+            input.split(/[\s,]+/).forEach(function(port) {
+                if (!/^\d{1,5}$/.test(port) || Number(port) < 1 ||
+                    Number(port) > 65535) {
+                    ports.invalid = true;
+                } else if (ports.indexOf(String(Number(port))) === -1) {
+                    ports.push(String(Number(port)));
+                }
+            });
+
+            return ports;
+        };
+
+        SkynetUI.canManageIOT = function() {
+            const settings = window.SkynetSettings;
+
+            return Boolean(settings && window.SkynetSettingsGenerated &&
+                Array.isArray(window.SkynetIOTDevices) &&
+                Object.prototype.hasOwnProperty.call(settings, "iotentries"));
+        };
+
+        SkynetUI.getIOTOptions = function() {
+            return this.getIOTPortMode() + "|" +
+                this.iotPortSelection.join(" ") + "|" +
+                (this.getElement("skynetIotProtocol") || {}).value + "|" +
+                (this.getElement("skynetIotBlocking") || {}).value + "|" +
+                (this.getElement("skynetIotLogging") || {}).value;
+        };
+
+        SkynetUI.getIOTPortMode = function() {
+            return (this.getElement(this.selectors.iotPortMode) || {}).value || "default";
+        };
+
+        SkynetUI.getIOTPortValue = function() {
+            const mode = this.getIOTPortMode();
+
+            if (mode === "none") {
+                return "none";
+            }
+            return mode === "custom" ? this.iotPortSelection.join(" ") : "";
+        };
+
+        SkynetUI.isIOTDirty = function() {
+            return this.iotSelection.join(" ") !== this.iotOriginal ||
+                this.getIOTOptions() !== this.iotOptionsOriginal;
+        };
+
+        SkynetUI.findIOTDevice = function(ip) {
+            return (window.SkynetIOTDevices || []).find(function(device) {
+                return device.ip === ip;
+            }) || null;
+        };
+
+        SkynetUI.populateIOTPicker = function() {
+            const picker = this.getElement(this.selectors.iotPicker);
+
+            if (!picker) {
+                return;
+            }
+            while (picker.firstChild) {
+                picker.removeChild(picker.firstChild);
+            }
+            const placeholder = document.createElement("option");
+            placeholder.value = "";
+            placeholder.textContent = "Add a detected client...";
+            picker.appendChild(placeholder);
+
+            (window.SkynetIOTDevices || []).filter(function(device) {
+                return device.ip.indexOf("/") === -1 &&
+                    SkynetUI.iotSelection.indexOf(device.ip) === -1;
+            }).sort(function(first, second) {
+                return String(first.name || first.ip).localeCompare(
+                    String(second.name || second.ip)
+                );
+            }).forEach(function(device) {
+                const option = document.createElement("option");
+                const name = device.name && device.name !== "Unknown"
+                    ? device.name + " — "
+                    : "";
+                const mac = device.mac && device.mac !== "Unknown"
+                    ? " — " + device.mac
+                    : "";
+
+                option.value = device.ip;
+                option.textContent = name + device.ip + mac;
+                picker.appendChild(option);
+            });
+            picker.value = "";
+        };
+
+        SkynetUI.updateIOTControls = function() {
+            const supported = this.canManageIOT();
+            const busy = this.refreshInProgress;
+            const apply = this.getElement(this.selectors.iotButton);
+            const clear = this.getElement(this.selectors.iotClear);
+            const picker = this.getElement(this.selectors.iotPicker);
+            const manual = this.getElement(this.selectors.iotManual);
+            const add = this.getElement(this.selectors.iotManualButton);
+            const portMode = this.getElement(this.selectors.iotPortMode);
+            const portInput = this.getElement(this.selectors.iotPortInput);
+            const portAdd = this.getElement(this.selectors.iotPortButton);
+            const protocol = this.getElement("skynetIotProtocol");
+            const blocking = this.getElement("skynetIotBlocking");
+            const logging = this.getElement("skynetIotLogging");
+            const customPorts = this.getIOTPortMode() === "custom";
+            const validPorts = !customPorts || this.iotPortSelection.length > 0;
+
+            if (apply) apply.disabled = busy || !supported || !validPorts || !this.isIOTDirty();
+            if (clear) clear.disabled = busy || !supported || !this.iotSelection.length;
+            if (picker) picker.disabled = busy || !supported;
+            if (manual) manual.disabled = busy || !supported;
+            if (add) add.disabled = busy || !supported;
+            if (portMode) portMode.disabled = busy || !supported;
+            if (portInput) portInput.disabled = busy || !supported || !customPorts || this.iotPortSelection.length >= 15;
+            if (portAdd) portAdd.disabled = busy || !supported || !customPorts || this.iotPortSelection.length >= 15;
+            if (protocol) protocol.disabled = busy || !supported || !customPorts;
+            if (blocking) blocking.disabled = busy || !supported;
+            if (logging) logging.disabled = busy || !supported;
+            document.querySelectorAll(".skynet-iot-remove, .skynet-iot-port-remove").forEach(function(button) {
+                button.disabled = busy || !supported || !customPorts;
+            });
+        };
+
+        SkynetUI.renderIOT = function() {
+            const list = this.getElement(this.selectors.iotList);
+
+            if (!list) {
+                return;
+            }
+            while (list.firstChild) {
+                list.removeChild(list.firstChild);
+            }
+            if (!this.iotSelection.length) {
+                const empty = document.createElement("span");
+                empty.className = "skynet-country-empty";
+                empty.textContent = "No devices are saved in the IoT list.";
+                list.appendChild(empty);
+            } else {
+                this.iotSelection.forEach(function(ip) {
+                    const device = SkynetUI.findIOTDevice(ip) || {};
+                    const tag = document.createElement("span");
+                    const main = document.createElement("span");
+                    const meta = document.createElement("span");
+                    const remove = document.createElement("button");
+
+                    tag.className = "skynet-country-tag";
+                    main.className = "skynet-iot-tag-main";
+                    main.textContent = device.name && device.name !== "Unknown"
+                        ? device.name
+                        : ip;
+                    meta.className = "skynet-iot-tag-meta";
+                    meta.textContent = main.textContent === ip
+                        ? (device.state || "saved")
+                        : ip + " · " + (device.state || "saved");
+                    remove.type = "button";
+                    remove.className = "skynet-country-remove skynet-iot-remove";
+                    remove.dataset.iot = ip;
+                    remove.title = "Remove " + ip;
+                    remove.setAttribute("aria-label", remove.title);
+                    remove.textContent = "×";
+                    tag.appendChild(main);
+                    tag.appendChild(meta);
+                    tag.appendChild(remove);
+                    list.appendChild(tag);
+                });
+            }
+            this.setUpdateResult(
+                this.isIOTDirty()
+                    ? "Unsaved IoT isolation changes."
+                    : (this.iotSelection.length
+                        ? this.iotSelection.length +
+                            (this.iotSelection.length === 1 ? " device saved." : " devices saved.")
+                        : ""),
+                false,
+                this.selectors.iotResult
+            );
+            this.updateIOTControls();
+        };
+
+        SkynetUI.renderIOTPorts = function() {
+            const list = this.getElement(this.selectors.iotPortList);
+
+            if (!list) {
+                return;
+            }
+            while (list.firstChild) {
+                list.removeChild(list.firstChild);
+            }
+            const mode = this.getIOTPortMode();
+
+            if (mode !== "custom" || !this.iotPortSelection.length) {
+                const empty = document.createElement("span");
+                empty.className = "skynet-country-empty";
+                if (mode === "none") {
+                    empty.textContent = "No TCP or UDP WAN ports are allowed.";
+                } else if (mode === "custom") {
+                    empty.textContent = "Add at least one custom port.";
+                } else {
+                    empty.textContent = "UDP/123 is allowed for NTP time synchronization.";
+                }
+                list.appendChild(empty);
+            } else {
+                this.iotPortSelection.forEach(function(port) {
+                    const tag = document.createElement("span");
+                    const value = document.createElement("span");
+                    const remove = document.createElement("button");
+
+                    tag.className = "skynet-country-tag";
+                    value.textContent = "Port " + port;
+                    remove.type = "button";
+                    remove.className = "skynet-country-remove skynet-iot-port-remove";
+                    remove.dataset.port = port;
+                    remove.title = "Remove port " + port;
+                    remove.setAttribute("aria-label", remove.title);
+                    remove.textContent = "×";
+                    tag.appendChild(value);
+                    tag.appendChild(remove);
+                    list.appendChild(tag);
+                });
+            }
+            this.updateIOTControls();
+        };
+
+        SkynetUI.populateIOT = function() {
+            const settings = window.SkynetSettings || {};
+
+            if (!this.canManageIOT()) {
+                this.iotSelection = [];
+                this.iotPortSelection = [];
+                this.iotOriginal = "";
+                this.iotOptionsOriginal = "";
+                this.populateIOTPicker();
+                this.renderIOT();
+                this.renderIOTPorts();
+                return;
+            }
+            this.iotSelection = this.normaliseIOTEntries(settings.iotentries);
+            this.iotPortSelection = settings.iotports === "none"
+                ? []
+                : this.normaliseIOTPorts(settings.iotports);
+            this.iotOriginal = this.iotSelection.join(" ");
+            this.getElement(this.selectors.iotPortMode).value = settings.iotports === "none"
+                ? "none"
+                : (this.iotPortSelection.length ? "custom" : "default");
+            this.getElement("skynetIotProtocol").value = settings.iotproto || "udp";
+            this.iotOptionsOriginal = this.getIOTOptions();
+            this.populateIOTPicker();
+            this.renderIOT();
+            this.renderIOTPorts();
+        };
+
+        SkynetUI.addIOT = function(value) {
+            value = String(value || "").trim();
+            if (!this.isIPv4Range(value)) {
+                this.setUpdateResult(
+                    "Enter a valid IPv4 address or CIDR range.",
+                    true,
+                    this.selectors.iotResult
+                );
+                return;
+            }
+            if (this.iotSelection.indexOf(value) === -1) {
+                this.iotSelection.push(value);
+                this.iotSelection.sort();
+            }
+            const manual = this.getElement(this.selectors.iotManual);
+            if (manual) manual.value = "";
+            this.populateIOTPicker();
+            this.renderIOT();
+        };
+
+        SkynetUI.removeIOT = function(value) {
+            const index = this.iotSelection.indexOf(value);
+            if (index !== -1 && !this.refreshInProgress) {
+                this.iotSelection.splice(index, 1);
+                this.populateIOTPicker();
+                this.renderIOT();
+            }
+        };
+
+        SkynetUI.addIOTPort = function(value) {
+            const ports = this.normaliseIOTPorts(value);
+
+            if (ports.invalid || ports.length !== 1) {
+                this.setUpdateResult(
+                    "Enter one port between 1 and 65535.",
+                    true,
+                    this.selectors.iotResult
+                );
+                return;
+            }
+            if (this.iotPortSelection.indexOf(ports[0]) === -1) {
+                if (this.iotPortSelection.length >= 15) {
+                    this.setUpdateResult(
+                        "A maximum of 15 ports can be configured.",
+                        true,
+                        this.selectors.iotResult
+                    );
+                    return;
+                }
+                this.iotPortSelection.push(ports[0]);
+                this.iotPortSelection.sort(function(first, second) {
+                    return Number(first) - Number(second);
+                });
+            }
+            this.getElement(this.selectors.iotPortMode).value = "custom";
+            const input = this.getElement(this.selectors.iotPortInput);
+            if (input) input.value = "";
+            this.renderIOTPorts();
+            this.renderIOT();
+        };
+
+        SkynetUI.removeIOTPort = function(value) {
+            const index = this.iotPortSelection.indexOf(value);
+            if (index !== -1 && !this.refreshInProgress) {
+                this.iotPortSelection.splice(index, 1);
+                this.renderIOTPorts();
+                this.renderIOT();
+            }
+        };
+
+        SkynetUI.updateIOT = function() {
+            if (this.refreshInProgress || !this.canManageIOT() ||
+                (this.getIOTPortMode() === "custom" && !this.iotPortSelection.length) ||
+                !this.isIOTDirty()) {
+                return;
+            }
+            custom_settings.skynet_iotentries = this.iotSelection.join(" ");
+            custom_settings.skynet_iotports = this.getIOTPortValue();
+            custom_settings.skynet_iotproto = this.getIOTPortMode() === "default"
+                ? "udp"
+                : this.getElement("skynetIotProtocol").value;
+            this.refreshInProgress = true;
+            this.setUpdateResult("Applying IoT isolation...", false, this.selectors.iotResult);
+            this.setActionState(true, this.selectors.iotButton, "Applying...");
+            document.form.amng_custom.value = JSON.stringify(custom_settings);
+            this.submitBackgroundAction("start_SkynetIOT");
+            this.waitForUpdate(window.SkynetSettingsGenerated, 600, "iot");
+        };
+
         SkynetUI.populateSettings = function() {
             const settings = window.SkynetSettings || {};
             const apply = this.getElement(this.selectors.settingsButton);
@@ -3545,6 +4050,7 @@
                 if (malware) {
                     malware.disabled = true;
                 }
+                this.populateIOT();
                 this.populateCountries();
                 this.setUpdateResult(
                     "Reload settings to load current values.",
@@ -3562,13 +4068,14 @@
                 }
             });
 
+            this.settingsOriginal = this.getSettingsOptions();
+
             this.populateMalwareStatus();
             this.populateBlacklistCounts(settings);
+            this.populateIOT();
             this.populateCountries();
 
-            if (apply && !this.refreshInProgress) {
-                apply.disabled = false;
-            }
+            this.updateSettingsControls();
             if (malware && !this.refreshInProgress) {
                 malware.disabled = !this.canUpdateMalware();
             }
@@ -3580,7 +4087,11 @@
             }
         };
 
-        /* Background actions. */
+        /*
+         * Background actions use Merlin's native service-event form target.
+         * The page remains interactive while generated payload timestamps are
+         * polled to detect completion.
+         */
         SkynetUI.setUpdateResult = function(message, isError, resultSelector) {
             const result = this.getElement(resultSelector || this.selectors.updateResult);
 
@@ -3593,6 +4104,10 @@
         };
 
         SkynetUI.setActionState = function(active, buttonSelector, label) {
+            /*
+             * One background worker is allowed at a time. When idle, each
+             * control is still gated by support, dirty state and list limits.
+             */
             [
                 this.selectors.updateButton,
                 this.selectors.settingsButton,
@@ -3600,14 +4115,19 @@
                 this.selectors.settingsDefaultsButton,
                 this.selectors.malwareButton,
                 this.selectors.countryButton,
-                this.selectors.countryClear
+                this.selectors.countryClear,
+                this.selectors.iotButton,
+                this.selectors.iotClear,
+                this.selectors.iotManualButton,
+                this.selectors.iotPortButton
             ].forEach(function(id) {
                 const button = SkynetUI.getElement(id);
 
                 if (button) {
                     button.disabled = active ||
                         (id === SkynetUI.selectors.settingsButton &&
-                            (!window.SkynetSettings || !window.SkynetSettingsGenerated)) ||
+                            (!window.SkynetSettings || !window.SkynetSettingsGenerated ||
+                                !SkynetUI.isSettingsDirty())) ||
                         (id === SkynetUI.selectors.malwareButton &&
                             !SkynetUI.canUpdateMalware()) ||
                         ((id === SkynetUI.selectors.countryButton ||
@@ -3616,7 +4136,20 @@
                         (id === SkynetUI.selectors.countryButton &&
                             !SkynetUI.isCountryDirty()) ||
                         (id === SkynetUI.selectors.countryClear &&
-                            !SkynetUI.countrySelection.length);
+                            !SkynetUI.countrySelection.length) ||
+                        (id === SkynetUI.selectors.iotButton &&
+                            (!SkynetUI.canManageIOT() ||
+                                (SkynetUI.getIOTPortMode() === "custom" &&
+                                    !SkynetUI.iotPortSelection.length) ||
+                                !SkynetUI.isIOTDirty())) ||
+                        (id === SkynetUI.selectors.iotClear &&
+                            (!SkynetUI.canManageIOT() || !SkynetUI.iotSelection.length)) ||
+                        (id === SkynetUI.selectors.iotManualButton &&
+                            !SkynetUI.canManageIOT()) ||
+                        (id === SkynetUI.selectors.iotPortButton &&
+                            (!SkynetUI.canManageIOT() ||
+                                SkynetUI.getIOTPortMode() !== "custom" ||
+                                SkynetUI.iotPortSelection.length >= 15));
                     button.classList.toggle("skynet-update-busy", active && id === buttonSelector);
                 }
             });
@@ -3625,8 +4158,16 @@
             if (picker) {
                 picker.disabled = active || !this.canManageCountries();
             }
-            document.querySelectorAll(".skynet-country-remove").forEach(function(remove) {
+            document.querySelectorAll(".skynet-country-remove:not(.skynet-iot-remove):not(.skynet-iot-port-remove)").forEach(function(remove) {
                 remove.disabled = active || !SkynetUI.canManageCountries();
+            });
+
+            [this.selectors.iotPicker, this.selectors.iotManual, this.selectors.iotPortInput].forEach(function(id) {
+                const control = SkynetUI.getElement(id);
+                if (control) control.disabled = active || !SkynetUI.canManageIOT();
+            });
+            document.querySelectorAll(".skynet-iot-remove, .skynet-iot-port-remove").forEach(function(remove) {
+                remove.disabled = active || !SkynetUI.canManageIOT();
             });
 
             const button = this.getElement(buttonSelector);
@@ -3634,6 +4175,7 @@
             if (button && label) {
                 button.value = label;
             }
+            this.updateIOTControls();
         };
 
         SkynetUI.destroyCharts = function() {
@@ -3650,6 +4192,7 @@
         };
 
         SkynetUI.loadScript = function(file, error) {
+            /* Cache-busting is required because Merlin serves generated files aggressively. */
             return new Promise(function(resolve, reject) {
                 const script = document.createElement("script");
 
@@ -3713,6 +4256,7 @@
         };
 
         SkynetUI.waitForUpdate = function(previousStamp, attempts, requestType) {
+            /* A changed generation stamp proves the requested worker finished. */
             const self = this;
             const action = this.actionDefinitions[requestType] ||
                 this.actionDefinitions.stats;
@@ -3734,7 +4278,7 @@
 
                     if (loadSettings) {
                         self.refreshRenderedStats();
-                        if (requestType !== "countries" || !failed) {
+                        if ((requestType !== "countries" && requestType !== "iot") || !failed) {
                             self.populateSettings();
                         }
                     } else {
@@ -3831,6 +4375,11 @@
         };
 
         SkynetUI.submitBackgroundAction = function(action) {
+            /*
+             * action_script is dispatched by Merlin after the hidden form is
+             * submitted. Clear amng_custom afterwards to prevent stale edits
+             * from being included in a later, unrelated request.
+             */
             const settings = this.getElement("amng_custom");
 
             document.form.action_script.value = action;
@@ -3854,9 +4403,7 @@
                 skynetLogSize: "10",
                 skynetExtendedStats: "enabled",
                 skynetCountryLookup: "enabled",
-                skynetCdnWhitelist: "enabled",
-                skynetIotBlocking: "disabled",
-                skynetIotLogging: "enabled"
+                skynetCdnWhitelist: "enabled"
             };
 
             Object.keys(defaults).forEach(function(id) {
@@ -3872,10 +4419,11 @@
                 false,
                 this.selectors.settingsResult
             );
+            this.updateSettingsControls();
         };
 
         SkynetUI.updateSettings = function() {
-            if (this.refreshInProgress) {
+            if (this.refreshInProgress || !this.isSettingsDirty()) {
                 return;
             }
 
@@ -3914,8 +4462,6 @@
             custom_settings.skynet_extendedstats = this.getElement("skynetExtendedStats").value;
             custom_settings.skynet_lookupcountry = this.getElement("skynetCountryLookup").value;
             custom_settings.skynet_cdnwhitelist = this.getElement("skynetCdnWhitelist").value;
-            custom_settings.skynet_iotblocked = this.getElement("skynetIotBlocking").value;
-            custom_settings.skynet_iotlogging = this.getElement("skynetIotLogging").value;
 
             this.refreshInProgress = true;
             this.setUpdateResult("Applying settings...", false, this.selectors.settingsResult);
@@ -4067,6 +4613,75 @@
                 });
             }
 
+            const iotPicker = this.getElement(this.selectors.iotPicker);
+            if (iotPicker) {
+                iotPicker.addEventListener("change", function() {
+                    SkynetUI.addIOT(this.value);
+                });
+            }
+            const iotManual = this.getElement(this.selectors.iotManual);
+            const addIOT = function() {
+                SkynetUI.addIOT(iotManual ? iotManual.value : "");
+            };
+            const iotManualButton = this.getElement(this.selectors.iotManualButton);
+            if (iotManualButton) iotManualButton.addEventListener("click", addIOT);
+            if (iotManual) {
+                iotManual.addEventListener("keydown", function(event) {
+                    if (event.key === "Enter") {
+                        event.preventDefault();
+                        addIOT();
+                    }
+                });
+            }
+            const iotList = this.getElement(this.selectors.iotList);
+            if (iotList) {
+                iotList.addEventListener("click", function(event) {
+                    if (event.target.classList.contains("skynet-iot-remove")) {
+                        SkynetUI.removeIOT(event.target.dataset.iot);
+                    }
+                });
+            }
+            const iotClear = this.getElement(this.selectors.iotClear);
+            if (iotClear) {
+                iotClear.addEventListener("click", function() {
+                    SkynetUI.iotSelection = [];
+                    SkynetUI.populateIOTPicker();
+                    SkynetUI.renderIOT();
+                });
+            }
+            const iotApply = this.getElement(this.selectors.iotButton);
+            if (iotApply) iotApply.addEventListener("click", function() { SkynetUI.updateIOT(); });
+            const iotPortInput = this.getElement(this.selectors.iotPortInput);
+            const addIOTPort = function() {
+                SkynetUI.addIOTPort(iotPortInput ? iotPortInput.value : "");
+            };
+            const iotPortButton = this.getElement(this.selectors.iotPortButton);
+            if (iotPortButton) iotPortButton.addEventListener("click", addIOTPort);
+            if (iotPortInput) {
+                iotPortInput.addEventListener("keydown", function(event) {
+                    if (event.key === "Enter") {
+                        event.preventDefault();
+                        addIOTPort();
+                    }
+                });
+            }
+            const iotPortList = this.getElement(this.selectors.iotPortList);
+            if (iotPortList) {
+                iotPortList.addEventListener("click", function(event) {
+                    if (event.target.classList.contains("skynet-iot-port-remove")) {
+                        SkynetUI.removeIOTPort(event.target.dataset.port);
+                    }
+                });
+            }
+            ["skynetIotPortMode", "skynetIotProtocol", "skynetIotBlocking", "skynetIotLogging"]
+                .forEach(function(id) {
+                    const control = SkynetUI.getElement(id);
+                    if (control) control.addEventListener("change", function() {
+                        SkynetUI.renderIOTPorts();
+                        SkynetUI.renderIOT();
+                    });
+                });
+
             const apply = this.getElement(this.selectors.settingsButton);
 
             if (apply) {
@@ -4074,6 +4689,24 @@
                     SkynetUI.updateSettings();
                 });
             }
+
+            [
+                "skynetAutoUpdate", "skynetMalwareUpdates", "skynetMalwareUrl",
+                "skynetFilterTraffic", "skynetUnbanPrivate", "skynetAiProtect",
+                "skynetSecureMode", "skynetLogInvalid", "skynetLogSize",
+                "skynetExtendedStats", "skynetCountryLookup", "skynetCdnWhitelist"
+            ].forEach(function(id) {
+                const control = SkynetUI.getElement(id);
+                if (!control) return;
+                control.addEventListener("change", function() {
+                    SkynetUI.updateSettingsControls();
+                });
+                if (control.tagName === "INPUT") {
+                    control.addEventListener("input", function() {
+                        SkynetUI.updateSettingsControls();
+                    });
+                }
+            });
 
             const reload = this.getElement(this.selectors.settingsReloadButton);
 
@@ -4268,7 +4901,7 @@
                                                     <div class="skynet-settings">
                                                         <table class="FormTable skynet-settings-table">
                                                             <tr class="skynet-settings-group">
-                                                                <th colspan="2">Updates</th>
+                                                                <th colspan="2">Updates &amp; Lists</th>
                                                             </tr>
                                                             <tr>
                                                                 <th>
@@ -4349,30 +4982,6 @@
                                                             </tr>
                                                             <tr>
                                                                 <th>
-                                                                    <span class="skynet-setting-name">IoT Blocking</span>
-                                                                    <span class="skynet-setting-help">Blocks internet access for devices in the IoT list. Disabling keeps the saved list.</span>
-                                                                </th>
-                                                                <td>
-                                                                    <select class="input_option" id="skynetIotBlocking">
-                                                                        <option value="enabled">Enabled</option>
-                                                                        <option value="disabled">Disabled (Default)</option>
-                                                                    </select>
-                                                                </td>
-                                                            </tr>
-                                                            <tr>
-                                                                <th>
-                                                                    <span class="skynet-setting-name">IoT Block Logging</span>
-                                                                    <span class="skynet-setting-help">Records blocked IoT traffic for statistics when IoT blocking is enabled.</span>
-                                                                </th>
-                                                                <td>
-                                                                    <select class="input_option" id="skynetIotLogging">
-                                                                        <option value="enabled">Enabled (Default)</option>
-                                                                        <option value="disabled">Disabled</option>
-                                                                    </select>
-                                                                </td>
-                                                            </tr>
-                                                            <tr>
-                                                                <th>
                                                                     <span class="skynet-setting-name">Import AiProtection Bans</span>
                                                                     <span class="skynet-setting-help">Imports threats detected by AiProtection into Skynet.</span>
                                                                 </th>
@@ -4405,6 +5014,131 @@
                                                                         <option value="enabled">Enabled (Default)</option>
                                                                         <option value="disabled">Disabled</option>
                                                                     </select>
+                                                                </td>
+                                                            </tr>
+                                                            <tr class="skynet-settings-group">
+                                                                <th colspan="2">IoT Isolation</th>
+                                                            </tr>
+                                                            <tr>
+                                                                <th>
+                                                                    <span class="skynet-setting-name">IoT Blocking</span>
+                                                                    <span class="skynet-setting-help">Controls enforcement without clearing the saved device list.</span>
+                                                                </th>
+                                                                <td>
+                                                                    <select class="input_option" id="skynetIotBlocking">
+                                                                        <option value="enabled">Enabled</option>
+                                                                        <option value="disabled">Disabled (Default)</option>
+                                                                    </select>
+                                                                </td>
+                                                            </tr>
+                                                            <tr>
+                                                                <th>
+                                                                    <span class="skynet-setting-name">IoT Block Logging</span>
+                                                                    <span class="skynet-setting-help">Records blocked IoT traffic for statistics while enforcement is enabled.</span>
+                                                                </th>
+                                                                <td>
+                                                                    <select class="input_option" id="skynetIotLogging">
+                                                                        <option value="enabled">Enabled (Default)</option>
+                                                                        <option value="disabled">Disabled</option>
+                                                                    </select>
+                                                                </td>
+                                                            </tr>
+                                                            <tr class="skynet-country-row">
+                                                                <th>
+                                                                    <span class="skynet-setting-name">IoT Devices</span>
+                                                                    <span class="skynet-setting-help">Select a detected client or enter an IPv4 address/CIDR range manually.</span>
+                                                                </th>
+                                                                <td>
+                                                                    <div class="skynet-country-editor">
+                                                                        <select class="input_option skynet-country-picker"
+                                                                            id="skynetIotPicker"
+                                                                            aria-label="Add an IoT device"
+                                                                            disabled="disabled">
+                                                                            <option value="">Add a detected client...</option>
+                                                                        </select>
+                                                                        <div class="skynet-iot-add">
+                                                                            <input type="text"
+                                                                                id="skynetIotManual"
+                                                                                maxlength="18"
+                                                                                placeholder="IPv4 address or CIDR range"
+                                                                                autocomplete="off"
+                                                                                spellcheck="false" />
+                                                                            <input type="button"
+                                                                                id="skynetAddIotManual"
+                                                                                value="Add"
+                                                                                class="button_gen skynet-update-button skynet-settings-reload" />
+                                                                        </div>
+                                                                        <div class="skynet-country-list" id="skynetIotList">
+                                                                            <span class="skynet-country-empty">Loading IoT devices...</span>
+                                                                        </div>
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                            <tr>
+                                                                <th>
+                                                                    <span class="skynet-setting-name">WAN Port Access</span>
+                                                                    <span class="skynet-setting-help">The default permits UDP/123 so isolated devices can synchronize their clocks using NTP. Choose Custom Ports or No Ports to override it.</span>
+                                                                </th>
+                                                                <td>
+                                                                    <div class="skynet-country-editor">
+                                                                        <select class="input_option skynet-country-picker"
+                                                                            id="skynetIotPortMode"
+                                                                            aria-label="Select IoT WAN port access">
+                                                                            <option value="default">NTP Time Sync Only (Default)</option>
+                                                                            <option value="custom">Custom Ports</option>
+                                                                            <option value="none">No Ports</option>
+                                                                        </select>
+                                                                        <div class="skynet-iot-add">
+                                                                            <input type="number"
+                                                                                id="skynetIotPortInput"
+                                                                                min="1"
+                                                                                max="65535"
+                                                                                step="1"
+                                                                                placeholder="Port"
+                                                                                autocomplete="off" />
+                                                                            <input type="button"
+                                                                                id="skynetAddIotPort"
+                                                                                value="Add"
+                                                                                class="button_gen skynet-update-button skynet-settings-reload" />
+                                                                        </div>
+                                                                        <div class="skynet-country-list" id="skynetIotPortList">
+                                                                            <span class="skynet-country-empty">UDP/123 is allowed for NTP time synchronization.</span>
+                                                                        </div>
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                            <tr>
+                                                                <th>
+                                                                    <span class="skynet-setting-name">Allowed Protocol</span>
+                                                                    <span class="skynet-setting-help">Applies only when Custom Ports is selected.</span>
+                                                                </th>
+                                                                <td>
+                                                                    <select class="input_option" id="skynetIotProtocol">
+                                                                        <option value="udp">UDP (Default)</option>
+                                                                        <option value="tcp">TCP</option>
+                                                                        <option value="all">TCP &amp; UDP</option>
+                                                                    </select>
+                                                                </td>
+                                                            </tr>
+                                                            <tr>
+                                                                <th>
+                                                                    <span class="skynet-setting-name">IoT Changes</span>
+                                                                    <span class="skynet-setting-help">Applies only IoT devices and isolation settings.</span>
+                                                                </th>
+                                                                <td>
+                                                                    <div class="skynet-country-status" id="skynetIotStatus" aria-live="polite"></div>
+                                                                    <div class="skynet-country-actions">
+                                                                        <input type="button"
+                                                                            id="skynetClearIot"
+                                                                            value="Clear Devices"
+                                                                            class="button_gen skynet-update-button skynet-settings-reload"
+                                                                            disabled="disabled" />
+                                                                        <input type="button"
+                                                                            id="skynetApplyIot"
+                                                                            value="Apply IoT"
+                                                                            class="button_gen skynet-update-button"
+                                                                            disabled="disabled" />
+                                                                    </div>
                                                                 </td>
                                                             </tr>
                                                             <tr class="skynet-settings-group">
@@ -4445,7 +5179,7 @@
                                                                 </td>
                                                             </tr>
                                                             <tr class="skynet-settings-group">
-                                                                <th colspan="2">Statistics</th>
+                                                                <th colspan="2">Logging &amp; Statistics</th>
                                                             </tr>
                                                             <tr>
                                                                 <th>

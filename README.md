@@ -57,6 +57,8 @@ firewall
 
 The same command accepts the arguments documented below. The WebUI is mounted under **Firewall > Skynet** when logging, WebUI integration, and the Asuswrt-Merlin Addons API are available.
 
+Commands return `0` on success, `1` for a runtime failure, and `2` for an invalid command or input.
+
 [![Skynet CLI](https://i.imgur.com/GLQk72O.png "Skynet CLI")](https://i.imgur.com/GLQk72O.png)
 
 [![Skynet WebUI Overview](https://i.imgur.com/21oBvs5.png "Skynet WebUI Overview")](https://i.imgur.com/21oBvs5.png)
@@ -72,8 +74,8 @@ The same command accepts the arguments documented below. The WebUI is mounted un
 - `firewall ban domain example.com` - Resolve a domain and ban its current public IPv4 addresses.
 - `firewall ban country pk cn sa` - Replace the current country bans with the known IPv4 ranges assigned to the supplied two-letter country codes.
 - `firewall ban asn AS123456` - Download and ban the IPv4 ranges announced by an ASN.
-- `firewall unban ip 8.8.8.8` - Remove an IPv4 address from the blacklist.
-- `firewall unban range 8.8.8.0/24` - Remove an exact CIDR range from the range blacklist.
+- `firewall unban ip 8.8.8.8 1.1.1.1` - Remove one or more IPv4 addresses from the blacklist.
+- `firewall unban range 8.8.8.0/24 1.1.1.0/24` - Remove one or more exact CIDR ranges from the range blacklist.
 - `firewall unban domain example.com` - Resolve a domain and unban its current IPv4 addresses.
 - `firewall unban comment "Apples"` - Remove blacklist entries whose comments contain the supplied text.
 - `firewall unban country` - Remove all entries created by country blocking.
@@ -84,15 +86,17 @@ The same command accepts the arguments documented below. The WebUI is mounted un
 
 Country blocking uses aggregated IPv4 allocation data. Applying a new country selection replaces the previous selection rather than appending to it.
 
+Domain commands validate the hostname and resolve its complete IPv4 answer set before changing the firewall. A failed lookup or update leaves the existing IPSet unchanged.
+
 ### Malware Lists
 
-A Skynet filter list contains one HTTP or HTTPS threat-feed URL per line. Skynet downloads the filter list, refreshes required whitelists, downloads the listed feeds, validates their IPv4 entries, removes private and reserved ranges, and rebuilds the malware portion of the blacklist.
+A Skynet filter list contains one HTTP or HTTPS threat-feed URL per line. Skynet downloads the filter list, refreshes required whitelists, conditionally refreshes the listed feeds, validates their IPv4 entries, removes private and reserved ranges, and rebuilds the malware portion of the blacklist. Unchanged feeds are not downloaded again, while a failed or invalid refresh retains the last valid cached copy.
 
 - `firewall banmalware` - Refresh the malware blacklist using the configured filter list.
 - `firewall banmalware https://example.com/filter.list` - Save the supplied filter-list URL as the primary source and refresh the malware blacklist.
 - `firewall banmalware reset` - Restore the default Skynet filter-list URL and refresh the malware blacklist.
-- `firewall banmalware exclude "list1.ipset|list2.ipset"` - Exclude filter-list URLs matching the supplied regular expression, then refresh the malware blacklist.
-- `firewall banmalware exclude reset` - Clear the exclusion pattern and refresh the malware blacklist.
+- `firewall banmalware exclude list1.ipset list2.ipset` - Exclude filter-list URLs with the supplied filenames, then refresh the malware blacklist.
+- `firewall banmalware exclude reset` - Clear the excluded filenames and refresh the malware blacklist.
 
 Fast Switch stores a second filter-list URL so the active malware source can be changed without replacing the primary URL:
 
@@ -133,36 +137,50 @@ Each managed file is downloaded to a temporary path and replaces its existing co
 
 ### Settings
 
+The interactive Settings menu groups options under Updates & Lists, Protection, IoT Isolation, Logging & Statistics, and Integration & Advanced. Commands remain available directly as documented below.
+
+#### Updates & Lists
+
 - `firewall settings autoupdate enable|disable` - Enable weekly automatic Skynet updates. When disabled, Skynet checks weekly but does not install an update.
 - `firewall settings banmalware daily|weekly|disable` - Set or disable scheduled malware blacklist refreshes.
-- `firewall settings logmode enable|disable` - Enable or disable logging of Skynet blocks. Statistics depend on this data.
-- `firewall settings loginvalid enable|disable` - Enable or disable logging of new invalid-state packets handled by the router's drop chain.
-- `firewall settings logsize 10` - Set the block-log limit in MB. The minimum value is 10MB.
+
+#### Protection
+
 - `firewall settings filter all|inbound|outbound` - Select which traffic direction Skynet filters.
 - `firewall settings unbanprivate enable|disable` - Automatically whitelist private addresses observed in blocked traffic and remove exact entries from the IP blacklist.
 - `firewall settings banaiprotect enable|disable` - Import or remove IPv4 threats recorded by AiProtection.
 - `firewall settings securemode enable|disable` - Control whether Skynet disables WAN access to SSH and the router WebUI when detected.
+- `firewall settings cdnwhitelist enable|disable` - Add or remove supported CDN, service, and public DNS ranges from the whitelist.
+
+#### IoT Isolation
+
+IoT blocking applies to devices in the Skynet IoT IPSet. When enabled, their forwarded WAN traffic is blocked except for ICMP, the configured TCP/UDP ports, and traffic routed through active OpenVPN or WireGuard server interfaces. By default, UDP port 123 remains available for NTP time synchronization; accurate device time is required by certificates, secure connections and scheduled activity. The default can be replaced with up to 15 custom ports or disabled entirely. The saved device list and the blocking switch are managed independently.
+
+- `firewall settings iot ban 192.168.1.50 192.168.1.60` - Add one or more IPv4 addresses or CIDR ranges to the IoT list.
+- `firewall settings iot unban 192.168.1.50 192.168.1.60` - Remove one or more IPv4 addresses or CIDR ranges from the IoT list.
+- `firewall settings iot enable|disable` - Start or pause IoT blocking without clearing the saved device list.
+- `firewall settings iot view` - Display detected clients, their IoT state, and the current allowed protocol and ports.
+- `firewall settings iot ports 123 124 125` - Replace the allowed WAN port list. Ports must be between 1 and 65535, with a maximum of 15 entries.
+- `firewall settings iot ports default` - Allow only UDP port 123 for NTP time synchronization.
+- `firewall settings iot ports none` - Allow no TCP or UDP WAN ports. ICMP and active VPN server-interface exceptions remain available.
+- `firewall settings iot proto udp|tcp|all` - Select the protocol used by a custom allowed-port list.
+- `firewall settings iotlogging enable|disable` - Enable or disable logging for blocked IoT traffic.
+
+Changing the IoT device list does not enable or disable enforcement. Use the master IoT setting in the CLI or WebUI to control blocking.
+
+#### Logging & Statistics
+
+- `firewall settings logmode enable|disable` - Enable or disable logging of Skynet blocks. Statistics depend on this data.
+- `firewall settings loginvalid enable|disable` - Enable or disable logging of new invalid-state packets handled by the router's drop chain.
+- `firewall settings logsize 10` - Set the block-log limit in MB. The minimum value is 10MB.
 - `firewall settings extendedstats enable|disable` - Add associated domain names to statistics when dnsmasq logs are available.
 - `firewall settings syslog /path/to/syslog|default` - Set the active syslog path or restore `/tmp/syslog.log`.
 - `firewall settings syslog1 /path/to/syslog-1|default` - Set the rotated syslog path or restore `/tmp/syslog.log-1`.
 - `firewall settings lookupcountry enable|disable` - Enable or disable online country lookups for statistics.
-- `firewall settings cdnwhitelist enable|disable` - Add or remove supported CDN, service, and public DNS ranges from the whitelist.
+
+#### Integration & Advanced
+
 - `firewall settings webui enable|disable` - Mount or remove the Skynet page in the Asuswrt-Merlin WebUI.
-
-### IoT Isolation
-
-IoT blocking applies to devices in the Skynet IoT IPSet. When enabled, their forwarded WAN traffic is blocked except for ICMP, the configured TCP/UDP ports, and traffic routed through active OpenVPN or WireGuard server interfaces. UDP port 123 is allowed when no custom port list is configured.
-
-- `firewall settings iot ban 192.168.1.50` - Add an IPv4 address or CIDR range to the IoT list. A comma-separated list is also accepted.
-- `firewall settings iot unban 192.168.1.50` - Remove an IPv4 address or CIDR range from the IoT list.
-- `firewall settings iot enable|disable` - Start or pause IoT blocking without clearing the saved device list.
-- `firewall settings iot view` - Display detected clients, their IoT state, and the current allowed protocol and ports.
-- `firewall settings iot ports 123,124,125` - Replace the allowed WAN port list.
-- `firewall settings iot ports reset` - Restore the default port behaviour.
-- `firewall settings iot proto udp|tcp|all` - Select the protocol used by the allowed port rules.
-- `firewall settings iotlogging enable|disable` - Enable or disable logging for blocked IoT traffic.
-
-Adding the first IoT entry enables IoT blocking. Removing the final entry disables it automatically.
 
 ### Statistics
 
@@ -174,6 +192,7 @@ Adding the first IoT entry enables IoT blocking. Removing the final entry disabl
 - `firewall stats search ip 8.8.8.8 [count]` - Show ban status, reasons, associated domains, location, and logged activity for an IPv4 address.
 - `firewall stats search domain example.com` - Resolve a domain and report the available data for each resulting IPv4 address.
 - `firewall stats search malware 8.8.8.8` - Search downloaded malware feeds for an IPv4 address or CIDR range.
+- `firewall stats search reason "spamhaus" [count]` - Search live IPSet comments for a ban reason without performing network lookups.
 - `firewall stats search manualbans [count]` - Show recorded manual bans.
 - `firewall stats search device 192.168.1.50 [count]` - Show outbound blocks generated by a LAN device.
 - `firewall stats search reports [count]` - Show saved periodic summaries.
@@ -210,6 +229,8 @@ The WebUI provides:
 - Common Skynet settings with descriptions and documented defaults.
 - Malware update status, manual list refresh, and primary filter-list configuration.
 - Country blocking with country selection and removal.
+- IoT isolation with detected client, hostname, IPv4, MAC, online state, device list, port and protocol controls.
+- Copyable MAC addresses in blocked-device details when neighbour data is available.
 
 Empty or disabled data sections are collapsed or omitted where appropriate. Charts are generated from Skynet's stored logs, while blacklist totals and packet counters are captured during statistics generation. The page does not query the live firewall for every chart.
 
