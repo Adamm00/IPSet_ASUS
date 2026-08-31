@@ -25,10 +25,13 @@ export LC_ALL=C
 # shellcheck disable=SC2329
 Cleanup_Runtime() {
 	cleanupstatus="$?"
+	# Every exit path restores terminal line wrapping, including validation errors,
+	# signals and read-only commands that return before the main footer.
+	if [ -t 1 ] || [ -t 2 ]; then printf '\033[?7h'; fi
 	case "$TMP_DIR" in
 		/tmp/skynet/tmp.[0-9]*) rm -rf "$TMP_DIR" ;;
 	esac
-	for tempfile in "$settingstmp" "$statstmp" "$downloadtmp" "$configtmp" "$saveipsettmp" "$malwareipsettmp" "$serviceeventtmp" "$listmanifesttmp" "$feedstatustmp" "$filterpublishtmp"; do
+	for tempfile in "$settingstmp" "$statstmp" "$downloadtmp" "$configtmp" "$saveipsettmp" "$malwareipsettmp" "$hooktmp" "$listmanifesttmp" "$feedstatustmp" "$filterpublishtmp" "$dnsmasqtmp" "$sharedwhitelisttmp" "$clientouifile" "$debugneighbors" "$iotviewneighbors"; do
 		[ -n "$tempfile" ] && rm -f "$tempfile"
 	done
 	if [ -n "$skynetloc" ]; then
@@ -43,7 +46,7 @@ Cleanup_Runtime() {
 }
 
 # Invoked by the INT/TERM traps.
-# shellcheck disable=SC2329
+# shellcheck disable=SC2317,SC2329 # Called indirectly by the signal trap.
 Handle_Cleanup_Signal() {
 	trap - 0
 	Cleanup_Runtime
@@ -101,6 +104,7 @@ Log() {
 		logger -t "$logtag" "$logmessage"
 		echo "$logmessage"
 	fi
+	unset "logstderr" "logtag" "logprefix" "logmessage"
 }
 
 Check_NTP() {
@@ -122,6 +126,7 @@ Check_NTP() {
 		echo
 		exit 1
 	fi
+	unset "ntptimer"
 }
 
 Check_Lock() {
@@ -132,24 +137,23 @@ Check_Lock() {
 
 	# Never queue interactive commands behind a long-running update.
 	if ! flock -n 9; then
-		locked_cmd=$(cut -d'|' -f1 "$LOCK_FILE" 2>/dev/null)
-		locked_pid=$(cut -d'|' -f2 "$LOCK_FILE" 2>/dev/null)
-		lock_timestamp=$(cut -d'|' -f3 "$LOCK_FILE" 2>/dev/null)
-		current_time=$(date +%s)
+		IFS='|' read -r locked_cmd locked_pid lock_timestamp < "$LOCK_FILE"
+		lockcurrenttime="$(date +%s)"
 
 		# Re-entrant lock handling
 		if [ "$locked_pid" = "$$" ]; then
+			unset "locked_cmd" "locked_pid" "lock_timestamp" "lockcurrenttime"
 			return 0
 		fi
 
 		# If we have a non-empty PID and that process exists
 		if [ -n "$locked_pid" ] && [ -d "/proc/$locked_pid" ]; then
-			age=$(( current_time - lock_timestamp ))
+			lockage=$((lockcurrenttime - lock_timestamp))
 
-			if [ "$age" -gt 1800 ] 2>/dev/null; then
+			if [ "$lockage" -gt 1800 ] 2>/dev/null; then
 				# Stale lock: kill and re-acquire
 				if kill "$locked_pid" 2>/dev/null; then
-					Log info -s "Killed stale Skynet process (pid=$locked_pid) after $age seconds"
+					Log info -s "Killed stale Skynet process (pid=$locked_pid) after $lockage seconds"
 				fi
 				: > "$LOCK_FILE"
 				if ! flock -n 9; then
@@ -158,7 +162,7 @@ Check_Lock() {
 				fi
 			else
 				# Active lock held by running process
-				Log error -s "Lock File Detected ($locked_cmd) (pid=$locked_pid, runtime=${age}s) - Exiting"
+				Log error -s "Lock File Detected ($locked_cmd) (pid=$locked_pid, runtime=${lockage}s) - Exiting"
 				echo; exit 1
 			fi
 		else
@@ -173,18 +177,32 @@ Check_Lock() {
 	# We now hold the lock — record this invocation
 	: > "$LOCK_FILE"
 	echo "$0 $*|$$|$(date +%s)" > "$LOCK_FILE"
+	unset "locked_cmd" "locked_pid" "lock_timestamp" "lockcurrenttime" "lockage"
+}
+
+Read_Active_Lock() {
+	# Diagnostics only: report an active lock without acquiring or changing it.
+	[ -f "$LOCK_FILE" ] && ! flock -n 9 9<"$LOCK_FILE" || return 1
+	IFS='|' read -r lockstatuscommand lockstatuspid lockstatusepoch < "$LOCK_FILE" || return 1
+	case "$lockstatusepoch" in ""|*[!0-9]*) return 1 ;; esac
+	[ -n "$lockstatuspid" ] && [ -d "/proc/$lockstatuspid" ] || return 1
+	lockstatusruntime="$(($(date +%s) - lockstatusepoch))"
 }
 
 Release_Lock() {
 	[ ! -f "$LOCK_FILE" ] && exec 9>&- && return
 
-	pid=$(cut -d'|' -f2 "$LOCK_FILE")
+	IFS='|' read -r _lockcommand lockownerpid _locktimestamp < "$LOCK_FILE"
 
-	[ "$pid" != "$$" ] && return
+	if [ "$lockownerpid" != "$$" ]; then
+		unset "_lockcommand" "lockownerpid" "_locktimestamp"
+		return
+	fi
 
 	# We own the lock
 	exec 9>&-
 	rm -f "$LOCK_FILE"
+	unset "_lockcommand" "lockownerpid" "_locktimestamp"
 }
 
 Find_Install_Dir() {
@@ -196,14 +214,14 @@ Find_Install_Dir() {
 	if [ ! -d "${skynetloc}" ] || [ ! -w "${skynetloc}" ]; then
 		Check_Lock "$@"
 
-		MAX_RETRIES=10
-		attempt=1
+		installretries="10"
+		installattempt="1"
 
 		# Wait until skynetloc exists as a directory and is writable
-		while [ "$attempt" -le "$MAX_RETRIES" ] && { [ ! -d "$skynetloc" ] || [ ! -w "$skynetloc" ]; }; do
-			Log info -s "USB install directory not ready — sleeping 10s ($attempt/$MAX_RETRIES)"
+		while [ "$installattempt" -le "$installretries" ] && { [ ! -d "$skynetloc" ] || [ ! -w "$skynetloc" ]; }; do
+			Log info -s "USB install directory not ready — sleeping 10s ($installattempt/$installretries)"
 			sleep 10
-			attempt=$(( attempt + 1 ))
+			installattempt=$((installattempt + 1))
 		done
 
 		# Final verification
@@ -213,6 +231,7 @@ Find_Install_Dir() {
 			echo
 			exit 1
 		fi
+		unset "installretries" "installattempt"
 	fi
 }
 
@@ -424,8 +443,10 @@ Require_Connection() {
 }
 
 Curl_Fetch() {
-	# Keep transient retry errors out of the terminal; callers report the affected file or list.
-	if curl -fsSL --retry 3 --connect-timeout 5 --max-time 60 --retry-delay 1 --retry-all-errors "$@" 2>/dev/null; then
+	# Curl's standard retry policy covers timeouts and transient HTTP responses.
+	# Do not retry every error: permanent HTTP failures such as GitHub's rate-limit
+	# 403 must return immediately so callers can retain their validated data.
+	if curl -fsSL --retry 3 --connect-timeout 5 --max-time 60 --retry-delay 1 "$@" 2>/dev/null; then
 		return 0
 	fi
 	Log error -s "Download Failed - Check Connection Or URL"
@@ -433,17 +454,44 @@ Curl_Fetch() {
 }
 
 Curl_Lookup() {
-	curl -fsSL --retry 1 --connect-timeout 2 --max-time 6 --retry-delay 1 --retry-all-errors "$@"
+	curl -fsSL --retry 1 --connect-timeout 2 --max-time 6 --retry-delay 1 "$@"
 }
 
-Wait_Background_Job_Batch() {
-	# Bound fan-out for downloads and DNS lookups on lower-memory routers.
-	paralleljobs=$((paralleljobs + 1))
-	if [ "$paralleljobs" -ge "${1:-4}" ]; then
-		wait
-		paralleljobs="0"
-	fi
-	return 0
+Start_Background_Jobs() {
+	backgroundpids=""
+	backgroundjobs="0"
+}
+
+Wait_Background_Job_Slot() {
+	# Keep the configured number of workers busy without waiting for an entire
+	# fixed batch when only one job is slow. Capture $! before running any command.
+	backgroundpid="$!"
+	backgroundlimit="${1:-4}"
+	backgroundpids="${backgroundpids:+$backgroundpids }$backgroundpid"
+	backgroundjobs=$((backgroundjobs + 1))
+	while [ "$backgroundjobs" -ge "$backgroundlimit" ]; do
+		backgroundrunning=""
+		backgroundjobs="0"
+		for backgroundpid in $backgroundpids; do
+			if kill -0 "$backgroundpid" 2>/dev/null; then
+				backgroundrunning="${backgroundrunning:+$backgroundrunning }$backgroundpid"
+				backgroundjobs=$((backgroundjobs + 1))
+			else
+				wait "$backgroundpid" 2>/dev/null
+			fi
+		done
+		backgroundpids="$backgroundrunning"
+		if [ "$backgroundjobs" -ge "$backgroundlimit" ]; then
+			usleep 100000 2>/dev/null || sleep 1
+		fi
+	done
+}
+
+Wait_Background_Jobs() {
+	for backgroundpid in $backgroundpids; do
+		wait "$backgroundpid" 2>/dev/null
+	done
+	Start_Background_Jobs
 }
 
 ##################
@@ -672,6 +720,28 @@ Apply_ASN_List() {
 #- Installation Integrity -#
 ############################
 
+Publish_Skynet_Hook() {
+	# Replace Skynet-owned lines beside the live hook, then publish atomically.
+	# Other addons retain their entries even when upgrading older Skynet hooks.
+	hookpath="$1"
+	hookline="$2"
+	hooktmp="${hookpath}.tmp.$$"
+	if {
+		sed '\~# Skynet~d' "$hookpath"
+		printf '%s\n' "$hookline"
+	} > "$hooktmp" && chmod 755 "$hooktmp" && mv -f "$hooktmp" "$hookpath"; then
+		unset "hookpath" "hookline" "hooktmp"
+		return 0
+	fi
+	rm -f "$hooktmp"
+	unset "hookpath" "hookline" "hooktmp"
+	return 1
+}
+
+Check_Skynet_Hook() {
+	grep -Fxq "$2" "$1" 2>/dev/null
+}
+
 Maintain_Script_Hooks() {
 	# Ensure each script has a proper shebang.
 	for name in "$@"; do
@@ -683,23 +753,22 @@ Maintain_Script_Hooks() {
 		fi
 	done
 
+	# Keep one canonical startup line for the current installation location.
+	if [ -n "$skynetloc" ]; then
+		firewallstarthook="sh /jffs/scripts/firewall start skynetloc=${skynetloc} # Skynet"
+		if ! Check_Skynet_Hook /jffs/scripts/firewall-start "$firewallstarthook"; then
+			Publish_Skynet_Hook /jffs/scripts/firewall-start "$firewallstarthook" || return 1
+		fi
+		unset "firewallstarthook"
+	fi
+
 	# Replace every older Skynet service-event entry with one dispatcher. Build
 	# beside the live hook so an interrupted write leaves the original intact.
 	serviceeventhook="case \"\$1:\$2\" in start:Skynet*) sh /jffs/scripts/firewall webui \"\$2\" ;; esac # Skynet"
-	if ! grep -Fxq "$serviceeventhook" /jffs/scripts/service-event; then
-		serviceeventtmp="/jffs/scripts/service-event.tmp.$$"
-		if {
-			sed '\~# Skynet~d' /jffs/scripts/service-event
-			printf '%s\n' "$serviceeventhook"
-		} > "$serviceeventtmp" && chmod 755 "$serviceeventtmp" \
-			&& mv -f "$serviceeventtmp" /jffs/scripts/service-event; then
-			:
-		else
-			rm -f "$serviceeventtmp"
-			return 1
-		fi
+	if ! Check_Skynet_Hook /jffs/scripts/service-event "$serviceeventhook"; then
+		Publish_Skynet_Hook /jffs/scripts/service-event "$serviceeventhook" || return 1
 	fi
-	unset "serviceeventhook" "serviceeventtmp"
+	unset "serviceeventhook"
 
 	# Ensure swap is disabled during unmount.
 	if ! grep -qE '^swapoff ' /jffs/scripts/unmount; then
@@ -708,9 +777,11 @@ Maintain_Script_Hooks() {
 	fi
 
 	# Save firewall state during service shutdown.
-	if ! grep -vE '^#' /jffs/scripts/services-stop | grep -qF 'sh /jffs/scripts/firewall save'; then
-		echo 'sh /jffs/scripts/firewall save # Skynet' >> /jffs/scripts/services-stop || return 1
+	servicesstophook='sh /jffs/scripts/firewall save # Skynet'
+	if ! Check_Skynet_Hook /jffs/scripts/services-stop "$servicesstophook"; then
+		Publish_Skynet_Hook /jffs/scripts/services-stop "$servicesstophook" || return 1
 	fi
+	unset "servicesstophook"
 
 	# Keep post-mount ready for the swap entry.
 	if [ "$(wc -l < /jffs/scripts/post-mount)" -lt 2 ]; then
@@ -829,7 +900,7 @@ Clean_Stale_Temp() {
 			[ -d "/proc/$temppid" ] || rm -f "$tempfile"
 		done
 	fi
-	for tempfile in /jffs/scripts/service-event.tmp.* /jffs/addons/shared-whitelists/shared-Skynet-whitelist.tmp.*; do
+	for tempfile in /jffs/scripts/firewall-start.tmp.* /jffs/scripts/services-stop.tmp.* /jffs/scripts/service-event.tmp.* /jffs/addons/shared-whitelists/shared-Skynet-whitelist.tmp.*; do
 		[ -f "$tempfile" ] || continue
 		temppid="${tempfile##*.}"
 		[ "$temppid" = "$$" ] && continue
@@ -1144,6 +1215,15 @@ Check_IPTables() {
 	checkfwlog="$(nvram get fw_log_x)"
 	iptables-save -t raw > "$checkrawrules" 2>/dev/null
 	iptables-save -t filter > "$checkfilterrules" 2>/dev/null
+	checkrawduplicates=""
+	if [ "$1" = "duplicates" ]; then
+		# Reuse the integrity snapshot rather than exporting the RAW table again.
+		if awk 'index($0, " ") && seen[$0]++ { found=1; exit } END { exit !found }' "$checkrawrules"; then
+			checkrawduplicates="1"
+		else
+			checkrawduplicates="0"
+		fi
+	fi
 
 	#6: WireGuard DROP
 	if [ "$checkwgs" = "1" ]; then
@@ -1399,6 +1479,90 @@ Normalize_Arguments_From() {
 	Normalize_List "$@"
 }
 
+Validate_IPSet_Entry_Type() {
+	case "$1" in
+		ip) printf '%s\n' "$2" | Is_IP ;;
+		range) printf '%s\n' "$2" | Is_Range ;;
+		iprange) printf '%s\n' "$2" | Is_IPRange ;;
+		*) return 1 ;;
+	esac
+}
+
+Parse_IPSet_Entry_Arguments() {
+	# Parse one or more positional IPSet entries before any live change occurs.
+	# A literal "comment" separates a batch from its single quoted comment:
+	#   firewall ban ip 1.1.1.1 8.8.8.8 comment "Manual block"
+	# The legacy single-entry form without the separator remains supported.
+	parseentrytype="$1"
+	parsecommentlimit="$2"
+	shift 2
+	parsedentries=""
+	parsedcomment=""
+	parsederror=""
+	parsecommentmode="0"
+
+	if [ "$#" -eq "0" ]; then
+		parsederror="Entry Field Can't Be Empty"
+		return 1
+	fi
+
+	# Preserve `entry "comment"`, but never reinterpret a malformed numeric IP
+	# or range as a comment. Numeric comments can use the explicit separator.
+	if [ "$#" -eq "2" ] \
+		&& Validate_IPSet_Entry_Type "$parseentrytype" "$1" \
+		&& ! Validate_IPSet_Entry_Type "$parseentrytype" "$2"; then
+		case "$2" in
+			*[!0-9./]*)
+				parsedentries="$1"
+				parsedcomment="$2"
+				parsecommentmode="2"
+			;;
+		esac
+	fi
+
+	if [ -z "$parsedentries" ]; then
+		for parseentryvalue in "$@"; do
+			if [ "$parseentryvalue" = "comment" ] && [ "$parsecommentmode" = "0" ]; then
+				[ -n "$parsedentries" ] || { parsederror="Entry Field Can't Be Empty"; return 1; }
+				parsecommentmode="1"
+				continue
+			fi
+			case "$parsecommentmode" in
+				0)
+					if ! Validate_IPSet_Entry_Type "$parseentrytype" "$parseentryvalue"; then
+						parsederror="$parseentryvalue Is Not A Valid IP/Range"
+						return 1
+					fi
+					parsedentries="${parsedentries}${parsedentries:+ }$parseentryvalue"
+				;;
+				1)
+					[ -n "$parseentryvalue" ] || { parsederror="Comment Field Can't Be Empty"; return 1; }
+					parsedcomment="$parseentryvalue"
+					parsecommentmode="2"
+				;;
+				*)
+					parsederror="Only One Quoted Comment Can Follow The Comment Separator"
+					return 1
+				;;
+			esac
+		done
+	fi
+
+	if [ "$parsecommentmode" = "1" ]; then
+		parsederror="Comment Field Can't Be Empty"
+		return 1
+	fi
+	case "$parsedcomment" in
+		*\"*) parsederror="Comment Can't Include Quotes"; return 1 ;;
+	esac
+	if [ "${#parsedcomment}" -gt "$parsecommentlimit" ]; then
+		parsederror="Comment Is Too Long. ${parsecommentlimit} Chars Max"
+		return 1
+	fi
+	parsedentries="$(Normalize_List "$parsedentries")" || { parsederror="Entry Field Can't Be Empty"; return 1; }
+	return 0
+}
+
 List_To_CSV() {
 	printf '%s\n' "$1" | awk '{$1 = $1; gsub(/ /, ","); print}'
 }
@@ -1469,10 +1633,12 @@ Update_IPSet_Batch() {
 }
 
 # Apply a prepared add/del file containing only Skynet data sets. Every affected
-# set is snapshotted first and restored together if any operation fails.
+# set is restored together if any operation fails. An internal caller may supply
+# a current snapshot it already needed, avoiding a second full IPSet export.
 Apply_IPSet_File() {
 	ipsetfile="$1"
-	ipsetsnapshot="$TMP_DIR/ipset-file-snapshot.$$"
+	ipsetsnapshot="$2"
+	ipsetsnapshotowned="0"
 	ipsetnames="$(awk '
 		$1 != "add" && $1 != "del" { exit 1 }
 		$2 != "Skynet-Blacklist" && $2 != "Skynet-BlockedRanges" && $2 != "Skynet-Whitelist" { exit 1 }
@@ -1480,15 +1646,21 @@ Apply_IPSet_File() {
 		!seen[$2]++ { output = output (output == "" ? "" : " ") $2 }
 		END { if (NR == 0) exit 1; print output }
 	' "$ipsetfile")" || return 1
-	true > "$ipsetsnapshot" || return 1
-	for ipsetname in $ipsetnames; do
-		if ! ipset save "$ipsetname" >> "$ipsetsnapshot" 2>/dev/null; then
-			rm -f "$ipsetsnapshot"
-			return 1
-		fi
-	done
+	if [ -n "$ipsetsnapshot" ]; then
+		[ -s "$ipsetsnapshot" ] || return 1
+	else
+		ipsetsnapshot="$TMP_DIR/ipset-file-snapshot.$$"
+		ipsetsnapshotowned="1"
+		true > "$ipsetsnapshot" || return 1
+		for ipsetname in $ipsetnames; do
+			if ! ipset save "$ipsetname" >> "$ipsetsnapshot" 2>/dev/null; then
+				rm -f "$ipsetsnapshot"
+				return 1
+			fi
+		done
+	fi
 	if ipset restore -! < "$ipsetfile"; then
-		rm -f "$ipsetsnapshot"
+		[ "$ipsetsnapshotowned" = "0" ] || rm -f "$ipsetsnapshot"
 		return 0
 	fi
 	for ipsetname in $ipsetnames; do
@@ -1497,7 +1669,7 @@ Apply_IPSet_File() {
 	if ! ipset restore -! < "$ipsetsnapshot" 2>/dev/null; then
 		Log error -s "Failed To Fully Restore IPSet Data"
 	fi
-	rm -f "$ipsetsnapshot"
+	[ "$ipsetsnapshotowned" = "0" ] || rm -f "$ipsetsnapshot"
 	Log error -s "Failed To Apply IPSet File - Previous Entries Restored"
 	return 1
 }
@@ -1507,35 +1679,55 @@ Strip_Domain() {
 	# embedded "www." text remains part of the hostname.
 	awk '{
 		value = tolower($0)
+		sub(/^[[:space:]]*/, "", value)
+		if (value ~ /^#/) next
 		sub(/^https?:\/\//, "", value)
 		sub(/\/.*/, "", value)
 		sub(/^www\./, "", value)
 		if (value != "" && !seen[value]++) print value
-	}'
+	}' "$@"
 }
 
-Normalize_Domain() {
-	# Accept a hostname or URL and emit one lowercase DNS name. Restrict labels
-	# before they can enter an IPSet comment, nslookup command or generated file.
-	printf '%s\n' "$1" | Strip_Domain | awk '
+Normalize_Domain_Input() {
+	# Validate already stripped values in one AWK pass. Single mode rejects the
+	# complete input when invalid; list mode skips invalid values and de-duplicates
+	# their final DNS form before any network work begins.
+	awk -v mode="$1" '
 		{
 			value = tolower($0)
 			sub(/\.$/, "", value)
 			lines++
-			if (length(value) < 1 || length(value) > 253) invalid = 1
+			valid = length(value) >= 1 && length(value) <= 253
 			count = split(value, labels, ".")
 			for (i = 1; i <= count; i++) {
 				if (length(labels[i]) < 1 || length(labels[i]) > 63 ||
 					labels[i] !~ /^[a-z0-9-]+$/ ||
 					substr(labels[i], 1, 1) == "-" ||
-					substr(labels[i], length(labels[i]), 1) == "-") invalid = 1
+					substr(labels[i], length(labels[i]), 1) == "-") valid = 0
 			}
-			output = value
+			if (!valid) {
+				invalid = 1
+				next
+			}
+			if (mode == "single") output = value
+			else if (!seen[value]++) print value
 		}
 		END {
-			if (invalid || lines != 1) exit 1
-			print output
+			if (mode == "single") {
+				if (invalid || lines != 1) exit 1
+				print output
+			}
 		}'
+}
+
+Normalize_Domain() {
+	# Accept one hostname or URL and emit one safe lowercase DNS name.
+	printf '%s\n' "$1" | Strip_Domain | Normalize_Domain_Input single
+}
+
+Normalize_Domain_List() {
+	# Batch equivalent used before bounded lookup pools.
+	Strip_Domain "$@" | Normalize_Domain_Input list
 }
 
 LAN_CIDR_Lookup() {
@@ -1649,6 +1841,23 @@ Display_Header() {
 	esac
 }
 
+Display_Settings_Category() {
+	settingsdividerleft="═══════════════════════════════════"
+	settingsdividerright="${settingsdividerleft}${settingsdividerleft}═"
+	if [ "$2" != "first" ]; then
+		printf '╠%s╬%s╣\n' "$settingsdividerleft" "$settingsdividerright"
+	fi
+	# Keep ANSI bytes outside the padded field so terminal colour never shifts
+	# the table borders. Redirected debug output remains plain text.
+	if [ -t 1 ] || [ -t 2 ]; then
+		printf '║ \033[1;36m%-33s\033[0m ║ %-69s ║\n' "$1" ""
+	else
+		printf '║ %-33s ║ %-69s ║\n' "$1" ""
+	fi
+	printf '╠%s╬%s╣\n' "$settingsdividerleft" "$settingsdividerright"
+	unset "settingsdividerleft" "settingsdividerright"
+}
+
 Display_Message() {
 	btime="$(date +%s)"; printf "%-35s | " "$1"
 }
@@ -1688,21 +1897,13 @@ Filter_OutIP() {
 
 # Match addresses Skynet must never treat as public threats: unspecified,
 # RFC1918, CGNAT, loopback, link-local, documentation, benchmark, multicast and
-# reserved space. The SRC/DST variants apply the same prefixes to log tokens.
+# reserved space.
 Is_PrivateIP() {
 	grep -qE '^(0\.|10\.|100\.(6[4-9]|[7-9][0-9]|1[0-1][0-9]|12[0-7])\.|127\.|169\.254\.|172\.1[6-9]\.|172\.2[0-9]\.|172\.3[0-1]\.|192\.0\.0\.|192\.0\.2\.|192\.168\.|198\.(1[8-9])\.|198\.51\.100\.|203\.0\.113\.|2(2[4-9]|[3-4][0-9]|5[0-5])\.)'
 }
 
 Filter_PrivateIP() {
 	grep -vE '^(0\.|10\.|100\.(6[4-9]|[7-9][0-9]|1[0-1][0-9]|12[0-7])\.|127\.|169\.254\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|192\.0\.0\.|192\.0\.2\.|192\.168\.|198\.(1[8-9])\.|198\.51\.100\.|203\.0\.113\.|2(2[4-9]|[3-4][0-9]|5[0-5])\.)'
-}
-
-Filter_PrivateSRC() {
-	grep -E 'SRC=(0\.|10\.|100\.(6[4-9]|[7-9][0-9]|1[0-1][0-9]|12[0-7])\.|127\.|169\.254\.|172\.1[6-9]\.|172\.2[0-9]\.|172\.3[0-1]\.|192\.0\.0\.|192\.0\.2\.|192\.168\.|198\.(1[8-9])\.|198\.51\.100\.|203\.0\.113\.|2(2[4-9]|[3-4][0-9]|5[0-5])\.)'
-}
-
-Filter_PrivateDST() {
-	grep -E 'DST=(0\.|10\.|100\.(6[4-9]|[7-9][0-9]|1[0-1][0-9]|12[0-7])\.|127\.|169\.254\.|172\.1[6-9]\.|172\.2[0-9]\.|172\.3[0-1]\.|192\.0\.0\.|192\.0\.2\.|192\.168\.|198\.(1[8-9])\.|198\.51\.100\.|203\.0\.113\.|2(2[4-9]|[3-4][0-9]|5[0-5])\.)'
 }
 
 #############################
@@ -1715,7 +1916,7 @@ Domain_Lookup() {
 	# A watchdog provides the timeout missing from older Merlin nslookup builds.
 	lookupdomain="$1"
 	lookuptimeout="$2"
-	lookupresultfile="$TMP_DIR/ns.$(echo "$lookupdomain" | tr -c 'A-Za-z0-9' '_')"
+	lookupresultfile="$TMP_DIR/ns.$(printf '%s' "$lookupdomain" | tr -c 'A-Za-z0-9' '_')"
 	lookupanswerfile="${lookupresultfile}.answers"
 
 	(
@@ -1774,10 +1975,10 @@ Domain_Lookup() {
 	return "$lookupstatus"
 }
 
-Resolve_Domain_IP_List() {
-	# Resolve once, then return a validated, de-duplicated space-separated list.
-	# Callers can validate a complete operation before changing any live IPSet.
-	domainresolveinput="$(Normalize_Domain "$1")" || return 1
+Resolve_Normalized_Domain_IP_List() {
+	# The caller has already passed the hostname through Normalize_Domain or its
+	# batch equivalent. Resolve once and emit validated addresses in supplied mode.
+	domainresolveinput="$1"
 	case "$2" in all|public) ;; *) return 1 ;; esac
 	if [ -n "$3" ]; then
 		domainresolveips="$(Domain_Lookup "$domainresolveinput" 3 "$3")" || return 1
@@ -1788,6 +1989,13 @@ Resolve_Domain_IP_List() {
 		domainresolveips="$(printf '%s\n' "$domainresolveips" | Filter_PrivateIP)" || return 1
 	fi
 	Normalize_List "$domainresolveips"
+}
+
+Resolve_Domain_IP_List() {
+	# Public command paths validate one value here; bulk workers normalise their
+	# complete input once and call Resolve_Normalized_Domain_IP_List directly.
+	domainresolveinput="$(Normalize_Domain "$1")" || return 1
+	Resolve_Normalized_Domain_IP_List "$domainresolveinput" "$2" "$3"
 }
 
 Save_IPSets() {
@@ -1851,16 +2059,29 @@ Apply_Blacklist_File() {
 Whitelist_Blocked_Private_IPs() {
 	if Is_Enabled "$unbanprivateip" && Is_Enabled "$logmode"; then
 		privateipfile="$TMP_DIR/private-whitelist.$$"
-		{
-			grep -F "INBOUND" "$syslogloc" | Filter_PrivateSRC | grep -oE 'SRC=[0-9,\.]*' | cut -c 5- | awk '!x[$0]++' | while IFS= read -r "ip"; do
-				echo "add Skynet-Whitelist $ip comment \"Private IP\""
-				echo "del Skynet-Blacklist $ip"
-			done
-			grep -F "OUTBOUND" "$syslogloc" | Filter_PrivateDST | grep -oE 'DST=[0-9,\.]*' | cut -c 5- | awk '!x[$0]++' | while IFS= read -r "ip"; do
-				echo "add Skynet-Whitelist $ip comment \"Private IP\""
-				echo "del Skynet-Blacklist $ip"
-			done
-		} > "$privateipfile" || { rm -f "$privateipfile"; return 1; }
+		# Extract inbound sources and outbound destinations in one syslog pass. The
+		# prefix test mirrors Filter_PrivateIP's reserved IPv4 definition.
+		awk '
+			function private_ip(ip) {
+				return ip ~ /^(0\.|10\.|100\.(6[4-9]|[7-9][0-9]|1[0-1][0-9]|12[0-7])\.|127\.|169\.254\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|192\.0\.0\.|192\.0\.2\.|192\.168\.|198\.(1[8-9])\.|198\.51\.100\.|203\.0\.113\.|2(2[4-9]|[3-4][0-9]|5[0-5])\.)/
+			}
+			/INBOUND/ { field = "SRC=" }
+			/OUTBOUND/ { field = "DST=" }
+			!field { next }
+			{
+				for (i = 1; i <= NF; i++) {
+					if (index($i, field) != 1) continue
+					ip = substr($i, length(field) + 1)
+					sub(/,.*/, "", ip)
+					if (private_ip(ip) && !seen[ip]++) {
+						printf "add Skynet-Whitelist %s comment \"Private IP\"\n", ip
+						printf "del Skynet-Blacklist %s\n", ip
+					}
+					break
+				}
+				field = ""
+			}
+		' "$syslogloc" > "$privateipfile" || { rm -f "$privateipfile"; return 1; }
 		if [ -s "$privateipfile" ]; then
 			Apply_IPSet_File "$privateipfile" || { rm -f "$privateipfile"; return 1; }
 		fi
@@ -1868,36 +2089,42 @@ Whitelist_Blocked_Private_IPs() {
 	fi
 }
 
+Cleanup_AiProtect_Temp() {
+	rm -f "$aiprotectfile" "$aiprotectold" "$aiprotectrecords" "$aiprotectdomainsraw" "$aiprotectdomains"
+}
+
 Refresh_AiProtect() {
 	if Is_Enabled "$banaiprotect" && [ -s /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db ]; then
-		# Build deletions and replacements before touching the live set. One restore
-		# then applies the complete AiProtection view with rollback on failure.
+		# SQLite's DISTINCT output matches the existing first-seen lists while
+		# reducing thousands of repeated rows to the values Skynet consumes.
+		# The live snapshot also supplies Apply_IPSet_File's rollback, avoiding a
+		# second export of the complete blacklist.
 		aiprotectfile="$TMP_DIR/aiprotect-update.$$"
 		aiprotectold="$TMP_DIR/aiprotect-old.$$"
-		aiprotectsrc="$TMP_DIR/aiprotect-src.$$"
-		aiprotectdst="$TMP_DIR/aiprotect-dst.$$"
+		aiprotectrecords="$TMP_DIR/aiprotect-records.$$"
+		aiprotectdomainsraw="$TMP_DIR/aiprotect-domains.raw"
 		aiprotectdomains="$TMP_DIR/aiprotect-domains.list"
 		if ! ipset save Skynet-Blacklist > "$aiprotectold" 2>/dev/null; then
-			rm -f "$aiprotectfile" "$aiprotectold" "$aiprotectsrc" "$aiprotectdst" "$aiprotectdomains"
+			Cleanup_AiProtect_Temp
 			return 1
 		fi
 		if ! awk '
 			$1 == "add" && $2 == "Skynet-Blacklist" && index($0, "BanAiProtect") {
 				printf "del Skynet-Blacklist %s\n", $3
 			}' "$aiprotectold" > "$aiprotectfile"; then
-			rm -f "$aiprotectfile" "$aiprotectold" "$aiprotectsrc" "$aiprotectdst" "$aiprotectdomains"
+			Cleanup_AiProtect_Temp
 			return 1
 		fi
-		if ! sqlite3 /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db "SELECT src FROM monitor;" > "$aiprotectsrc"; then
-			rm -f "$aiprotectfile" "$aiprotectold" "$aiprotectsrc" "$aiprotectdst" "$aiprotectdomains"
+		if ! sqlite3 -separator '|' /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db '
+			SELECT "S", src FROM (SELECT DISTINCT src FROM monitor)
+			UNION ALL
+			SELECT "D", dst FROM (SELECT DISTINCT dst FROM monitor);
+		' > "$aiprotectrecords"; then
+			Cleanup_AiProtect_Temp
 			return 1
 		fi
-		awk '!seen[$0]++' "$aiprotectsrc" | Filter_IP | Filter_PrivateIP \
+		awk -F '|' '$1 == "S" { print substr($0, 3) }' "$aiprotectrecords" | Filter_IP | Filter_PrivateIP \
 			| awk '{printf "add Skynet-Blacklist %s comment \"BanAiProtect\"\n", $1 }' >> "$aiprotectfile"
-		if ! sqlite3 /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db "SELECT dst FROM monitor;" > "$aiprotectdst"; then
-			rm -f "$aiprotectfile" "$aiprotectold" "$aiprotectsrc" "$aiprotectdst" "$aiprotectdomains"
-			return 1
-		fi
 		if ! awk '
 			function is_ipv4(value, part, count, i) {
 				count = split(value, part, ".")
@@ -1907,30 +2134,34 @@ Refresh_AiProtect() {
 				}
 				return 1
 			}
-			index($0, ":") == 0 && !is_ipv4($0) && !seen[$0]++ { print }
-		' "$aiprotectdst" > "$aiprotectdomains"; then
-			rm -f "$aiprotectfile" "$aiprotectold" "$aiprotectsrc" "$aiprotectdst" "$aiprotectdomains"
+			BEGIN { FS = "|" }
+			$1 == "D" {
+				value = substr($0, 3)
+				if (index(value, ":") == 0 && !is_ipv4(value)) print value
+			}
+		' "$aiprotectrecords" > "$aiprotectdomainsraw" \
+			|| ! Normalize_Domain_List "$aiprotectdomainsraw" > "$aiprotectdomains"; then
+			Cleanup_AiProtect_Temp
 			return 1
 		fi
 		(
-			paralleljobs="0"
+			Start_Background_Jobs
 			while IFS= read -r domain; do
 				{
-					domain="$(Normalize_Domain "$domain")" || exit 0
-					domainips="$(Resolve_Domain_IP_List "$domain" public)" || exit 0
+					domainips="$(Resolve_Normalized_Domain_IP_List "$domain" public)" || exit 0
 					for ip in $domainips; do
 						echo "add Skynet-Blacklist $ip comment \"BanAiProtect: $domain\""
 					done
 				} &
-				Wait_Background_Job_Batch 4
+				Wait_Background_Job_Slot 4
 			done < "$aiprotectdomains"
-			wait
-		) >> "$aiprotectfile" || { rm -f "$aiprotectfile" "$aiprotectold" "$aiprotectsrc" "$aiprotectdst" "$aiprotectdomains"; return 1; }
-		if [ -s "$aiprotectfile" ] && ! Apply_IPSet_File "$aiprotectfile"; then
-			rm -f "$aiprotectfile" "$aiprotectold" "$aiprotectsrc" "$aiprotectdst" "$aiprotectdomains"
+			Wait_Background_Jobs
+		) >> "$aiprotectfile" || { Cleanup_AiProtect_Temp; return 1; }
+		if [ -s "$aiprotectfile" ] && ! Apply_IPSet_File "$aiprotectfile" "$aiprotectold"; then
+			Cleanup_AiProtect_Temp
 			return 1
 		fi
-		rm -f "$aiprotectfile" "$aiprotectold" "$aiprotectsrc" "$aiprotectdst" "$aiprotectdomains"
+		Cleanup_AiProtect_Temp
 	fi
 }
 
@@ -1941,7 +2172,7 @@ Refresh_Manual_Ban_Domains() {
 		sed -i '\~\[Manual Ban\] TYPE=Domain~d;' "$skynetevents"
 		Remove_IPSet_Entries Skynet-Blacklist "ManualBanD" || return 1
 		{
-			paralleljobs="0"
+			Start_Background_Jobs
 			while IFS= read -r "domain"; do
 				{
 					domainips="$(Resolve_Domain_IP_List "$domain" public)" || exit 0
@@ -1950,9 +2181,9 @@ Refresh_Manual_Ban_Domains() {
 						echo "$(date +"%b %e %T") Skynet: [Manual Ban] TYPE=Domain SRC=$ip Host=$domain " >> "$skynetevents"
 					done
 				} &
-				Wait_Background_Job_Batch 4
+				Wait_Background_Job_Slot 4
 			done < "$TMP_DIR/mbans.list"
-			wait
+			Wait_Background_Jobs
 		} | ipset restore -! || return 1
 		rm -f "$TMP_DIR/mbans.list"
 	fi
@@ -1964,7 +2195,7 @@ Refresh_Manual_Whitelist_Domains() {
 		sed -i '\~\[Manual Whitelist\] TYPE=Domain~d;' "$skynetevents"
 		Remove_IPSet_Entries Skynet-Whitelist "ManualWlistD" || return 1
 		{
-			paralleljobs="0"
+			Start_Background_Jobs
 			while IFS= read -r domain; do
 				{
 					domainips="$(Resolve_Domain_IP_List "$domain" public)" || exit 0
@@ -1973,9 +2204,9 @@ Refresh_Manual_Whitelist_Domains() {
 						echo "$(date +"%b %e %T") Skynet: [Manual Whitelist] TYPE=Domain SRC=$ip Host=$domain " >> "$skynetevents"
 					done
 				} &
-				Wait_Background_Job_Batch 4
+				Wait_Background_Job_Slot 4
 			done < "$TMP_DIR/mwhitelist.list"
-			wait
+			Wait_Background_Jobs
 		} | ipset restore -! || return 1
 		cat "$TMP_DIR/mwhitelist.list" >> /jffs/addons/shared-whitelists/shared-Skynet2-whitelist
 		rm -f "$TMP_DIR/mwhitelist.list"
@@ -1983,68 +2214,123 @@ Refresh_Manual_Whitelist_Domains() {
 }
 
 Whitelist_Extra() {
-	echo "ipdeny.com
-	ipapi.co
-	api.db-ip.com
-	api.bgpview.io
-	asn.ipinfo.app
-	speedguide.net
-	otx.alienvault.com
-	github.com
-	raw.githubusercontent.com
-	iplists.firehol.org
-	astrill.com
-	strongpath.net
-	snbforums.com
-	bin.entware.net
-	nwsrv-ns1.asus.com
-	$(nvram get "firmware_server")
-	$(nvram get "ntp_server0")
-	$(nvram get "ntp_server1")" | tr -d "\t" > /jffs/addons/shared-whitelists/shared-Skynet2-whitelist
+	sharedwhitelist="/jffs/addons/shared-whitelists/shared-Skynet2-whitelist"
+	sharedwhitelisttmp="${sharedwhitelist}.tmp.$$"
+	{
+		printf '%s\n' \
+			"ipdeny.com" \
+			"ipapi.co" \
+			"api.db-ip.com" \
+			"api.bgpview.io" \
+			"asn.ipinfo.app" \
+			"speedguide.net" \
+			"otx.alienvault.com" \
+			"github.com" \
+			"raw.githubusercontent.com" \
+			"iplists.firehol.org" \
+			"astrill.com" \
+			"strongpath.net" \
+			"snbforums.com" \
+			"bin.entware.net" \
+			"nwsrv-ns1.asus.com"
+		printf '%s\n' "$(nvram get firmware_server)"
+		printf '%s\n' "$(nvram get ntp_server0)"
+		printf '%s\n' "$(nvram get ntp_server1)"
+	} > "$sharedwhitelisttmp" || { rm -f "$sharedwhitelisttmp"; return 1; }
+	if [ -f "$sharedwhitelist" ] && cmp -s "$sharedwhitelisttmp" "$sharedwhitelist"; then
+		rm -f "$sharedwhitelisttmp"
+	else
+		if ! chmod 644 "$sharedwhitelisttmp" || ! mv -f "$sharedwhitelisttmp" "$sharedwhitelist"; then
+			rm -f "$sharedwhitelisttmp"
+			return 1
+		fi
+	fi
+}
+
+Fetch_CDN_Whitelist() {
+	cdnworkerid="$1"
+	cdnworkerlabel="$2"
+	cdnworkerformat="$3"
+	cdnworkerurl="$4"
+	cdnworkerbase="$TMP_DIR/cdn-whitelist.${cdnworkerid}"
+	cdnworkerraw="${cdnworkerbase}.raw"
+	cdnworkeroutput="${cdnworkerbase}.restore"
+	cdnworkerstatus="${cdnworkerbase}.status"
+	cdnworkerparsed="0"
+	rm -f "$cdnworkerraw" "$cdnworkeroutput" "$cdnworkerstatus"
+
+	if Curl_Fetch -o "$cdnworkerraw" "$cdnworkerurl" 2>/dev/null && Contains_IPRange < "$cdnworkerraw"; then
+		case "$cdnworkerformat" in
+			lines)
+				awk -v label="$cdnworkerlabel" '/^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)([[:space:]]|$)/ {
+					printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: %s\"\n", $1, label
+				}' "$cdnworkerraw" > "$cdnworkeroutput" && cdnworkerparsed="1"
+			;;
+			embedded)
+				awk -v label="$cdnworkerlabel" 'BEGIN {
+					RS = "(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\\/(1?[0-9]|2?[0-9]|3?[0-2]))?)"
+				} RT { printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: %s\"\n", RT, label }' "$cdnworkerraw" > "$cdnworkeroutput" && cdnworkerparsed="1"
+			;;
+		esac
+	fi
+	rm -f "$cdnworkerraw"
+	if [ "$cdnworkerparsed" = "1" ] && [ -s "$cdnworkeroutput" ]; then
+		printf 'current\n' > "$cdnworkerstatus"
+		return 0
+	fi
+	rm -f "$cdnworkeroutput"
+	printf 'failed\n' > "$cdnworkerstatus"
+	return 1
 }
 
 Whitelist_CDN() {
 	if Is_Enabled "$cdnwhitelist"; then
-		# All remote providers must validate before live CDN entries are replaced.
-		# The old whitelist snapshot restores the complete set on apply failure;
-		# static DNS entries remain available if a provider download fails.
+		# Fetch providers concurrently, but assemble their validated results in the
+		# original provider order. Any failure retains every existing dynamic CDN
+		# entry; the four static resolver addresses remain available.
 		cdnlist="$TMP_DIR/cdn-whitelist"
-		cdnraw="${cdnlist}.raw"
+		cdnmanifest="${cdnlist}.sources"
 		cdnsnapshot="${cdnlist}.old"
 		cdnrestore="${cdnlist}.restore"
+		cdncurrent="${cdnlist}.current"
+		cdnwanted="${cdnlist}.wanted"
 		cdnstatus="0"
-		true > "$cdnlist" || return 1
+		cdnresult="updated"
+		cdnfailedsource=""
+		cdntab="$(printf '\t')"
+		IFS= read -r officeuuid < /proc/sys/kernel/random/uuid || officeuuid="$$"
+		{
+			printf '1\tAS714\tlines\thttps://asn.ipinfo.app/api/text/list/AS714\n'
+			printf '2\tAS12222\tlines\thttps://asn.ipinfo.app/api/text/list/AS12222\n'
+			printf '3\tAS16625\tlines\thttps://asn.ipinfo.app/api/text/list/AS16625\n'
+			printf '4\tAS33438\tlines\thttps://asn.ipinfo.app/api/text/list/AS33438\n'
+			printf '5\tAS20446\tlines\thttps://asn.ipinfo.app/api/text/list/AS20446\n'
+			printf '6\tAS54113\tlines\thttps://asn.ipinfo.app/api/text/list/AS54113\n'
+			printf '7\tAS36459\tlines\thttps://asn.ipinfo.app/api/text/list/AS36459\n'
+			printf '8\tCloudFlare\tlines\thttps://www.cloudflare.com/ips-v4\n'
+			printf '9\tAmazon\tembedded\thttps://ip-ranges.amazonaws.com/ip-ranges.json\n'
+			printf '10\tGitHub\tembedded\thttps://api.github.com/meta\n'
+			printf '11\tMicrosoft365\tembedded\thttps://endpoints.office.com/endpoints/worldwide?clientrequestid=%s\n' "$officeuuid"
+		} > "$cdnmanifest" || return 1
 
-		# Apple AS714 | Akamai AS12222 AS16625 | HighWinds AS33438 AS20446 | Fastly AS54113 | GitHub AS36459
-		for asn in AS714 AS12222 AS16625 AS33438 AS20446 AS54113 AS36459; do
-			if Curl_Fetch -o "$cdnraw" "https://asn.ipinfo.app/api/text/list/$asn" 2>/dev/null && Contains_IPRange < "$cdnraw"; then
-				awk -v asn="$asn" '/^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)([[:space:]]|$)/{printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: %s\"\n", $1, asn }' "$cdnraw" >> "$cdnlist"
-			else
+		Start_Background_Jobs
+		while IFS="$cdntab" read -r cdnid cdnlabel cdnformat cdnurl; do
+			Fetch_CDN_Whitelist "$cdnid" "$cdnlabel" "$cdnformat" "$cdnurl" &
+			Wait_Background_Job_Slot 4
+		done < "$cdnmanifest"
+		Wait_Background_Jobs
+		true > "$cdnlist" || return 1
+		while IFS="$cdntab" read -r cdnid cdnlabel cdnformat cdnurl; do
+			cdnstate=""
+			[ ! -s "${cdnlist}.${cdnid}.status" ] || IFS= read -r cdnstate < "${cdnlist}.${cdnid}.status"
+			if [ "$cdnstate" != "current" ] \
+				|| ! cat "${cdnlist}.${cdnid}.restore" >> "$cdnlist"; then
 				cdnstatus="1"
+				cdnresult="source"
+				cdnfailedsource="$cdnlabel"
 				break
 			fi
-		done
-
-		if [ "$cdnstatus" = "0" ] && Curl_Fetch -o "$cdnraw" "https://www.cloudflare.com/ips-v4" 2>/dev/null && Contains_IPRange < "$cdnraw"; then
-			awk '/^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)([[:space:]]|$)/{printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: CloudFlare\"\n", $1 }' "$cdnraw" >> "$cdnlist"
-		elif [ "$cdnstatus" = "0" ]; then
-			cdnstatus="1"
-		fi
-		if [ "$cdnstatus" = "0" ] && Curl_Fetch -o "$cdnraw" "https://ip-ranges.amazonaws.com/ip-ranges.json" 2>/dev/null && Contains_IPRange < "$cdnraw"; then
-			awk 'BEGIN{RS="(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\\/(1?[0-9]|2?[0-9]|3?[0-2]))?)"}{if(RT)printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: Amazon\"\n", RT }' "$cdnraw" >> "$cdnlist"
-		elif [ "$cdnstatus" = "0" ]; then
-			cdnstatus="1"
-		fi
-		if [ "$cdnstatus" = "0" ] && Curl_Fetch -o "$cdnraw" "https://api.github.com/meta" 2>/dev/null && Contains_IPRange < "$cdnraw"; then
-			awk 'BEGIN{RS="(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\\/(1?[0-9]|2?[0-9]|3?[0-2]))?)"}{if(RT)printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: GitHub\"\n", RT }' "$cdnraw" >> "$cdnlist"
-		elif [ "$cdnstatus" = "0" ]; then
-			cdnstatus="1"
-		fi
-		if [ "$cdnstatus" = "0" ] && Curl_Fetch -o "$cdnraw" "https://endpoints.office.com/endpoints/worldwide?clientrequestid=$(awk '{printf "%s", $1}' /proc/sys/kernel/random/uuid)" 2>/dev/null && Contains_IPRange < "$cdnraw"; then
-			awk 'BEGIN{RS="(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\\/(1?[0-9]|2?[0-9]|3?[0-2]))?)"}{if(RT)printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: Microsoft365\"\n", RT }' "$cdnraw" >> "$cdnlist"
-		elif [ "$cdnstatus" = "0" ]; then
-			cdnstatus="1"
-		fi
+		done < "$cdnmanifest"
 
 		printf '%s\n' \
 			'add Skynet-Whitelist 8.8.8.8 comment "CDN-Whitelist: GoogleDNS"' \
@@ -2052,23 +2338,34 @@ Whitelist_CDN() {
 			'add Skynet-Whitelist 1.1.1.1 comment "CDN-Whitelist: CloudFlareDNS"' \
 			'add Skynet-Whitelist 1.0.0.1 comment "CDN-Whitelist: CloudFlareDNS"' >> "$cdnlist"
 
-		if [ "$cdnstatus" = "0" ] \
-			&& ipset save Skynet-Whitelist > "$cdnsnapshot" 2>/dev/null \
-			&& awk '!x[$0]++' "$cdnlist" > "$cdnrestore" \
-			&& [ -s "$cdnrestore" ]; then
-			sed '\~^add Skynet-Whitelist ~!d;\~CDN-Whitelist~!d;s~ comment.*~~;s~add~del~' "$cdnsnapshot" | ipset restore -!
-			if ! ipset restore -! < "$cdnrestore"; then
-				sed 's~^add~del~;s~ comment.*~~' "$cdnrestore" | ipset restore -!
-				ipset restore -! < "$cdnsnapshot"
+		if [ "$cdnstatus" = "0" ]; then
+			if ipset save Skynet-Whitelist > "$cdnsnapshot" 2>/dev/null \
+				&& awk '!x[$3]++' "$cdnlist" > "$cdnrestore" \
+				&& [ -s "$cdnrestore" ]; then
+				# Compare canonical entry keys rather than IPSet hash order or comments.
+				# A /32 and its host form are equivalent once loaded into hash:net.
+				awk '/CDN-Whitelist:/ { entry=$3; sub(/\/32$/, "", entry); print entry }' "$cdnsnapshot" | sort -u > "$cdncurrent"
+				awk '{ entry=$3; sub(/\/32$/, "", entry); print entry }' "$cdnrestore" | sort -u > "$cdnwanted"
+				if cmp -s "$cdncurrent" "$cdnwanted"; then
+					cdnresult="current"
+				elif sed '\~^add Skynet-Whitelist ~!d;\~CDN-Whitelist~!d;s~ comment.*~~;s~add~del~' "$cdnsnapshot" | ipset restore -! \
+					&& ipset restore -! < "$cdnrestore"; then
+					cdnresult="updated"
+				else
+					sed 's~^add~del~;s~ comment.*~~' "$cdnrestore" | ipset restore -!
+					ipset restore -! < "$cdnsnapshot"
+					cdnstatus="1"
+					cdnresult="apply"
+				fi
+			else
 				cdnstatus="1"
+				cdnresult="apply"
 			fi
-		else
-			cdnstatus="1"
 		fi
 		if [ "$cdnstatus" != "0" ]; then
 			grep -E 'GoogleDNS|CloudFlareDNS' "$cdnlist" | ipset restore -!
 		fi
-		rm -f "$cdnlist" "$cdnraw" "$cdnsnapshot" "$cdnrestore"
+		rm -f "$cdnlist" "${cdnlist}."*
 		[ "$cdnstatus" = "0" ]
 	else
 		Remove_IPSet_Entries Skynet-Whitelist "CDN-Whitelist" || return 1
@@ -2090,25 +2387,72 @@ Whitelist_VPN() {
 }
 
 Whitelist_Shared() {
+	# NVRAM stores these as whitespace-separated resolver pairs.
+	# shellcheck disable=SC2046
+	set -- $(nvram get wan_dns)
+	sharedwandns1="${1:-}"
+	sharedwandns2="${2:-}"
+	# shellcheck disable=SC2046
+	set -- $(nvram get wan0_dns)
+	sharedwan0dns1="${1:-}"
+	sharedwan0dns2="${2:-}"
+	# shellcheck disable=SC2046
+	set -- $(nvram get wan0_xdns)
+	sharedwan0xdns1="${1:-}"
+	sharedwan0xdns2="${2:-}"
 	echo "add Skynet-Whitelist $(nvram get wan0_ipaddr) comment \"nvram: wan0_ipaddr\"
 	add Skynet-Whitelist $(LAN_CIDR_Lookup "$(nvram get "lan_ipaddr")") comment \"nvram: lan_ipaddr\"
 	add Skynet-Whitelist $(nvram get wan_dns1_x) comment \"nvram: wan_dns1_x\"
 	add Skynet-Whitelist $(nvram get wan_dns2_x) comment \"nvram: wan_dns2_x\"
 	add Skynet-Whitelist $(nvram get wan0_dns1_x) comment \"nvram: wan0_dns1_x\"
 	add Skynet-Whitelist $(nvram get wan0_dns2_x) comment \"nvram: wan0_dns2_x\"
-	add Skynet-Whitelist $(nvram get wan_dns | awk '{print $1}') comment \"nvram: wan_dns\"
-	add Skynet-Whitelist $(nvram get wan_dns | awk '{print $2}') comment \"nvram: wan_dns\"
-	add Skynet-Whitelist $(nvram get wan0_dns | awk '{print $1}') comment \"nvram: wan0_dns\"
-	add Skynet-Whitelist $(nvram get wan0_dns | awk '{print $2}') comment \"nvram: wan0_dns\"
-	add Skynet-Whitelist $(nvram get wan0_xdns | awk '{print $1}') comment \"nvram: wan0_xdns\"
-	add Skynet-Whitelist $(nvram get wan0_xdns | awk '{print $2}') comment \"nvram: wan0_xdns\"
+	add Skynet-Whitelist $sharedwandns1 comment \"nvram: wan_dns\"
+	add Skynet-Whitelist $sharedwandns2 comment \"nvram: wan_dns\"
+	add Skynet-Whitelist $sharedwan0dns1 comment \"nvram: wan0_dns\"
+	add Skynet-Whitelist $sharedwan0dns2 comment \"nvram: wan0_dns\"
+	add Skynet-Whitelist $sharedwan0xdns1 comment \"nvram: wan0_xdns\"
+	add Skynet-Whitelist $sharedwan0xdns2 comment \"nvram: wan0_xdns\"
 	add Skynet-Whitelist 192.30.252.0/22 comment \"nvram: GitHub Content Server\"
 	add Skynet-Whitelist 127.0.0.0/8 comment \"nvram: Localhost\"" | tr -d "\t" | Filter_IPLine | ipset restore -! 2>/dev/null
+
+	# Publish a new dnsmasq file only when the generated Skynet lines differ.
+	# Avoiding an unchanged restart preserves dnsmasq's cache before the bounded
+	# lookups below repopulate Skynet-WhitelistDomains.
+	dnsmasqfile="/jffs/configs/dnsmasq.conf.add"
+	dnsmasqtmp="${dnsmasqfile}.tmp.$$"
+	dnsmasqdomains="$TMP_DIR/dnsmasq-domains.$$"
+	dnsmasqchanged="0"
+	if [ -f "$dnsmasqfile" ]; then
+		sed '\~# Skynet~d' "$dnsmasqfile" > "$dnsmasqtmp" || { rm -f "$dnsmasqtmp"; return 1; }
+	else
+		true > "$dnsmasqtmp" || return 1
+	fi
+	Strip_Domain /jffs/addons/shared-whitelists/shared-*-whitelist > "$dnsmasqdomains" \
+		|| { rm -f "$dnsmasqtmp" "$dnsmasqdomains"; return 1; }
+	awk '
+		NF {
+			line = line (count == 0 ? "ipset=/" : "/") $0
+			count++
+			if (count == 20) {
+				print line "/Skynet-WhitelistDomains # Skynet"
+				line = ""
+				count = 0
+			}
+		}
+		END { if (count) print line "/Skynet-WhitelistDomains # Skynet" }
+	' "$dnsmasqdomains" >> "$dnsmasqtmp" || { rm -f "$dnsmasqtmp" "$dnsmasqdomains"; return 1; }
+	rm -f "$dnsmasqdomains"
+	if [ -f "$dnsmasqfile" ] && cmp -s "$dnsmasqtmp" "$dnsmasqfile"; then
+		rm -f "$dnsmasqtmp"
+	else
+		if ! chmod 644 "$dnsmasqtmp" || ! mv -f "$dnsmasqtmp" "$dnsmasqfile"; then
+			rm -f "$dnsmasqtmp"
+			return 1
+		fi
+		dnsmasqchanged="1"
+	fi
 	ipset flush Skynet-WhitelistDomains
-	sed -i '\~# Skynet~d' /jffs/configs/dnsmasq.conf.add
-	grep -hvF "#" /jffs/addons/shared-whitelists/shared-*-whitelist | Strip_Domain | xargs -n 20 | sed 's~^~ipset=/~g;s~ ~/~g;s~$~/Skynet-WhitelistDomains # Skynet~g' >> /jffs/configs/dnsmasq.conf.add
-	chmod 644 /jffs/configs/dnsmasq.conf.add
-	service restart_dnsmasq >/dev/null 2>&1
+	[ "$dnsmasqchanged" = "0" ] || service restart_dnsmasq >/dev/null 2>&1
 	if [ "$(uname -o)" = "ASUSWRT-Merlin" ]; then dotvar="dnspriv_rulelist"; else dotvar="stubby_dns"; fi
 	for ip in $(nvram get "$dotvar" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}'); do
 		echo "add Skynet-Whitelist $ip comment \"nvram: $dotvar\""
@@ -2119,17 +2463,16 @@ Whitelist_Shared() {
 		done | strings | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{printf "add Skynet-Whitelist %s comment \"nvram: DNSCrypt Stamp\"\n", $1 }' | ipset restore -!
 	fi
 	if [ -f "/opt/var/lib/unbound/root.hints" ]; then
-		grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' /opt/var/lib/unbound/root.hints | while read -r roothint; do
-			echo "add Skynet-Whitelist $roothint comment \"nvram: Root DNS Server\""
-		done | ipset restore -!
+		grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' /opt/var/lib/unbound/root.hints \
+			| awk '{printf "add Skynet-Whitelist %s comment \"nvram: Root DNS Server\"\n", $1 }' | ipset restore -!
 	fi
 	Strip_Domain < /jffs/addons/shared-whitelists/shared-Skynet2-whitelist | {
-		paralleljobs="0"
+		Start_Background_Jobs
 		while IFS= read -r domain; do
 			Domain_Lookup "$domain" 3 127.0.0.1 >/dev/null 2>&1 &
-			Wait_Background_Job_Batch 4
+			Wait_Background_Job_Slot 4
 		done
-		wait
+		Wait_Background_Jobs
 	}
 }
 
@@ -2648,9 +2991,9 @@ Show_Associated_Domains() {
 		loghits="$(grep -E "reply.* is $1" /opt/var/log/dnsmasq* 2>/dev/null)"
 		if [ -n "$loghits" ]; then
 			Red "Associated Domain(s);"
-			assdomains="$(echo "$loghits" | awk '{print $(NF-2)}' | Strip_Domain | Filter_OutIP | sort -u)"
+			assdomains="$(printf '%s\n' "$loghits" | awk '{print $(NF-2)}' | Strip_Domain | Filter_OutIP | sort -u)"
 			diversion_lists="$(cat /opt/share/diversion/list/blockinglist /opt/share/diversion/list/blacklist 2>/dev/null)"
-			echo "$assdomains" | while IFS= read -r domain; do
+			printf '%s\n' "$assdomains" | while IFS= read -r domain; do
 				if printf '%s\n' "$diversion_lists" | grep -qE " (www\.)?${domain}$| (www\.)?${domain} "; then
 					echo "$domain (Flagged By Diversion)"
 				else
@@ -2681,10 +3024,10 @@ Search_Ban_Reasons() {
 	case "$bansearchlimit" in
 		""|*[!0-9]*) echo "[*] Result Count Must Be Numeric"; return 2 ;;
 	esac
-	[ "$bansearchlimit" -ge "1" ] && [ "$bansearchlimit" -le "100" ] || {
+	if [ "$bansearchlimit" -lt "1" ] || [ "$bansearchlimit" -gt "100" ]; then
 		echo "[*] Result Count Must Be Between 1 And 100"
 		return 2
-	}
+	fi
 	{ ipset save Skynet-Blacklist 2>/dev/null; ipset save Skynet-BlockedRanges 2>/dev/null; } > "$bansearchdata" || return 1
 	printf '#\n' > "$bansearchsources" || return 1
 	if [ -f /jffs/addons/shared-whitelists/shared-Skynet-whitelist ]; then
@@ -2782,7 +3125,7 @@ Run_Stats() {
 		printf '║ └── %-16s │ %-82s ║\n' "Used/Total" "$SZ / ${logsize}MB"
 		Generate_Blocked_Events
 		printf '║ %-20s │ %-82s ║\n' "Manual Bans"       "$(grep -Fc "Manual Ban" "$skynetevents")"
-		printf '║ %-20s │ %-84s ║\n' "Monitor Span"      "$(grep -m1 -F "BLOCKED -" "$skynetlog" | awk '{printf "%s %s %s\n", $1, $2, $3}') → $(grep -F "BLOCKED -" "$skynetlog" | tail -1 | awk '{printf "%s %s %s\n", $1, $2, $3}')"
+		printf '║ %-20s │ %-84s ║\n' "Monitor Span"      "$monitorspan"
 		printf '╚══════════════════════╧════════════════════════════════════════════════════════════════════════════════════╝\n\n\n'
 		counter="10"
 		case "$2" in
@@ -2932,7 +3275,7 @@ Run_Stats() {
 					;;
 					malware)
 						Check_Lock "$@"
-						if ! echo "$4" | Is_IPRange; then echo "[*] $4 Is Not A Valid IP/Range"; echo; exit 2; fi
+						if ! printf '%s\n' "$4" | Is_IPRange; then echo "[*] $4 Is Not A Valid IP/Range"; echo; exit 2; fi
 						ip="$(echo "$4" | sed 's~\.~\\.~g')"
 						Show_Associated_Domains "$ip"
 						printf '   \b\b\b'
@@ -2942,13 +3285,15 @@ Run_Stats() {
 						cwd="$(pwd)"
 						cd "${skynetloc}/lists" || exit 1
 						grep -HE "^$ip$" -- * | while IFS= read -r "list" && [ -n "$list" ]; do
-							printf '%-20s | %-40s\n' "$(echo "$list" | cut -d ':' -f2-)" "$(grep -F "$(echo "$list" | cut -d ':' -f1)" /jffs/addons/shared-whitelists/shared-Skynet-whitelist)"
+							listfile="${list%%:*}"
+							printf '%-20s | %-40s\n' "${list#*:}" "$(grep -F "$listfile" /jffs/addons/shared-whitelists/shared-Skynet-whitelist)"
 						done
 						printf '   \b\b\b\n\n'
 						Red "Possible CIDR Matches;"
 						Display_Header "5"
 						grep -HE "^$(echo "$ip" | cut -d '.' -f1-3)\..*/" -- * | while IFS= read -r "list" && [ -n "$list" ]; do
-							printf '%-20s | %-40s\n' "$(echo "$list" | cut -d ':' -f2-)" "$(grep -F "$(echo "$list" | cut -d ':' -f1)" /jffs/addons/shared-whitelists/shared-Skynet-whitelist)"
+							listfile="${list%%:*}"
+							printf '%-20s | %-40s\n' "${list#*:}" "$(grep -F "$listfile" /jffs/addons/shared-whitelists/shared-Skynet-whitelist)"
 						done
 						printf '   \b\b\b'
 						cd "$cwd" || exit 1
@@ -3019,38 +3364,36 @@ Run_Stats() {
 					connections)
 						if [ -f "/proc/bw_cte_dump" ] && [ -f "/tmp/bwdpi/bwdpi.app.db" ]; then
 							Display_Header "11"
+							connectionfiltertype="$4"
+							connectionfiltervalue="$5"
 							while IFS= read -r "logs"; do
-								mark="$(echo "$logs" | awk '{printf $8}' | sed 's~mark=~~g')"
+								# bw_cte_dump fields are whitespace-delimited kernel data. Decode the
+								# DPI mark in-shell instead of spawning utilities for every row.
+								# shellcheck disable=SC2086
+								set -- $logs
+								mark="${8#mark=}"
 								mark="$(printf '%d\n' "0x${mark}")"
-								mark2="$(printf '%X\n' "$((mark & 0x3F0000))")"
-								mark2="0x${mark2}"
-								id="$(awk -v mark="$mark2" 'BEGIN {printf "%.3f\n", mark / 65535}' | sed 's~\..*~~g')"
-								hex="$(printf '%X\n' "$((mark & 0xFFFF))")"
-								cat="$(printf '%d\n' "0x${hex}")"
-								proto="$(echo "$logs" | awk '{print $2}')"
-								sourceip="$(echo "$logs" | awk '{print $3}' | cut -d '=' -f2)"
-								if echo "$sourceip" | grep -q ":"; then sourceip="IPv6 Address"; fi
-								destip="$(echo "$logs" | awk '{print $4}' | cut -d '=' -f2)"
-								if echo "$destip" | grep -q ":"; then destip="IPv6 Address"; fi
-								sport="$(echo "$logs" | awk '{print $5}' | cut -d '=' -f2)"
-								dport="$(echo "$logs" | awk '{print $6}' | cut -d '=' -f2)"
-								if [ "$cat" = "0" ] && [ "$id" = "0" ]; then
+								appid="$(((mark & 0x3F0000) / 65535))"
+								categoryid="$((mark & 0xFFFF))"
+								proto="$2"
+								sourceip="${3#*=}"
+								case "$sourceip" in *:*) sourceip="IPv6 Address" ;; esac
+								destip="${4#*=}"
+								case "$destip" in *:*) destip="IPv6 Address" ;; esac
+								sport="${5#*=}"
+								dport="${6#*=}"
+								if [ "$categoryid" = "0" ] && [ "$appid" = "0" ]; then
 									reason="Unidentified"
 								else
-									reason="$(grep -E "^${id},${cat},0" "/tmp/bwdpi/bwdpi.app.db" | cut -d ',' -f4)"
+									reason="$(awk -F ',' -v app="$appid" -v category="$categoryid" '$1 == app && $2 == category && $3 == 0 { print $4; exit }' /tmp/bwdpi/bwdpi.app.db)"
 								fi
-								if [ "$4" = "ip" ] && [ -n "$5" ] && [ "$5" != "$sourceip" ] && [ "$5" != "$destip" ]; then
-									true
-								elif [ "$4" = "port" ] && [ -n "$5" ] && [ "$5" != "$sport" ] && [ "$5" != "$dport" ]; then
-									true
-								elif [ "$4" = "proto" ] && [ -n "$5" ] && [ "$5" != "$proto" ]; then
-									true
-								elif [ "$4" = "id" ] && [ -n "$5" ] && [ "$5" != "$reason" ]; then
-									true
-								else
-									printf '%-10s | %-18s | %-10s | %-18s | %-10s | %-18s\n' "$proto" "$sourceip" "$sport" "$destip" "$dport" "$reason"
-								fi
+								[ "$connectionfiltertype" = "ip" ] && [ -n "$connectionfiltervalue" ] && [ "$connectionfiltervalue" != "$sourceip" ] && [ "$connectionfiltervalue" != "$destip" ] && continue
+								[ "$connectionfiltertype" = "port" ] && [ -n "$connectionfiltervalue" ] && [ "$connectionfiltervalue" != "$sport" ] && [ "$connectionfiltervalue" != "$dport" ] && continue
+								[ "$connectionfiltertype" = "proto" ] && [ -n "$connectionfiltervalue" ] && [ "$connectionfiltervalue" != "$proto" ] && continue
+								[ "$connectionfiltertype" = "id" ] && [ -n "$connectionfiltervalue" ] && [ "$connectionfiltervalue" != "$reason" ] && continue
+								printf '%-10s | %-18s | %-10s | %-18s | %-10s | %-18s\n' "$proto" "$sourceip" "$sport" "$destip" "$dport" "$reason"
 							done < /proc/bw_cte_dump
+							unset "connectionfiltertype" "connectionfiltervalue" "logs" "mark" "appid" "categoryid" "proto" "sourceip" "destip" "sport" "dport" "reason"
 						else
 							echo "Please Enable AiProtection To Use This Feature"
 						fi
@@ -3222,7 +3565,7 @@ Generate_WebUI_Feed_Data() {
 	feedexcluded="0"
 	if [ -s "$feedstatusfile" ]; then
 		feedtab="$(printf '\t')"
-		while IFS="$feedtab" read -r feedname feedurl feedstatusenabled feedstate feedentries feedchecked feedsuccess; do
+		while IFS="$feedtab" read -r feedname feedurl _feedstatusenabled feedstate feedentries feedchecked feedsuccess; do
 			feedenabled="true"
 			feednamelower="$(printf '%s\n' "$feedname" | awk '{ print tolower($0) }')"
 			for feedexcludedname in $excludelists; do
@@ -3441,12 +3784,19 @@ Generate_Stats() {
 	return 1
 }
 Generate_Blocked_Events() {
-	blockedevents="$(awk '
+	# Count events, unique remote IPs and the monitor span in one log pass. A
+	# manual counter is used because POSIX awk does not define length(array).
+	if blockedeventsummary="$(awk '
+		/BLOCKED -/ {
+			stamp=$1 " " $2 " " $3
+			if (monitorfirst == "") monitorfirst=stamp
+			monitorlast=stamp
+		}
 		/INBOUND|INVALID/ {
 			for (i = 1; i <= NF; i++)
 				if ($i ~ /^SRC=/) {
 					split($i, ip, "=")
-					if (ip[2] ~ /^[0-9.]+$/) seen[ip[2]]++
+					if (ip[2] ~ /^[0-9.]+$/ && !seen[ip[2]]++) uniquecount++
 					break
 				}
 		}
@@ -3454,12 +3804,25 @@ Generate_Blocked_Events() {
 			for (i = 1; i <= NF; i++)
 				if ($i ~ /^DST=/) {
 					split($i, ip, "=")
-					if (ip[2] ~ /^[0-9.]+$/) seen[ip[2]]++
+					if (ip[2] ~ /^[0-9.]+$/ && !seen[ip[2]]++) uniquecount++
 					break
 				}
 		}
-		END { printf "%d (%d Unique IPs)", NR, length(seen) }
-	' "$skynetlog")"
+		END { printf "%d (%d Unique IPs)|%s|%s", NR, uniquecount, monitorfirst, monitorlast }
+	' "$skynetlog")"; then
+		blockedevents="${blockedeventsummary%%|*}"
+		monitorvalues="${blockedeventsummary#*|}"
+		monitorfirst="${monitorvalues%%|*}"
+		monitorlast="${monitorvalues#*|}"
+		if [ -n "$monitorfirst" ] && [ -n "$monitorlast" ]; then
+			monitorspan="$monitorfirst → $monitorlast"
+		else
+			monitorspan="No Data"
+		fi
+	else
+		blockedevents="Unavailable"
+		monitorspan="Unavailable"
+	fi
 	printf '║ %-20s │ %-82s ║\n' "Block Events" "$blockedevents"
 }
 
@@ -3517,7 +3880,7 @@ Install_WebUI_Page() {
 		umount /www/require/modules/menuTree.js 2>/dev/null
 		mount -o bind /tmp/menuTree.js /www/require/modules/menuTree.js || return 1
 	else
-		MyPageTitle="$(echo "$MyPage" | sed 's~.asp~~g').title"
+		MyPageTitle="${MyPage%.asp}.title"
 		echo "Skynet" > "/www/user/$MyPageTitle" || return 1
 	fi
 	mkdir -p "/www/user/skynet" \
@@ -3536,7 +3899,7 @@ Uninstall_WebUI_Page() {
 			umount /www/require/modules/menuTree.js
 			mount -o bind /tmp/menuTree.js /www/require/modules/menuTree.js
 		else
-			MyPageTitle="$(echo "$MyPage" | sed 's~.asp~~g').title"
+			MyPageTitle="${MyPage%.asp}.title"
 			rm -f "/www/user/$MyPageTitle"
 		fi
 		rm -f "/www/user/$MyPage"
@@ -3588,16 +3951,65 @@ Download_File() {
 #- Devices And Storage -#
 ########################
 
+Prepare_Client_Name_Data() {
+	# Resolve only the OUI prefixes present in the supplied device data. The
+	# 1.3MB Merlin database is then scanned once instead of once per device.
+	clientouifile="$TMP_DIR/client-ouis.$$"
+	clientouiprepared="0"
+	rm -f "$clientouifile"
+	[ -s "$1" ] && [ -r /www/ajax/ouiDB.json ] || return 0
+	if awk '
+		NR == FNR {
+			record=$0
+			gsub(/~/, " ", record)
+			count=split(record, field, /[[:space:]]+/)
+			for (i=1; i <= count; i++) {
+				mac=field[i]
+				gsub(/:/, "", mac)
+				if (length(mac) == 12 && mac !~ /[^0-9A-Fa-f]/)
+					wanted[toupper(substr(mac, 1, 6))]=1
+			}
+			next
+		}
+		{
+			prefix=toupper(substr($0, 2, 6))
+			if (prefix in wanted) {
+				vendor=$0
+				sub(/^[^:]*:[[:space:]]*"/, "", vendor)
+				sub(/",?[[:space:]]*$/, "", vendor)
+				print prefix "\t" vendor
+			}
+		}
+	' "$1" /www/ajax/ouiDB.json > "$clientouifile"; then
+		clientouiprepared="1"
+		return 0
+	fi
+	rm -f "$clientouifile"
+	return 1
+}
+
+Clear_Client_Name_Data() {
+	rm -f "$clientouifile"
+	unset "clientouifile" "clientouiprepared"
+}
+
 Resolve_Client_Name() {
 	localname=""
 	if [ "$customclientlistloaded" != "1" ]; then
 		customclientlist="$(nvram get custom_clientlist)"
 		customclientlistloaded="1"
 	fi
+	if [ "$clientcontextloaded" != "1" ]; then
+		clientwanip="$(nvram get wan0_ipaddr)"
+		clientwgsip="$(nvram get wgs1_addr | cut -d'/' -f1)"
+		clientvpnremote1="$(nvram get vpn_server1_remote)"
+		clientvpnremote2="$(nvram get vpn_server2_remote)"
+		clientcontextloaded="1"
+	fi
 	
 	# Merlin stores custom clients as <display name>...MAC records. Extract the
 	# name associated with this MAC, then remove characters unsafe for chart text.
-	if [ -n "$macaddr" ]; then
+	if [ -n "$macaddr" ] && [ -n "$customclientlist" ]; then
 		localname="$(printf '%s\n' "$customclientlist" | grep -ioE "<.*>$macaddr" | sed -E 's/.*<([^>]+)>[^<]*$/\1/; s/[^a-zA-Z0-9.-]//g')"
 	fi
 	
@@ -3609,19 +4021,23 @@ Resolve_Client_Name() {
 	# If no name found, check OUI DB for MAC address
 	if [ -z "$localname" ] || [ "$localname" = "*" ]; then
 		if [ -n "$macaddr" ]; then
-			macaddr2=$(echo "$macaddr" | tr -d ':' | cut -c1-6 | tr 'abcdef' 'ABCDEF')
-			localname=$(grep -m1 "$macaddr2" /www/ajax/ouiDB.json | cut -d\" -f4)
+			macaddr2="$(printf '%s\n' "$macaddr" | awk '{ gsub(/:/, ""); print toupper(substr($0, 1, 6)) }')"
+			if [ "$clientouiprepared" = "1" ]; then
+				localname="$(awk -F '\t' -v prefix="$macaddr2" '$1 == prefix { print $2; exit }' "$clientouifile")"
+			else
+				localname="$(awk -v prefix="\"$macaddr2\"" 'index($0, prefix) == 1 { value=$0; sub(/^[^:]*:[[:space:]]*"/, "", value); sub(/",?[[:space:]]*$/, "", value); print value; exit }' /www/ajax/ouiDB.json)"
+			fi
 		fi
 		# Additional checks for specific cases	
 		if [ -z "$localname" ]; then
 			case "$ipaddr" in
-				"$(nvram get wan0_ipaddr)")
+				"$clientwanip")
 					localname="$model"
 				;;
-				"$(nvram get wgs1_addr | cut -d'/' -f1)")
+				"$clientwgsip")
 					localname="Wireguard VPN Server"
 				;;
-				"$(nvram get vpn_server1_remote)" | "$(nvram get vpn_server2_remote)")
+				"$clientvpnremote1" | "$clientvpnremote2")
 					localname="OpenVPN Server"
 				;;
 				*)
@@ -3633,7 +4049,7 @@ Resolve_Client_Name() {
 	
 	# Truncate name if too long
 	if [ "${#localname}" -gt 40 ]; then
-		localname="$(echo "$localname" | cut -c 1-40)"
+		localname="$(printf '%.40s' "$localname")"
 	fi
 }
 
@@ -3790,7 +4206,7 @@ Return_To_Menu() {
 }
 
 Invalid_Option() {
-	echo "[*] $1 Isn't An Option!"
+	Ylow "[*] $1 Isn't An Option!"
 	echo
 }
 
@@ -3805,7 +4221,22 @@ Menu_Require_Running() {
 }
 
 Prompt_Input() {
-	printf "[%s]: " "$1"
+	case "$1" in
+		[0-9]*-[0-9]*)
+			if [ -t 1 ] || [ -t 2 ]; then
+				printf 'Select \033[1;36m[%s or e]\033[0m: ' "$1"
+			else
+				printf 'Select [%s or e]: ' "$1"
+			fi
+		;;
+		*)
+			if [ -t 1 ] || [ -t 2 ]; then
+				printf '\033[1;36m%s\033[0m: ' "$1"
+			else
+				printf '%s: ' "$1"
+			fi
+		;;
+	esac
 	read -r "$2"
 	echo
 }
@@ -3817,7 +4248,11 @@ Prompt_Typed() {
 
 	[ -n "$prompttext" ] && echo "$prompttext"
 
-	printf "[%s]: " "$promptlabel"
+	if [ -t 1 ] || [ -t 2 ]; then
+		printf '\033[1;36m%s\033[0m: ' "$promptlabel"
+	else
+		printf '%s: ' "$promptlabel"
+	fi
 	read -r "${promptvar?}"
 	promptstatus="$?"
 	case "$promptstatus" in
@@ -3830,7 +4265,13 @@ Show_Menu() {
 	# usage: Show_Menu "Title" "Opt1" "Opt2" ... ["Exit"]
 	showmenutitle="$1"
 	shift
-	echo "$showmenutitle"
+	if [ -t 1 ] || [ -t 2 ]; then
+		showmenucolor="1"
+		printf '\033[1;36m%s\033[0m\n\n' "$showmenutitle"
+	else
+		showmenucolor="0"
+		printf '%s\n\n' "$showmenutitle"
+	fi
 
 	showmenuexit=""
 	showmenucount="$#"
@@ -3840,10 +4281,16 @@ Show_Menu() {
 		if [ "$showmenuindex" -eq "$showmenucount" ] && [ "$showmenuoption" = "Exit" ]; then
 			showmenuexit="$showmenuoption"
 		else
-			if [ "$showmenuindex" -lt "10" ]; then
-				echo "[$showmenuindex]  --> $showmenuoption"
+			if [ "$showmenucolor" = "1" ]; then
+				if [ "$showmenuindex" -lt "10" ]; then
+					printf '  \033[1;36m[%s]\033[0m  %s\n' "$showmenuindex" "$showmenuoption"
+				else
+					printf '  \033[1;36m[%s]\033[0m %s\n' "$showmenuindex" "$showmenuoption"
+				fi
+			elif [ "$showmenuindex" -lt "10" ]; then
+				printf '  [%s]  %s\n' "$showmenuindex" "$showmenuoption"
 			else
-				echo "[$showmenuindex] --> $showmenuoption"
+				printf '  [%s] %s\n' "$showmenuindex" "$showmenuoption"
 			fi
 			showmenuindex=$((showmenuindex + 1))
 		fi
@@ -3851,11 +4298,15 @@ Show_Menu() {
 
 	if [ -n "$showmenuexit" ]; then
 		echo
-		echo "[e]  --> $showmenuexit"
+		if [ "$showmenucolor" = "1" ]; then
+			printf '  \033[1;36m[e]\033[0m  %s\n' "$showmenuexit"
+		else
+			printf '  [e]  %s\n' "$showmenuexit"
+		fi
 	fi
 
 	echo
-	unset "showmenutitle" "showmenuexit" "showmenucount" "showmenuindex" "showmenuoption"
+	unset "showmenutitle" "showmenucolor" "showmenuexit" "showmenucount" "showmenuindex" "showmenuoption"
 }
 
 ###################################
@@ -4197,7 +4648,9 @@ Run_WebUI_Command() {
 	webuiwait="0"
 	while [ -f "$LOCK_FILE" ]; do
 		webuipid="$(cut -d'|' -f2 "$LOCK_FILE" 2>/dev/null)"
-		[ -n "$webuipid" ] && [ -d "/proc/$webuipid" ] || break
+		if [ -z "$webuipid" ] || [ ! -d "/proc/$webuipid" ]; then
+			break
+		fi
 		[ "$webuiwait" -ge "300" ] && return 1
 		sleep 1
 		webuiwait=$((webuiwait + 1))
@@ -4620,26 +5073,28 @@ Dispatch_Ban() {
 	Purge_Logs
 	case "$2" in
 		ip)
-			if ! echo "$3" | Is_IP; then echo "[*] $3 Is Not A Valid IP"; echo; exit 2; fi
-			if [ "${#4}" -gt "244" ]; then echo "[*] $4 Is Not A Valid Comment. 244 Chars Max"; echo; exit 2; fi
-			echo "[i] Banning $3"
-			desc="$4"
-			if [ -z "$4" ]; then
-				desc="$(date +"%b %e %T")"
-			fi
-			Update_IPSet add Skynet-Blacklist "$3" "ManualBan: $desc" || { echo; exit 1; }
-			echo "$(date +"%b %e %T") Skynet: [Manual Ban] TYPE=Single SRC=$3 COMMENT=$desc " >> "$skynetevents"
+			shift 2
+			Parse_IPSet_Entry_Arguments ip 244 "$@" || { echo "[*] $parsederror"; echo; exit 2; }
+			banlist="$parsedentries"
+			desc="$parsedcomment"
+			[ -n "$desc" ] || desc="$(date +"%b %e %T")"
+			echo "[i] Banning $banlist"
+			Update_IPSet_Batch add Skynet-Blacklist "ManualBan: $desc" "$banlist" || { echo; exit 1; }
+			for banentry in $banlist; do
+				echo "$(date +"%b %e %T") Skynet: [Manual Ban] TYPE=Single SRC=$banentry COMMENT=$desc " >> "$skynetevents"
+			done
 		;;
 		range)
-			if ! echo "$3" | Is_Range; then echo "[*] $3 Is Not A Valid Range"; echo; exit 2; fi
-			if [ "${#4}" -gt "243" ]; then echo "[*] $4 Is Not A Valid Comment. 243 Chars Max"; echo; exit 2; fi
-			echo "[i] Banning $3"
-			desc="$4"
-			if [ -z "$4" ]; then
-				desc="$(date +"%b %e %T")"
-			fi
-			Update_IPSet add Skynet-BlockedRanges "$3" "ManualRBan: $desc" || { echo; exit 1; }
-			echo "$(date +"%b %e %T") Skynet: [Manual Ban] TYPE=Range SRC=$3 COMMENT=$desc " >> "$skynetevents"
+			shift 2
+			Parse_IPSet_Entry_Arguments range 243 "$@" || { echo "[*] $parsederror"; echo; exit 2; }
+			banlist="$parsedentries"
+			desc="$parsedcomment"
+			[ -n "$desc" ] || desc="$(date +"%b %e %T")"
+			echo "[i] Banning $banlist"
+			Update_IPSet_Batch add Skynet-BlockedRanges "ManualRBan: $desc" "$banlist" || { echo; exit 1; }
+			for banentry in $banlist; do
+				echo "$(date +"%b %e %T") Skynet: [Manual Ban] TYPE=Range SRC=$banentry COMMENT=$desc " >> "$skynetevents"
+			done
 		;;
 		domain)
 			if [ -z "$3" ]; then echo "[*] Domain Field Can't Be Empty - Please Try Again"; echo; exit 2; fi
@@ -4851,7 +5306,11 @@ Whitelist_CDN || cdnstatus="1"
 Whitelist_Shared
 Refresh_Manual_Whitelist_Domains
 Display_Result
-[ "$cdnstatus" = "1" ] && echo "[!] CDN Whitelist Refresh Failed - Existing Entries Retained"
+case "$cdnresult" in
+	current) echo "[i] CDN Whitelist Already Up To Date" ;;
+	source) echo "[!] CDN Whitelist Source Unavailable ($cdnfailedsource) - Existing Entries Retained" ;;
+	apply) echo "[!] Unable To Apply CDN Whitelist - Existing Entries Retained" ;;
+esac
 Display_Message "[i] Start Blacklist Consolidation"
 echo
 
@@ -4868,7 +5327,7 @@ fi
 listmanifest="${skynetloc}/lists/.manifest"
 feedchecked="$(date +%s)"
 feedtab="$(printf '\t')"
-paralleljobs="0"
+Start_Background_Jobs
 while IFS="$feedtab" read -r list url selection; do
 	[ "$selection" = "enabled" ] || continue
 	(
@@ -4907,9 +5366,9 @@ while IFS="$feedtab" read -r list url selection; do
 			echo "[✘] Download Failed $url"
 		fi
 	) &
-	Wait_Background_Job_Batch 4
+	Wait_Background_Job_Slot 4
 done < "$feedmanifest"
-wait
+Wait_Background_Jobs
 
 # Consolidate staged downloads and retained caches in one parser pass. New
 # files replace their cache only after the parser confirms usable entries.
@@ -4922,7 +5381,7 @@ while IFS="$feedtab" read -r list url selection; do
 	listtmp="${skynetloc}/lists/${list}.tmp.$$"
 	feedresult="$TMP_DIR/feed.${list}.result"
 	if [ "$selection" = "enabled" ] && [ -s "$feedresult" ]; then
-		read -r feedstate feedunused < "$feedresult"
+		read -r feedstate _feedresultchecked < "$feedresult"
 		case "$feedstate" in
 			downloaded) [ -s "$listtmp" ] && ln -s "$listtmp" "$feedfiles/$list" ;;
 			current|cached) [ -s "$listfile" ] && ln -s "$listfile" "$feedfiles/$list" ;;
@@ -4989,7 +5448,7 @@ while IFS="$feedtab" read -r list url selection; do
 	[ "$selection" = "enabled" ] || continue
 	feedstate="failed"
 	feedresult="$TMP_DIR/feed.${list}.result"
-	[ -s "$feedresult" ] && IFS="$feedtab" read -r feedstate feedunused feedunused < "$feedresult"
+	[ -s "$feedresult" ] && IFS="$feedtab" read -r feedstate _feedresultchecked _feedresultentries < "$feedresult"
 	feedentries="$(awk -F '\t' -v name="$list" '$1 == name { print $2; exit }' "$feedcounts" 2>/dev/null)"
 	case "$feedentries" in ""|0|*[!0-9]*) feedstate="failed"; printf 'failed\t%s\t0\n' "$feedchecked" > "$feedresult" ;; esac
 	case "$feedstate" in
@@ -5012,7 +5471,7 @@ true > "$listmanifesttmp" || { Restore_Threat_Feed_Selection; echo "[*] Unable T
 while IFS="$feedtab" read -r list url selection; do
 	feedstate="excluded"
 	feedentries="$(awk -F '\t' -v name="$list" '$1 == name { print $2; exit }' "$feedcounts" 2>/dev/null)"
-	[ -s "$TMP_DIR/feed.${list}.result" ] && IFS="$feedtab" read -r feedstate feedunused feedunused < "$TMP_DIR/feed.${list}.result"
+	[ -s "$TMP_DIR/feed.${list}.result" ] && IFS="$feedtab" read -r feedstate _feedresultchecked _feedresultentries < "$TMP_DIR/feed.${list}.result"
 	case "$selection:$feedstate:$feedentries" in
 		enabled:current:[1-9]*|enabled:cached:[1-9]*) printf '%s %s\n' "$url" "$list" >> "$listmanifesttmp" ;;
 		excluded:excluded:[1-9]*)
@@ -5119,12 +5578,16 @@ Dispatch_BanMalware() {
 		status)
 			Print_Threat_Feed_Status
 			echo
-			exit 0
+			nolog="2"
+			nocfg="1"
+			return 0
 		;;
 		sources)
 			Print_Threat_Feed_Sources
 			echo
-			exit 0
+			nolog="2"
+			nocfg="1"
+			return 0
 		;;
 	esac
 	Check_Lock "$@"
@@ -5410,7 +5873,17 @@ Dispatch_Save() {
 
 Dispatch_Start() {
 	Check_Lock "$@"
-	Log info "Startup Initiated... ( $(echo "$@" | sed 's~start ~~g') )"
+	startarguments=""
+	startskipfirst="1"
+	for startargument in "$@"; do
+		if [ "$startskipfirst" = "1" ]; then
+			startskipfirst="0"
+			continue
+		fi
+		startarguments="${startarguments}${startarguments:+ }$startargument"
+	done
+	Log info "Startup Initiated... ( $startarguments )"
+	unset "startarguments" "startskipfirst" "startargument"
 	Unload_Cron "all"
 	Check_Settings || { echo; exit 1; }
 	Migrate_Installation || { echo "[*] Failed To Migrate Existing Skynet Data"; echo; exit 1; }
@@ -5837,14 +6310,14 @@ Settings_ExtendedStats() {
 			Purge_Logs
 			extendedstats="enabled"
 			Check_Security
-			echo "[i] Extended Stats Enabled"
+			echo "[i] Extended Statistics Enabled"
 		;;
 		disable)
 			Check_Lock "$@"
 			Require_Running
 			Purge_Logs
 			extendedstats="disabled"
-			echo "[i] Extended Stats Disabled"
+			echo "[i] Extended Statistics Disabled"
 		;;
 		*)
 			Command_Not_Recognized
@@ -5917,26 +6390,32 @@ Settings_IOT() {
 		;;
 		view)
 			Display_Header "6"
-			ip neigh | grep -E '^([0-9]{1,3}\.){3}[0-9]{1,3} ' | sort -n -t . -k 1,1 -k 2,2 -k 3,3 -k 4,4 | while IFS= read -r "ip"; do
-				ipaddr="$(echo "$ip" | awk '{print $1}')"
-				macaddr="$(echo "$ip" | awk '{print $5}')"
+			iotviewneighbors="$TMP_DIR/iot-view-neighbors.$$"
+			ip neigh 2>/dev/null \
+				| grep -E '^([0-9]{1,3}\.){3}[0-9]{1,3} ' \
+				| sort -n -t . -k 1,1 -k 2,2 -k 3,3 -k 4,4 \
+				> "$iotviewneighbors"
+			Prepare_Client_Name_Data "$iotviewneighbors" || :
+			while IFS=' ' read -r ipaddr _neighcommand _neighdevice _neighlabel macaddr _neighstate _neighrest; do
 				Resolve_Client_Name
-				state="$(echo "$ip" | awk '{print $6}')"
-				if ! echo "$macaddr" | Is_MAC; then
-					macaddr="Unknown"
-					state="$(Red Offline)"
-				fi
 				if ipset test Skynet-IOT "$ipaddr" >/dev/null 2>&1; then
 					if Is_Enabled "$iotblocked"; then
 						state="$(Ylow Blocked)"
 					else
 						state="$(Ylow Paused)"
 					fi
+				elif ! printf '%s\n' "$macaddr" | Is_MAC; then
+					macaddr="Unknown"
+					state="$(Red Offline)"
 				else
 					state="$(Grn Unblocked)"
 				fi
-				printf '%-40s | %-16s | %-20s | %-15s\n' "$localname" "$ipaddr" "$macaddr" "$state"
-			done
+				printf '║ %-40s ║ %-16s ║ %-20s ║ %-20s ║\n' "$localname" "$ipaddr" "$macaddr" "$state"
+			done < "$iotviewneighbors"
+			Clear_Client_Name_Data
+			rm -f "$iotviewneighbors"
+			unset "iotviewneighbors" "_neighcommand" "_neighdevice" "_neighlabel" "_neighstate" "_neighrest" "ipaddr" "macaddr" "state" "localname"
+			printf '╚══════════════════════════════════════════╩══════════════════╩══════════════════════╩══════════════════════╝\n'
 			echo;echo
 			case "$iotports" in
 				"")
@@ -6369,20 +6848,13 @@ Debug_Watch() {
 }
 
 Debug_Info() {
-	if [ -f "$LOCK_FILE" ] && ! flock -n 9 9<"$LOCK_FILE"; then
-		locked_cmd=$(cut -d'|' -f1 "$LOCK_FILE")
-		locked_pid=$(cut -d'|' -f2 "$LOCK_FILE")
-		lock_timestamp=$(cut -d'|' -f3 "$LOCK_FILE")
-
-		if [ -n "$locked_pid" ] && [ -d "/proc/$locked_pid" ]; then
-			current_time=$(date +%s)
-			runtime=$(( current_time - lock_timestamp ))
-
-			echo
-			Red "[*] Lock File Detected ($locked_cmd) (pid=$locked_pid, runtime=${runtime}s)"
-			Ylow '[*] Locked Processes Generally Take 1-2 Minutes To Complete And May Result In Temporarily "Failed" Tests'
-		fi
+	debugpublicip="$(nvram get wan0_ipaddr)"
+	if Read_Active_Lock; then
+		echo
+		Red "[*] Lock File Detected ($lockstatuscommand) (pid=$lockstatuspid, runtime=${lockstatusruntime}s)"
+		Ylow '[*] Locked Processes Generally Take 1-2 Minutes To Complete And May Result In Temporarily "Failed" Tests'
 	fi
+	unset "lockstatuscommand" "lockstatuspid" "lockstatusepoch" "lockstatusruntime"
 	printf '╔═════════════════════ System ══════════════════════════════════════════════════════════════════════════════╗\n'
 	printf '║ %-20s │ %-82s ║\n' "Router Model"   "$(nvram get productid)"
 	printf '║ %-20s │ %-82s ║\n' "Skynet Version" "$localver ($(Filter_Date < "$0"))"
@@ -6390,7 +6862,8 @@ Debug_Info() {
 	printf '║ %-20s │ %-82s ║\n' "FW Version"     "$(uname -o) v$(nvram get buildno)_$(nvram get extendno) (Kernel $(uname -r)) ($(uname -v | awk "{printf \"%s %s %s\n\", \$5,\$6,\$9}"))"
 	printf '║ %-20s │ %-82s ║\n' "iptables"       "$(iptables --version)"
 	printf '║ %-20s │ %-82s ║\n' "ipset"          "$(ipset -v 2>/dev/null | head -n1)"
-	printf '║ %-20s │ %-82s ║\n' "Public IP"      "$(if nvram get wan0_ipaddr | Is_PrivateIP; then Red "$(nvram get wan0_ipaddr)"; else nvram get wan0_ipaddr; fi)"
+	if printf '%s\n' "$debugpublicip" | Is_PrivateIP; then debugpublicipdisplay="$(Red "$debugpublicip")"; else debugpublicipdisplay="$debugpublicip"; fi
+	printf '║ %-20s │ %-82s ║\n' "Public IP"      "$debugpublicipdisplay"
 	printf '║ %-20s │ %-82s ║\n' "WAN Info"       "${iface} - $(nvram get wan0_proto)"
 	printf '╚══════════════════════╧════════════════════════════════════════════════════════════════════════════════════╝\n\n\n'
 	printf '╔═════════════════════ Storage ═════════════════════════════════════════════════════════════════════════════╗\n'
@@ -6405,13 +6878,15 @@ Debug_Info() {
 	printf '╚══════════════════════╧════════════════════════════════════════════════════════════════════════════════════╝\n\n\n'
 	printf '╔═════════════════════ Runtime ═════════════════════════════════════════════════════════════════════════════╗\n'
 	printf '║ %-20s │ %-82s ║\n' "Uptime"        "$(uptime | awk -F'( |,|:)+' '{ if ($7=="min") m=$6; else if ($7~/^day/) {d=$6;h=$8;m=$9} else {h=$6;m=$7} } {print d+0,"days,",h+0,"hours,",m+0,"minutes."}')"
-	if grep -qF "MemAvailable" /proc/meminfo; then
-		memavailable=$(( $(awk '/MemAvailable/ {print $2}' /proc/meminfo) /1024 ))
-	else
-		memavailable=$(( $(awk '/MemFree/     {print $2}' /proc/meminfo) /1024 ))
-	fi
-	totalmem=$(( $(awk '/MemTotal/     {print $2}' /proc/meminfo) /1024 ))
-	printf '║ %-20s │ %-82s ║\n' "RAM Used/Total" "(${memavailable}M / ${totalmem}M)"
+	debugmemory="$(awk '
+		/MemTotal:/ { total=$2 }
+		/MemAvailable:/ { available=$2; found=1 }
+		/MemFree:/ { free=$2 }
+		END { if (!found) available=free; printf "%d %d", available / 1024, total / 1024 }
+	' /proc/meminfo)"
+	memavailable="${debugmemory%% *}"
+	totalmem="${debugmemory#* }"
+	printf '║ %-20s │ %-82s ║\n' "RAM Available/Total" "(${memavailable}M / ${totalmem}M)"
 	printf '╚══════════════════════╧════════════════════════════════════════════════════════════════════════════════════╝\n\n\n'
 	printf '╔═════════════════════ Logging ═════════════════════════════════════════════════════════════════════════════╗\n'
 	printf '║ %-20s │ %-82s ║\n' "Syslog Locations" "$syslogloc $syslog1loc"
@@ -6427,21 +6902,21 @@ Debug_Info() {
 	fi
 	[ -n "$customlisturl" ] && printf '║ %-20s │ %-82s ║\n' "Custom Filter URL" "$customlisturl"
 	Generate_Blocked_Events
-	printf '║ %-20s │ %-84s ║\n' "Monitor Span"      "$(grep -m1 -F "BLOCKED -" "$skynetlog" | awk '{printf "%s %s %s\n", $1, $2, $3}') → $(grep -F "BLOCKED -" "$skynetlog" | tail -1 | awk '{printf "%s %s %s\n", $1, $2, $3}')"
+	printf '║ %-20s │ %-84s ║\n' "Monitor Span"      "$monitorspan"
 	printf '╚══════════════════════╧════════════════════════════════════════════════════════════════════════════════════╝\n\n\n'
 	passedtests="0"
 	totaltests="18"
 	Display_Header "6"
-	ip neigh \
+	debugneighbors="$TMP_DIR/debug-neighbors.$$"
+	ip neigh 2>/dev/null \
 	| grep -E '^([0-9]{1,3}\.){3}[0-9]{1,3} ' \
 	| sort -n -t . -k 1,1 -k 2,2 -k 3,3 -k 4,4 \
-	| while IFS= read -r ip; do
-		ipaddr="$(echo "$ip" | awk '{print $1}')"
-		macaddr="$(echo "$ip" | awk '{print $5}')"
+	> "$debugneighbors"
+	Prepare_Client_Name_Data "$debugneighbors" || :
+	while IFS=' ' read -r ipaddr _neighcommand _neighdevice _neighlabel macaddr state _neighrest; do
 		Resolve_Client_Name
-		state="$(echo "$ip" | awk '{print $6}')"
 
-		if ! echo "$macaddr" | Is_MAC; then
+		if ! printf '%s\n' "$macaddr" | Is_MAC; then
 			macaddr="Unknown"
 			state="$(Red Offline)"
 		elif [ "$state" = "STALE" ]; then
@@ -6454,14 +6929,17 @@ Debug_Info() {
 
 		printf '║ %-40s ║ %-16s ║ %-20s ║ %-31s ║\n' \
 			"$localname" "$ipaddr" "$macaddr" "$state"
-		done
+	done < "$debugneighbors"
+	Clear_Client_Name_Data
+	rm -f "$debugneighbors"
+	unset "debugneighbors"
 	printf '╚══════════════════════════════════════════╩══════════════════╩══════════════════════╩══════════════════════╝\n\n\n'
 	Display_Header "7"
 	printf "║ %-33s ║ " "Internet Connectivity"
 	if Check_Connection >/dev/null 2>&1; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
 	printf '%-80s ║\n' "$result"
 	printf "║ %-33s ║ " "Public IP Address"
-	publicip="$(nvram get wan0_ipaddr)"
+	publicip="$debugpublicip"
 	if printf '%s\n' "$publicip" | Is_IP && ! printf '%s\n' "$publicip" | Is_PrivateIP; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
 	printf '%-80s ║\n' "$result"
 	printf "║ %-33s ║ " "Write Permission"
@@ -6470,17 +6948,21 @@ Debug_Info() {
 	printf "║ %-33s ║ " "Config File"
 	if [ -f "${skynetcfg}" ]; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
 	printf '%-80s ║\n' "$result"
+	debugfirewallstarthook="sh /jffs/scripts/firewall start skynetloc=${skynetloc} # Skynet"
+	debugservicesstophook='sh /jffs/scripts/firewall save # Skynet'
+	debugserviceeventhook="case \"\$1:\$2\" in start:Skynet*) sh /jffs/scripts/firewall webui \"\$2\" ;; esac # Skynet"
 	printf "║ %-33s ║ " "Firewall-Start Entry"
-	if grep -E "start.* # Skynet" /jffs/scripts/firewall-start | grep -qvE "^#"; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
+	if Check_Skynet_Hook /jffs/scripts/firewall-start "$debugfirewallstarthook"; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
 	printf '%-80s ║\n' "$result"
 	printf "║ %-33s ║ " "Services-Stop Entry"
-	if grep -F "# Skynet" /jffs/scripts/services-stop | grep -qvE "^#"; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
+	if Check_Skynet_Hook /jffs/scripts/services-stop "$debugservicesstophook"; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
 	printf '%-80s ║\n' "$result"
 	printf "║ %-33s ║ " "Service-Event Entry"
-	if grep -F "# Skynet" /jffs/scripts/service-event | grep -qvE "^#"; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
+	if Check_Skynet_Hook /jffs/scripts/service-event "$debugserviceeventhook"; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
 	printf '%-80s ║\n' "$result"
+	unset "debugfirewallstarthook" "debugservicesstophook" "debugserviceeventhook"
 	printf "║ %-33s ║ " "Profile.add Entry"
-	if grep -F "# Skynet" /jffs/configs/profile.add | grep -qvE "^#"; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
+	if grep -qE '^[[:space:]]*[^#].*# Skynet' /jffs/configs/profile.add; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
 	printf '%-80s ║\n' "$result"
 	printf "║ %-33s ║ " "SWAP File"
 	if Check_Swap; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
@@ -6491,18 +6973,24 @@ Debug_Info() {
 	printf "║ %-33s ║ " "NTP Sync"
 	if [ "$(nvram get ntp_ready)" = "1" ]; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
 	printf '%-80s ║\n' "$result"
-	printf "║ %-33s ║ " "Log Level $(nvram get message_loglevel) Settings"
-	if [ "$(nvram get message_loglevel)" -le "$(nvram get log_level)" ]; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
+	debugmessageloglevel="$(nvram get message_loglevel)"
+	debugloglevel="$(nvram get log_level)"
+	printf "║ %-33s ║ " "Log Level $debugmessageloglevel Settings"
+	if [ "$debugmessageloglevel" -le "$debugloglevel" ]; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
 	printf '%-80s ║\n' "$result"
+	debugiptablesfail=""
+	if Check_IPTables duplicates; then debugiptablespassed="1"; else debugiptablespassed="0"; debugiptablesfail="$fail"; fi
 	printf "║ %-33s ║ " "Duplicate Rules In RAW"
-	if [ "$(iptables-save -t raw | sort | uniq -d | grep -c " ")" = "0" ]; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
+	if [ "$checkrawduplicates" = "0" ]; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
 	printf '%-80s ║\n' "$result"
 	printf "║ %-33s ║ " "IPSets"
-	if Check_IPSets; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
+	debugipsetfail=""
+	if Check_IPSets; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; debugipsetfail="$fail"; fi
 	printf '%-80s ║\n' "$result"
 	printf "║ %-33s ║ " "Firewall Rules"
-	if Check_IPTables; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
+	if [ "$debugiptablespassed" = "1" ]; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
 	printf '%-80s ║\n' "$result"
+	fail="${debugipsetfail}${debugiptablesfail}"
 	if Is_Enabled "$displaywebui"; then
 		printf "║ %-33s ║ " "Local WebUI Files"
 		[ -f "${skynetloc}/webui/skynet.asp" ] || localfail="${localfail}skynet.asp "
@@ -6527,27 +7015,55 @@ Debug_Info() {
 	printf '║ %-105s ║\n' "${passedtests}/${totaltests} Tests Successful"
 	printf '╚═══════════════════════════════════════════════════════════════════════════════════════════════════════════╝\n\n\n'
 	Display_Header "8"
+	Display_Settings_Category "Updates & Lists" first
 	printf '║ %-33s ║ %-80s ║\n' "Skynet Auto-Updates" "$(if Is_Enabled "$autoupdate"; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
-	printf '║ %-33s ║ %-80s ║\n' "Malware List Auto-Updates" "$(if [ "$banmalwareupdate" = "daily" ] || [ "$banmalwareupdate" = "weekly" ]; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
-	printf '║ %-33s ║ %-80s ║\n' "Logging" "$(if Is_Enabled "$logmode"; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
-	printf '║ %-33s ║ %-80s ║\n' "Traffic Filtering" "$(if [ "$filtertraffic" = "all" ]; then Grn "[All Traffic]"; else Ylow "[Selective]"; fi)"
-	printf '║ %-33s ║ %-80s ║\n' "Whitelist Private IPs" "$(if Is_Enabled "$unbanprivateip"; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
-	printf '║ %-33s ║ %-80s ║\n' "Invalid Packet Logging" "$(if Is_Enabled "$loginvalid"; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
-	printf '║ %-33s ║ %-80s ║\n' "Log Size" "$(Grn "[${logsize}MB]")"
-	printf '║ %-33s ║ %-80s ║\n' "Import AiProtection Threats" "$(if Is_Enabled "$banaiprotect"; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
+	case "$banmalwareupdate" in
+		daily) malwareupdatestatus="$(Grn "[Daily]")" ;;
+		weekly) malwareupdatestatus="$(Grn "[Weekly]")" ;;
+		*) malwareupdatestatus="$(Red "[Disabled]")" ;;
+	esac
+	printf '║ %-33s ║ %-80s ║\n' "Malware List Auto-Updates" "$malwareupdatestatus"
+	Display_Settings_Category "Protection"
+	case "$filtertraffic" in
+		all) filtertrafficstatus="$(Grn "[Inbound & Outbound]")" ;;
+		inbound) filtertrafficstatus="$(Ylow "[Inbound Only]")" ;;
+		outbound) filtertrafficstatus="$(Ylow "[Outbound Only]")" ;;
+		*) filtertrafficstatus="$(Red "[Unknown]")" ;;
+	esac
+	printf '║ %-33s ║ %-80s ║\n' "Traffic Filtering" "$filtertrafficstatus"
+	printf '║ %-33s ║ %-80s ║\n' "Unban Private IPs" "$(if Is_Enabled "$unbanprivateip"; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
+	printf '║ %-33s ║ %-80s ║\n' "Import AiProtection Bans" "$(if Is_Enabled "$banaiprotect"; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
 	printf '║ %-33s ║ %-80s ║\n' "Secure Mode" "$(if Is_Enabled "$securemode"; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
-	printf '║ %-33s ║ %-80s ║\n' "Extended Stats" "$(if Is_Enabled "$extendedstats"; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
-	printf '║ %-33s ║ %-80s ║\n' "Syslog Location" "$(if { [ "$syslogloc" = "/tmp/syslog.log" ] && [ "$syslog1loc" = "/tmp/syslog.log-1" ]; } || { [ "$syslogloc" = "/jffs/syslog.log" ] && [ "$syslog1loc" = "/jffs/syslog.log-1" ]; } then Grn "[Default]"; else Ylow "[Custom]"; fi)"
+	printf '║ %-33s ║ %-80s ║\n' "CDN Whitelisting" "$(if Is_Enabled "$cdnwhitelist"; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
+	Display_Settings_Category "IoT Isolation"
 	printf '║ %-33s ║ %-80s ║\n' "IoT Blocking" "$(if Is_Enabled "$iotblocked"; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
 	printf '║ %-33s ║ %-80s ║\n' "IoT Block Logging" "$(if Is_Enabled "$iotlogging"; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
+	case "$iotports" in
+		"") iotallowedstatus="$(Grn "[UDP 123 - NTP Default]")" ;;
+		none) iotallowedstatus="$(Ylow "[None]")" ;;
+		*)
+			case "$iotproto" in udp) iotprotolabel="UDP" ;; tcp) iotprotolabel="TCP" ;; all) iotprotolabel="TCP & UDP" ;; *) iotprotolabel="Unknown" ;; esac
+			iotportdisplay="$iotports"
+			[ "${#iotportdisplay}" -le "55" ] || iotportdisplay="$(printf '%.54s+' "$iotportdisplay")"
+			iotallowedstatus="$(Grn "[$iotprotolabel - $iotportdisplay]")"
+		;;
+	esac
+	printf '║ %-33s ║ %-80s ║\n' "Allowed Internet Traffic" "$iotallowedstatus"
+	Display_Settings_Category "Logging & Statistics"
+	printf '║ %-33s ║ %-80s ║\n' "Logging" "$(if Is_Enabled "$logmode"; then Grn "[Enabled]"; else Red "[Disabled]"; fi)"
+	printf '║ %-33s ║ %-80s ║\n' "Invalid Packet Logging" "$(if Is_Enabled "$loginvalid"; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
+	printf '║ %-33s ║ %-80s ║\n' "Log Size" "$(Grn "[${logsize}MB]")"
+	printf '║ %-33s ║ %-80s ║\n' "Extended Statistics" "$(if Is_Enabled "$extendedstats"; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
+	printf '║ %-33s ║ %-80s ║\n' "Syslog Location" "$(if { [ "$syslogloc" = "/tmp/syslog.log" ] && [ "$syslog1loc" = "/tmp/syslog.log-1" ]; } || { [ "$syslogloc" = "/jffs/syslog.log" ] && [ "$syslog1loc" = "/jffs/syslog.log-1" ]; } then Grn "[Default]"; else Ylow "[Custom]"; fi)"
 	printf '║ %-33s ║ %-80s ║\n' "Country Lookup" "$(if Is_Enabled "$lookupcountry"; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
-	printf '║ %-33s ║ %-80s ║\n' "CDN Whitelisting" "$(if Is_Enabled "$cdnwhitelist"; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
+	Display_Settings_Category "Integration & Advanced"
 	printf '║ %-33s ║ %-80s ║\n' "WebUI" "$(if Is_Enabled "$displaywebui"; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
 	printf '╚═══════════════════════════════════╩═══════════════════════════════════════════════════════════════════════╝\n'
 	if [ -n "$fail" ]; then echo;echo "[*] Rule Integrity Violation - [ ${fail}]"; unset fail; fi
 	if [ -n "$localfail" ]; then echo;echo "[*] Local File Missing - [ ${localfail}]"; fi
 	if [ -n "$mountedfail" ]; then echo;echo "[*] Mounted File Missing - [ ${mountedfail}]"; fi
 	if [ "$3" = "extended" ]; then echo;echo; cat "$skynetcfg"; fi
+	unset "malwareupdatestatus" "filtertrafficstatus" "iotallowedstatus" "iotprotolabel" "iotportdisplay" "localfail" "mountedfail"
 	nocfg="1"
 }
 
@@ -6925,21 +7441,13 @@ Dispatch_Install() {
 	if [ -z "$displaywebui" ]; then displaywebui="enabled"; fi
 	Write_Config || { echo "[*] Failed To Save Configuration"; echo; exit 1; }
 	cmdline="sh /jffs/scripts/firewall start skynetloc=${device}/skynet # Skynet"
-	if grep -qE "^sh /jffs/scripts/firewall .* # Skynet" /jffs/scripts/firewall-start; then
-		sed -i "s~sh /jffs/scripts/firewall .* # Skynet .*~$cmdline~" /jffs/scripts/firewall-start
-	else
-		echo "$cmdline" >> /jffs/scripts/firewall-start
-	fi
-	cmdline="sh /jffs/scripts/firewall save # Skynet"
-	if grep -qE "^sh /jffs/scripts/firewall .* # Skynet" /jffs/scripts/services-stop; then
-		sed -i "s~sh /jffs/scripts/firewall .* # Skynet .*~$cmdline~" /jffs/scripts/services-stop
-	else
-		echo "$cmdline" >> /jffs/scripts/services-stop
-	fi
+	Publish_Skynet_Hook /jffs/scripts/firewall-start "$cmdline" || { echo "[*] Failed To Update Firewall-Start Hook"; echo; exit 1; }
+	unset "cmdline"
 	echo
 	nvram commit
 	if [ "$forcereboot" = "1" ]; then
-		Prompt_Typed "continue" "i" "[i] Reboot Required To Complete Installation"
+		Prompt_Typed "installconfirm" "i" "[i] Reboot Required To Complete Installation"
+		unset "installconfirm"
 		service reboot
 		exit 0
 	fi
@@ -6963,8 +7471,9 @@ Dispatch_Uninstall() {
 			"Yes" \
 			"No" \
 			"Exit"
-		Prompt_Input "1-2" continue
-		case "$continue" in
+		uninstallconfirm=""
+		Prompt_Input "1-2" uninstallconfirm
+		case "$uninstallconfirm" in
 			1)
 				if grep -qE "swapon .* # Skynet" /jffs/scripts/post-mount; then
 					while true; do
@@ -7025,7 +7534,7 @@ Dispatch_Uninstall() {
 				echo; exit 0
 			;;
 			*)
-				Invalid_Option "$continue"
+				Invalid_Option "$uninstallconfirm"
 			;;
 		esac
 	done
@@ -7066,7 +7575,7 @@ Menu_Unban() {
 		if ! Menu_Require_Running; then break; fi
 		option1="unban"
 		while true; do
-			Show_Menu "What Type Of Input Would You Like To Unban" \
+			Show_Menu "Select Unban Type:" \
 				"IP" \
 				"Range" \
 				"Domain" \
@@ -7081,19 +7590,19 @@ Menu_Unban() {
 			case "$menu2" in
 				1)
 					option2="ip"
-					Prompt_Typed "option3" "IP" "Input IP To Ban:"
-					if ! echo "$option3" | Is_IP; then echo "[*] $option3 Is Not A Valid IP"; echo; unset "option2" "option3"; continue; fi
+					Prompt_Typed "option3" "IP" "Input IP To Unban:"
+					if ! printf '%s\n' "$option3" | Is_IP; then echo "[*] $option3 Is Not A Valid IP"; echo; unset "option2" "option3"; continue; fi
 					break
 				;;
 				2)
 					option2="range"
 					Prompt_Typed "option3" "Range" "Input Range To Unban:"
-					if ! echo "$option3" | Is_Range; then echo "[*] $option3 Is Not A Valid Range"; echo; unset "option2" "option3"; continue; fi
+					if ! printf '%s\n' "$option3" | Is_Range; then echo "[*] $option3 Is Not A Valid Range"; echo; unset "option2" "option3"; continue; fi
 					break
 				;;
 				3)
 					option2="domain"
-					Prompt_Typed "option3" "URL" "Input Domain To Unban:"
+					Prompt_Typed "option3" "Domain" "Input Domain To Unban:"
 					if [ -z "$option3" ]; then echo "[*] URL Field Can't Be Empty - Please Try Again"; echo; unset "option2" "option3"; continue; fi
 					break
 				;;
@@ -7111,7 +7620,7 @@ Menu_Unban() {
 				6)
 					option2="asn"
 					Prompt_Typed "option3" "ASN" "Input ASN To Unban:"
-					if ! echo "$option3" | Is_ASN; then echo "[*] $option3 Is Not A Valid ASN"; echo; unset "option2" "option3"; continue; fi
+					if ! printf '%s\n' "$option3" | Is_ASN; then echo "[*] $option3 Is Not A Valid ASN"; echo; unset "option2" "option3"; continue; fi
 					break
 				;;
 				7)
@@ -7144,7 +7653,7 @@ Menu_Ban() {
 		if ! Menu_Require_Running; then break; fi
 		option1="ban"
 		while true; do
-			Show_Menu "What Type Of Input Would You Like To Ban:" \
+			Show_Menu "Select Ban Type:" \
 				"IP" \
 				"Range" \
 				"Domain" \
@@ -7156,7 +7665,7 @@ Menu_Ban() {
 				1)
 					option2="ip"
 					Prompt_Typed "option3" "IP" "Input IP To Ban:"
-					if ! echo "$option3" | Is_IP; then echo "[*] $option3 Is Not A Valid IP"; echo; unset "option2" "option3"; continue; fi
+					if ! printf '%s\n' "$option3" | Is_IP; then echo "[*] $option3 Is Not A Valid IP"; echo; unset "option2" "option3"; continue; fi
 					Prompt_Typed "option4" "Comment" "Input Comment For Ban:"
 					if [ "${#option4}" -gt "244" ]; then echo "[*] $option4 Is Not A Valid Comment. 244 Chars Max"; echo; unset "option2" "option3" "option4"; continue; fi
 					break
@@ -7164,14 +7673,14 @@ Menu_Ban() {
 				2)
 					option2="range"
 					Prompt_Typed "option3" "Range" "Input Range To Ban:"
-					if ! echo "$option3" | Is_Range; then echo "[*] $option3 Is Not A Valid Range"; echo; unset "option2" "option3"; continue; fi
+					if ! printf '%s\n' "$option3" | Is_Range; then echo "[*] $option3 Is Not A Valid Range"; echo; unset "option2" "option3"; continue; fi
 					Prompt_Typed "option4" "Comment" "Input Comment For Ban:"
 					if [ "${#option4}" -gt "243" ]; then echo "[*] $option4 Is Not A Valid Comment. 243 Chars Max"; echo; unset "option2" "option3" "option4"; continue; fi
 					break
 				;;
 				3)
 					option2="domain"
-					Prompt_Typed "option3" "URL" "Input Domain To Ban:"
+					Prompt_Typed "option3" "Domain" "Input Domain To Ban:"
 					if [ -z "$option3" ]; then echo "[*] URL Field Can't Be Empty - Please Try Again"; echo; unset "option2" "option3"; continue; fi
 					break
 				;;
@@ -7180,13 +7689,13 @@ Menu_Ban() {
 					if [ -n "$countrylist" ]; then echo "Countries Currently Banned: (${countrylist})"; fi
 					Prompt_Typed "option3" "Countries" "Input Country Abbreviations To Ban:"
 					if [ -z "$option3" ]; then echo "[*] Country Field Can't Be Empty - Please Try Again"; echo; unset "option2" "option3"; continue; fi
-					if echo "$option3" | grep -qF "\""; then echo "[*] Country Field Can't Include Quotes - Please Try Again"; echo; unset "option2" "option3"; continue; fi
+					if printf '%s\n' "$option3" | grep -qF "\""; then echo "[*] Country Field Can't Include Quotes - Please Try Again"; echo; unset "option2" "option3"; continue; fi
 					break
 				;;
 				5)
 					option2="asn"
 					Prompt_Typed "option3" "ASN" "Input ASN To Ban:"
-					if ! echo "$option3" | Is_ASN; then echo "[*] $option3 Is Not A Valid ASN"; echo; unset "option2" "option3"; continue; fi
+					if ! printf '%s\n' "$option3" | Is_ASN; then echo "[*] $option3 Is Not A Valid ASN"; echo; unset "option2" "option3"; continue; fi
 					break
 				;;
 				e|exit|back|menu)
@@ -7207,34 +7716,51 @@ Menu_BanMalware() {
 		if ! Menu_Require_Running; then break; fi
 		option1="banmalware"
 		while true; do
-			Show_Menu "Select Option:" \
-				"Update" \
-				"Change Filter List" \
-				"Reset Filter List" \
-				"Exclude Individual Lists" \
-				"Reset Exclusion List" \
+			Show_Menu "Malware Blacklist & Threat Feeds:" \
+				"Update Malware Blacklist" \
+				"View Threat Feed Status" \
+				"View Threat Feed Sources" \
+				"Change Filter List URL" \
+				"Reset Filter List URL" \
+				"Exclude Threat Feeds" \
+				"Include Threat Feeds" \
+				"Enable All Threat Feeds" \
 				"Exit"
-			Prompt_Input "1-5" menu2
+			Prompt_Input "1-8" menu2
 			case "$menu2" in
 				1)
 					break
 				;;
 				2)
+					option2="status"
+					break
+				;;
+				3)
+					option2="sources"
+					break
+				;;
+				4)
 					Prompt_Typed "option2" "URL" "Input Custom Filter List URL:"
 					if [ -z "$option2" ]; then echo "[*] URL Field Can't Be Empty - Please Try Again"; echo; unset "option2"; continue; fi
 					break
 				;;
-				3)
+				5)
 					option2="reset"
 					break
 				;;
-				4)
+				6)
 					option2="exclude"
-					Prompt_Typed "option3" "Lists" "Input List Names Separated By Spaces Example - list1.ipset list2.ipset list3.ipset"
+					Prompt_Typed "option3" "Feeds" "Input Threat Feed Names Separated By Spaces:"
 					if [ -z "$option3" ]; then echo "[*] Exclusion List Can't Be Empty - Please Try Again"; echo; unset "option2" "option3"; continue; fi
 					break
 				;;
-				5)
+				7)
+					option2="include"
+					Prompt_Typed "option3" "Feeds" "Input Excluded Threat Feed Names Separated By Spaces:"
+					if [ -z "$option3" ]; then echo "[*] Include List Can't Be Empty - Please Try Again"; echo; unset "option2" "option3"; continue; fi
+					break
+				;;
+				8)
 					option2="exclude"
 					option3="reset"
 					break
@@ -7271,21 +7797,21 @@ Menu_Whitelist() {
 				1)
 					option2="ip"
 					Prompt_Typed "option3" "IP/Range" "Input IP Or Range To Whitelist:"
-					if ! echo "$option3" | Is_IPRange; then echo "[*] $option3 Is Not A Valid IP/Range"; echo; unset "option2" "option3"; continue; fi
+					if ! printf '%s\n' "$option3" | Is_IPRange; then echo "[*] $option3 Is Not A Valid IP/Range"; echo; unset "option2" "option3"; continue; fi
 					Prompt_Typed "option4" "Comment" "Input Comment For Whitelist:"
 					if [ "${#option4}" -gt "242" ]; then echo "[*] $option4 Is Not A Valid Comment. 242 Chars Max"; echo; unset "option2" "option3" "option4"; continue; fi
 					break
 				;;
 				2)
 					option2="domain"
-					Prompt_Typed "option3" "URL" "Input Domain To Whitelist:"
+					Prompt_Typed "option3" "Domain" "Input Domain To Whitelist:"
 					if [ -z "$option3" ]; then echo "[*] URL Field Can't Be Empty - Please Try Again"; echo; unset "option2" "option3"; continue; fi
 					break
 				;;
 				3)
 					option2="asn"
 					Prompt_Typed "option3" "ASN" "Input ASN To Whitelist:"
-					if ! echo "$option3" | Is_ASN; then echo "[*] $option3 Is Not A Valid ASN"; echo; unset "option2" "option3"; continue; fi
+					if ! printf '%s\n' "$option3" | Is_ASN; then echo "[*] $option3 Is Not A Valid ASN"; echo; unset "option2" "option3"; continue; fi
 					break
 				;;
 				4)
@@ -7309,7 +7835,7 @@ Menu_Whitelist() {
 							2)
 								option3="entry"
 								Prompt_Typed "option4" "IP/Range" "Input IP Or Range To Remove:"
-								if ! echo "$option4" | Is_IPRange; then echo "[*] $option4 Is Not A Valid IP/Range"; echo; unset "option3" "option4"; continue; fi
+								if ! printf '%s\n' "$option4" | Is_IPRange; then echo "[*] $option4 Is Not A Valid IP/Range"; echo; unset "option3" "option4"; continue; fi
 								break
 							;;
 							3)
@@ -7452,28 +7978,6 @@ Menu_Deport() {
 	done
 }
 
-Menu_Save() {
-	while :; do
-		if ! Menu_Require_Running; then break; fi
-		option1="save"
-		break
-	done
-}
-
-Menu_Start() {
-	while :; do
-		option1="restart"
-		break
-	done
-}
-
-Menu_Restart() {
-	while :; do
-		option1="disable"
-		break
-	done
-}
-
 Menu_Update() {
 	while :; do
 		option1="update"
@@ -7551,8 +8055,8 @@ Menu_Settings_Log_Size() {
 	Require_Running
 	option2="logsize"
 	while true; do
-		Show_Menu "Select Log Size Option" \
-			"10MB" \
+		Show_Menu "Select Log Size:" \
+			"10MB (Default)" \
 			"Custom" \
 			"Exit"
 		Prompt_Input "1-2" menu3
@@ -7574,8 +8078,8 @@ Menu_Settings_Traffic_Filter() {
 	Require_Running
 	option2="filter"
 	while true; do
-		Show_Menu "Select Traffic Filter" \
-			"All - (Recommended)" \
+		Show_Menu "Select Traffic Filtering Mode:" \
+			"Inbound & Outbound (Recommended)" \
 			"Inbound" \
 			"Outbound" \
 			"Exit"
@@ -7667,6 +8171,7 @@ Menu_Settings_IOT() {
 						"TCP" \
 						"Both" \
 						"Exit"
+					menu4=""
 					Prompt_Input "1-3" menu4
 					case "$menu4" in
 						1) option4="udp"; break ;;
@@ -7695,7 +8200,9 @@ Menu_Settings() {
 				"Logging & Statistics" \
 				"Integration & Advanced" \
 				"Exit"
+			settingscategory=""
 			Prompt_Input "1-5" settingscategory
+			settingsitem=""
 			case "$settingscategory" in
 				1)
 					Show_Menu "Updates & Lists:" "Skynet Auto-Updates" "Malware List Auto-Updates" "Exit"
@@ -7703,7 +8210,7 @@ Menu_Settings() {
 					case "$settingsitem" in 1) menu2="1" ;; 2) menu2="2" ;; e|exit|back|menu) continue ;; *) Invalid_Option "$settingsitem"; continue ;; esac
 				;;
 				2)
-					Show_Menu "Protection:" "Traffic Filtering" "Unban Private IPs" "Import AiProtection Data" "Secure Mode" "CDN Whitelisting" "Exit"
+					Show_Menu "Protection:" "Traffic Filtering" "Unban Private IPs" "Import AiProtection Bans" "Secure Mode" "CDN Whitelisting" "Exit"
 					Prompt_Input "1-5" settingsitem
 					case "$settingsitem" in 1) menu2="6" ;; 2) menu2="7" ;; 3) menu2="8" ;; 4) menu2="9" ;; 5) menu2="16" ;; e|exit|back|menu) continue ;; *) Invalid_Option "$settingsitem"; continue ;; esac
 				;;
@@ -7722,20 +8229,20 @@ Menu_Settings() {
 				*) Invalid_Option "$settingscategory"; continue ;;
 			esac
 			case "$menu2" in
-				1) Menu_Settings_Toggle "autoupdate" "Select Skynet Autoupdate Option:" ;;
+				1) Menu_Settings_Toggle "autoupdate" "Select Skynet Auto-Update Option:" ;;
 				2) Menu_Settings_Malware_Schedule ;;
 				3) Menu_Settings_Toggle "logmode" "Select Logging Option" ;;
 				4) Menu_Settings_Toggle "loginvalid" "Select Invalid Packet Logging Option" ;;
 				5) Menu_Settings_Log_Size ;;
 				6) Menu_Settings_Traffic_Filter ;;
-				7) Menu_Settings_Toggle "unbanprivate" "Select Filter PrivateIP Option" ;;
-				8) Menu_Settings_Toggle "banaiprotect" "Select Ban AiProtect Option" ;;
+				7) Menu_Settings_Toggle "unbanprivate" "Select Unban Private IPs Option:" ;;
+				8) Menu_Settings_Toggle "banaiprotect" "Select AiProtection Ban Import Option:" ;;
 				9) Menu_Settings_Toggle "securemode" "Select Secure Mode Option" ;;
-				10) Menu_Settings_Toggle "extendedstats" "Select Extended Stats Option" ;;
+				10) Menu_Settings_Toggle "extendedstats" "Select Extended Statistics Option" ;;
 				12) Menu_Settings_Syslog ;;
 				13) Menu_Settings_IOT ;;
 				14) Menu_Settings_Toggle "iotlogging" "Select IoT Logging Option" ;;
-				15) Menu_Settings_Toggle "lookupcountry" "Select Country Lookup For Stats Option:" ;;
+				15) Menu_Settings_Toggle "lookupcountry" "Select Country Lookup Option:" ;;
 				16) Menu_Settings_Toggle "cdnwhitelist" "Select CDN Whitelisting Option:" ;;
 				17) Menu_Settings_Toggle "webui" "Select WebUI Option:" ;;
 				e|exit|back|menu) Return_To_Menu ;;
@@ -7778,13 +8285,13 @@ Menu_Debug() {
 							2)
 								option3="ip"
 								Prompt_Typed "option4" "IP"
-								if ! echo "$option4" | Is_IP; then echo "[*] $option4 Is Not A Valid IP"; echo; unset "option3" "option4"; continue; fi
+								if ! printf '%s\n' "$option4" | Is_IP; then echo "[*] $option4 Is Not A Valid IP"; echo; unset "option3" "option4"; continue; fi
 								break
 							;;
 							3)
 								option3="port"
 								Prompt_Typed "option4" "Port"
-								if ! echo "$option4" | Is_Port; then echo "[*] $option4 Is Not A Valid Port"; echo; unset "option3" "option4"; continue; fi
+								if ! printf '%s\n' "$option4" | Is_Port; then echo "[*] $option4 Is Not A Valid Port"; echo; unset "option3" "option4"; continue; fi
 								break
 							;;
 							e|exit|back|menu)
@@ -7860,7 +8367,7 @@ Menu_Debug() {
 Menu_Stats_Result_Count() {
 	menucount=""
 	while true; do
-		Show_Menu "Show Top x Results:" \
+		Show_Menu "Select Result Count:" \
 			"10" \
 			"20" \
 			"50" \
@@ -7887,7 +8394,7 @@ Menu_Stats_Display() {
 	option3="$menucount"
 	unset "menucount"
 	while true; do
-		Show_Menu "Show Packet Type:" \
+		Show_Menu "Select Protocol:" \
 			"All" \
 			"TCP" \
 			"UDP" \
@@ -7908,26 +8415,27 @@ Menu_Stats_Display() {
 Menu_Stats_Connections() {
 	option3="connections"
 	while true; do
-		Show_Menu "Search Options:" \
+		Show_Menu "Select Connection Filter:" \
 			"All Results" \
 			"Search By IP" \
 			"Search By Port" \
 			"Search By Protocol" \
 			"Search By Identification" \
 			"Exit"
+		menu5=""
 		Prompt_Input "1-5" menu5
 		case "$menu5" in
 			1) break ;;
 			2)
 				option4="ip"
 				Prompt_Typed "option5" "IP"
-				if ! echo "$option5" | Is_IP; then echo "[*] $option5 Is Not A Valid IP"; echo; unset "option4" "option5"; continue; fi
+				if ! printf '%s\n' "$option5" | Is_IP; then echo "[*] $option5 Is Not A Valid IP"; echo; unset "option4" "option5"; continue; fi
 				break
 			;;
 			3)
 				option4="port"
 				Prompt_Typed "option5" "Port"
-				if ! echo "$option5" | Is_Port; then echo "[*] $option5 Is Not A Valid Port"; echo; unset "option4" "option5"; continue; fi
+				if ! printf '%s\n' "$option5" | Is_Port; then echo "[*] $option5 Is Not A Valid Port"; echo; unset "option4" "option5"; continue; fi
 				break
 			;;
 			4)
@@ -7945,7 +8453,7 @@ Menu_Stats_Connections() {
 Menu_Stats_Search() {
 	option2="search"
 	while true; do
-		Show_Menu "Search Options:" \
+		Show_Menu "Select Statistics Search:" \
 			"Entries For A Specific Port" \
 			"Entries For A Specific IP" \
 			"Entries For A Specific Domain" \
@@ -7962,12 +8470,12 @@ Menu_Stats_Search() {
 		case "$menu4" in
 			1)
 				option3="port"; Prompt_Input "Port" option4
-				if ! echo "$option4" | Is_Port; then echo "[*] $option4 Is Not A Valid Port"; echo; unset "option3" "option4"; continue; fi
+				if ! printf '%s\n' "$option4" | Is_Port; then echo "[*] $option4 Is Not A Valid Port"; echo; unset "option3" "option4"; continue; fi
 				break
 			;;
 			2)
 				option3="ip"; Prompt_Input "IP" option4
-				if ! echo "$option4" | Is_IP; then echo "[*] $option4 Is Not A Valid IP"; echo; unset "option3" "option4"; continue; fi
+				if ! printf '%s\n' "$option4" | Is_IP; then echo "[*] $option4 Is Not A Valid IP"; echo; unset "option3" "option4"; continue; fi
 				break
 			;;
 			3)
@@ -7977,7 +8485,7 @@ Menu_Stats_Search() {
 			;;
 			4)
 				option3="malware"; Prompt_Input "IP" option4
-				if ! echo "$option4" | Is_IPRange; then echo "[*] $option4 Is Not A Valid IP/Range"; echo; unset "option3" "option4"; continue; fi
+				if ! printf '%s\n' "$option4" | Is_IPRange; then echo "[*] $option4 Is Not A Valid IP/Range"; echo; unset "option3" "option4"; continue; fi
 				break
 			;;
 			5)
@@ -7988,7 +8496,7 @@ Menu_Stats_Search() {
 			6) option3="manualbans"; break ;;
 			7)
 				option3="device"; Prompt_Input "Local IP" option4
-				if ! echo "$option4" | Is_IP; then echo "[*] $option4 Is Not A Valid IP"; echo; unset "option3" "option4"; continue; fi
+				if ! printf '%s\n' "$option4" | Is_IP; then echo "[*] $option4 Is Not A Valid IP"; echo; unset "option3" "option4"; continue; fi
 				break
 			;;
 			8) option3="reports"; break ;;
@@ -8009,7 +8517,7 @@ Menu_Stats_Search() {
 Menu_Stats_Remove() {
 	option2="remove"
 	while true; do
-		Show_Menu "Search Options:" \
+		Show_Menu "Select Logs To Remove:" \
 			"Logs Containing Specific IP" \
 			"Logs Containing Specific Port" \
 			"Exit"
@@ -8017,12 +8525,12 @@ Menu_Stats_Remove() {
 		case "$menu3" in
 			1)
 				option3="ip"; Prompt_Typed "option4" "IP"
-				if ! echo "$option4" | Is_IP; then echo "[*] $option4 Is Not A Valid IP"; echo; unset "option3" "option4"; continue; fi
+				if ! printf '%s\n' "$option4" | Is_IP; then echo "[*] $option4 Is Not A Valid IP"; echo; unset "option3" "option4"; continue; fi
 				break
 			;;
 			2)
 				option3="port"; Prompt_Typed "option4" "Port"
-				if ! echo "$option4" | Is_Port; then echo "[*] $option4 Is Not A Valid Port"; echo; unset "option3" "option4"; continue; fi
+				if ! printf '%s\n' "$option4" | Is_Port; then echo "[*] $option4 Is Not A Valid Port"; echo; unset "option3" "option4"; continue; fi
 				break
 			;;
 			e|exit|back|menu) Return_To_Menu; break ;;
@@ -8034,7 +8542,7 @@ Menu_Stats_Remove() {
 Menu_Stats() {
 	option1="stats"
 	while true; do
-		Show_Menu "Select Stat Option:" \
+		Show_Menu "Select Statistics Option:" \
 			"Display" \
 			"Search" \
 			"Remove" \
@@ -8052,23 +8560,15 @@ Menu_Stats() {
 	done
 }
 
-Menu_Install() {
-	while :; do
-		option1="install"
-		break
-	done
-}
-
-Menu_Uninstall() {
-	while :; do
-		option1="uninstall"
-		break
-	done
-}
-
 Load_Menu() {
 	Load_Config || return 1
 	Display_Header "9"
+	menupublicip="$(nvram get wan0_ipaddr)"
+	if printf '%s\n' "$menupublicip" | Is_PrivateIP; then
+		menupublicipdisplay="$(Red "$menupublicip")"
+	else
+		menupublicipdisplay="$menupublicip"
+	fi
 	printf '╔═════════════════════ System ══════════════════════════════════════════════════════════════════════════════╗\n'
 	printf '║ %-20s │ %-82s ║\n' "Router Model"   "$(nvram get productid)"
 	printf '║ %-20s │ %-82s ║\n' "Skynet Version" "$localver ($(Filter_Date < "$0"))"
@@ -8077,7 +8577,7 @@ Load_Menu() {
 	printf '║ %-20s │ %-82s ║\n' "FW Version"     "$(uname -o) v$(nvram get buildno)_$(nvram get extendno) (Kernel $(uname -r)) ($(uname -v | awk "{printf \"%s %s %s\n\", \$5,\$6,\$9}"))"
 	printf '║ %-20s │ %-82s ║\n' "iptables"       "$(iptables --version)"
 	printf '║ %-20s │ %-82s ║\n' "ipset"          "$(ipset -v 2>/dev/null | head -n1)"
-	printf '║ %-20s │ %-82s ║\n' "Public IP"      "$(if nvram get wan0_ipaddr | Is_PrivateIP; then Red "$(nvram get wan0_ipaddr)"; else nvram get wan0_ipaddr; fi)"
+	printf '║ %-20s │ %-82s ║\n' "Public IP"      "$menupublicipdisplay"
 	printf '║ %-20s │ %-82s ║\n' "WAN Info"       "${iface} - $(nvram get wan0_proto)"
 	if [ -n "$countrylist" ]; then
 		countries="$countrylist"
@@ -8088,25 +8588,21 @@ Load_Menu() {
 	fi
 	[ -n "$customlisturl" ] && printf '║ %-20s │ %-82s ║\n' "Custom Filter URL" "$customlisturl"
 	printf '╚══════════════════════╧════════════════════════════════════════════════════════════════════════════════════╝\n\n\n'
-	if [ -f "$LOCK_FILE" ] && ! flock -n 9 9<"$LOCK_FILE"; then
-		locked_cmd=$(cut -d'|' -f1 "$LOCK_FILE")
-		locked_pid=$(cut -d'|' -f2 "$LOCK_FILE")
-		lock_timestamp=$(cut -d'|' -f3 "$LOCK_FILE")
-
-		if [ -n "$locked_pid" ] && [ -d "/proc/$locked_pid" ]; then
-			current_time=$(date +%s)
-			runtime=$(( current_time - lock_timestamp ))
-			Red "[*] Lock File Detected ($locked_cmd) (pid=$locked_pid, runtime=${runtime}s)"
-			Ylow '[*] Locked Processes Generally Take 1-2 Minutes To Complete And May Result In Temporarily "Failed" Tests'
-			echo;echo
-		fi
+	unset "menupublicip" "menupublicipdisplay"
+	if Read_Active_Lock; then
+		Red "[*] Lock File Detected ($lockstatuscommand) (pid=$lockstatuspid, runtime=${lockstatusruntime}s)"
+		Ylow '[*] Locked Processes Generally Take 1-2 Minutes To Complete And May Result In Temporarily "Failed" Tests'
+		echo;echo
 	fi
+	unset "lockstatuscommand" "lockstatuspid" "lockstatusepoch" "lockstatusruntime"
 	if ! Check_Connection >/dev/null 2>&1; then
 		printf '%-35s | %-8s\n' "Internet Connectivity" "$(Red "[Failed]")"
 	fi
-	if ! grep -E "start.* # Skynet" /jffs/scripts/firewall-start 2>/dev/null | grep -qvE "^#"; then
+	menufirewallstarthook="sh /jffs/scripts/firewall start skynetloc=${skynetloc} # Skynet"
+	if ! Check_Skynet_Hook /jffs/scripts/firewall-start "$menufirewallstarthook"; then
 		printf '%-35s | %-8s\n' "Firewall-Start Entry" "$(Red "[Failed]")"
 	fi
+	unset "menufirewallstarthook"
 	if ! [ -w "${skynetloc}" ]; then
 		printf '%-35s | %-8s\n' "Write Permission" "$(Red "[Failed]")"
 	fi
@@ -8142,7 +8638,7 @@ Load_Menu() {
 			"Update Skynet" \
 			"Settings" \
 			"Debug Options" \
-			"Stats" \
+			"Statistics" \
 			"Install Skynet" \
 			"Uninstall" \
 			"Exit"
@@ -8173,15 +8669,16 @@ Load_Menu() {
 				break
 			;;
 			7)
-				Menu_Save
+				Menu_Require_Running
+				option1="save"
 				break
 			;;
 			8)
-				Menu_Start
+				option1="restart"
 				break
 			;;
 			9)
-				Menu_Restart
+				option1="disable"
 				break
 			;;
 			10)
@@ -8201,11 +8698,11 @@ Load_Menu() {
 				break
 			;;
 			14)
-				Menu_Install
+				option1="install"
 				break
 			;;
 			15)
-				Menu_Uninstall
+				option1="uninstall"
 				break
 			;;
 			r|reload)
@@ -8241,7 +8738,15 @@ rm -rf "$TMP_DIR"
 mkdir -m 700 "$TMP_DIR" || { rm -rf "$TMP_DIR"; exit 1; }
 mkdir -p /jffs/addons/shared-whitelists
 
-skynetloc="$(grep -ow "skynetloc=.* # Skynet" /jffs/scripts/firewall-start 2>/dev/null | grep -vE "^#" | awk '{print $1}' | cut -c 11-)"
+skynetloc="$(awk '$1 == "sh" && $2 == "/jffs/scripts/firewall" && $3 == "start" {
+	for (i = 4; i <= NF; i++) {
+		if ($i ~ /^skynetloc=/) {
+			sub(/^skynetloc=/, "", $i)
+			print $i
+			exit
+		}
+	}
+}' /jffs/scripts/firewall-start 2>/dev/null)"
 skynetcfg="${skynetloc}/skynet.cfg"
 skynetlog="${skynetloc}/skynet.log"
 skynetevents="${skynetloc}/events.log"
@@ -8257,7 +8762,7 @@ Set_Cleanup_Traps
 # If we haven’t yet determined an install directory and the script is running in a real terminal,
 # force the command to “install” so the installer logic kicks in automatically.
 if [ -z "$skynetloc" ] && tty >/dev/null 2>&1; then
-	set "install"
+	set -- "install"
 fi
 
 Check_NTP "$1"
@@ -8300,6 +8805,5 @@ if [ "$nolog" != "2" ]; then Print_Command_Summary "$@"; echo; fi
 commandstatus="${commandfailed:-0}"
 if [ "$nocfg" != "1" ]; then Write_Config || commandstatus="1"; fi
 if [ "$restartfirewall" = "1" ]; then service restart_firewall; echo; fi
-if [ -n "$reloadmenu" ]; then echo;echo; printf "[i] Press Enter To Continue..."; read -r "continue"; Return_To_Menu; fi
-printf '\033[?7h'
+if [ -n "$reloadmenu" ]; then echo;echo; printf "[i] Press Enter To Continue..."; read -r "_menucontinue"; Return_To_Menu; fi
 exit "$commandstatus"

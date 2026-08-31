@@ -5926,8 +5926,8 @@
                                                             </tr>
                                                             <tr>
                                                                 <th>
-                                                                    <span class="skynet-setting-name">Whitelist Private IPs</span>
-                                                                    <span class="skynet-setting-help">Automatically whitelists private addresses found in blocked traffic.</span>
+                                                                    <span class="skynet-setting-name">Unban Private IPs</span>
+                                                                    <span class="skynet-setting-help">Removes and whitelists private addresses found in blocked traffic.</span>
                                                                 </th>
                                                                 <td>
                                                                     <select class="input_option" id="skynetUnbanPrivate">
@@ -5938,8 +5938,8 @@
                                                             </tr>
                                                             <tr>
                                                                 <th>
-                                                                    <span class="skynet-setting-name">Import AiProtection Threats</span>
-                                                                    <span class="skynet-setting-help">Imports threats detected by AiProtection into Skynet.</span>
+                                                                    <span class="skynet-setting-name">Import AiProtection Bans</span>
+                                                                    <span class="skynet-setting-help">Imports threats blocked by AiProtection into Skynet.</span>
                                                                 </th>
                                                                 <td>
                                                                     <select class="input_option" id="skynetAiProtect">

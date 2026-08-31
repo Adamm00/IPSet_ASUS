@@ -69,8 +69,10 @@ Commands return `0` on success, `1` for a runtime failure, and `2` for an invali
 
 ### Blocking
 
-- `firewall ban ip 8.8.8.8 "Apples"` - Ban an IPv4 address with an optional comment.
-- `firewall ban range 8.8.8.0/24 "Apples"` - Ban an IPv4 CIDR range with an optional comment.
+- `firewall ban ip 8.8.8.8 1.1.1.1` - Ban one or more IPv4 addresses.
+- `firewall ban ip 8.8.8.8 1.1.1.1 comment "Apples"` - Ban multiple IPv4 addresses with one optional quoted comment. The legacy single-address form without `comment` remains supported.
+- `firewall ban range 8.8.8.0/24 1.1.1.0/24` - Ban one or more IPv4 CIDR ranges.
+- `firewall ban range 8.8.8.0/24 1.1.1.0/24 comment "Apples"` - Ban multiple ranges with one optional quoted comment. The legacy single-range form without `comment` remains supported.
 - `firewall ban domain example.com` - Resolve a domain and ban its current public IPv4 addresses.
 - `firewall ban country pk cn sa` - Replace the current country bans with the known IPv4 ranges assigned to the supplied two-letter country codes.
 - `firewall ban asn AS123456` - Download and ban the IPv4 ranges announced by an ASN.
