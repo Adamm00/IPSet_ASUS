@@ -15,7 +15,7 @@ Skynet is free and open source. Development can be supported through [PayPal](ht
 - Blocks configured sources before inbound traffic reaches the router or forwarded services.
 - Blocks configured destinations for LAN clients, the router itself, and supported VPN server traffic.
 - Maintains separate IPSet collections for individual IPv4 addresses, network ranges, whitelisted entries, and IoT devices.
-- Downloads, validates, caches, consolidates, and reports IPv4 threat feeds from a configurable filter list.
+- Downloads, validates, caches, consolidates, and reports IPv4 threat feeds from a configurable filter list, including source state and content age.
 - Supports manual bans and whitelists by IPv4 address, CIDR range, domain, ASN, country, or comment.
 - Imports AiProtection detections and automatically whitelists required router, DNS, VPN, and optional CDN ranges.
 - Restricts selected IoT devices while retaining access to configured services and supported VPN server networks.
@@ -45,7 +45,7 @@ Skynet can also be installed through amtm:
 amtm
 ```
 
-The installer prompts for the USB partition, swap size, traffic direction, logging, malware list schedule, and Skynet update schedule.
+The installer prompts for the USB partition, swap size, traffic direction, logging, malware list schedule, and Skynet update schedule. Installation stops if the required WebUI file cannot be downloaded.
 
 ## Usage
 
@@ -86,7 +86,7 @@ Commands return `0` on success, `1` for a runtime failure, and `2` for an invali
 - `firewall unban nomanual` - Remove all non-manual bans while retaining manual IP and range bans.
 - `firewall unban all` - Flush both blacklists and clear the stored block log.
 
-Country blocking uses aggregated IPv4 allocation data. Applying a new country selection replaces the previous selection rather than appending to it.
+Country blocking downloads the selected IPdeny lists concurrently over verified HTTPS and accepts only complete public IPv4 CIDRs. A URL-bound validated cache is used with a warning when a selected list is temporarily unavailable. If no matching cache exists, the complete previous country selection is retained. Applying a new country selection replaces the previous selection rather than appending to it.
 
 Domain commands validate the hostname and resolve its complete IPv4 answer set before changing the firewall. A failed lookup or update leaves the existing IPSet unchanged.
 
@@ -100,7 +100,7 @@ Each source is reported as `current`, `cached`, `failed`, or `excluded`. A valid
 - `firewall banmalware https://example.com/filter.list` - Save the supplied filter-list URL as the primary source and refresh the malware blacklist.
 - `firewall banmalware reset` - Restore the default Skynet filter-list URL and refresh the malware blacklist.
 - `firewall banmalware status` - Display the update schedule, filter list, last update, and source-state totals.
-- `firewall banmalware sources` - Display every source, its usable entry count, state, last successful check, and URL.
+- `firewall banmalware sources` - Display every source, its usable entry count, state, last successful check, content-change time, and URL.
 - `firewall banmalware exclude list1.ipset list2.ipset` - Exclude filter-list URLs with the supplied filenames, then refresh the malware blacklist.
 - `firewall banmalware include list1.ipset list2.ipset` - Re-enable one or more excluded source filenames, then refresh the malware blacklist.
 - `firewall banmalware exclude reset` - Clear the excluded filenames and refresh the malware blacklist.
@@ -119,9 +119,11 @@ Each source is reported as `current`, `cached`, `failed`, or `excluded`. A valid
 - `firewall whitelist view` - Display all whitelist entries.
 - `firewall whitelist view ips|domains|imported` - Display only the selected class of manual whitelist entry.
 
+VPN whitelisting uses Merlin's configured NVRAM values without scanning active routes or interfaces. Each enabled OpenVPN server pool uses its configured subnet and netmask. Configured OpenVPN and WireGuard client endpoints are whitelisted as `/24` networks. Server firewall rules are installed only while the corresponding OpenVPN or WireGuard server is enabled.
+
 ### Importing and Removing Lists
 
-Import and deport accept either a local file path or an HTTP/HTTPS URL. Input files must contain one IPv4 address or CIDR range per line. Private and reserved ranges are ignored.
+Import and deport accept either a local file path or an HTTP/HTTPS URL. Input files must contain one IPv4 address or CIDR range per line. Private and reserved ranges are ignored. Bare addresses and `/32` entries are handled as IPs; all other valid CIDRs are handled as ranges.
 
 - `firewall import blacklist /path/to/list.txt "Apples"` - Add valid entries to the blacklist with an optional comment.
 - `firewall import whitelist https://example.com/list.txt "Apples"` - Add valid entries to the whitelist with an optional comment.
@@ -134,7 +136,7 @@ Import and deport accept either a local file path or an HTTP/HTTPS URL. Input fi
 - `firewall update check` - Check for an update without installing it.
 - `firewall update -f` - Download and install the current release even when the local file already matches.
 
-Each managed file is downloaded to a temporary path and replaces its existing copy only after that transfer completes successfully.
+Updates stage and validate both the firewall script and WebUI before Skynet is unloaded. The staged firewall must pass a shell syntax check and both files must be non-empty. A failed download, validation or replacement retains the existing installation and restarts it when required.
 
 ### Settings
 
@@ -152,6 +154,10 @@ The interactive Settings menu groups options under Updates & Lists, Protection, 
 - `firewall settings banaiprotect enable|disable` - Import or remove IPv4 threats recorded by AiProtection.
 - `firewall settings securemode enable|disable` - Control whether Skynet disables WAN access to SSH and the router WebUI when detected.
 - `firewall settings cdnwhitelist enable|disable` - Add or remove supported CDN, service, and public DNS ranges from the whitelist.
+
+Repeated AiProtection records are grouped before processing. Successful domain resolutions are reused for 24 hours and failed resolutions for seven days, while a newer AiProtection event is retried immediately. A previous valid mapping is retained if a later lookup fails.
+
+CDN source data is downloaded concurrently and validated before the dynamic whitelist is replaced. If any required source is unavailable or contains no valid IPv4 data, the previous dynamic entries are retained.
 
 #### IoT Isolation
 
@@ -206,6 +212,8 @@ Changing the IoT device list does not enable or disable enforcement. Use the mas
 
 Country fields are omitted when country lookup is disabled. Associated domains are included only when Extended Statistics is enabled and dnsmasq logging data is available.
 
+Generated WebUI statistics resolve country codes in batches of up to 32 addresses and reuse results for seven days. Stale values remain available during a provider outage, unused entries expire after 30 days, and a country lookup failure never prevents statistics generation.
+
 ### Diagnostics and Maintenance
 
 - `firewall debug watch` - Follow Skynet block entries in real time.
@@ -228,7 +236,7 @@ The WebUI provides:
 - IP details including ban reason, country, associated domains, AlienVault OTX, and SpeedGuide links where applicable.
 - Background statistics refresh without navigating away from the page.
 - Common Skynet settings with descriptions and documented defaults.
-- Threat-feed status, usable entry counts, last successful checks, source toggles, manual refresh, and primary filter-list configuration.
+- Threat-feed status, usable entry counts, last successful checks, content age, source toggles, manual refresh, and primary filter-list configuration.
 - Country blocking with country selection and removal.
 - IoT isolation with detected client, hostname, IPv4, MAC, online state, device list, port and protocol controls.
 - Copyable MAC addresses in blocked-device details when neighbour data is available.

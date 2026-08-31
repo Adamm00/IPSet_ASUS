@@ -707,6 +707,13 @@
             line-height: 16px;
         }
 
+        .skynet-feed-change {
+            display: block;
+            color: var(--skynet-muted);
+            font-size: 9px;
+            line-height: 12px;
+        }
+
         .skynet-feed-header > span:nth-child(2),
         .skynet-feed-entries {
             text-align: right;
@@ -1606,7 +1613,7 @@
             }
         }
 
-        @media (max-width: 500px) {
+        @media (max-width: 760px) {
             .skynet-hero {
                 padding:42px 10px 12px 10px;
             }
@@ -1946,7 +1953,8 @@
                     timeout: "Country blocking update did not complete.",
                     loadError: "Unable to load current country settings.",
                     source: "settings",
-                    requireSuccess: true
+                    requireSuccess: true,
+                    accepted: ["success", "degraded"]
                 },
                 iot: {
                     button: "iotButton",
@@ -4029,6 +4037,16 @@
                 : "failed";
         };
 
+        SkynetUI.formatAge = function(epoch) {
+            const seconds = Math.max(0, Math.floor(Date.now() / 1000) - Number(epoch || 0));
+
+            if (!Number(epoch)) return "Change unknown";
+            if (seconds < 60) return "Changed just now";
+            if (seconds < 3600) return "Changed " + Math.max(1, Math.floor(seconds / 60)) + "m ago";
+            if (seconds < 86400) return "Changed " + Math.floor(seconds / 3600) + "h ago";
+            return "Changed " + Math.floor(seconds / 86400) + "d ago";
+        };
+
         SkynetUI.renderFeeds = function() {
             const list = this.getElement(this.selectors.feedList);
             const status = this.getElement(this.selectors.feedStatus);
@@ -4061,6 +4079,8 @@
                 const source = document.createElement("div");
                 const entries = document.createElement("div");
                 const success = document.createElement("div");
+                const successTime = document.createElement("span");
+                const contentChange = document.createElement("span");
                 const pillCell = document.createElement("div");
                 const pill = document.createElement("span");
                 const toggleCell = document.createElement("label");
@@ -4076,9 +4096,16 @@
                 entries.className = "skynet-feed-entries";
                 entries.textContent = SkynetUI.formatNumber(Number(feed.entries) || 0);
                 success.className = "skynet-feed-success";
-                success.textContent = Number(feed.success) > 0
+                successTime.textContent = Number(feed.success) > 0
                     ? new Date(Number(feed.success) * 1000).toLocaleString()
                     : "Never";
+                contentChange.className = "skynet-feed-change";
+                contentChange.textContent = SkynetUI.formatAge(feed.changed);
+                if (Number(feed.changed) > 0) {
+                    contentChange.title = new Date(Number(feed.changed) * 1000).toLocaleString();
+                }
+                success.appendChild(successTime);
+                success.appendChild(contentChange);
                 pill.className = "skynet-feed-pill " + state;
                 pill.textContent = state.charAt(0).toUpperCase() + state.substring(1);
                 pillCell.className = "skynet-feed-state";
@@ -5062,9 +5089,13 @@
                 if (String(currentStamp || "") !== String(previousStamp || "")) {
                     const response = String(window.SkynetSettingsResult || "error");
                     const accepted = action.accepted || ["success"];
+                    const acceptedResponse = accepted.some(function(value) {
+                        return response === value || response.indexOf(value + ":") === 0;
+                    });
                     const failed = action.requireSuccess &&
-                        accepted.indexOf(response) === -1;
-                    const degraded = response === "degraded";
+                        !acceptedResponse;
+                    const degraded = response === "degraded" ||
+                        response.indexOf("degraded:") === 0;
 
                     if (loadSettings) {
                         self.refreshRenderedStats();
@@ -5087,8 +5118,21 @@
                         );
                         self.setActionState(false, button, "Try Again");
                     } else if (degraded) {
+                        let degradedMessage =
+                            "Blacklist updated using one or more validated cached sources.";
+                        if (requestType === "countries") {
+                            const cachedCountries = response.substring(9).split(",")
+                                .filter(Boolean)
+                                .map(function(code) {
+                                    return SkynetUI.getCountryName(code);
+                                });
+                            degradedMessage = "Country blocking updated using validated cached data" +
+                                (cachedCountries.length
+                                    ? " for " + cachedCountries.join(", ") + "."
+                                    : ".");
+                        }
                         self.setUpdateResult(
-                            "Blacklist updated using one or more validated cached sources.",
+                            degradedMessage,
                             false,
                             result,
                             true
@@ -5890,7 +5934,7 @@
                                                                         <div class="skynet-feed-header" id="skynetFeedHeader">
                                                                             <span>Source</span>
                                                                             <span>Entries</span>
-                                                                            <span>Last Success</span>
+                                                                            <span>Last Success / Change</span>
                                                                             <span>State</span>
                                                                             <span>Enabled</span>
                                                                         </div>

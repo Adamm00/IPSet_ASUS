@@ -31,7 +31,7 @@ Cleanup_Runtime() {
 	case "$TMP_DIR" in
 		/tmp/skynet/tmp.[0-9]*) rm -rf "$TMP_DIR" ;;
 	esac
-	for tempfile in "$settingstmp" "$statstmp" "$downloadtmp" "$configtmp" "$saveipsettmp" "$malwareipsettmp" "$hooktmp" "$listmanifesttmp" "$feedstatustmp" "$filterpublishtmp" "$dnsmasqtmp" "$sharedwhitelisttmp" "$clientouifile" "$debugneighbors" "$iotviewneighbors"; do
+	for tempfile in "$settingstmp" "$statstmp" "$downloadtmp" "$configtmp" "$saveipsettmp" "$malwareipsettmp" "$hooktmp" "$listmanifesttmp" "$feedstatustmp" "$countrymanifesttmp" "$filterpublishtmp" "$dnsmasqtmp" "$sharedwhitelisttmp" "$clientouifile" "$debugneighbors" "$iotviewneighbors" "$updatetmp" "$updatewebuitmp" "$updatefirewallbackup" "$updatewebuibackup"; do
 		[ -n "$tempfile" ] && rm -f "$tempfile"
 	done
 	if [ -n "$skynetloc" ]; then
@@ -446,7 +446,8 @@ Curl_Fetch() {
 	# Curl's standard retry policy covers timeouts and transient HTTP responses.
 	# Do not retry every error: permanent HTTP failures such as GitHub's rate-limit
 	# 403 must return immediately so callers can retain their validated data.
-	if curl -fsSL --retry 3 --connect-timeout 5 --max-time 60 --retry-delay 1 "$@" 2>/dev/null; then
+	if curl -fsSL --proto '=http,https' --proto-redir '=http,https' \
+		--retry 3 --connect-timeout 5 --max-time 60 --retry-delay 1 "$@" 2>/dev/null; then
 		return 0
 	fi
 	Log error -s "Download Failed - Check Connection Or URL"
@@ -516,16 +517,45 @@ Build_Threat_Feed_Manifest() {
 			name = parts[count]
 			sub(/[?#].*$/, "", name)
 			gsub(/[^A-Za-z0-9._-]/, "_", name)
-			if (name == "" || name == "." || name == "..") next
+			# Hidden names are omitted by the consolidation glob and overlap internal
+			# cache files; countries is the country-cache directory. Keep ample room
+			# for collision suffixes and per-process temporary extensions.
+			if (name == "" || name ~ /^\./ || tolower(name) == "countries") next
+			if (length(name) > 120) name = substr(name, 1, 120)
 
 			raw_name = name
-			key = tolower(raw_name)
-			name_count[key]++
-			if (name_count[key] > 1) name = raw_name "." (name_count[key] - 1)
+			name = raw_name
+			suffix = 0
+			# A natural basename such as foo.1 can collide with the suffix generated
+			# for a preceding duplicate foo. Test every final case-folded name so all
+			# cache, result and status paths remain unique.
+			while (tolower(name) in used_name) name = raw_name "." ++suffix
+			used_name[tolower(name)] = 1
 
 			state = (tolower(name) in skip) ? "excluded" : "enabled"
 			print name, url, state
 		}' "$1" > "$2"
+}
+
+Validate_Threat_Feed_Selection() {
+	# Resolve exclusions against the final, collision-safe filenames. Validate the
+	# complete request before publishing the source list or starting downloads.
+	awk -F '\t' -v excluded="$2" '
+		BEGIN {
+			split(excluded, values, " ")
+			for (i in values) requested[tolower(values[i])] = values[i]
+		}
+		{ available[tolower($1)] = 1 }
+		END {
+			for (name in requested) {
+				if (name in available) continue
+				missing = missing (missing == "" ? "" : " ") requested[name]
+			}
+			if (missing != "") {
+				print missing
+				exit 1
+			}
+		}' "$1"
 }
 
 Restore_Threat_Feed_Selection() {
@@ -577,11 +607,12 @@ Print_Threat_Feed_Sources() {
 		echo "[i] Source Details Available After The Next Malware Update"
 		return 0
 	fi
-	printf '%-34s | %-9s | %-9s | %-19s\n' "Source" "Entries" "State" "Last Success"
-	printf '%-34s-+-%-9s-+-%-9s-+-%-19s\n' "----------------------------------" "---------" "---------" "-------------------"
+	printf '%-34s | %-9s | %-9s | %-19s | %-19s\n' "Source" "Entries" "State" "Last Success" "Content Changed"
+	printf '%-34s-+-%-9s-+-%-9s-+-%-19s-+-%-19s\n' "----------------------------------" "---------" "---------" "-------------------" "-------------------"
 	feedtab="$(printf '\t')"
-	while IFS="$feedtab" read -r feedname feedurl feedenabled feedstate feedentries feedchecked feedsuccess; do
-		printf '%-34s | %-9s | %-9s | %-19s\n' "$feedname" "$feedentries" "$feedstate" "$(Format_Threat_Feed_Time "$feedsuccess")"
+	while IFS="$feedtab" read -r feedname feedurl feedenabled feedstate feedentries feedchecked feedsuccess feedhash feedchanged; do
+		printf '%-34s | %-9s | %-9s | %-19s | %-19s\n' "$feedname" "$feedentries" "$feedstate" \
+			"$(Format_Threat_Feed_Time "$feedsuccess")" "$(Format_Threat_Feed_Time "$feedchanged")"
 		printf '  %s\n' "$feedurl"
 	done < "$feedstatusfile"
 }
@@ -589,8 +620,9 @@ Print_Threat_Feed_Sources() {
 Publish_Threat_Feed_Status() {
 	# Merge the requested source selection, background-job results and parser
 	# counts into one complete status snapshot, then publish it atomically. The
-	# tab-separated contract is name, URL, enabled state, result state, usable
-	# entries, last check epoch and last successful check epoch.
+	# Tab-separated contract is name, URL, enabled state, result state, usable
+	# entries, last check, last successful check, content hash and content-change
+	# epoch. New columns are appended so older seven-column snapshots still load.
 	feedmanifest="$1"
 	feedcounts="$2"
 	feedstatusfile="${skynetloc}/lists/.sources"
@@ -602,10 +634,12 @@ Publish_Threat_Feed_Status() {
 		feedentries="$(awk -F '\t' -v name="$feedname" '$1 == name { print $2; exit }' "$feedcounts" 2>/dev/null)"
 		feedchecked="0"
 		feedsuccess="0"
+		feedoldhash=""
+		feedoldchanged="0"
 		if [ -s "$feedstatusfile" ]; then
-			feedold="$(awk -F '\t' -v name="$feedname" -v url="$feedurl" '$1 == name && $2 == url { print $6 "\t" $7; exit }' "$feedstatusfile")"
+			feedold="$(awk -F '\t' -v name="$feedname" -v url="$feedurl" '$1 == name && $2 == url { print $6 "\t" $7 "\t" $8 "\t" $9; exit }' "$feedstatusfile")"
 			if [ -n "$feedold" ]; then
-				IFS="$feedtab" read -r feedoldchecked feedoldsuccess <<EOF
+				IFS="$feedtab" read -r feedoldchecked feedoldsuccess feedoldhash feedoldchanged <<EOF
 $feedold
 EOF
 				feedchecked="${feedoldchecked:-0}"
@@ -623,8 +657,16 @@ EOF
 		case "$feedentries" in ""|*[!0-9]*) feedentries="0" ;; esac
 		case "$feedchecked" in ""|*[!0-9]*) feedchecked="0" ;; esac
 		case "$feedsuccess" in ""|*[!0-9]*) feedsuccess="0" ;; esac
-		printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
-			"$feedname" "$feedurl" "$feedenabled" "$feedstate" "$feedentries" "$feedchecked" "$feedsuccess" >> "$feedstatustmp" || return 1
+		feedhash="$(sha256sum "${skynetloc}/lists/$feedname" 2>/dev/null | awk '{print $1}')"
+		feedchanged="$feedoldchanged"
+		if [ -n "$feedhash" ] && [ "$feedhash" != "$feedoldhash" ]; then
+			feedchanged="$(date -r "${skynetloc}/lists/$feedname" +%s 2>/dev/null || printf '%s' "$feedchecked")"
+		elif [ -z "$feedhash" ]; then
+			feedchanged="0"
+		fi
+		case "$feedchanged" in ""|*[!0-9]*) feedchanged="0" ;; esac
+		printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+			"$feedname" "$feedurl" "$feedenabled" "$feedstate" "$feedentries" "$feedchecked" "$feedsuccess" "$feedhash" "$feedchanged" >> "$feedstatustmp" || return 1
 	done < "$feedmanifest"
 	[ -s "$feedstatustmp" ] && mv -f "$feedstatustmp" "$feedstatusfile"
 }
@@ -688,18 +730,40 @@ Build_Malware_Restore() {
 		}' "$TMP_DIR/feed-files/"* > "$2"
 }
 
-Download_IPList() {
+Extract_IPList() {
 	# Keep only complete IPv4 or CIDR lines. The octet branches enforce 0-255
 	# and the optional prefix branch enforces /0-/32.
+	dos2unix < "$1" | grep -E '^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)$' > "$2"
+}
+
+Download_IPList() {
 	iplistdownload="$TMP_DIR/iplist-download"
 	if ! Curl_Fetch -o "$iplistdownload" "$1"; then
 		rm -f "$iplistdownload"
 		return 1
 	fi
-	dos2unix < "$iplistdownload" | grep -E '^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)$' > "$TMP_DIR/iplist-unfiltered.txt"
+	Extract_IPList "$iplistdownload" "$TMP_DIR/iplist-unfiltered.txt"
 	ipliststatus="$?"
 	rm -f "$iplistdownload"
 	return "$ipliststatus"
+}
+
+Build_IPList_Restore() {
+	# The input has already passed Extract_IPList. Filter private/reserved space
+	# once, then classify a bare address or /32 as a host and every other CIDR
+	# as a range. This keeps import and deport set selection identical.
+	iplistaction="$1"
+	iplisttarget="$2"
+	iplistdescription="$3"
+	Filter_PrivateIP < "$4" | awk -v action="$iplistaction" -v target="$iplisttarget" -v desc="$iplistdescription" '
+		{
+			value = $1
+			if (target == "whitelist") setname = "Skynet-Whitelist"
+			else if (index(value, "/") && value !~ /\/32$/) setname = "Skynet-BlockedRanges"
+			else setname = "Skynet-Blacklist"
+			if (action == "add") printf "add %s %s comment \"%s\"\n", setname, value, desc
+			else printf "del %s %s\n", setname, value
+		}' > "$5"
 }
 
 Apply_ASN_List() {
@@ -893,7 +957,7 @@ Clean_Stale_Temp() {
 		[ -d "/proc/$temppid" ] || rm -rf "$tempdir"
 	done
 	if [ -n "$skynetloc" ]; then
-		for tempfile in "${skynetloc}/lists/"*.tmp.* "${skynetloc}/lists/".*.tmp.* "${skynetloc}/skynet.cfg.tmp."* "${skynetloc}/skynet.ipset.tmp."* "${skynetloc}/webui/settings.js.tmp."* "${skynetloc}/webui/skynet.asp.tmp."* "${skynetloc}/webui/stats.js.tmp."* "$0.tmp."*; do
+		for tempfile in "${skynetloc}/lists/"*.tmp.* "${skynetloc}/lists/".*.tmp.* "${skynetloc}/lists/countries/.manifest.tmp."* "${skynetloc}/skynet.cfg.tmp."* "${skynetloc}/skynet.ipset.tmp."* "${skynetloc}/webui/settings.js.tmp."* "${skynetloc}/webui/skynet.asp.tmp."* "${skynetloc}/webui/skynet.asp.old."* "${skynetloc}/webui/stats.js.tmp."* "$0.tmp."* "$0.old."*; do
 			[ -f "$tempfile" ] || continue
 			temppid="${tempfile##*.}"
 			[ "$temppid" = "$$" ] && continue
@@ -954,9 +1018,10 @@ Update_IPSet() {
 		Log error -s "IPSet Entry Can't Be Empty"
 		return 1
 	fi
-	case "$ipsetcomment" in
-		*\"*) Log error -s "IPSet Comments Can't Include Quotes"; return 1 ;;
-	esac
+	if ! Validate_IPSet_Comment "$ipsetcomment" 255; then
+		Log error -s "IPSet Comment Contains Invalid Characters Or Is Too Long"
+		return 1
+	fi
 
 	if [ "$ipsetaction" = "add" ] && [ -n "$ipsetcomment" ]; then
 		ipset -q -! add "$ipsetname" "$ipsetentry" comment "$ipsetcomment" && return
@@ -1552,15 +1617,22 @@ Parse_IPSet_Entry_Arguments() {
 		parsederror="Comment Field Can't Be Empty"
 		return 1
 	fi
-	case "$parsedcomment" in
-		*\"*) parsederror="Comment Can't Include Quotes"; return 1 ;;
-	esac
-	if [ "${#parsedcomment}" -gt "$parsecommentlimit" ]; then
-		parsederror="Comment Is Too Long. ${parsecommentlimit} Chars Max"
+	if ! Validate_IPSet_Comment "$parsedcomment" "$parsecommentlimit"; then
+		parsederror="Comment Contains Invalid Characters Or Is Too Long. ${parsecommentlimit} Chars Max"
 		return 1
 	fi
 	parsedentries="$(Normalize_List "$parsedentries")" || { parsederror="Entry Field Can't Be Empty"; return 1; }
 	return 0
+}
+
+Validate_IPSet_Comment() {
+	# Restore files quote comments directly. Backslashes, quotes, control bytes or
+	# embedded newlines could alter AWK -v parsing or create another restore line.
+	case "$1" in
+		*\\*|*\"*) return 1 ;;
+	esac
+	[ "${#1}" -le "$2" ] || return 1
+	printf '%s\n' "$1" | awk 'NR > 1 || /[[:cntrl:]]/ { invalid = 1 } END { exit invalid }'
 }
 
 List_To_CSV() {
@@ -1590,9 +1662,10 @@ Update_IPSet_Batch() {
 		del:Skynet-Whitelist|del:Skynet-Blacklist|del:Skynet-BlockedRanges|del:Skynet-IOT) ;;
 		*) Log error -s "Invalid Batched IPSet Operation ($batchaction $batchset)"; return 1 ;;
 	esac
-	case "$batchcomment" in
-		*\"*) Log error -s "IPSet Comments Can't Include Quotes"; return 1 ;;
-	esac
+	if ! Validate_IPSet_Comment "$batchcomment" 255; then
+		Log error -s "IPSet Comment Contains Invalid Characters Or Is Too Long"
+		return 1
+	fi
 
 	if ! ipset save "$batchset" > "$batchsnapshot" 2>/dev/null; then
 		rm -f "$batchfile" "$batchsnapshot"
@@ -1672,6 +1745,51 @@ Apply_IPSet_File() {
 	[ "$ipsetsnapshotowned" = "0" ] || rm -f "$ipsetsnapshot"
 	Log error -s "Failed To Apply IPSet File - Previous Entries Restored"
 	return 1
+}
+
+Replace_Range_IPSet_Entries() {
+	# Build a complete replacement beside the live range set, excluding entries
+	# identified by one fixed comment marker and adding the prepared replacement.
+	# The single IPSet swap is atomic, so interruption cannot expose a partial set.
+	rangereplacemarker="$1"
+	rangereplaceinput="$2"
+	rangereplacetmp="Skynet-Ranges-Tmp"
+	rangereplacesnapshot="$TMP_DIR/range-replace-old.$$"
+	rangereplacerestore="$TMP_DIR/range-replace-new.$$"
+
+	if ! ipset save Skynet-BlockedRanges > "$rangereplacesnapshot" 2>/dev/null \
+		|| ! awk -v marker="$rangereplacemarker" -v target="$rangereplacetmp" '
+			$1 == "add" && $2 == "Skynet-BlockedRanges" && !index($0, marker) {
+				$2 = target
+				print
+			}' "$rangereplacesnapshot" > "$rangereplacerestore" \
+		|| ! awk -v target="$rangereplacetmp" '
+			$1 != "add" || $2 != "Skynet-BlockedRanges" || NF < 3 { invalid = 1; exit }
+			{ $2 = target; print }
+			END { if (invalid || NR == 0) exit 1 }
+		' "$rangereplaceinput" >> "$rangereplacerestore"; then
+		rm -f "$rangereplacesnapshot" "$rangereplacerestore"
+		return 1
+	fi
+
+	Destroy_IPSets "$rangereplacetmp"
+	if ! ipset -q create "$rangereplacetmp" hash:net hashsize 64 maxelem "$((65536 * 6))" comment \
+		|| ! ipset restore -! < "$rangereplacerestore"; then
+		Destroy_IPSets "$rangereplacetmp"
+		rm -f "$rangereplacesnapshot" "$rangereplacerestore"
+		return 1
+	fi
+
+	trap '' INT TERM
+	if ! ipset swap "$rangereplacetmp" Skynet-BlockedRanges; then
+		Destroy_IPSets "$rangereplacetmp"
+		Set_Cleanup_Traps
+		rm -f "$rangereplacesnapshot" "$rangereplacerestore"
+		return 1
+	fi
+	Destroy_IPSets "$rangereplacetmp"
+	Set_Cleanup_Traps
+	rm -f "$rangereplacesnapshot" "$rangereplacerestore"
 }
 
 Strip_Domain() {
@@ -2090,18 +2208,149 @@ Whitelist_Blocked_Private_IPs() {
 }
 
 Cleanup_AiProtect_Temp() {
-	rm -f "$aiprotectfile" "$aiprotectold" "$aiprotectrecords" "$aiprotectdomainsraw" "$aiprotectdomains"
+	rm -f "$aiprotectfile" "$aiprotectold" "$aiprotectrecords" "$aiprotectschema" \
+		"$aiprotectdomainsraw" "$aiprotectdomains" "$aiprotectmanifest" \
+		"$aiprotectcachetmp" "$aiprotectoldmap" "$TMP_DIR"/aiprotect-result.*
+}
+
+Resolve_AiProtect_Domains() {
+	# Cache contract: domain~latest event~last successful check~positive|negative
+	# ~IPv4 list~last failed check. A newer event bypasses both TTLs. Failed
+	# refreshes retain a previous positive mapping and are retried weekly instead
+	# of on every malware update; older five-field caches load with no failure time.
+	aiprotectcache="${skynetloc}/lists/.aiprotect"
+	aiprotectcachetmp="${aiprotectcache}.tmp.$$"
+	aiprotectmanifest="$TMP_DIR/aiprotect-manifest.$$"
+	aiprotectoldmap="$TMP_DIR/aiprotect-old-map.$$"
+	aiprotectnow="$(date +%s)"
+	aiprotectid="0"
+	mkdir -p "${skynetloc}/lists" || return 1
+	true > "$aiprotectmanifest" || return 1
+	awk '
+		index($0, "BanAiProtect: ") {
+			domain = $0
+			sub(/^.*BanAiProtect: /, "", domain)
+			sub(/".*$/, "", domain)
+			if (domain != "") {
+				if (ips[domain] == "") ips[domain] = $3
+				else ips[domain] = ips[domain] " " $3
+			}
+		}
+		END { for (domain in ips) print domain "~" ips[domain] }
+	' "$aiprotectold" > "$aiprotectoldmap" || return 1
+
+	Start_Background_Jobs
+	while IFS= read -r aiprotectdomain; do
+		[ -n "$aiprotectdomain" ] || continue
+		aiprotectid="$((aiprotectid + 1))"
+		aiprotectevent="$(awk -F '|' -v domain="$aiprotectdomain" '
+			$1 == "D" {
+				value = tolower($2)
+				sub(/^www\./, "", value)
+				if (value == domain && $3 > newest) newest = $3
+			}
+			END { print newest + 0 }
+		' "$aiprotectrecords")"
+		aiprotectoldline="$(awk -F '~' -v domain="$aiprotectdomain" '$1 == domain {print; exit}' "$aiprotectcache" 2>/dev/null)"
+		aiprotectrefresh="1"
+		if [ -n "$aiprotectoldline" ]; then
+			IFS='~' read -r _aiprotectdomain aiprotectoldevent aiprotectoldchecked aiprotectoldstate aiprotectoldips aiprotectoldfailure <<EOF
+$aiprotectoldline
+EOF
+			case "$aiprotectoldevent" in ""|*[!0-9]*) aiprotectoldevent="0" ;; esac
+			case "$aiprotectoldchecked" in ""|*[!0-9]*) aiprotectoldchecked="0" ;; esac
+			case "$aiprotectoldfailure" in ""|*[!0-9]*) aiprotectoldfailure="0" ;; esac
+			if [ "$aiprotectevent" -le "$aiprotectoldevent" ]; then
+				case "$aiprotectoldstate" in
+					positive)
+						if [ "$aiprotectoldfailure" -gt "$aiprotectoldchecked" ] \
+							&& [ "$((aiprotectnow - aiprotectoldfailure))" -lt 604800 ]; then
+							aiprotectrefresh="0"
+						elif [ "$((aiprotectnow - aiprotectoldchecked))" -lt 86400 ]; then
+							aiprotectrefresh="0"
+						fi
+					;;
+					negative) [ "$((aiprotectnow - aiprotectoldchecked))" -lt 604800 ] && aiprotectrefresh="0" ;;
+				esac
+			fi
+		fi
+		printf '%s~%s~%s~%s\n' "$aiprotectid" "$aiprotectdomain" "$aiprotectevent" "$aiprotectrefresh" >> "$aiprotectmanifest"
+		if [ "$aiprotectrefresh" = "1" ]; then
+			(
+				aiprotectresolved="$(Resolve_Normalized_Domain_IP_List "$aiprotectdomain" public)" || aiprotectresolved=""
+				if [ -n "$aiprotectresolved" ]; then
+					printf 'positive~%s\n' "$aiprotectresolved"
+				else
+					printf 'negative~\n'
+				fi > "$TMP_DIR/aiprotect-result.${aiprotectid}"
+			) &
+			Wait_Background_Job_Slot 4
+		fi
+	done < "$aiprotectdomains"
+	Wait_Background_Jobs
+
+	true > "$aiprotectcachetmp" || return 1
+	while IFS='~' read -r aiprotectid aiprotectdomain aiprotectevent aiprotectrefresh; do
+		aiprotectoldline="$(awk -F '~' -v domain="$aiprotectdomain" '$1 == domain {print; exit}' "$aiprotectcache" 2>/dev/null)"
+		aiprotectoldevent="0"
+		aiprotectoldchecked="0"
+		aiprotectoldstate=""
+		aiprotectoldips=""
+		aiprotectoldfailure="0"
+		if [ -n "$aiprotectoldline" ]; then
+			IFS='~' read -r _aiprotectdomain aiprotectoldevent aiprotectoldchecked aiprotectoldstate aiprotectoldips aiprotectoldfailure <<EOF
+$aiprotectoldline
+EOF
+		elif aiprotectoldips="$(awk -F '~' -v domain="$aiprotectdomain" '$1 == domain {print $2; exit}' "$aiprotectoldmap")" \
+			&& [ -n "$aiprotectoldips" ]; then
+			aiprotectoldstate="positive"
+		fi
+
+		aiprotectstate="$aiprotectoldstate"
+		aiprotectips="$aiprotectoldips"
+		aiprotectchecked="$aiprotectoldchecked"
+		aiprotectfailure="$aiprotectoldfailure"
+		if [ "$aiprotectrefresh" = "1" ]; then
+			aiprotectresultstate="negative"
+			aiprotectresultips=""
+			if [ -s "$TMP_DIR/aiprotect-result.${aiprotectid}" ]; then
+				IFS='~' read -r aiprotectresultstate aiprotectresultips < "$TMP_DIR/aiprotect-result.${aiprotectid}"
+			fi
+			if [ "$aiprotectresultstate" = "positive" ] && [ -n "$aiprotectresultips" ]; then
+				aiprotectstate="positive"
+				aiprotectips="$aiprotectresultips"
+				aiprotectchecked="$aiprotectnow"
+				aiprotectfailure="0"
+			elif [ "$aiprotectoldstate" != "positive" ] || [ -z "$aiprotectoldips" ]; then
+				aiprotectstate="negative"
+				aiprotectips=""
+				aiprotectchecked="$aiprotectnow"
+				aiprotectfailure="0"
+			else
+				aiprotectfailure="$aiprotectnow"
+			fi
+		fi
+		case "$aiprotectchecked" in ""|*[!0-9]*) aiprotectchecked="0" ;; esac
+		case "$aiprotectfailure" in ""|*[!0-9]*) aiprotectfailure="0" ;; esac
+		printf '%s~%s~%s~%s~%s~%s\n' "$aiprotectdomain" "$aiprotectevent" "$aiprotectchecked" "$aiprotectstate" "$aiprotectips" "$aiprotectfailure" >> "$aiprotectcachetmp" || return 1
+		if [ "$aiprotectstate" = "positive" ]; then
+			for ip in $aiprotectips; do
+				printf 'add Skynet-Blacklist %s comment "BanAiProtect: %s"\n' "$ip" "$aiprotectdomain" >> "$aiprotectfile" || return 1
+			done
+		fi
+	done < "$aiprotectmanifest"
 }
 
 Refresh_AiProtect() {
 	if Is_Enabled "$banaiprotect" && [ -s /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db ]; then
-		# SQLite's DISTINCT output matches the existing first-seen lists while
-		# reducing thousands of repeated rows to the values Skynet consumes.
+		# SQLite grouping reduces thousands of repeated rows to the values Skynet
+		# consumes while retaining each domain's newest event for cache invalidation.
 		# The live snapshot also supplies Apply_IPSet_File's rollback, avoiding a
 		# second export of the complete blacklist.
 		aiprotectfile="$TMP_DIR/aiprotect-update.$$"
 		aiprotectold="$TMP_DIR/aiprotect-old.$$"
 		aiprotectrecords="$TMP_DIR/aiprotect-records.$$"
+		aiprotectschema="$TMP_DIR/aiprotect-schema.$$"
 		aiprotectdomainsraw="$TMP_DIR/aiprotect-domains.raw"
 		aiprotectdomains="$TMP_DIR/aiprotect-domains.list"
 		if ! ipset save Skynet-Blacklist > "$aiprotectold" 2>/dev/null; then
@@ -2115,15 +2364,17 @@ Refresh_AiProtect() {
 			Cleanup_AiProtect_Temp
 			return 1
 		fi
-		if ! sqlite3 -separator '|' /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db '
-			SELECT "S", src FROM (SELECT DISTINCT src FROM monitor)
+		if ! sqlite3 -separator '|' /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db 'PRAGMA table_info(monitor);' > "$aiprotectschema" \
+			|| ! awk -F '|' '$2 == "timestamp" {timestamp=1} $2 == "src" {src=1} $2 == "dst" {dst=1} END {exit !(timestamp && src && dst)}' "$aiprotectschema" \
+			|| ! sqlite3 -separator '|' /jffs/.sys/AiProtectionMonitor/AiProtectionMonitor.db '
+			SELECT "S", src, MAX(timestamp) FROM monitor GROUP BY src
 			UNION ALL
-			SELECT "D", dst FROM (SELECT DISTINCT dst FROM monitor);
+			SELECT "D", lower(dst), MAX(timestamp) FROM monitor GROUP BY lower(dst);
 		' > "$aiprotectrecords"; then
 			Cleanup_AiProtect_Temp
 			return 1
 		fi
-		awk -F '|' '$1 == "S" { print substr($0, 3) }' "$aiprotectrecords" | Filter_IP | Filter_PrivateIP \
+		awk -F '|' '$1 == "S" { print $2 }' "$aiprotectrecords" | Filter_IP | Filter_PrivateIP \
 			| awk '{printf "add Skynet-Blacklist %s comment \"BanAiProtect\"\n", $1 }' >> "$aiprotectfile"
 		if ! awk '
 			function is_ipv4(value, part, count, i) {
@@ -2136,7 +2387,7 @@ Refresh_AiProtect() {
 			}
 			BEGIN { FS = "|" }
 			$1 == "D" {
-				value = substr($0, 3)
+				value = $2
 				if (index(value, ":") == 0 && !is_ipv4(value)) print value
 			}
 		' "$aiprotectrecords" > "$aiprotectdomainsraw" \
@@ -2144,22 +2395,13 @@ Refresh_AiProtect() {
 			Cleanup_AiProtect_Temp
 			return 1
 		fi
-		(
-			Start_Background_Jobs
-			while IFS= read -r domain; do
-				{
-					domainips="$(Resolve_Normalized_Domain_IP_List "$domain" public)" || exit 0
-					for ip in $domainips; do
-						echo "add Skynet-Blacklist $ip comment \"BanAiProtect: $domain\""
-					done
-				} &
-				Wait_Background_Job_Slot 4
-			done < "$aiprotectdomains"
-			Wait_Background_Jobs
-		) >> "$aiprotectfile" || { Cleanup_AiProtect_Temp; return 1; }
+		Resolve_AiProtect_Domains || { Cleanup_AiProtect_Temp; return 1; }
 		if [ -s "$aiprotectfile" ] && ! Apply_IPSet_File "$aiprotectfile" "$aiprotectold"; then
 			Cleanup_AiProtect_Temp
 			return 1
+		fi
+		if [ -n "$aiprotectcachetmp" ] && ! mv -f "$aiprotectcachetmp" "$aiprotectcache"; then
+			Log error -s "Failed To Save AiProtection Lookup Cache"
 		fi
 		Cleanup_AiProtect_Temp
 	fi
@@ -2254,26 +2496,39 @@ Fetch_CDN_Whitelist() {
 	cdnworkerurl="$4"
 	cdnworkerbase="$TMP_DIR/cdn-whitelist.${cdnworkerid}"
 	cdnworkerraw="${cdnworkerbase}.raw"
+	cdnworkervalues="${cdnworkerbase}.values"
 	cdnworkeroutput="${cdnworkerbase}.restore"
 	cdnworkerstatus="${cdnworkerbase}.status"
 	cdnworkerparsed="0"
-	rm -f "$cdnworkerraw" "$cdnworkeroutput" "$cdnworkerstatus"
+	rm -f "$cdnworkerraw" "$cdnworkervalues" "$cdnworkeroutput" "$cdnworkerstatus"
 
 	if Curl_Fetch -o "$cdnworkerraw" "$cdnworkerurl" 2>/dev/null && Contains_IPRange < "$cdnworkerraw"; then
 		case "$cdnworkerformat" in
 			lines)
-				awk -v label="$cdnworkerlabel" '/^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)([[:space:]]|$)/ {
-					printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: %s\"\n", $1, label
-				}' "$cdnworkerraw" > "$cdnworkeroutput" && cdnworkerparsed="1"
+				awk '/^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)([[:space:]]|$)/ { print $1 }' \
+					"$cdnworkerraw" > "$cdnworkervalues"
 			;;
 			embedded)
-				awk -v label="$cdnworkerlabel" 'BEGIN {
-					RS = "(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\\/(1?[0-9]|2?[0-9]|3?[0-2]))?)"
-				} RT { printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: %s\"\n", RT, label }' "$cdnworkerraw" > "$cdnworkeroutput" && cdnworkerparsed="1"
+				# POSIX AWK has no RT variable. Repeatedly consume each matched IPv4
+				# token so JSON providers retain the old embedded-data behaviour.
+				awk -v label="$cdnworkerlabel" '{
+					line = $0
+					pattern = "(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(/(1?[0-9]|2?[0-9]|3?[0-2]))?)"
+					while (match(line, pattern)) {
+						value = substr(line, RSTART, RLENGTH)
+						print value
+						line = substr(line, RSTART + RLENGTH)
+					}
+				}' "$cdnworkerraw" > "$cdnworkervalues"
 			;;
 		esac
+		if [ -s "$cdnworkervalues" ]; then
+			Filter_PrivateIP < "$cdnworkervalues" | awk -v label="$cdnworkerlabel" '!seen[$1]++ {
+				printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: %s\"\n", $1, label
+			}' > "$cdnworkeroutput" && [ -s "$cdnworkeroutput" ] && cdnworkerparsed="1"
+		fi
 	fi
-	rm -f "$cdnworkerraw"
+	rm -f "$cdnworkerraw" "$cdnworkervalues"
 	if [ "$cdnworkerparsed" = "1" ] && [ -s "$cdnworkeroutput" ]; then
 		printf 'current\n' > "$cdnworkerstatus"
 		return 0
@@ -2372,15 +2627,118 @@ Whitelist_CDN() {
 	fi
 }
 
+Netmask_To_Prefix() {
+	# Accept only contiguous dotted IPv4 netmasks.
+	printf '%s\n' "$1" | awk -F '.' '
+		NF != 4 { exit 1 }
+		{
+			for (i = 1; i <= 4; i++) {
+				if ($i == 255) bits = 8
+				else if ($i == 254) bits = 7
+				else if ($i == 252) bits = 6
+				else if ($i == 248) bits = 5
+				else if ($i == 240) bits = 4
+				else if ($i == 224) bits = 3
+				else if ($i == 192) bits = 2
+				else if ($i == 128) bits = 1
+				else if ($i == 0) bits = 0
+				else exit 1
+				if (zero && bits != 0) exit 1
+				if (bits != 8) zero = 1
+				prefix += bits
+			}
+			print prefix
+		}'
+}
+
 Whitelist_VPN() {
-	echo "add Skynet-Whitelist $(nvram get vpn_server1_sn)/24 comment \"nvram: vpn_server1_sn\"
-	add Skynet-Whitelist $(nvram get vpn_server2_sn)/24 comment \"nvram: vpn_server2_sn\"
-	add Skynet-Whitelist $(nvram get vpn_server_sn)/24 comment \"nvram: vpn_server_sn\"
-	add Skynet-Whitelist $(nvram get vpn_client1_addr)/24 comment \"nvram: vpn_client1_addr\"
-	add Skynet-Whitelist $(nvram get vpn_client2_addr)/24 comment \"nvram: vpn_client2_addr\"
-	add Skynet-Whitelist $(nvram get vpn_client3_addr)/24 comment \"nvram: vpn_client3_addr\"
-	add Skynet-Whitelist $(nvram get vpn_client4_addr)/24 comment \"nvram: vpn_client4_addr\"
-	add Skynet-Whitelist $(nvram get vpn_client5_addr)/24 comment \"nvram: vpn_client5_addr\"" | tr -d "\t" | Filter_IPLine | ipset restore -! 2>/dev/null
+	# Build VPN whitelist entries from Merlin's NVRAM. OpenVPN server pools use
+	# their configured netmask and remote client endpoints use a /24 network.
+	vpnentries="$TMP_DIR/vpn-entries.$$"
+	vpnvalidated="$TMP_DIR/vpn-validated.$$"
+	vpnrestore="$TMP_DIR/vpn-restore.$$"
+	vpnsnapshot="$TMP_DIR/vpn-snapshot.$$"
+	true > "$vpnentries" || return 1
+	# Enabled server pools are authoritative before their interfaces exist. Use
+	# their real netmasks; generic vpn_server keys support older Merlin builds.
+	for vpnserver in vpn_server1 vpn_server2; do
+		vpnstate="$(nvram get "${vpnserver}_state")"
+		[ "$vpnstate" != "0" ] || continue
+		vpnsubnet="$(nvram get "${vpnserver}_sn")"
+		vpnnetmask="$(nvram get "${vpnserver}_nm")"
+		if [ -z "$vpnsubnet" ] && [ "$vpnserver" = "vpn_server1" ]; then
+			vpnserver="vpn_server"
+			vpnsubnet="$(nvram get "${vpnserver}_sn")"
+			vpnnetmask="$(nvram get "${vpnserver}_nm")"
+		fi
+		vpnprefix="$(Netmask_To_Prefix "$vpnnetmask" 2>/dev/null)" || vpnprefix=""
+		[ -n "$vpnsubnet" ] && [ -n "$vpnprefix" ] \
+			&& printf '%s/%s~nvram: %s\n' "$vpnsubnet" "$vpnprefix" "$vpnserver" >> "$vpnentries"
+	done
+
+	# Prefer Merlin's resolved endpoint, then resolve the configured address.
+	# Configured profiles are included before the tunnel connects.
+	for vpnclient in vpn_client1 vpn_client2 vpn_client3 vpn_client4 vpn_client5; do
+		vpnendpoint="$(nvram get "${vpnclient}_rip")"
+		if ! printf '%s\n' "$vpnendpoint" | Filter_IP >/dev/null; then
+			vpnaddress="$(nvram get "${vpnclient}_addr")"
+			[ -n "$vpnaddress" ] || continue
+			if printf '%s\n' "$vpnaddress" | Filter_IP >/dev/null; then
+				vpnendpoint="$vpnaddress"
+			else
+				vpnendpoint="$(Resolve_Domain_IP_List "$vpnaddress" public 2>/dev/null)" || continue
+			fi
+		fi
+		printf '%s\n' "$vpnendpoint" | while IFS= read -r vpnaddress; do
+			[ -n "$vpnaddress" ] || continue
+			printf '%s/24~nvram: %s_addr\n' "$vpnaddress" "$vpnclient" >> "$vpnentries"
+		done
+	done
+	if [ "$(nvram get wgc_enable)" = "1" ]; then
+		vpnendpoint="$(nvram get wgc_ep_addr)"
+		if ! printf '%s\n' "$vpnendpoint" | Filter_IP >/dev/null; then
+			vpnendpoint="$(Resolve_Domain_IP_List "$vpnendpoint" public 2>/dev/null)" || vpnendpoint=""
+		fi
+		printf '%s\n' "$vpnendpoint" | while IFS= read -r vpnaddress; do
+			[ -n "$vpnaddress" ] || continue
+			printf '%s/24~nvram: wgc_ep_addr\n' "$vpnaddress" >> "$vpnentries"
+		done
+	fi
+
+	# Validate the complete NVRAM result before taking a live snapshot or
+	# deleting an old VPN entry. One malformed network aborts the whole refresh.
+	vpninvalid="0"
+	true > "$vpnvalidated" || { rm -f "$vpnentries" "$vpnrestore" "$vpnsnapshot"; return 1; }
+	while IFS='~' read -r vpnnetwork vpnsource; do
+		[ -n "$vpnnetwork" ] || continue
+		if [ "$vpnnetwork" = "0.0.0.0/0" ] || [ -z "$vpnsource" ] \
+			|| ! printf '%s\n' "$vpnnetwork" | Is_IPRange; then
+			vpninvalid="1"
+			break
+		fi
+		printf '%s~%s\n' "$vpnnetwork" "$vpnsource" >> "$vpnvalidated" || { vpninvalid="1"; break; }
+	done < "$vpnentries"
+	if [ "$vpninvalid" = "1" ]; then
+		Log error -s "Invalid VPN NVRAM Network Detected - Existing Entries Retained"
+		rm -f "$vpnentries" "$vpnvalidated" "$vpnrestore" "$vpnsnapshot"
+		return 1
+	fi
+	awk -F '~' '!seen[$1]++ {print}' "$vpnvalidated" > "$vpnentries" \
+		|| { rm -f "$vpnentries" "$vpnvalidated" "$vpnrestore" "$vpnsnapshot"; return 1; }
+
+	ipset save Skynet-Whitelist > "$vpnsnapshot" 2>/dev/null || { rm -f "$vpnentries" "$vpnvalidated" "$vpnrestore" "$vpnsnapshot"; return 1; }
+	awk '
+		$1 == "add" && $2 == "Skynet-Whitelist" && (index($0, "VPN-Whitelist:") || index($0, "nvram: vpn_")) {
+			print "del Skynet-Whitelist " $3
+		}' "$vpnsnapshot" > "$vpnrestore" || { rm -f "$vpnentries" "$vpnvalidated" "$vpnrestore" "$vpnsnapshot"; return 1; }
+	awk -F '~' '!seen[$1]++ {print}' "$vpnentries" | while IFS='~' read -r vpnnetwork vpnsource; do
+		printf 'add Skynet-Whitelist %s comment "VPN-Whitelist: %s"\n' "$vpnnetwork" "$vpnsource"
+	done >> "$vpnrestore"
+	if [ -s "$vpnrestore" ] && ! Apply_IPSet_File "$vpnrestore" "$vpnsnapshot"; then
+		rm -f "$vpnentries" "$vpnvalidated" "$vpnrestore" "$vpnsnapshot"
+		return 1
+	fi
+	rm -f "$vpnentries" "$vpnvalidated" "$vpnrestore" "$vpnsnapshot"
 	if [ -f "/dev/astrill/openvpn.conf" ]; then
 		Update_IPSet add Skynet-Whitelist "$(sed '\~remote ~!d;s~remote ~~' "/dev/astrill/openvpn.conf")/24" "nvram: Astrill_VPN"
 	fi
@@ -2571,7 +2929,7 @@ Build_Stats_Log_Index() {
 	statsindexsource="$1"
 	statsindexpath="$2"
 	statsindexproto="$3"
-	for statsindexfile in inbound-src inbound-dpt inbound-spt outbound-src outbound-dst outbound-all-dst outbound-http-dst invalid-src iot-dst activity; do
+	for statsindexfile in inbound-src inbound-dpt inbound-spt outbound-src outbound-dst outbound-all-dst outbound-http-dst invalid-src iot-dst activity span; do
 		true > "${statsindexpath}/${statsindexfile}.txt" || return 1
 	done
 
@@ -2586,6 +2944,11 @@ Build_Stats_Log_Index() {
 		}
 		BEGIN { hour += 0 }
 		{
+			if (index($0, "BLOCKED -")) {
+				stamp = $1 " " $2 " " $3
+				if (first == "") first = stamp
+				last = stamp
+			}
 			if (proto != "" && index($0, "PROTO=" proto " ") == 0) next
 			if ($0 ~ /INBOUND/) {
 				if ((value = field_value("SRC")) != "") print value >> path "/inbound-src.txt"
@@ -2615,6 +2978,7 @@ Build_Stats_Log_Index() {
 		END {
 			for (i = 0; i <= hour; i++)
 				printf "%02d:00~%d~%d~%d~%d\n", i, inbound[i] + 0, outbound[i] + 0, invalid[i] + 0, iot[i] + 0 > path "/activity.txt"
+			if (first != "") print first " To " last > path "/span.txt"
 		}
 	' "$statsindexsource"
 }
@@ -2825,31 +3189,105 @@ Build_Stats_Ban_Reason_Cache() {
 	' "$statsreasonsource" > "$statsreasonoutput"
 }
 
-Lookup_Stats_Country() {
-	# Cache format is lookup_type~ip~result. Separate name/code entries prevent a
-	# previous lookup from being reused with the wrong presentation format.
-	statslookupip="$1"
-	statslookupcountrytype="$2"
-	statslookupcountry=""
+Build_Stats_Country_Cache() {
+	# Persistent cache contract: IP~country code~last checked~last used. DB-IP's
+	# free API accepts 32 addresses per request, avoiding one network round-trip
+	# per chart row. Stale values remain usable when the provider is unavailable.
+	statscountryrequests="$1"
+	statscountryoutput="$2"
+	statsgeocache="${skynetloc}/lists/.geoip"
+	statsgeotmp="${statsgeocache}.tmp.$$"
+	statsgeowork="$TMP_DIR/geo-work.$$"
+	statsgeomissing="$TMP_DIR/geo-missing.$$"
+	statsgeobatches="$TMP_DIR/geo-batches.$$"
+	statsgeonew="$TMP_DIR/geo-new.$$"
+	statsgeoresponse="$TMP_DIR/geo-response.$$"
+	statsgeonow="$(date +%s)"
 
-	if ! Is_Enabled "$lookupcountry"; then
-		return 0
-	fi
+	true > "$statscountryoutput" || return 1
+	Is_Enabled "$lookupcountry" || return 0
+	mkdir -p "${skynetloc}/lists" || return 0
+	awk -F '~' -v requests="$statscountryrequests" -v now="$statsgeonow" '
+		BEGIN {
+			while ((getline ip < requests) > 0) if (ip != "") wanted[ip] = 1
+			close(requests)
+		}
+		$1 ~ /^[0-9.]+$/ && $2 ~ /^[A-Z][A-Z]$/ && $3 ~ /^[0-9]+$/ && $4 ~ /^[0-9]+$/ {
+			if ($1 in wanted) $4 = now
+			if (($1 in wanted) || now - $4 <= 2592000) print $1 "~" $2 "~" $3 "~" $4
+		}' "$statsgeocache" 2>/dev/null > "$statsgeowork"
+	awk -F '~' -v cache="$statsgeowork" -v now="$statsgeonow" '
+		BEGIN {
+			while ((getline line < cache) > 0) {
+				split(line, field, "~")
+				checked[field[1]] = field[3]
+			}
+			close(cache)
+		}
+		NF && (!( $1 in checked) || now - checked[$1] >= 604800) && !seen[$1]++ { print $1 }
+	' "$statscountryrequests" > "$statsgeomissing"
+	awk '
+		{
+			batch = batch (batch == "" ? "" : ",") $1
+			if (++count == 32) { print batch; batch = ""; count = 0 }
+		}
+		END { if (batch != "") print batch }
+	' "$statsgeomissing" > "$statsgeobatches"
+	true > "$statsgeonew"
+	while IFS= read -r statsgeobatch; do
+		[ -n "$statsgeobatch" ] || continue
+		if Curl_Lookup "https://api.db-ip.com/v2/free/${statsgeobatch}/countryCode" > "$statsgeoresponse" 2>/dev/null; then
+			case "$statsgeobatch" in
+				*,*)
+					sed -n 's/^[[:space:]]*"\([0-9][0-9.]*\)"[[:space:]]*:[[:space:]]*"\([A-Z][A-Z]\)".*/\1~\2/p' "$statsgeoresponse" \
+						| awk -F '~' -v now="$statsgeonow" '$1 != "" && !seen[$1]++ { print $1 "~" $2 "~" now "~" now }' >> "$statsgeonew"
+				;;
+				*)
+					statsgeocode="$(tr -d '\r\n' < "$statsgeoresponse")"
+					case "$statsgeocode" in
+						[A-Z][A-Z]) printf '%s~%s~%s~%s\n' "$statsgeobatch" "$statsgeocode" "$statsgeonow" "$statsgeonow" >> "$statsgeonew" ;;
+					esac
+				;;
+			esac
+		fi
+	done < "$statsgeobatches"
+	awk -F '~' -v fresh="$statsgeonew" '
+		BEGIN {
+			while ((getline line < fresh) > 0) {
+				split(line, field, "~")
+				new[field[1]] = line
+				order[++count] = field[1]
+			}
+			close(fresh)
+		}
+		!($1 in new) { print }
+		END { for (i = 1; i <= count; i++) print new[order[i]] }
+	' "$statsgeowork" > "$statsgeotmp"
+	# Publish an empty snapshot as well so entries unused for 30 days are actually
+	# pruned when no current chart IP needs country enrichment.
+	mv -f "$statsgeotmp" "$statsgeocache" 2>/dev/null || true
+	awk -F '~' -v requests="$statscountryrequests" '
+		BEGIN {
+			while ((getline ip < requests) > 0) wanted[ip] = 1
+			close(requests)
+		}
+		($1 in wanted) && !seen[$1]++ { print $1 "~" $2 }
+	' "$statsgeocache" 2>/dev/null > "$statscountryoutput"
+	rm -f "$statsgeotmp" "$statsgeowork" "$statsgeomissing" "$statsgeobatches" "$statsgeonew" "$statsgeoresponse"
+}
+
+Lookup_Stats_Country() {
+	statslookupip="$1"
+	statslookupcountry=""
+	Is_Enabled "$lookupcountry" || return 0
 	if [ -n "$statscountrycache" ] && [ -f "$statscountrycache" ]; then
-		statslookupcountry="$(awk -F "~" -v type="$statslookupcountrytype" -v ip="$statslookupip" '$1 == type && $2 == ip {print $3; exit}' "$statscountrycache")"
+		statslookupcountry="$(awk -F '~' -v ip="$statslookupip" '$1 == ip {print $2; exit}' "$statscountrycache")"
 	fi
-	if [ -z "$statslookupcountry" ]; then
-		case "$statslookupcountrytype" in
-			name)
-				statslookupcountry="$(Curl_Lookup "https://api.db-ip.com/v2/free/${statslookupip}/countryName/" 2>/dev/null)"
-				[ -n "$statslookupcountry" ] || statslookupcountry="*"
-			;;
-			*)
-				statslookupcountry="$(Curl_Lookup "https://api.db-ip.com/v2/free/${statslookupip}/countryCode/" 2>/dev/null | grep -E '^[A-Z]{2}$' || echo '**')"
-			;;
-		esac
-		[ -n "$statscountrycache" ] && printf '%s~%s~%s\n' "$statslookupcountrytype" "$statslookupip" "$statslookupcountry" >> "$statscountrycache"
+	if [ -z "$statslookupcountry" ] && [ "$statscountrybatch" != "1" ]; then
+		statslookupcountry="$(Curl_Lookup "https://api.db-ip.com/v2/free/${statslookupip}/countryCode/" 2>/dev/null | grep -E '^[A-Z]{2}$' || echo '**')"
+		[ -n "$statscountrycache" ] && printf '%s~%s\n' "$statslookupip" "$statslookupcountry" >> "$statscountrycache"
 	fi
+	[ -n "$statslookupcountry" ] || statslookupcountry="**"
 	printf '%s\n' "$statslookupcountry"
 }
 
@@ -3565,7 +4003,7 @@ Generate_WebUI_Feed_Data() {
 	feedexcluded="0"
 	if [ -s "$feedstatusfile" ]; then
 		feedtab="$(printf '\t')"
-		while IFS="$feedtab" read -r feedname feedurl _feedstatusenabled feedstate feedentries feedchecked feedsuccess; do
+		while IFS="$feedtab" read -r feedname feedurl _feedstatusenabled feedstate feedentries feedchecked feedsuccess _feedhash feedchanged; do
 			feedenabled="true"
 			feednamelower="$(printf '%s\n' "$feedname" | awk '{ print tolower($0) }')"
 			for feedexcludedname in $excludelists; do
@@ -3584,11 +4022,12 @@ Generate_WebUI_Feed_Data() {
 			case "$feedentries" in ""|*[!0-9]*) feedentries="0" ;; esac
 			case "$feedchecked" in ""|*[!0-9]*) feedchecked="0" ;; esac
 			case "$feedsuccess" in ""|*[!0-9]*) feedsuccess="0" ;; esac
+			case "$feedchanged" in ""|*[!0-9]*) feedchanged="0" ;; esac
 			feednamejs="$(printf '%s\n' "$feedname" | Escape_JS)"
 			feedurljs="$(printf '%s\n' "$feedurl" | Escape_JS)"
 			[ "$feedfirst" = "1" ] || printf ',' >> "$settingstmp"
-			printf '\n\t{name:\x27%s\x27,url:\x27%s\x27,enabled:%s,state:\x27%s\x27,entries:%s,checked:%s,success:%s}' \
-				"$feednamejs" "$feedurljs" "$feedenabled" "$feedstate" "$feedentries" "$feedchecked" "$feedsuccess" >> "$settingstmp" || return 1
+			printf '\n\t{name:\x27%s\x27,url:\x27%s\x27,enabled:%s,state:\x27%s\x27,entries:%s,checked:%s,success:%s,changed:%s}' \
+				"$feednamejs" "$feedurljs" "$feedenabled" "$feedstate" "$feedentries" "$feedchecked" "$feedsuccess" "$feedchanged" >> "$settingstmp" || return 1
 			feedfirst="0"
 			feedtotal=$((feedtotal + 1))
 			case "$feedstate" in
@@ -3674,12 +4113,13 @@ Generate_Stats() {
 	Write_Stats_ToJS "$blacklist2count" "$statstmp" "SetBLCount2" "blcount2" || statsstatus="1"
 	Write_Stats_ToJS "$hits1" "$statstmp" "SetHits1" "hits1" || statsstatus="1"
 	Write_Stats_ToJS "$hits2" "$statstmp" "SetHits2" "hits2" || statsstatus="1"
-	statsspan="$(awk '/BLOCKED -/ { if (first == "") first = $1 " " $2 " " $3; last = $1 " " $2 " " $3 } END { if (first != "") print first " To " last }' "$skynetlog")"
-	Write_Stats_ToJS "${statsspan:-N/A}" "$statstmp" "SetStatsDate" "statsdate" || statsstatus="1"
 	Write_Stats_ToJS "$(du -h "$skynetlog" | awk '{print $1}')B" "$statstmp" "SetStatsSize" "statssize" || statsstatus="1"
 	printf 'var SkynetStatsGenerated = "%s.%s";\n' "$(date +%s)" "$$" >> "$statstmp" || statsstatus="1"
 
 	Build_Stats_Log_Index "$skynetlog" "$statsworkspace" || statsstatus="1"
+	statsspan=""
+	IFS= read -r statsspan < "${statsworkspace}/span.txt"
+	Write_Stats_ToJS "${statsspan:-N/A}" "$statstmp" "SetStatsDate" "statsdate" || statsstatus="1"
 	Write_Data_ToJS "${statsworkspace}/activity.txt" "$statstmp" "LabelActivityToday" "DataActivityInbound" "DataActivityOutbound" "DataActivityInvalid" "DataActivityIOT" || statsstatus="1"
 
 	# Extract chart IPs before enrichment so the large IPSet and dnsmasq histories
@@ -3702,12 +4142,15 @@ Generate_Stats() {
 	fi
 	{
 		cat "${statsworkspace}/liconn-ips.txt" "${statsworkspace}/loconn-ips.txt" "${statsworkspace}/lhconn-ips.txt"
-		awk 'NF >= 2 {print $NF}' "${statsworkspace}/thconn-ips.txt" "${statsworkspace}/toconn-ips.txt" "${statsworkspace}/tiotconn-ips.txt"
+		awk 'NF >= 2 {print $NF}' "${statsworkspace}/thconn-ips.txt" "${statsworkspace}/ticonn-ips.txt" \
+			"${statsworkspace}/toconn-ips.txt" "${statsworkspace}/tinvconn-ips.txt" "${statsworkspace}/tiotconn-ips.txt"
 	} | awk 'NF && !seen[$0]++' > "$statslookupips" || statsstatus="1"
 	cat "${statsworkspace}/liconn-ips.txt" "${statsworkspace}/loconn-ips.txt" "${statsworkspace}/lhconn-ips.txt" |
 		awk 'NF && !seen[$0]++' > "$statsreasonips" || statsstatus="1"
 	Build_Stats_Ban_Reason_Cache "$statsreasonips" "$statsbanlist" "$statsreasoncache" || statsstatus="1"
 	Build_Stats_Domain_Cache "$statslookupips" "$statsdomaincache" || statsstatus="1"
+	statscountrybatch="1"
+	Build_Stats_Country_Cache "$statslookupips" "$statscountrycache" || statsstatus="1"
 
 	# Inbound Ports
 	Extract_Stats_Values "${statsworkspace}/inbound-dpt.txt" ".*" "" "" "top" "10" |
@@ -3733,7 +4176,7 @@ Generate_Stats() {
 	Write_Top_IP_Stats "${statsworkspace}/thconn.txt" code domains < "${statsworkspace}/thconn-ips.txt" || statsstatus="1"
 	Write_Data_ToJS "${statsworkspace}/thconn.txt" "$statstmp" "DataTHConnHits" "LabelTHConnHits_IPs" "LabelTHConnHits_Country" "LabelTHConnHits_AssDomains" || statsstatus="1"
 
-	Write_Top_IP_Stats "${statsworkspace}/ticonn.txt" name nodomains < "${statsworkspace}/ticonn-ips.txt" || statsstatus="1"
+	Write_Top_IP_Stats "${statsworkspace}/ticonn.txt" code nodomains < "${statsworkspace}/ticonn-ips.txt" || statsstatus="1"
 	Write_Data_ToJS "${statsworkspace}/ticonn.txt" "$statstmp" "DataTIConnHits" "LabelTIConnHits_IPs" "LabelTIConnHits_Country" || statsstatus="1"
 
 	Write_Top_IP_Stats "${statsworkspace}/toconn.txt" code domains < "${statsworkspace}/toconn-ips.txt" || statsstatus="1"
@@ -3911,9 +4354,12 @@ Uninstall_WebUI_Page() {
 Download_File() {
 	# Download beside the destination and replace only a complete file. The MD5
 	# comparison avoids unnecessary flash/USB writes when content is unchanged.
+	# "stage" retains the validated temporary file for a coordinated update.
 	downloadfile="$1"
 	downloaddest="$2"
 	downloadforce="$3"
+	downloadaction="$4"
+	downloadchanged="0"
 
 	downloadurl="${remotedir}/${downloadfile}"
 	downloadname="$(basename "$downloadfile")"
@@ -3927,13 +4373,28 @@ Download_File() {
 
 	downloadremotemd5="$(md5sum "$downloadtmp" | awk '{print $1}')"
 	downloadlocalmd5="$(md5sum "$downloaddest" 2>/dev/null | awk '{print $1}')"
-
-	if [ "$downloadremotemd5" != "$downloadlocalmd5" ] || [ "$downloadforce" = "-f" ]; then
-		if [ "$downloadname" = "firewall.sh" ] && ! chmod 755 "$downloadtmp"; then
+	if [ "$downloadname" = "firewall.sh" ]; then
+		if ! chmod 755 "$downloadtmp" || ! sh -n "$downloadtmp"; then
 			rm -f "$downloadtmp"
-			Log error "Failed To Set Permissions On $downloadname"
+			Log error "Invalid Update File Detected ($downloadname)"
 			return 1
 		fi
+	fi
+	if [ "$downloadname" = "skynet.asp" ] \
+		&& { ! grep -qF 'SkynetUI.initialize = function()' "$downloadtmp" \
+			|| ! grep -qF '</html>' "$downloadtmp"; }; then
+		rm -f "$downloadtmp"
+		Log error "Invalid Update File Detected ($downloadname)"
+		return 1
+	fi
+	if [ "$downloadremotemd5" != "$downloadlocalmd5" ] || [ "$downloadforce" = "-f" ]; then
+		downloadchanged="1"
+	fi
+
+	if [ "$downloadaction" = "stage" ]; then
+		return 0
+	fi
+	if [ "$downloadchanged" = "1" ]; then
 		if mv -f "$downloadtmp" "$downloaddest"; then
 			echo "[i] Updated $downloadname"
 		else
@@ -4824,7 +5285,13 @@ Apply_WebUI_Countries() {
 				settingsresult="success"
 			elif [ -n "$webuicountries" ]; then
 				if webuicountryresult="$(Run_WebUI_Command ban country "$webuicountries" 2>&1)"; then
-					settingsresult="success"
+					webuicachedcountries="$(printf '%s\n' "$webuicountryresult" | sed -n 's~.*Using Cached Country List (\([^)]*\)).*~\1~p' \
+						| awk '{if (output != "") output = output ","; output = output $1} END {print output}')"
+					if [ -n "$webuicachedcountries" ]; then
+						settingsresult="degraded:${webuicachedcountries}"
+					else
+						settingsresult="success"
+					fi
 				else
 					case "$webuicountryresult" in
 						*"Failed To Download Country List"*)
@@ -5066,10 +5533,157 @@ Dispatch_Unban() {
 	Require_Save_IPSets
 }
 
+Normalize_Country_Zone() {
+	# Country files must contain complete public IPv4 CIDRs. Rejecting the whole
+	# payload prevents a truncated or changed provider response being applied.
+	awk '
+		function usable(value, count, prefix, i, first, second, third) {
+			count = split(value, part, "/")
+			if (count != 2 || part[2] !~ /^[0-9]+$/ || part[2] < 0 || part[2] > 32) return 0
+			if (split(part[1], octet, ".") != 4) return 0
+			for (i = 1; i <= 4; i++)
+				if (octet[i] !~ /^[0-9]+$/ || octet[i] < 0 || octet[i] > 255) return 0
+			first = octet[1] + 0
+			second = octet[2] + 0
+			third = octet[3] + 0
+			if (first == 0 || first == 10 || first == 127 || first >= 224) return 0
+			if (first == 100 && second >= 64 && second <= 127) return 0
+			if (first == 169 && second == 254) return 0
+			if (first == 172 && second >= 16 && second <= 31) return 0
+			if (first == 192 && second == 168) return 0
+			if (first == 192 && second == 0 && (third == 0 || third == 2)) return 0
+			if (first == 198 && (second == 18 || second == 19)) return 0
+			if (first == 198 && second == 51 && third == 100) return 0
+			if (first == 203 && second == 0 && third == 113) return 0
+			return 1
+		}
+		{
+			sub(/\r$/, "")
+			if ($0 == "" || $0 ~ /^#/) next
+			if (NF != 1 || !usable($1)) invalid = 1
+			else if (!seen[$1]++) { print $1; entries++ }
+		}
+		END { if (invalid || entries == 0) exit 1 }
+	' "$1" > "$2"
+}
+
+Fetch_Country_Zone() {
+	countryfetchcode="$1"
+	countryfetchurl="https://www.ipdeny.com/ipblocks/data/aggregated/${countryfetchcode}-aggregated.zone"
+	countryfetchcache="${countrycachedir}/${countryfetchcode}.zone"
+	countryfetchraw="$TMP_DIR/country.${countryfetchcode}.raw"
+	countryfetchzone="$TMP_DIR/country.${countryfetchcode}.zone"
+	countryfetchresult="$TMP_DIR/country.${countryfetchcode}.result"
+	countryfetchvalid="0"
+	rm -f "$countryfetchraw" "$countryfetchzone" "$countryfetchresult"
+	if [ -s "$countryfetchcache" ] && [ -s "$countrycachemanifest" ] \
+		&& awk -F '\t' -v code="$countryfetchcode" -v url="$countryfetchurl" \
+			'$1 == code && $2 == url {found=1} END {exit !found}' "$countrycachemanifest"; then
+		countryfetchvalid="1"
+		countryfetchhttp="$(Curl_Fetch -z "$countryfetchcache" -o "$countryfetchraw" -w '%{http_code}' "$countryfetchurl")"
+		countryfetchstatus="$?"
+	else
+		countryfetchhttp="$(Curl_Fetch -o "$countryfetchraw" -w '%{http_code}' "$countryfetchurl")"
+		countryfetchstatus="$?"
+	fi
+	if [ "$countryfetchstatus" = "0" ] && [ "$countryfetchhttp" = "304" ] && [ "$countryfetchvalid" = "1" ]; then
+		rm -f "$countryfetchraw"
+		printf 'current\n' > "$countryfetchresult"
+	elif [ "$countryfetchstatus" = "0" ] && [ -s "$countryfetchraw" ]; then
+		if Normalize_Country_Zone "$countryfetchraw" "$countryfetchzone"; then
+			rm -f "$countryfetchraw"
+			printf 'downloaded\n' > "$countryfetchresult"
+		elif [ "$countryfetchvalid" = "1" ]; then
+			rm -f "$countryfetchraw" "$countryfetchzone"
+			printf 'cached\n' > "$countryfetchresult"
+		else
+			rm -f "$countryfetchraw" "$countryfetchzone"
+			printf 'invalid\n' > "$countryfetchresult"
+		fi
+	elif [ "$countryfetchvalid" = "1" ]; then
+		rm -f "$countryfetchraw" "$countryfetchzone"
+		printf 'cached\n' > "$countryfetchresult"
+	else
+		rm -f "$countryfetchraw" "$countryfetchzone"
+		printf 'failed\n' > "$countryfetchresult"
+	fi
+}
+
+Build_Country_Update() {
+	countryrequested="$1"
+	countrycachedir="${skynetloc}/lists/countries"
+	countrycachemanifest="${countrycachedir}/.manifest"
+	countrytmp="$TMP_DIR/country.restore.$$"
+	countrydegraded=""
+	mkdir -p "$countrycachedir" || return 1
+	true > "$countrytmp" || return 1
+	Start_Background_Jobs
+	for country in $countryrequested; do
+		Fetch_Country_Zone "$country" &
+		Wait_Background_Job_Slot 4
+	done
+	Wait_Background_Jobs
+	for country in $countryrequested; do
+		countryresultfile="$TMP_DIR/country.${country}.result"
+		countryresult="failed"
+		[ -s "$countryresultfile" ] && IFS= read -r countryresult < "$countryresultfile"
+		case "$countryresult" in
+			downloaded) countrysource="$TMP_DIR/country.${country}.zone" ;;
+			current) countrysource="${countrycachedir}/${country}.zone" ;;
+			cached)
+				countrysource="${countrycachedir}/${country}.zone"
+				countrydegraded="${countrydegraded}${countrydegraded:+ }${country}"
+				echo "[!] Using Cached Country List (${country})"
+			;;
+			invalid)
+				echo "[*] No Valid IPv4 Ranges Found For (${country})"
+				return 1
+			;;
+			*)
+				echo "[*] Failed To Download Country List (${country})"
+				return 1
+			;;
+		esac
+		awk -v code="$country" '{printf "add Skynet-BlockedRanges %s comment \"Country: %s\"\n", $1, code}' "$countrysource" >> "$countrytmp" || return 1
+	done
+	[ -s "$countrytmp" ]
+}
+
+Publish_Country_Cache() {
+	countrypublishlist="$1"
+	countrymanifesttmp="${countrycachemanifest}.tmp.$$"
+	true > "$countrymanifesttmp" || return 1
+	for country in $countrypublishlist; do
+		countryresult=""
+		[ -s "$TMP_DIR/country.${country}.result" ] && IFS= read -r countryresult < "$TMP_DIR/country.${country}.result"
+		if [ "$countryresult" = "downloaded" ]; then
+			mv -f "$TMP_DIR/country.${country}.zone" "${countrycachedir}/${country}.zone" \
+				|| { rm -f "$countrymanifesttmp"; return 1; }
+		fi
+		[ -s "${countrycachedir}/${country}.zone" ] || { rm -f "$countrymanifesttmp"; return 1; }
+		printf '%s\t%s\n' "$country" "https://www.ipdeny.com/ipblocks/data/aggregated/${country}-aggregated.zone" >> "$countrymanifesttmp" \
+			|| { rm -f "$countrymanifesttmp"; return 1; }
+	done
+	# Publish ownership before deleting obsolete files. If the atomic manifest move
+	# fails, the previous mapping remains valid and any new file is merely orphaned.
+	if ! mv -f "$countrymanifesttmp" "$countrycachemanifest"; then
+		rm -f "$countrymanifesttmp"
+		return 1
+	fi
+	for countrycachefile in "$countrycachedir"/*.zone; do
+		[ -f "$countrycachefile" ] || continue
+		countrycachecode="$(basename "$countrycachefile" .zone)"
+		case " $countrypublishlist " in
+			*" $countrycachecode "*) ;;
+			*) rm -f "$countrycachefile" ;;
+		esac
+		done
+	rm -f "$TMP_DIR"/country.*.raw "$TMP_DIR"/country.*.zone "$TMP_DIR"/country.*.result
+}
+
 Dispatch_Ban() {
 	Check_Lock "$@"
 	Require_Running
-	Require_Connection
 	Purge_Logs
 	case "$2" in
 		ip)
@@ -5097,6 +5711,7 @@ Dispatch_Ban() {
 			done
 		;;
 		domain)
+			Require_Connection
 			if [ -z "$3" ]; then echo "[*] Domain Field Can't Be Empty - Please Try Again"; echo; exit 2; fi
 			domain="$(Normalize_Domain "$3")" || { echo "[*] $3 Is Not A Valid Domain"; echo; exit 2; }
 			domainips="$(Resolve_Domain_IP_List "$domain" public)" || { echo "[*] Unable To Resolve A Public IP For $domain"; echo; exit 1; }
@@ -5128,49 +5743,28 @@ Dispatch_Ban() {
 				exit 2
 			fi
 
-			countrytmp="$TMP_DIR/country"
-			countryold="${countrytmp}.old"
-			countryzone="${countrytmp}.zone"
-			true > "$countrytmp"
-			# Saved IPSet lines are the rollback source if the new batch fails.
-			grep -F 'comment "Country:' "$skynetipset" > "$countryold"
-
 			echo "[i] Banning Known IP Ranges For (${countrylinklist})"
 			echo "[i] Downloading Lists, Filtering IPv4 Ranges & Applying Blacklists"
-
-			for country in $countrylinklist; do
-				if ! Curl_Fetch -k -o "$countryzone" \
-					"https://ipdeny.com/ipblocks/data/aggregated/${country}-aggregated.zone"; then
-					rm -f "$countrytmp" "$countryold" "$countryzone"
-					echo "[*] Failed To Download Country List (${country})"
-					exit 1
-				fi
-				if ! grep -qE '^[0-9.]+/[0-9]+$' "$countryzone"; then
-					rm -f "$countrytmp" "$countryold" "$countryzone"
-					echo "[*] No Valid IPv4 Ranges Found For (${country})"
-					exit 1
-				fi
-				grep -E '^[0-9.]+/[0-9]+$' "$countryzone" | sed "s/^/add Skynet-BlockedRanges /;s/$/& comment \"Country: ${country}\"/" >> "$countrytmp"
-			done
-			rm -f "$countryzone"
-
-			if [ -n "$countrylist" ]; then
-				echo "[i] Removing Previous Country Bans (${countrylist})"
-				Remove_IPSet_Entries Skynet-BlockedRanges "Country: " || { echo; exit 1; }
+			if ! Build_Country_Update "$countrylinklist"; then
+				rm -f "$countrytmp" "$TMP_DIR"/country.*.raw "$TMP_DIR"/country.*.zone "$TMP_DIR"/country.*.result
+				exit 1
 			fi
 
-			if ! ipset restore -! < "$countrytmp"; then
-				sed 's~^add~del~;s~ comment.*~~' "$countrytmp" | ipset restore -!
-				ipset restore -! < "$countryold"
-				rm -f "$countrytmp" "$countryold"
+			if ! Replace_Range_IPSet_Entries "Country: " "$countrytmp"; then
+				rm -f "$countrytmp"
 				echo "[*] Failed To Apply Country Bans - Previous Bans Restored"
 				exit 1
 			fi
 
 			countrylist="$countrylinklist"
-			rm -f "$countrytmp" "$countryold"
+			Publish_Country_Cache "$countrylinklist" || Log error -s "Failed To Publish Country List Cache"
+			if [ -n "$countrydegraded" ]; then
+				echo "[!] Country Blocking Updated Using Cached Data (${countrydegraded})"
+			fi
+			rm -f "$countrytmp"
 		;;
 		asn)
+			Require_Connection
 			if [ -z "$3" ]; then echo "[*] ASN Field Can't Be Empty - Please Try Again"; echo; exit 2; fi
 			if ! echo "$3" | Is_ASN; then echo "[*] $3 Is Not A Valid ASN"; echo; exit 2; fi
 			asnlist="$(echo "$3" | awk '{print toupper($0)}')"
@@ -5257,6 +5851,54 @@ else
 fi
 }
 
+Fetch_Threat_Feed_Sources() {
+	# Revalidate URL-bound caches with If-Modified-Since. Workers publish small
+	# result files because background subshell assignments cannot update BusyBox
+	# ash's parent process.
+	Start_Background_Jobs
+	while IFS="$feedtab" read -r list url selection; do
+		[ "$selection" = "enabled" ] || continue
+		(
+			listfile="${skynetloc}/lists/$list"
+			listtmp="${skynetloc}/lists/${list}.tmp.$$"
+			feedresult="$TMP_DIR/feed.${list}.result"
+			cachevalid="0"
+			oldsuccess="0"
+			rm -f "$listtmp" "$feedresult"
+			if [ -s "$listfile" ] && [ -s "$listmanifest" ] \
+				&& awk -v url="$url" -v name="$list" '$1 == url && $2 == name { found=1 } END { exit !found }' "$listmanifest"; then
+				cachevalid="1"
+				oldsuccess="$(awk -F '\t' -v url="$url" -v name="$list" '$1 == name && $2 == url { print $7; exit }' "${skynetloc}/lists/.sources" 2>/dev/null)"
+				case "$oldsuccess" in ""|0|*[!0-9]*) oldsuccess="$(date -r "$listfile" +%s 2>/dev/null || printf 0)" ;; esac
+				downloadcode="$(Curl_Fetch -z "$listfile" -o "$listtmp" -w '%{http_code}' "$url")"
+				downloadstatus="$?"
+			else
+				downloadcode="$(Curl_Fetch -o "$listtmp" -w '%{http_code}' "$url")"
+				downloadstatus="$?"
+			fi
+
+			if [ "$downloadstatus" = "0" ] && [ "$downloadcode" = "304" ] && [ "$cachevalid" = "1" ]; then
+				rm -f "$listtmp"
+				printf 'current\t%s\t%s\n' "$feedchecked" "$feedchecked" > "$feedresult"
+				echo "[✔] Up To Date $url"
+			elif [ "$downloadstatus" = "0" ] && [ -s "$listtmp" ] && dos2unix "$listtmp"; then
+				printf 'downloaded\t%s\t%s\n' "$feedchecked" "$feedchecked" > "$feedresult"
+				echo "[✔] Downloaded $url"
+			elif [ "$cachevalid" = "1" ]; then
+				rm -f "$listtmp"
+				printf 'cached\t%s\t%s\n' "$feedchecked" "$oldsuccess" > "$feedresult"
+				echo "[!] Download Failed - Checking Cached $url"
+			else
+				rm -f "$listtmp"
+				printf 'failed\t%s\t0\n' "$feedchecked" > "$feedresult"
+				echo "[✘] Download Failed $url"
+			fi
+		) &
+		Wait_Background_Job_Slot 4
+	done < "$feedmanifest"
+	Wait_Background_Jobs
+}
+
 Build_Malware_Update() {
 Display_Message "[i] Downloading filter.list"
 filtertmp="$TMP_DIR/filter.list"
@@ -5277,6 +5919,12 @@ if [ ! -s "$feedmanifest" ]; then
 	echo "[*] No Valid Malware Sources Found - Stopping Banmalware"
 	echo
 	return 1
+fi
+if ! feedinvalid="$(Validate_Threat_Feed_Selection "$feedmanifest" "$excludelists")"; then
+	rm -f "$filtertmp" "$filterout" "$feedmanifest"
+	echo "[*] Malware Source Not Found: $feedinvalid"
+	echo
+	return 2
 fi
 awk -F '\t' '$3 == "enabled" { print $2 }' "$feedmanifest" > "$filterout"
 if [ ! -s "$filterout" ]; then
@@ -5321,56 +5969,13 @@ if ! mkdir -p "${skynetloc}/lists" || [ ! -w "${skynetloc}/lists" ]; then
 	return 1
 fi
 
-# Revalidate URL-bound caches with If-Modified-Since. Workers only publish
-# small result files because assignments made in background subshells are
-# not visible to the parent BusyBox shell.
+# Phase 1: fetch each source while retaining validated URL-bound caches.
 listmanifest="${skynetloc}/lists/.manifest"
 feedchecked="$(date +%s)"
 feedtab="$(printf '\t')"
-Start_Background_Jobs
-while IFS="$feedtab" read -r list url selection; do
-	[ "$selection" = "enabled" ] || continue
-	(
-		listfile="${skynetloc}/lists/$list"
-		listtmp="${skynetloc}/lists/${list}.tmp.$$"
-		feedresult="$TMP_DIR/feed.${list}.result"
-		cachevalid="0"
-		oldsuccess="0"
-		rm -f "$listtmp" "$feedresult"
-		if [ -s "$listfile" ] && [ -s "$listmanifest" ] \
-			&& awk -v url="$url" -v name="$list" '$1 == url && $2 == name { found=1 } END { exit !found }' "$listmanifest"; then
-			cachevalid="1"
-			oldsuccess="$(awk -F '\t' -v url="$url" -v name="$list" '$1 == name && $2 == url { print $7; exit }' "${skynetloc}/lists/.sources" 2>/dev/null)"
-			case "$oldsuccess" in ""|0|*[!0-9]*) oldsuccess="$(date -r "$listfile" +%s 2>/dev/null || printf 0)" ;; esac
-			downloadcode="$(Curl_Fetch -z "$listfile" -o "$listtmp" -w '%{http_code}' "$url")"
-			downloadstatus="$?"
-		else
-			downloadcode="$(Curl_Fetch -o "$listtmp" -w '%{http_code}' "$url")"
-			downloadstatus="$?"
-		fi
+Fetch_Threat_Feed_Sources
 
-		if [ "$downloadstatus" = "0" ] && [ "$downloadcode" = "304" ] && [ "$cachevalid" = "1" ]; then
-			rm -f "$listtmp"
-			printf 'current\t%s\t%s\n' "$feedchecked" "$feedchecked" > "$feedresult"
-			echo "[✔] Up To Date $url"
-		elif [ "$downloadstatus" = "0" ] && [ -s "$listtmp" ] && dos2unix "$listtmp"; then
-			printf 'downloaded\t%s\t%s\n' "$feedchecked" "$feedchecked" > "$feedresult"
-			echo "[✔] Downloaded $url"
-		elif [ "$cachevalid" = "1" ]; then
-			rm -f "$listtmp"
-			printf 'cached\t%s\t%s\n' "$feedchecked" "$oldsuccess" > "$feedresult"
-			echo "[!] Download Failed - Checking Cached $url"
-		else
-			rm -f "$listtmp"
-			printf 'failed\t%s\t0\n' "$feedchecked" > "$feedresult"
-			echo "[✘] Download Failed $url"
-		fi
-	) &
-	Wait_Background_Job_Slot 4
-done < "$feedmanifest"
-Wait_Background_Jobs
-
-# Consolidate staged downloads and retained caches in one parser pass. New
+# Phase 2: consolidate staged downloads and retained caches in one parser pass. New
 # files replace their cache only after the parser confirms usable entries.
 feedfiles="$TMP_DIR/feed-files"
 feedcounts="$TMP_DIR/feed-counts"
@@ -5464,8 +6069,8 @@ while IFS="$feedtab" read -r list url selection; do
 	esac
 done < "$feedmanifest"
 
-# Publish cache ownership and source health only after every worker and the
-# consolidation parser have completed.
+# Phase 3: publish cache ownership and source health only after every worker
+# and the consolidation parser have completed.
 listmanifesttmp="${listmanifest}.tmp.$$"
 true > "$listmanifesttmp" || { Restore_Threat_Feed_Selection; echo "[*] Unable To Save Malware Cache Manifest"; echo; return 1; }
 while IFS="$feedtab" read -r list url selection; do
@@ -5726,30 +6331,29 @@ Dispatch_Import() {
 		blacklist)
 			Check_Lock "$@"
 			Require_Running
-			Require_Connection
 			Purge_Logs
 			echo "[i] This Function Extracts All IPs And Adds Them ALL To Blacklist"
 			if [ -f "$3" ]; then
 				echo "[i] Local Custom List Detected: $3"
-				grep -E '^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)$' "$3" > "$TMP_DIR/iplist-unfiltered.txt"
+				Extract_IPList "$3" "$TMP_DIR/iplist-unfiltered.txt"
 			elif [ -n "$3" ]; then
 				echo "[i] Remote Custom List Detected: $3"
+				Require_Connection
 				Download_IPList "$3" || { echo "[*] Download Error Detected - Stopping Import"; echo; exit 1; }
 			else
 				echo "[*] URL/File Field Can't Be Empty - Please Try Again"
 				echo; exit 2
 			fi
-			dos2unix "$TMP_DIR/iplist-unfiltered.txt"
 			if ! Is_IPRange < "$TMP_DIR/iplist-unfiltered.txt"; then echo "[*] No Content Detected - Stopping Import"; echo; exit 1; fi
 			echo "[i] Processing List"
-			if [ -n "$4" ] && [ "${#4}" -le "245" ]; then
-				Filter_PrivateIP < "$TMP_DIR/iplist-unfiltered.txt" | awk -v desc="Imported: $4" '/^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(32))?)$/{printf "add Skynet-Blacklist %s comment \"%s\"\n", $1, desc }' > "$TMP_DIR/iplist-filtered.txt"
-				Filter_PrivateIP < "$TMP_DIR/iplist-unfiltered.txt" | awk -v desc="Imported: $4" '/^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-1])){1})$/{printf "add Skynet-BlockedRanges %s comment \"%s\"\n", $1, desc }' >> "$TMP_DIR/iplist-filtered.txt"
+			if [ -n "$4" ]; then
+				if ! Validate_IPSet_Comment "$4" 245; then echo "[*] Comment Contains Invalid Characters Or Is Too Long"; echo; exit 2; fi
+				importdesc="Imported: $4"
 			else
-				imptime="$(date +"%b %e %T")"
-				Filter_PrivateIP < "$TMP_DIR/iplist-unfiltered.txt" | awk -v desc="Imported: $imptime" '/^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(32))?)$/{printf "add Skynet-Blacklist %s comment \"%s\"\n", $1, desc }' > "$TMP_DIR/iplist-filtered.txt"
-				Filter_PrivateIP < "$TMP_DIR/iplist-unfiltered.txt" | awk -v desc="Imported: $imptime" '/^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-1])){1})$/{printf "add Skynet-BlockedRanges %s comment \"%s\"\n", $1, desc }' >> "$TMP_DIR/iplist-filtered.txt"
+				importdesc="Imported: $(date +"%b %e %T")"
 			fi
+			Build_IPList_Restore add blacklist "$importdesc" "$TMP_DIR/iplist-unfiltered.txt" "$TMP_DIR/iplist-filtered.txt"
+			if [ ! -s "$TMP_DIR/iplist-filtered.txt" ]; then echo "[*] No Public IPs Detected - Stopping Import"; echo; exit 1; fi
 			echo "[i] Adding IPs To Blacklist"
 			Apply_IPSet_File "$TMP_DIR/iplist-filtered.txt" || { echo "[*] Failed To Apply Import - Previous Entries Restored"; echo; exit 1; }
 			rm -f "$TMP_DIR/iplist-unfiltered.txt" "$TMP_DIR/iplist-filtered.txt"
@@ -5759,28 +6363,29 @@ Dispatch_Import() {
 		whitelist)
 			Check_Lock "$@"
 			Require_Running
-			Require_Connection
 			Purge_Logs
 			echo "[i] This Function Extracts All IPs And Adds Them ALL To Whitelist"
 			if [ -f "$3" ]; then
 				echo "[i] Local Custom List Detected: $3"
-				grep -E '^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)$' "$3" > "$TMP_DIR/iplist-unfiltered.txt"
+				Extract_IPList "$3" "$TMP_DIR/iplist-unfiltered.txt"
 			elif [ -n "$3" ]; then
 				echo "[i] Remote Custom List Detected: $3"
+				Require_Connection
 				Download_IPList "$3" || { echo "[*] Download Error Detected - Stopping Import"; echo; exit 1; }
 			else
 				echo "[*] URL/File Field Can't Be Empty - Please Try Again"
 				echo; exit 2
 			fi
-			dos2unix "$TMP_DIR/iplist-unfiltered.txt"
 			if ! Is_IPRange < "$TMP_DIR/iplist-unfiltered.txt"; then echo "[*] No Content Detected - Stopping Import"; echo; exit 1; fi
 			echo "[i] Processing List"
-			if [ -n "$4" ] && [ "${#4}" -le "245" ]; then
-				Filter_PrivateIP < "$TMP_DIR/iplist-unfiltered.txt" | awk -v desc="Imported: $4" '{printf "add Skynet-Whitelist %s comment \"%s\"\n", $1, desc }' > "$TMP_DIR/iplist-filtered.txt"
+			if [ -n "$4" ]; then
+				if ! Validate_IPSet_Comment "$4" 245; then echo "[*] Comment Contains Invalid Characters Or Is Too Long"; echo; exit 2; fi
+				importdesc="Imported: $4"
 			else
-				imptime="$(date +"%b %e %T")"
-				Filter_PrivateIP < "$TMP_DIR/iplist-unfiltered.txt" | awk -v desc="Imported: $imptime" '{printf "add Skynet-Whitelist %s comment \"%s\"\n", $1, desc }' > "$TMP_DIR/iplist-filtered.txt"
+				importdesc="Imported: $(date +"%b %e %T")"
 			fi
+			Build_IPList_Restore add whitelist "$importdesc" "$TMP_DIR/iplist-unfiltered.txt" "$TMP_DIR/iplist-filtered.txt"
+			if [ ! -s "$TMP_DIR/iplist-filtered.txt" ]; then echo "[*] No Public IPs Detected - Stopping Import"; echo; exit 1; fi
 			echo "[i] Adding IPs To Whitelist"
 			Apply_IPSet_File "$TMP_DIR/iplist-filtered.txt" || { echo "[*] Failed To Apply Import - Previous Entries Restored"; echo; exit 1; }
 			rm -f "$TMP_DIR/iplist-unfiltered.txt" "$TMP_DIR/iplist-filtered.txt"
@@ -5798,25 +6403,23 @@ Dispatch_Deport() {
 		blacklist)
 			Check_Lock "$@"
 			Require_Running
-			Require_Connection
 			Purge_Logs
 			echo "[i] This Function Extracts All IPs And Removes Them ALL From Blacklist"
 			if [ -f "$3" ]; then
 				echo "[i] Local Custom List Detected: $3"
-				grep -E '^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)$' "$3" > "$TMP_DIR/iplist-unfiltered.txt"
+				Extract_IPList "$3" "$TMP_DIR/iplist-unfiltered.txt"
 			elif [ -n "$3" ]; then
 				echo "[i] Remote Custom List Detected: $3"
+				Require_Connection
 				Download_IPList "$3" || { echo "[*] Download Error Detected - Stopping Deport"; echo; exit 1; }
 			else
 				echo "[*] URL/File Field Can't Be Empty - Please Try Again"
 				echo; exit 2
 			fi
-			dos2unix "$TMP_DIR/iplist-unfiltered.txt"
 			if ! Is_IPRange < "$TMP_DIR/iplist-unfiltered.txt"; then echo "[*] No Content Detected - Stopping Deport"; echo; exit 1; fi
-			echo "[i] Processing IPv4 Addresses"
-			Filter_PrivateIP < "$TMP_DIR/iplist-unfiltered.txt" | awk '/^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(32))?)$/{printf "del Skynet-Blacklist %s\n", $1}' > "$TMP_DIR/iplist-filtered.txt"
-			echo "[i] Processing IPv4 Ranges"
-			Filter_PrivateIP < "$TMP_DIR/iplist-unfiltered.txt" | awk '/^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-1])){1})$/{printf "del Skynet-BlockedRanges %s\n", $1}' >> "$TMP_DIR/iplist-filtered.txt"
+			echo "[i] Processing List"
+			Build_IPList_Restore del blacklist "" "$TMP_DIR/iplist-unfiltered.txt" "$TMP_DIR/iplist-filtered.txt"
+			if [ ! -s "$TMP_DIR/iplist-filtered.txt" ]; then echo "[*] No Public IPs Detected - Stopping Deport"; echo; exit 1; fi
 			echo "[i] Removing IPs From Blacklist"
 			Apply_IPSet_File "$TMP_DIR/iplist-filtered.txt" || { echo "[*] Failed To Apply Deport - Previous Entries Restored"; echo; exit 1; }
 			rm -f "$TMP_DIR/iplist-unfiltered.txt" "$TMP_DIR/iplist-filtered.txt"
@@ -5826,23 +6429,23 @@ Dispatch_Deport() {
 		whitelist)
 			Check_Lock "$@"
 			Require_Running
-			Require_Connection
 			Purge_Logs
 			echo "[i] This Function Extracts All IPs And Removes Them ALL From Whitelist"
 			if [ -f "$3" ]; then
 				echo "[i] Local Custom List Detected: $3"
-				grep -E '^(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\/(1?[0-9]|2?[0-9]|3?[0-2]))?)$' "$3" > "$TMP_DIR/iplist-unfiltered.txt"
+				Extract_IPList "$3" "$TMP_DIR/iplist-unfiltered.txt"
 			elif [ -n "$3" ]; then
 				echo "[i] Remote Custom List Detected: $3"
+				Require_Connection
 				Download_IPList "$3" || { echo "[*] Download Error Detected - Stopping Deport"; echo; exit 1; }
 			else
 				echo "[*] URL/File Field Can't Be Empty - Please Try Again"
 				echo; exit 2
 			fi
-			dos2unix "$TMP_DIR/iplist-unfiltered.txt"
 			if ! Is_IPRange < "$TMP_DIR/iplist-unfiltered.txt"; then echo "[*] No Content Detected - Stopping Deport"; echo; exit 1; fi
-			echo "[i] Processing IPv4 Addresses"
-			Filter_PrivateIP < "$TMP_DIR/iplist-unfiltered.txt" | awk '{printf "del Skynet-Whitelist %s\n", $1}' > "$TMP_DIR/iplist-filtered.txt"
+			echo "[i] Processing List"
+			Build_IPList_Restore del whitelist "" "$TMP_DIR/iplist-unfiltered.txt" "$TMP_DIR/iplist-filtered.txt"
+			if [ ! -s "$TMP_DIR/iplist-filtered.txt" ]; then echo "[*] No Public IPs Detected - Stopping Deport"; echo; exit 1; fi
 			echo "[i] Removing IPs From Whitelist"
 			Apply_IPSet_File "$TMP_DIR/iplist-filtered.txt" || { echo "[*] Failed To Apply Deport - Previous Entries Restored"; echo; exit 1; }
 			rm -f "$TMP_DIR/iplist-unfiltered.txt" "$TMP_DIR/iplist-filtered.txt"
@@ -5942,7 +6545,7 @@ Dispatch_Start() {
 		Print_Command_Summary "$@"
 		# then run banmalware as a child (not via exec)
 		"$0" banmalware
-		exit 0
+		exit "$?"
 	fi
 }
 
@@ -5980,33 +6583,53 @@ Dispatch_Disable() {
 	nolog="2"
 }
 
+Restore_Update_Files() {
+	cp -f "$updatefirewallbackup" "$updatescripttarget" || return 1
+	if [ "$updatewebuichanged" = "1" ]; then
+		if [ "$updatewebuihadold" = "1" ]; then
+			cp -f "$updatewebuibackup" "${skynetloc}/webui/skynet.asp" || return 1
+		else
+			rm -f "${skynetloc}/webui/skynet.asp" || return 1
+		fi
+	fi
+}
+
 Dispatch_Update() {
 	Check_Lock "$@"
 	Require_Connection
+	# /opt/bin/firewall is normally a symlink. Always update the installed script
+	# itself so invocation through either the alias, symlink or full path is safe.
+	updatescripttarget="/jffs/scripts/firewall"
+	if [ ! -f "$updatescripttarget" ]; then
+		Log error "Skynet Update Failed - Installed Script Not Found"
+		echo
+		exit 1
+	fi
 	if [ "$1" = "amtmupdate" ] && [ "$2" = "check" ]; then
 		exit 0
 	fi
 	remotedir="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master"
-	updatetmp="$TMP_DIR/update"
-	if ! Curl_Fetch -o "$updatetmp" "$remotedir/firewall.sh" || [ ! -s "$updatetmp" ]; then
-		rm -f "$updatetmp"
+	if ! Download_File "firewall.sh" "$updatescripttarget" "$2" stage; then
 		Log error "Failed To Check For Updates"
 		echo
 		exit 1
 	fi
+	updatetmp="$downloadtmp"
 	remotever="$(Filter_Version < "$updatetmp")"
-	localmd5="$(md5sum "$0" | awk '{print $1}')"
+	localmd5="$(md5sum "$updatescripttarget" | awk '{print $1}')"
 	remotemd5="$(md5sum "$updatetmp" | awk '{print $1}')"
-	rm -f "$updatetmp"
 	if [ -z "$remotever" ]; then
+		rm -f "$updatetmp"
 		Log error "Invalid Update File Detected"
 		echo
 		exit 1
 	fi
 	if [ "$localmd5" = "$remotemd5" ] && [ "$2" != "-f" ]; then
+		rm -f "$updatetmp"
 		Log info "Skynet Up To Date - $localver (${localmd5})"
 		nolog="2"
 	elif [ "$localmd5" != "$remotemd5" ] && [ "$2" = "check" ]; then
+		rm -f "$updatetmp"
 		Log info "Skynet Update Detected - $remotever (${remotemd5})"
 		nolog="2"
 	elif [ "$2" = "-f" ]; then
@@ -6014,6 +6637,29 @@ Dispatch_Update() {
 	fi
 	if [ "$localmd5" != "$remotemd5" ] || [ "$2" = "-f" ] && [ "$nolog" != "2" ]; then
 		Log info "New Version Detected - Updating To $remotever (${remotemd5})"
+		mkdir -p "${skynetloc}/webui" || { rm -f "$updatetmp"; Log error "Failed To Prepare WebUI Directory"; echo; exit 1; }
+		if ! Download_File "webui/skynet.asp" "${skynetloc}/webui/skynet.asp" "$2" stage; then
+			rm -f "$updatetmp"
+			Log error "Skynet Update Failed - Existing Files Retained"
+			echo
+			exit 1
+		fi
+		updatewebuitmp="$downloadtmp"
+		updatewebuichanged="$downloadchanged"
+		updatefirewallbackup="${updatescripttarget}.old.$$"
+		updatewebuibackup="${skynetloc}/webui/skynet.asp.old.$$"
+		updatewebuihadold="0"
+		if [ -f "${skynetloc}/webui/skynet.asp" ]; then
+			updatewebuihadold="1"
+		fi
+		if ! cp -f "$updatescripttarget" "$updatefirewallbackup" \
+			|| { [ "$updatewebuichanged" = "1" ] && [ "$updatewebuihadold" = "1" ] \
+				&& ! cp -f "${skynetloc}/webui/skynet.asp" "$updatewebuibackup"; }; then
+			rm -f "$updatetmp" "$updatewebuitmp" "$updatefirewallbackup" "$updatewebuibackup"
+			Log error "Skynet Update Failed - Unable To Back Up Existing Files"
+			echo
+			exit 1
+		fi
 		echo "[i] Saving Changes"
 		Require_Save_IPSets
 		echo "[i] Unloading Skynet Components"
@@ -6024,18 +6670,42 @@ Dispatch_Update() {
 		Unload_IPSets
 		iptables -t raw -F
 		Uninstall_WebUI_Page
-		mkdir -p "${skynetloc}/webui"
 		updatefailed="0"
-		Download_File "webui/skynet.asp" "${skynetloc}/webui/skynet.asp" "$2" || updatefailed="1"
-		Download_File "firewall.sh" "$0" "$2" || updatefailed="1"
-		Log info "Restarting Firewall Service"
-		service restart_firewall >/dev/null 2>&1
+		if [ "$updatewebuichanged" = "1" ] \
+			&& ! mv -f "$updatewebuitmp" "${skynetloc}/webui/skynet.asp"; then
+			updatefailed="1"
+		fi
+		if [ "$updatefailed" = "0" ] && ! mv -f "$updatetmp" "$updatescripttarget"; then
+			updatefailed="1"
+		fi
 		if [ "$updatefailed" = "1" ]; then
+			Restore_Update_Files >/dev/null 2>&1 \
+				|| Log error "Skynet Update Rollback Failed - Manual Recovery Required"
+			rm -f "$updatetmp" "$updatewebuitmp" "$updatefirewallbackup" "$updatewebuibackup"
+			Log info "Restarting Firewall Service"
+			service restart_firewall >/dev/null 2>&1 \
+				|| Log error "Firewall Restart Failed - Run ( service restart_firewall )"
 			Log error "Skynet Update Failed - Existing Files Retained"
 			echo
 			exit 1
 		fi
-		echo; exit 0
+		Log info "Restarting Firewall Service"
+		if service restart_firewall >/dev/null 2>&1; then
+			rm -f "$updatewebuitmp" "$updatefirewallbackup" "$updatewebuibackup"
+			echo
+			exit 0
+		fi
+		Log error "Firewall Restart Failed - Restoring Previous Skynet Files"
+		if Restore_Update_Files >/dev/null 2>&1; then
+			service restart_firewall >/dev/null 2>&1 \
+				|| Log error "Firewall Restart Failed - Run ( service restart_firewall )"
+		else
+			Log error "Skynet Update Rollback Failed - Manual Recovery Required"
+		fi
+		rm -f "$updatewebuitmp" "$updatefirewallbackup" "$updatewebuibackup"
+		Log error "Skynet Update Failed - Existing Files Retained"
+		echo
+		exit 1
 	fi
 }
 
@@ -6640,209 +7310,67 @@ Dispatch_WebUI() {
 	esac
 }
 
+Select_Debug_Watch_Line() {
+	debugwatchline="$1"
+	case "$debugwatchline" in
+		*INVALID*) debugwatchfield="DST"; debugwatchcolour="Blue" ;;
+		*INBOUND*) debugwatchfield="SRC"; debugwatchcolour="Ylow" ;;
+		*OUTBOUND*|*IOT*) debugwatchfield="DST"; debugwatchcolour="Red" ;;
+		*) return 1 ;;
+	esac
+	case "$debugwatchmode" in
+		ip) case "$debugwatchline" in *"=$debugwatchvalue "*) ;; *) return 1 ;; esac ;;
+		port) case "$debugwatchline" in *"PT=$debugwatchvalue "*) ;; *) return 1 ;; esac ;;
+	esac
+}
+
+Print_Debug_Watch_Line() {
+	case "$debugwatchcolour" in
+		Blue) Blue "$debugwatchline" ;;
+		Ylow) Ylow "$debugwatchline" ;;
+		*) Red "$debugwatchline" ;;
+	esac
+	Is_Enabled "$extendedstats" || return 0
+	case "$debugwatchfield" in
+		SRC) debugwatchtoken=${debugwatchline#* SRC=} ;;
+		DST) debugwatchtoken=${debugwatchline#* DST=} ;;
+		*) return 0 ;;
+	esac
+	[ "$debugwatchtoken" = "$debugwatchline" ] && return 0
+	debugwatchtoken=${debugwatchtoken%% *}
+	debugwatchip=${debugwatchtoken%%,*}
+	[ -n "$debugwatchip" ] || return 0
+	# Limit the live enrichment scan to the newest 100 dnsmasq records.
+	debugwatchdomains="$(tail -n 100 /opt/var/log/dnsmasq.log 2>/dev/null \
+		| awk -v ip="$debugwatchip" '/reply / && index($0, " is " ip) { print $(NF-2) }' \
+		| Strip_Domain | Filter_OutIP | xargs)"
+	[ -z "$debugwatchdomains" ] || Red "Associated Domain(s) - [$debugwatchdomains]"
+}
+
 Debug_Watch() {
 	Require_Running
 	if [ "$logmode" = "disabled" ]; then echo "[*] Logging Is Disabled - Exiting!"; echo; exit 2; fi
+	debugwatchmode="$3"
+	debugwatchvalue="$4"
+	case "$debugwatchmode" in
+		ip)
+			printf '%s\n' "$debugwatchvalue" | Is_IP || { echo "[*] $debugwatchvalue Is Not A Valid IP"; echo; exit 2; }
+			echo "[i] Filtering Entries Involving IP $debugwatchvalue"
+		;;
+		port)
+			printf '%s\n' "$debugwatchvalue" | Is_Port || { echo "[*] $debugwatchvalue Is Not A Valid Port"; echo; exit 2; }
+			echo "[i] Filtering Entries Involving Port $debugwatchvalue"
+		;;
+		*) debugwatchmode="all" ;;
+	esac
 	trap 'echo;echo;echo "[*] Interrupted"; break; Purge_Logs' INT
 	echo "[i] Watching Syslog For Log Entries (ctrl +c) To Stop"
 	echo
 	Purge_Logs
-	case "$3" in
-		ip)
-			if ! echo "$4" | Is_IP; then echo "[*] $4 Is Not A Valid IP"; echo; exit 2; fi
-			echo "[i] Filtering Entries Involving IP $4"
-			echo
-
-			tail -F "$syslogloc" | while IFS= read -r logoutput; do
-				case "$logoutput" in
-					*INVALID*"=$4 "*)
-						Blue "$logoutput"
-						ip_field="DST"
-					;;
-					*INBOUND*"=$4 "*)
-						Ylow "$logoutput"
-						ip_field="SRC"
-					;;
-					*OUTBOUND*"=$4 "*)
-						Red "$logoutput"
-						ip_field="DST"
-					;;
-					*IOT*"=$4 "*)
-						Red "$logoutput"
-						ip_field="DST"
-					;;
-					*)
-						# Not a matching IP / class we care about
-						continue
-					;;
-				esac
-
-				# Skip heavier work if extended stats are disabled
-				Is_Enabled "$extendedstats" || continue
-
-				# Extract SRC=/DST= purely with shell parameter expansion
-				case "$ip_field" in
-					SRC)
-						tmp=${logoutput#* SRC=}
-					;;
-					DST)
-						tmp=${logoutput#* DST=}
-					;;
-					*)
-						continue
-					;;
-				esac
-
-				# If the token wasn't found, bail out
-				[ "$tmp" = "$logoutput" ] && continue
-
-				# Trim at next space, then strip any trailing comma
-				tmp=${tmp%% *}
-				ip=${tmp%%,*}
-
-				[ -z "$ip" ] && continue
-
-				# Look up associated domains from the recent tail of dnsmasq logs
-				# Hard-coded to last 100 lines to cap CPU work
-				domainlist="$(
-					tail -n 100 /opt/var/log/dnsmasq.log 2>/dev/null |
-					awk -v ip="$ip" '
-						/reply / && index($0, " is " ip) { print $(NF-2) }
-					' | Strip_Domain | Filter_OutIP | xargs
-				)"
-
-				[ -n "$domainlist" ] && Red "Associated Domain(s) - [$domainlist]"
-			done
-		;;
-		port)
-			if ! echo "$4" | Is_Port; then echo "[*] $4 Is Not A Valid Port"; echo; exit 2; fi
-			echo "[i] Filtering Entries Involving Port $4"
-			echo
-
-			tail -F "$syslogloc" | while IFS= read -r logoutput; do
-				case "$logoutput" in
-					*INVALID*"PT=$4 "*)
-						Blue "$logoutput"
-						ip_field="DST"
-					;;
-					*INBOUND*"PT=$4 "*)
-						Ylow "$logoutput"
-						ip_field="SRC"
-					;;
-					*OUTBOUND*"PT=$4 "*)
-						Red "$logoutput"
-						ip_field="DST"
-					;;
-					*IOT*"PT=$4 "*)
-						Red "$logoutput"
-						ip_field="DST"
-					;;
-					*)
-						# Not a matching port / class we care about
-						continue
-					;;
-				esac
-
-				# Skip heavier work if extended stats are disabled
-				Is_Enabled "$extendedstats" || continue
-
-				# Extract SRC=/DST= purely with shell parameter expansion
-				case "$ip_field" in
-					SRC)
-						tmp=${logoutput#* SRC=}
-					;;
-					DST)
-						tmp=${logoutput#* DST=}
-					;;
-					*)
-						continue
-					;;
-				esac
-
-				# If the token wasn't found, bail out
-				[ "$tmp" = "$logoutput" ] && continue
-
-				# Trim at next space, then strip any trailing comma
-				tmp=${tmp%% *}
-				ip=${tmp%%,*}
-
-				[ -z "$ip" ] && continue
-
-				# Look up associated domains from the recent tail of dnsmasq logs
-				# Hard-coded to last 100 lines to cap CPU work
-				domainlist="$(
-					tail -n 100 /opt/var/log/dnsmasq.log 2>/dev/null |
-					awk -v ip="$ip" '
-						/reply / && index($0, " is " ip) { print $(NF-2) }
-					' | Strip_Domain | Filter_OutIP | xargs
-				)"
-
-				[ -n "$domainlist" ] && Red "Associated Domain(s) - [$domainlist]"
-			done
-		;;
-		*)
-			tail -F "$syslogloc" | while IFS= read -r logoutput; do
-				case "$logoutput" in
-					*INVALID*)
-						Blue "$logoutput"
-						ip_field="DST"
-					;;
-					*INBOUND*)
-						Ylow "$logoutput"
-						ip_field="SRC"
-					;;
-					*OUTBOUND*)
-						Red "$logoutput"
-						ip_field="DST"
-					;;
-					*IOT*)
-						Red "$logoutput"
-						ip_field="DST"
-					;;
-					*)
-						# Not a Skynet block we care about
-						continue
-					;;
-				esac
-
-				# Skip heavier work if extended stats are disabled
-				Is_Enabled "$extendedstats" || continue
-
-				# Extract SRC=/DST= purely with shell parameter expansion
-				case "$ip_field" in
-					SRC)
-						tmp=${logoutput#* SRC=}
-					;;
-					DST)
-						tmp=${logoutput#* DST=}
-					;;
-					*)
-						continue
-					;;
-				esac
-
-				# If the token wasn't found, bail out
-				[ "$tmp" = "$logoutput" ] && continue
-
-				# Trim at next space, then strip any trailing comma
-				tmp=${tmp%% *}
-				ip=${tmp%%,*}
-
-				[ -z "$ip" ] && continue
-
-				# Look up associated domains from the recent tail of dnsmasq logs
-				# Hard-coded to last 100 lines to cap CPU work
-				domainlist="$(
-					tail -n 100 /opt/var/log/dnsmasq.log 2>/dev/null |
-					awk -v ip="$ip" '
-						/reply / && index($0, " is " ip) { print $(NF-2) }
-					' | Strip_Domain | Filter_OutIP | xargs
-				)"
-
-				[ -n "$domainlist" ] && Red "Associated Domain(s) - [$domainlist]"
-			done
-		;;
-	esac
+	tail -F "$syslogloc" | while IFS= read -r debugwatchline; do
+		Select_Debug_Watch_Line "$debugwatchline" || continue
+		Print_Debug_Watch_Line
+	done
 	Set_Cleanup_Traps
 	nocfg="1"
 }
@@ -7423,7 +7951,8 @@ Dispatch_Install() {
 	touch "${device}/skynet/skynet.log"
 	remotedir="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master"
 	mkdir -p "${skynetloc}/webui"
-	Download_File "webui/skynet.asp" "${skynetloc}/webui/skynet.asp"
+	Download_File "webui/skynet.asp" "${skynetloc}/webui/skynet.asp" \
+		|| { echo "[*] Failed To Install WebUI"; echo; exit 1; }
 	[ -z "$(nvram get odmpid)" ] && model="$(nvram get productid)" || model="$(nvram get odmpid)"
 	if [ -z "$loginvalid" ]; then loginvalid="disabled"; fi
 	if [ -z "$logsize" ]; then logsize="10"; fi
@@ -8804,6 +9333,12 @@ Display_Header "9"
 if [ "$nolog" != "2" ]; then Print_Command_Summary "$@"; echo; fi
 commandstatus="${commandfailed:-0}"
 if [ "$nocfg" != "1" ]; then Write_Config || commandstatus="1"; fi
-if [ "$restartfirewall" = "1" ]; then service restart_firewall; echo; fi
+if [ "$restartfirewall" = "1" ]; then
+	if ! service restart_firewall; then
+		Log error -s "Firewall Restart Failed - Run ( service restart_firewall )"
+		commandstatus="1"
+	fi
+	echo
+fi
 if [ -n "$reloadmenu" ]; then echo;echo; printf "[i] Press Enter To Continue..."; read -r "_menucontinue"; Return_To_Menu; fi
 exit "$commandstatus"
