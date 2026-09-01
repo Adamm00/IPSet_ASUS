@@ -20,7 +20,7 @@ Skynet is free and open source. Development can be supported through [PayPal](ht
 - Imports AiProtection detections and automatically whitelists required router, DNS, VPN, and optional CDN ranges.
 - Restricts selected IoT devices while retaining access to configured services and supported VPN server networks.
 - Records blocked traffic and provides searchable CLI reports, connection details, associated domains, and country information when enabled.
-- Integrates with the Asuswrt-Merlin WebUI for statistics, common settings, threat-feed management, malware list updates, and country blocking.
+- Integrates with the Asuswrt-Merlin WebUI for statistics, common settings, manual rules, threat-feed management, malware list updates, country blocking, and IoT isolation.
 
 ## Requirements
 
@@ -70,25 +70,27 @@ Commands return `0` on success, `1` for a runtime failure, and `2` for an invali
 ### Blocking
 
 - `firewall ban ip 8.8.8.8 1.1.1.1` - Ban one or more IPv4 addresses.
-- `firewall ban ip 8.8.8.8 1.1.1.1 comment "Apples"` - Ban multiple IPv4 addresses with one optional quoted comment. The legacy single-address form without `comment` remains supported.
+- `firewall ban ip 8.8.8.8 1.1.1.1 comment "Apples"` - Ban multiple IPv4 addresses with one optional quoted comment.
 - `firewall ban range 8.8.8.0/24 1.1.1.0/24` - Ban one or more IPv4 CIDR ranges.
-- `firewall ban range 8.8.8.0/24 1.1.1.0/24 comment "Apples"` - Ban multiple ranges with one optional quoted comment. The legacy single-range form without `comment` remains supported.
-- `firewall ban domain example.com` - Resolve a domain and ban its current public IPv4 addresses.
+- `firewall ban range 8.8.8.0/24 1.1.1.0/24 comment "Apples"` - Ban multiple ranges with one optional quoted comment.
+- `firewall ban domain example.com example.net` - Resolve one or more domains and ban their current public IPv4 addresses.
 - `firewall ban country pk cn sa` - Replace the current country bans with the known IPv4 ranges assigned to the supplied two-letter country codes.
-- `firewall ban asn AS123456` - Download and ban the IPv4 ranges announced by an ASN.
+- `firewall ban country status` - Display the selected countries and their source health.
+- `firewall ban country refresh` - Refresh every selected country without changing the selection.
+- `firewall ban asn AS123456 AS654321` - Download and ban the IPv4 ranges announced by one or more ASNs.
 - `firewall unban ip 8.8.8.8 1.1.1.1` - Remove one or more IPv4 addresses from the blacklist.
 - `firewall unban range 8.8.8.0/24 1.1.1.0/24` - Remove one or more exact CIDR ranges from the range blacklist.
-- `firewall unban domain example.com` - Resolve a domain and unban its current IPv4 addresses.
+- `firewall unban domain example.com example.net` - Remove one or more stored manual domain bans without another DNS lookup.
 - `firewall unban comment "Apples"` - Remove blacklist entries whose comments contain the supplied text.
 - `firewall unban country` - Remove all entries created by country blocking.
-- `firewall unban asn AS123456` - Remove entries labelled with the supplied ASN.
+- `firewall unban asn AS123456 AS654321` - Remove entries labelled with one or more supplied ASNs.
 - `firewall unban malware` - Remove entries created from malware feeds.
 - `firewall unban nomanual` - Remove all non-manual bans while retaining manual IP and range bans.
 - `firewall unban all` - Flush both blacklists and clear the stored block log.
 
 Country blocking downloads the selected IPdeny lists concurrently over verified HTTPS and accepts only complete public IPv4 CIDRs. A URL-bound validated cache is used with a warning when a selected list is temporarily unavailable. If no matching cache exists, the complete previous country selection is retained. Applying a new country selection replaces the previous selection rather than appending to it.
 
-Domain commands validate the hostname and resolve its complete IPv4 answer set before changing the firewall. A failed lookup or update leaves the existing IPSet unchanged.
+Domain additions validate and resolve the complete IPv4 answer set before changing the firewall. Domain removals use exact stored ownership labels, so they do not depend on the domain resolving to the same addresses later. A failed batch leaves the existing IPSet unchanged.
 
 ### Malware Lists
 
@@ -107,12 +109,14 @@ Each source is reported as `current`, `cached`, `failed`, or `excluded`. A valid
 
 ### Whitelisting
 
-- `firewall whitelist ip 8.8.8.8 "Apples"` - Whitelist an IPv4 address with an optional comment and remove an exact matching ban.
-- `firewall whitelist range 8.8.8.0/24 "Apples"` - Whitelist an IPv4 CIDR range with an optional comment and remove an exact matching ban.
-- `firewall whitelist domain example.com` - Resolve a domain and whitelist its current IPv4 addresses.
-- `firewall whitelist asn AS123456` - Download and whitelist the IPv4 ranges announced by an ASN.
-- `firewall whitelist vpn` - Refresh detected VPN subnet whitelist entries.
+- `firewall whitelist ip 8.8.8.8 1.1.1.1 comment "Trusted"` - Whitelist one or more IPv4 addresses with one optional quoted comment and remove exact matching bans.
+- `firewall whitelist range 8.8.8.0/24 1.1.1.0/24 comment "Trusted"` - Whitelist one or more IPv4 CIDR ranges with one optional quoted comment and remove exact matching bans.
+- `firewall whitelist domain example.com example.net` - Resolve one or more domains and whitelist their current IPv4 addresses.
+- `firewall whitelist asn AS123456 AS654321` - Download and whitelist the IPv4 ranges announced by one or more ASNs.
+- `firewall whitelist vpn` - Refresh VPN whitelist entries from Merlin's configured NVRAM values.
 - `firewall whitelist remove entry 8.8.8.8` - Remove an exact IPv4 address or CIDR range from the whitelist.
+- `firewall whitelist remove domain example.com example.net` - Remove one or more stored manual domain whitelists without another DNS lookup.
+- `firewall whitelist remove asn AS123456 AS654321` - Remove entries labelled with one or more supplied ASNs.
 - `firewall whitelist remove comment "Apples"` - Remove whitelist entries whose comments contain the supplied text.
 - `firewall whitelist remove all` - Flush the whitelist and rebuild only the automatic and shared entries.
 - `firewall whitelist refresh` - Refresh automatic, shared, VPN, CDN, and persistent domain whitelist entries.
@@ -238,6 +242,7 @@ The WebUI provides:
 - Common Skynet settings with descriptions and documented defaults.
 - Threat-feed status, usable entry counts, last successful checks, content age, source toggles, manual refresh, and primary filter-list configuration.
 - Country blocking with country selection and removal.
+- Manual IP, range, domain and ASN rule management, including grouped imported lists.
 - IoT isolation with detected client, hostname, IPv4, MAC, online state, device list, port and protocol controls.
 - Copyable MAC addresses in blocked-device details when neighbour data is available.
 
