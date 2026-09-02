@@ -5221,6 +5221,42 @@
                 Array.isArray(window.SkynetRules));
         };
 
+        SkynetUI.isRuleRequestApplied = function() {
+            const rules = Array.isArray(window.SkynetRules) ? window.SkynetRules : [];
+            const operation = custom_settings.skynet_ruleoperation;
+            const action = custom_settings.skynet_ruleaction;
+            const mode = custom_settings.skynet_rulemode;
+            const target = custom_settings.skynet_ruletarget;
+            const savedComment = custom_settings.skynet_rulesavedcomment;
+            const entries = String(custom_settings.skynet_ruleentries || "")
+                .split(/\s+/).filter(Boolean);
+
+            if (!entries.length) return false;
+            const ruleExists = function(entry) {
+                return rules.some(function(rule) {
+                    if (mode === "manual") {
+                        return rule.kind === "manual" && rule.action === action &&
+                            rule.target === target && rule.entry === entry &&
+                            rule.comment === savedComment;
+                    }
+                    if (mode === "import") {
+                        return rule.kind === "import" && rule.action === action &&
+                            rule.target === target && rule.comment === savedComment;
+                    }
+                    if (mode === "domain" || mode === "asn") {
+                        return rule.kind === "group" && rule.action === action &&
+                            rule.type === mode &&
+                            String(rule.entry).toLowerCase() === entry.toLowerCase();
+                    }
+                    return rule.kind === "manual" && rule.action === action &&
+                        rule.entry === entry;
+                });
+            };
+            const matched = entries.every(ruleExists);
+
+            return operation === "add" ? matched : !matched;
+        };
+
         SkynetUI.normaliseRuleEntries = function(value, mode) {
             const entries = [];
             const seen = Object.create(null);
@@ -5316,12 +5352,16 @@
         SkynetUI.updateRuleControls = function() {
             const supported = this.canManageRules();
             const busy = this.refreshInProgress;
+            const action = this.getElement(this.selectors.ruleAction);
             const mode = this.getElement(this.selectors.ruleMode);
             const comment = this.getElement(this.selectors.ruleComment);
             const apply = this.getElement(this.selectors.ruleButton);
+            const unban = action && action.value === "unban";
             if (comment && mode) {
-                comment.disabled = busy || !supported || mode.value !== "ip";
-                comment.placeholder = mode.value === "ip" ? "Optional comment" : "Stored by rule name";
+                comment.disabled = busy || !supported || mode.value !== "ip" || unban;
+                comment.placeholder = unban
+                    ? "Not used when unbanning"
+                    : (mode.value === "ip" ? "Optional comment" : "Stored by rule name");
             }
             [this.selectors.ruleAction, this.selectors.ruleMode,
                 this.selectors.ruleInput, this.selectors.ruleAdd,
@@ -5426,9 +5466,9 @@
             const action = rule ? rule.action : this.getElement(this.selectors.ruleAction).value;
             const mode = rule ? rule.type : this.getElement(this.selectors.ruleMode).value;
             const entries = rule ? rule.entry : this.ruleEntries.join(" ");
-			const comment = rule || mode !== "ip"
-				? ""
-				: this.getElement(this.selectors.ruleComment).value.trim();
+            const comment = rule || mode !== "ip" || action === "unban"
+                ? ""
+                : this.getElement(this.selectors.ruleComment).value.trim();
 			if (!entries) {
 				this.setUpdateResult("Add at least one rule entry.", true, this.selectors.ruleResult);
 				return;
@@ -5446,9 +5486,11 @@
             custom_settings.skynet_rulecomment = comment;
             custom_settings.skynet_ruletarget = rule ? rule.target : "";
             custom_settings.skynet_rulesavedcomment = rule ? rule.comment : "";
+            custom_settings.skynet_rulerequest = String(new Date().getTime());
             this.refreshInProgress = true;
-            this.setUpdateResult(operation === "add" ? "Applying rule..." : "Removing rule...", false, this.selectors.ruleResult);
-            this.setActionState(true, this.selectors.ruleButton, operation === "add" ? "Applying..." : "Removing...");
+            const removing = operation === "remove" || action === "unban";
+            this.setUpdateResult(removing ? "Removing rule..." : "Applying rule...", false, this.selectors.ruleResult);
+            this.setActionState(true, this.selectors.ruleButton, removing ? "Removing..." : "Applying...");
             document.form.amng_custom.value = JSON.stringify(custom_settings);
             this.submitBackgroundAction("start_SkynetRules");
             this.waitForUpdate(window.SkynetSettingsGenerated, 600, "rules");
@@ -6112,8 +6154,12 @@
 			const result = String(window.SkynetSettingsResult || "error");
 			if (result === "busy") return "Skynet is busy. Try again when the current task finishes.";
 			if (result === "validation") return "The rule request contains invalid or incomplete data.";
+			if (result === "resolve") return "Unable to resolve one or more domains. Existing rules were retained.";
+			if (result === "source") return "Unable to download or validate one or more ASN ranges.";
+			if (result === "conflict") return "A resolved address or range is already owned by another rule.";
 			if (result === "stale") return "The selected rule no longer exists. Reloaded rule data is shown.";
-			if (result === "apply") return "Unable to save the rule. Existing rules were retained.";
+			if (result === "save") return "Unable to save the rule. Existing rules were restored.";
+			if (result === "apply") return "Unable to apply the rule. Existing rules were retained.";
 			return "Unable to update rules.";
 		};
 
@@ -6175,7 +6221,27 @@
                     : window.SkynetStatsGenerated;
 
                 if (String(currentStamp || "") !== String(previousStamp || "")) {
-                    const response = String(window.SkynetSettingsResult || "error");
+                    const ruleRequest = String(custom_settings.skynet_rulerequest || "");
+                    const currentRequest = String(window.SkynetSettingsRequest || "");
+                    if (requestType === "rules" && ruleRequest &&
+                        currentRequest !== ruleRequest) {
+                        if (attempts > 0) {
+                            window.setTimeout(function() {
+                                self.waitForUpdate(previousStamp, attempts - 1, requestType);
+                            }, 1000);
+                            return;
+                        }
+                        self.refreshInProgress = false;
+                        self.setUpdateResult(action.timeout, true, result);
+                        self.setActionState(false, button, "Try Again");
+                        return;
+                    }
+                    let response = String(window.SkynetSettingsResult || "error");
+                    if (requestType === "rules" && response === "ready" &&
+                        custom_settings.skynet_ruleaction !== "unban" &&
+                        self.isRuleRequestApplied()) {
+                        response = "success";
+                    }
                     const accepted = action.accepted || ["success"];
                     const acceptedResponse = accepted.some(function(value) {
                         return response === value || response.indexOf(value + ":") === 0;
@@ -6707,6 +6773,12 @@
                 SkynetUI.ruleEntries = [];
                 SkynetUI.renderRuleTags();
             });
+            const ruleAction = this.getElement(this.selectors.ruleAction);
+            if (ruleAction) ruleAction.addEventListener("change", function() {
+                const comment = SkynetUI.getElement(SkynetUI.selectors.ruleComment);
+                if (this.value === "unban" && comment) comment.value = "";
+                SkynetUI.updateRuleControls();
+            });
             const ruleFilter = this.getElement(this.selectors.ruleFilter);
             if (ruleFilter) ruleFilter.addEventListener("change", function() {
                 SkynetUI.ruleFilter = this.value;
@@ -7215,13 +7287,14 @@
                                                                     <div class="skynet-rules-manager">
                                                                         <div class="skynet-feed-intro">
                                                                             <span class="skynet-feed-title">Manual Firewall Rules</span>
-                                                                            <span class="skynet-feed-help">Add direct rules, review imported groups and remove entries without rebuilding statistics.</span>
+                                                                            <span class="skynet-feed-help">Ban, unban or whitelist direct entries, review imported groups and remove saved rules.</span>
                                                                         </div>
                                                                         <div class="skynet-rules-toolbar">
                                                                             <label class="skynet-rule-field">
                                                                                 <span class="skynet-rule-label">Action</span>
                                                                                 <select class="input_option" id="skynetRuleAction">
                                                                                     <option value="ban">Ban</option>
+                                                                                    <option value="unban">Unban</option>
                                                                                     <option value="whitelist">Whitelist</option>
                                                                                 </select>
                                                                             </label>

@@ -3709,7 +3709,7 @@ Write_Recent_IP_Stats() {
 		}
 		NF {
 			ip = $1
-			banreason = (reason[ip] == "" ? "*" : substr(reason[ip], 1, 45))
+			banreason = (reason[ip] == "" ? "No Longer Blacklisted" : substr(reason[ip], 1, 45))
 			countrycode = (country[ip] == "" ? "**" : country[ip])
 			domainlist = (domain[ip] == "" ? "*" : domain[ip])
 			print ip "~" banreason "~https://otx.alienvault.com/indicator/ip/" ip "~" countrycode "~" domainlist
@@ -4200,6 +4200,13 @@ Run_Stats() {
 			;;
 			search)
 				case "$3" in
+					actions)
+						case "$#" in 3) ;; 4) Set_Stats_Search_Count "$4" || { echo "[*] Result Count Must Be A Positive Number"; echo; exit 2; } ;; *) echo "[*] Syntax: firewall stats search actions [count]"; echo; exit 2 ;; esac
+						echo "[i] Recorded WebUI Rule Actions"
+						echo;echo
+						Red "$counter Most Recent Rule Actions;"
+						grep -F "Skynet: [Rule Action]" "$skynetevents" | tail -"$counter"
+					;;
 					reason)
 						case "$#" in 4|5) ;; *) echo "[*] Syntax: firewall stats search reason \"text\" [count]"; echo; exit 2 ;; esac
 						Search_Ban_Reasons "$4" "$5" || exit "$?"
@@ -4845,6 +4852,7 @@ Generate_WebUI_Settings() {
 		&& Generate_WebUI_Rule_Data \
 		&& printf 'var SkynetSettingsGenerated = "%s.%s";\n' "$(date +%s)" "$$" >> "$settingstmp" \
 		&& printf 'var SkynetSettingsResult = "%s";\n' "${settingsresult:-ready}" >> "$settingstmp" \
+		&& printf 'var SkynetSettingsRequest = "%s";\n' "${webuirequestid:-}" >> "$settingstmp" \
 		&& [ -s "$settingstmp" ] && mv -f "$settingstmp" "$settingsfile"; then
 		return 0
 	fi
@@ -6150,6 +6158,46 @@ Restore_WebUI_Rules() {
 	return "$webuirulerestorestatus"
 }
 
+Set_WebUI_Rule_Result() {
+	# Translate the public command result without exposing command output in the
+	# generated payload. Specific tokens let the WebUI distinguish input, source,
+	# ownership, persistence and live-apply failures.
+	webuirulestatus="$1"
+	webuiruleoutput="$2"
+	case "$webuirulestatus" in
+		0) settingsresult="success"; webuirulepersisted="1" ;;
+		2)
+			if grep -qF "Already Owned By Another Rule" "$webuiruleoutput" 2>/dev/null; then
+				settingsresult="conflict"
+			else
+				settingsresult="validation"
+			fi
+		;;
+		*)
+			if grep -qF "Lock File Detected" "$webuiruleoutput" 2>/dev/null; then
+				settingsresult="busy"
+			elif grep -qF "Unable To Resolve" "$webuiruleoutput" 2>/dev/null; then
+				settingsresult="resolve"
+			elif grep -qF "Failed To Download Or Apply" "$webuiruleoutput" 2>/dev/null; then
+				settingsresult="source"
+			elif grep -qE "Failed To (Save|Write)|Unable To Save" "$webuiruleoutput" 2>/dev/null; then
+				settingsresult="save"
+			else
+				settingsresult="apply"
+			fi
+		;;
+	esac
+}
+
+Print_Rule_Action() {
+	# Rule actions use stable key/value fields so the event log can be presented
+	# as an action history without changing the legacy records used by statistics.
+	printf '%s Skynet: [Rule Action] ACTION=%s TARGET=%s TYPE=%s ENTRY="%s"' \
+		"$(date +"%b %e %T")" "$1" "$2" "$3" "$4"
+	[ -z "$5" ] || printf ' COMMENT="%s"' "$5"
+	printf ' \n'
+}
+
 Apply_WebUI_Rules() {
 	settingsresult="error"
 	[ -f "/usr/sbin/helper.sh" ] || { Generate_WebUI_Settings; return 1; }
@@ -6162,10 +6210,48 @@ Apply_WebUI_Rules() {
 	webuirulecomment="$(am_settings_get skynet_rulecomment)"
 	webuiruletarget="$(am_settings_get skynet_ruletarget)"
 	webuirulesavedcomment="$(am_settings_get skynet_rulesavedcomment)"
+	webuirequestid="$(am_settings_get skynet_rulerequest)"
 	webuirulepersisted="0"
+	webuirulesnapshot=""
+	webuiruleevents=""
+	webuirulecleanup=""
+	webuiruleoutput=""
 	settingsresult="ready"
+	case "$webuirequestid" in ""|*[!0-9]*) webuirequestid="" ;; esac
 
 	case "$webuiruleoperation:$webuiruleaction:$webuirulemode" in
+		add:unban:ip)
+			Check_Lock webui rules || return 1
+			Snapshot_WebUI_Rules || settingsresult="error"
+			webuiruleentries="$(Normalize_List "$webuiruleentries")" || settingsresult="validation"
+			webuirulerestore="$TMP_DIR/webui-rules.$$"
+			webuirulecleanup="$TMP_DIR/webui-rule-cleanup.$$"
+			webuiruleevents="$TMP_DIR/webui-rule-events.$$"
+			true > "$webuirulerestore" && true > "$webuirulecleanup" \
+				&& true > "$webuiruleevents" || settingsresult="error"
+			if [ "$settingsresult" = "ready" ]; then
+				for webuiruleentry in $webuiruleentries; do
+					if printf '%s\n' "$webuiruleentry" | Is_IP; then
+						printf 'del Skynet-Blacklist %s\n' "$webuiruleentry" >> "$webuirulerestore"
+						webuiruleeventtype="Single"
+					elif printf '%s\n' "$webuiruleentry" | Is_Range; then
+						printf 'del Skynet-BlockedRanges %s\n' "$webuiruleentry" >> "$webuirulerestore"
+						webuiruleeventtype="Range"
+					else
+						settingsresult="validation"
+						break
+					fi
+					printf '%s\n' "$webuiruleentry" >> "$webuirulecleanup"
+					Print_Rule_Action remove ban "$webuiruleeventtype" "$webuiruleentry" "" >> "$webuiruleevents"
+				done
+			fi
+			if [ "$settingsresult" = "ready" ] && Apply_IPSet_File "$webuirulerestore"; then
+				settingsresult="success"
+			elif [ "$settingsresult" = "ready" ]; then
+				settingsresult="apply"
+			fi
+			rm -f "$webuirulerestore"
+		;;
 		add:ban:ip|add:whitelist:ip)
 			Check_Lock webui rules || return 1
 			Snapshot_WebUI_Rules || settingsresult="error"
@@ -6199,8 +6285,10 @@ Apply_WebUI_Rules() {
 					if printf '%s\n' "$webuiruleentry" | Is_Range; then webuiruleeventtype="Range"; else webuiruleeventtype="Single"; fi
 					if [ "$webuiruleaction" = "ban" ]; then
 						echo "$(date +"%b %e %T") Skynet: [Manual Ban] TYPE=$webuiruleeventtype SRC=$webuiruleentry COMMENT=$webuirulecomment " >> "$webuiruleevents"
+						Print_Rule_Action add ban "$webuiruleeventtype" "$webuiruleentry" "$webuirulecomment" >> "$webuiruleevents"
 					else
 						echo "$(date +"%b %e %T") Skynet: [Manual Whitelist] TYPE=$webuiruleeventtype SRC=$webuiruleentry COMMENT=$webuirulecomment " >> "$webuiruleevents"
+						Print_Rule_Action add whitelist "$webuiruleeventtype" "$webuiruleentry" "$webuirulecomment" >> "$webuiruleevents"
 					fi
 				done
 				if [ "$webuirulewarning" = "1" ]; then settingsresult="warning:whitelist"; else settingsresult="success"; fi
@@ -6208,17 +6296,27 @@ Apply_WebUI_Rules() {
 			fi
 			rm -f "$webuirulerestore"
 		;;
-		add:ban:domain|add:whitelist:domain|add:ban:asn|add:whitelist:asn)
+		add:ban:domain|add:whitelist:domain|add:unban:domain|add:ban:asn|add:whitelist:asn|add:unban:asn)
 			webuiruleentries="$(Normalize_List "$webuiruleentries")" || settingsresult="validation"
 			if [ "$settingsresult" != "validation" ]; then
 				# Values are validated by the public dispatcher before any live change.
 				# shellcheck disable=SC2086
 				set -- $webuiruleentries
-				if [ "$webuiruleaction" = "ban" ]; then Run_WebUI_Command ban "$webuirulemode" "$@" >/dev/null 2>&1
-				else Run_WebUI_Command whitelist "$webuirulemode" "$@" >/dev/null 2>&1
+				webuiruleoutput="$TMP_DIR/webui-rule-output.$$"
+				if [ "$webuiruleaction" = "ban" ]; then Run_WebUI_Command ban "$webuirulemode" "$@" > "$webuiruleoutput" 2>&1
+				elif [ "$webuiruleaction" = "whitelist" ]; then Run_WebUI_Command whitelist "$webuirulemode" "$@" > "$webuiruleoutput" 2>&1
+				else Run_WebUI_Command unban "$webuirulemode" "$@" > "$webuiruleoutput" 2>&1
 				fi
 				webuirulestatus="$?"
-				case "$webuirulestatus" in 0) settingsresult="success"; webuirulepersisted="1" ;; 2) settingsresult="validation" ;; *) settingsresult="apply" ;; esac
+				Set_WebUI_Rule_Result "$webuirulestatus" "$webuiruleoutput"
+				if [ "$settingsresult" = "success" ]; then
+					if [ "$webuiruleaction" = "unban" ]; then webuiruleverb="remove"; else webuiruleverb="add"; fi
+					for webuiruleentry in $webuiruleentries; do
+						Print_Rule_Action "$webuiruleverb" "${webuiruleaction#un}" "$webuirulemode" "$webuiruleentry" "" >> "$skynetevents" \
+							|| Log error -s "Failed To Record WebUI Rule Action"
+					done
+				fi
+				rm -f "$webuiruleoutput"
 			fi
 		;;
 		remove:ban:domain|remove:whitelist:domain|remove:ban:asn|remove:whitelist:asn)
@@ -6226,19 +6324,29 @@ Apply_WebUI_Rules() {
 			if [ "$settingsresult" != "validation" ]; then
 				# shellcheck disable=SC2086
 				set -- $webuiruleentries
+				webuiruleoutput="$TMP_DIR/webui-rule-output.$$"
 				case "$webuiruleaction:$webuirulemode" in
-					ban:domain) Run_WebUI_Command unban domain "$@" >/dev/null 2>&1 ;;
-					ban:asn) Run_WebUI_Command unban asn "$@" >/dev/null 2>&1 ;;
-					whitelist:domain) Run_WebUI_Command whitelist remove domain "$@" >/dev/null 2>&1 ;;
-					whitelist:asn) Run_WebUI_Command whitelist remove asn "$@" >/dev/null 2>&1 ;;
+					ban:domain) Run_WebUI_Command unban domain "$@" > "$webuiruleoutput" 2>&1 ;;
+					ban:asn) Run_WebUI_Command unban asn "$@" > "$webuiruleoutput" 2>&1 ;;
+					whitelist:domain) Run_WebUI_Command whitelist remove domain "$@" > "$webuiruleoutput" 2>&1 ;;
+					whitelist:asn) Run_WebUI_Command whitelist remove asn "$@" > "$webuiruleoutput" 2>&1 ;;
 				esac
 				webuirulestatus="$?"
-				case "$webuirulestatus" in 0) settingsresult="success"; webuirulepersisted="1" ;; 2) settingsresult="validation" ;; *) settingsresult="apply" ;; esac
+				Set_WebUI_Rule_Result "$webuirulestatus" "$webuiruleoutput"
+				if [ "$settingsresult" = "success" ]; then
+					for webuiruleentry in $webuiruleentries; do
+						Print_Rule_Action remove "$webuiruleaction" "$webuirulemode" "$webuiruleentry" "" >> "$skynetevents" \
+							|| Log error -s "Failed To Record WebUI Rule Action"
+					done
+				fi
+				rm -f "$webuiruleoutput"
 			fi
 		;;
 		remove:*:manual)
 			Check_Lock webui rules || return 1
 			Snapshot_WebUI_Rules || settingsresult="error"
+			webuiruleevents="$TMP_DIR/webui-rule-events.$$"
+			true > "$webuiruleevents" || settingsresult="error"
 			case "$webuiruletarget:$webuiruleaction:$webuirulesavedcomment" in
 				Skynet-Blacklist:ban:ManualBan:\ *|Skynet-BlockedRanges:ban:ManualRBan:\ *|Skynet-Whitelist:whitelist:ManualWlist:\ *) ;;
 				*) settingsresult="validation" ;;
@@ -6248,11 +6356,17 @@ Apply_WebUI_Rules() {
 			if [ "$settingsresult" = "ready" ]; then
 				Remove_IPSet_Exact_Rule "$webuiruletarget" "$webuiruleentries" "$webuirulesavedcomment"
 				case "$?" in 0) settingsresult="success" ;; 2) settingsresult="stale" ;; *) settingsresult="apply" ;; esac
+				if [ "$settingsresult" = "success" ]; then
+					if printf '%s\n' "$webuiruleentries" | Is_Range; then webuiruleeventtype="Range"; else webuiruleeventtype="Single"; fi
+					Print_Rule_Action remove "$webuiruleaction" "$webuiruleeventtype" "$webuiruleentries" "" >> "$webuiruleevents"
+				fi
 			fi
 		;;
 		remove:*:import)
 			Check_Lock webui rules || return 1
 			Snapshot_WebUI_Rules || settingsresult="error"
+			webuiruleevents="$TMP_DIR/webui-rule-events.$$"
+			true > "$webuiruleevents" || settingsresult="error"
 			case "$webuiruletarget:$webuiruleaction" in
 				Skynet-Blacklist:ban|Skynet-Whitelist:whitelist) ;;
 				*) settingsresult="validation" ;;
@@ -6261,6 +6375,9 @@ Apply_WebUI_Rules() {
 			if [ "$settingsresult" = "ready" ]; then
 				Remove_Import_Group "$webuiruletarget" "$webuirulesavedcomment"
 				case "$?" in 0) settingsresult="success" ;; 2) settingsresult="stale" ;; *) settingsresult="apply" ;; esac
+				if [ "$settingsresult" = "success" ]; then
+					Print_Rule_Action remove "$webuiruleaction" Import "$webuiruleentries" "$webuirulesavedcomment" >> "$webuiruleevents"
+				fi
 			fi
 		;;
 		*) settingsresult="validation" ;;
@@ -6273,7 +6390,13 @@ Apply_WebUI_Rules() {
 		if Save_IPSets && Write_Config; then
 			nocfg="1"
 			if [ -s "$webuiruleevents" ]; then
-				cat "$webuiruleevents" >> "$skynetevents" || Log error -s "Failed To Record WebUI Rule Events"
+				cat "$webuiruleevents" >> "$skynetevents" || Log error -s "Failed To Record WebUI Rule Actions"
+			fi
+			if [ -s "$webuirulecleanup" ]; then
+				while IFS= read -r webuiruleentry; do
+					webuirulepattern="$(printf '%s\n' "$webuiruleentry" | sed 's/\./\\./g')"
+					sed -i "\\~\\(BLOCKED.*=$webuirulepattern \\|Manual Ban.*=$webuirulepattern \\)~d" "$skynetlog" "$skynetevents"
+				done < "$webuirulecleanup"
 			fi
 		else
 			if [ -n "$webuirulesnapshot" ]; then
@@ -6285,14 +6408,16 @@ Apply_WebUI_Rules() {
 				fi
 				nocfg="1"
 			fi
-			settingsresult="apply"
+			settingsresult="save"
 		fi
 	fi
 	if [ "$settingsresult" = "success" ] && [ "$webuirulepersisted" = "1" ]; then
 		Load_Config || settingsresult="error"
 		nocfg="1"
 	fi
-	rm -f "$webuirulesnapshot" "$webuiruleevents"
+	for webuiruletemp in "$webuirulesnapshot" "$webuiruleevents" "$webuirulecleanup" "$webuiruleoutput"; do
+		[ -n "$webuiruletemp" ] && rm -f "$webuiruletemp"
+	done
 	nocfg="1"
 	Load_Config || settingsresult="error"
 	Generate_WebUI_Settings
@@ -10371,13 +10496,14 @@ Menu_Stats_Search() {
 			"Search Malware Lists For IP" \
 			"Search Ban Reasons" \
 			"Search Manual Bans" \
+			"Recent WebUI Rule Actions" \
 			"Outbound Entries From A Local Device" \
 			"Hourly Reports" \
 			"Invalid Packets" \
 			"Active Connections" \
 			"IoT Packets" \
 			"Exit"
-		Prompt_Input "1-11" menu4
+		Prompt_Input "1-12" menu4
 		case "$menu4" in
 			1)
 				option3="port"; Prompt_Input "Port" option4
@@ -10405,15 +10531,16 @@ Menu_Stats_Search() {
 				break
 			;;
 			6) option3="manualbans"; break ;;
-			7)
+			7) option3="actions"; break ;;
+			8)
 				option3="device"; Prompt_Input "Local IP" option4
 				if ! printf '%s\n' "$option4" | Is_IP; then echo "[*] $option4 Is Not A Valid IP"; echo; unset "option3" "option4"; continue; fi
 				break
 			;;
-			8) option3="reports"; break ;;
-			9) option3="invalid"; break ;;
-			10) Menu_Stats_Connections; break ;;
-			11) option3="iot"; break ;;
+			9) option3="reports"; break ;;
+			10) option3="invalid"; break ;;
+			11) Menu_Stats_Connections; break ;;
+			12) option3="iot"; break ;;
 			e|exit|back|menu) Return_To_Menu; break ;;
 			*) Invalid_Option "$menu4" ;;
 		esac
