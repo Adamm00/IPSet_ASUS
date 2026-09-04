@@ -798,6 +798,19 @@
             color: var(--skynet-warning);
         }
 
+        .skynet-feed-pill.empty,
+        .skynet-feed-pill.pending {
+            border-color: #58727d;
+            background: linear-gradient(180deg,#3d5058 0%,#33434a 100%);
+            color: #aac7d2;
+        }
+
+        .skynet-feed-pill.expired {
+            border-color: #8a6654;
+            background: linear-gradient(180deg,#57463d 0%,#473a34 100%);
+            color: #e3ad8f;
+        }
+
         .skynet-feed-pill.failed {
             border-color: #8a5057;
             background: linear-gradient(180deg,#583c41 0%,#473136 100%);
@@ -908,6 +921,10 @@
             color: var(--skynet-warning);
         }
 
+        .skynet-country-status.warning {
+            color: var(--skynet-warning) !important;
+        }
+
         .skynet-settings-table input[type="number"] {
             width: 82px;
         }
@@ -989,13 +1006,6 @@
             max-width: 360px !important;
         }
 
-        .skynet-country-list {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 5px;
-            min-height: 26px;
-        }
-
         #FormTitle .skynet-country-tag {
             display: inline-flex;
             align-items: center;
@@ -1034,13 +1044,6 @@
 
         #FormTitle .skynet-country-tag > span {
             color: var(--skynet-text) !important;
-        }
-
-        #FormTitle .skynet-country-tag > .skynet-country-code {
-            color: var(--skynet-accent-muted) !important;
-            font-size: var(--skynet-font-caption);
-            line-height: var(--skynet-line-caption);
-            text-transform: uppercase;
         }
 
         .skynet-country-remove {
@@ -1094,7 +1097,7 @@
         .skynet-country-health-header,
         .skynet-country-health-row {
             display: grid;
-            grid-template-columns: minmax(0, 1fr) 72px 140px 68px;
+            grid-template-columns: minmax(0, 1fr) 72px 140px 68px 52px;
             align-items: center;
             gap: 10px;
         }
@@ -1108,6 +1111,10 @@
             letter-spacing: 0.4px;
             line-height: var(--skynet-line-caption);
             text-transform: uppercase;
+        }
+
+        .skynet-country-health-header[hidden] {
+            display: none;
         }
 
         .skynet-country-health-row {
@@ -1164,9 +1171,15 @@
 
         .skynet-country-health-header > span:nth-child(2),
         .skynet-country-health-header > span:nth-child(4),
+        .skynet-country-health-header > span:nth-child(5),
         .skynet-country-health-count,
-        .skynet-country-health-state {
+        .skynet-country-health-state,
+        .skynet-country-health-remove {
             text-align: center;
+        }
+
+        .skynet-country-health-remove {
+            justify-self: center;
         }
 
         .skynet-rules-container > td,
@@ -1387,6 +1400,209 @@
             flex: 1;
         }
 
+        .skynet-rule-overview {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 10px;
+            border-top: 1px solid var(--skynet-border-soft);
+            border-bottom: 1px solid var(--skynet-border-soft);
+            background: rgba(0,0,0,0.08);
+        }
+
+        .skynet-rule-health {
+            display: flex;
+            flex: 1;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 6px;
+            min-width: 0;
+            color: var(--skynet-muted-2);
+            font-size: var(--skynet-font-body);
+        }
+
+        #FormTitle .skynet-rule-health > span {
+            padding: 0 !important;
+            border: 0 !important;
+            background: transparent !important;
+            box-shadow: none !important;
+        }
+
+        #FormTitle .skynet-rule-freshness > span,
+        #FormTitle .skynet-action-header > span,
+        #FormTitle .skynet-action-row > span {
+            padding: 0 !important;
+            border: 0 !important;
+            background: transparent !important;
+            box-shadow: none !important;
+        }
+
+        .skynet-rule-freshness {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            min-width: 0;
+        }
+
+        .skynet-rule-age {
+            min-width: 0;
+            overflow: hidden;
+            color: var(--skynet-muted) !important;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .skynet-rule-health-time {
+            color: var(--skynet-muted) !important;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .skynet-action-header,
+        .skynet-action-row {
+            display: grid;
+            grid-template-columns: 120px 84px 150px minmax(0, 1fr);
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+        }
+
+        .skynet-action-panel {
+            overflow: hidden;
+            margin-top: 10px;
+            border: 1px solid var(--skynet-border-soft);
+            border-radius: 5px;
+            background: rgba(25,39,44,0.34);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.025);
+        }
+
+        .skynet-action-intro {
+            padding: 10px 12px !important;
+            border: 0 !important;
+            border-bottom: 1px solid var(--skynet-border-soft) !important;
+            background: linear-gradient(180deg,rgba(69,91,99,0.30),rgba(38,53,59,0.18));
+        }
+
+        #FormTitle .skynet-action-intro .skynet-feed-title {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            color: var(--skynet-heading) !important;
+        }
+
+        .skynet-action-intro .skynet-feed-title::before {
+            content: "";
+            width: 7px;
+            height: 7px;
+            flex: 0 0 7px;
+            border-radius: 50%;
+            background: #79c6e7;
+            box-shadow: 0 0 6px rgba(121,198,231,0.5);
+        }
+
+        .skynet-action-header {
+            background: rgba(29,44,50,0.82);
+            border-bottom: 1px solid var(--skynet-border-soft);
+            font-size: var(--skynet-font-caption);
+            line-height: var(--skynet-line-caption);
+            letter-spacing: 0.35px;
+            text-transform: uppercase;
+        }
+
+        #FormTitle .skynet-action-header > span {
+            color: var(--skynet-accent-muted) !important;
+            font-weight: 600;
+            text-align: left;
+        }
+
+        .skynet-action-row {
+            position: relative;
+            min-height: 38px;
+            border-top: 1px solid var(--skynet-border-faint);
+            color: var(--skynet-muted-2);
+            font-size: var(--skynet-font-body);
+            line-height: var(--skynet-line-body);
+            transition: background-color 0.15s ease;
+        }
+
+        .skynet-action-row:first-child { border-top: 0; }
+
+        .skynet-action-row:nth-child(odd) {
+            background: rgba(255,255,255,0.015);
+        }
+
+        .skynet-action-row:hover {
+            background: rgba(121,198,231,0.055);
+        }
+
+        .skynet-action-time {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .skynet-action-summary,
+        .skynet-action-detail {
+            min-width: 0;
+            overflow-wrap: anywhere;
+            white-space: normal;
+        }
+
+        .skynet-action-time {
+            color: var(--skynet-muted) !important;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .skynet-action-result {
+            justify-self: start;
+            min-width: 54px;
+            padding: 2px 8px !important;
+            border: 1px solid transparent !important;
+            border-radius: 10px;
+            font-size: var(--skynet-font-caption);
+            font-weight: 600;
+            line-height: 15px;
+            text-align: center;
+        }
+
+        #FormTitle .skynet-action-result.success {
+            color: var(--skynet-success) !important;
+            border-color: rgba(105,190,137,0.42) !important;
+            background: rgba(65,126,87,0.18) !important;
+        }
+
+        #FormTitle .skynet-action-result.degraded {
+            color: var(--skynet-warning) !important;
+            border-color: rgba(210,177,80,0.42) !important;
+            background: rgba(145,111,31,0.17) !important;
+        }
+
+        #FormTitle .skynet-action-result.failed {
+            color: var(--skynet-error) !important;
+            border-color: rgba(205,103,113,0.42) !important;
+            background: rgba(135,58,68,0.17) !important;
+        }
+
+        #FormTitle .skynet-action-summary {
+            color: var(--skynet-text) !important;
+            font-weight: 600;
+        }
+
+        #FormTitle .skynet-action-detail {
+            color: var(--skynet-muted) !important;
+        }
+
+        .skynet-action-list {
+            max-height: 220px;
+            overflow-y: auto;
+        }
+
+        #skynetRuleActivity .skynet-feed-empty {
+            padding: 16px 12px;
+            color: var(--skynet-muted) !important;
+            text-align: center;
+        }
+
         .skynet-iot-add {
             display: flex;
             align-items: center;
@@ -1432,6 +1648,10 @@
 
         .skynet-settings-actions[data-active-section="countries"] {
             flex-wrap: wrap;
+        }
+
+        .skynet-settings-actions[data-active-section="rules"] {
+            display: none;
         }
 
         .skynet-settings-actions[data-active-section="countries"]
@@ -2203,8 +2423,12 @@
             }
 
             .skynet-country-health-row {
-                grid-template-columns: minmax(0, 1fr) auto;
+                grid-template-columns: minmax(0, 1fr) auto 28px;
                 gap: 4px 10px;
+            }
+
+            .skynet-country-health-count {
+                grid-column: 1;
             }
 
             .skynet-country-health-date {
@@ -2214,7 +2438,14 @@
 
             .skynet-country-health-state {
                 grid-column: 2;
-                grid-row: 1 / 3;
+                grid-row: 1 / 4;
+                align-self: center;
+            }
+
+            .skynet-country-health-remove {
+                grid-column: 3;
+                grid-row: 1 / 4;
+                align-self: center;
             }
 
             .skynet-country-health-count::before {
@@ -2235,10 +2466,24 @@
 
             .skynet-rules-toolbar,
             .skynet-rules-filterbar,
-            .skynet-rules-actions {
+            .skynet-rules-actions,
+            .skynet-rule-overview {
                 align-items: stretch;
                 flex-direction: column;
             }
+
+            .skynet-rule-health {
+                align-items: flex-start;
+            }
+
+			.skynet-rule-freshness {
+				flex-wrap: wrap;
+				white-space: normal;
+			}
+
+			.skynet-rule-age {
+				white-space: normal;
+			}
 
             .skynet-rule-field,
             .skynet-rule-field-entries {
@@ -2280,7 +2525,11 @@
             }
 
             .skynet-rule-comment::before {
-                content: "Comment  ";
+				content: "Details  ";
+            }
+
+            .skynet-rule-comment.freshness::before {
+                content: "Freshness  ";
             }
 
             .skynet-rule-count::before {
@@ -2290,6 +2539,29 @@
             .skynet-rule-remove {
                 grid-column: 2;
                 grid-row: 2 / 4;
+                align-self: center;
+            }
+
+            .skynet-action-header {
+                display: none;
+            }
+
+            .skynet-action-row {
+                grid-template-columns: minmax(0, 1fr) auto;
+                gap: 3px 10px;
+            }
+
+            .skynet-action-time,
+            .skynet-action-summary,
+            .skynet-action-detail {
+                grid-column: 1;
+                overflow-wrap: anywhere;
+                white-space: normal;
+            }
+
+            .skynet-action-result {
+                grid-column: 2;
+                grid-row: 1 / 4;
                 align-self: center;
             }
 
@@ -2502,7 +2774,6 @@
                 feedButton: "skynetApplyFeeds",
                 feedStatus: "skynetFeedStatus",
                 countryPicker: "skynetCountryPicker",
-                countryList: "skynetCountryList",
                 countryButton: "skynetApplyCountries",
                 countryRefresh: "skynetRefreshCountries",
                 countryClear: "skynetClearCountries",
@@ -2517,6 +2788,9 @@
                 ruleFilter: "skynetRuleFilter",
                 ruleSearch: "skynetRuleSearch",
                 ruleList: "skynetRuleList",
+                ruleHealth: "skynetRuleHealth",
+                ruleActivity: "skynetRuleActivity",
+                ruleRefresh: "skynetRefreshRules",
                 ruleButton: "skynetApplyRule",
                 ruleResult: "skynetRuleStatus",
                 iotPicker: "skynetIotPicker",
@@ -2558,9 +2832,9 @@
                 reload: {
                     button: "settingsReloadButton",
                     result: "settingsResult",
-                    label: "Reload Settings",
-                    success: "Settings reloaded.",
-                    timeout: "Settings reload did not complete.",
+                    label: "Reload Data",
+                    success: "Current data reloaded.",
+                    timeout: "Data reload did not complete.",
                     loadError: "Unable to load current settings.",
                     source: "settings"
                 },
@@ -2603,7 +2877,7 @@
                 countryRefresh: {
                     button: "countryRefresh",
                     result: "countryResult",
-                    label: "Refresh Countries",
+                    label: "Refresh Sources",
                     success: "Country sources refreshed successfully.",
                     failure: "Unable to refresh country sources.",
                     timeout: "Country source refresh did not complete.",
@@ -2623,6 +2897,18 @@
                     source: "settings",
                     requireSuccess: true,
                     accepted: ["success", "warning"]
+                },
+                ruleRefresh: {
+                    button: "ruleRefresh",
+                    result: "ruleResult",
+                    label: "Refresh Dynamic Rules",
+                    success: "Dynamic rules refreshed successfully.",
+                    failure: "Unable to refresh dynamic rules.",
+                    timeout: "Rule refresh did not complete.",
+                    loadError: "Unable to load current rule health.",
+                    source: "settings",
+                    requireSuccess: true,
+                    accepted: ["success", "degraded"]
                 },
                 iot: {
                     button: "iotButton",
@@ -4768,14 +5054,19 @@
                 : "failed";
         };
 
-        SkynetUI.formatAge = function(epoch) {
+        SkynetUI.formatRelativeTime = function(epoch) {
             const seconds = Math.max(0, Math.floor(Date.now() / 1000) - Number(epoch || 0));
 
-            if (!Number(epoch)) return "Change unknown";
-            if (seconds < 60) return "Changed just now";
-            if (seconds < 3600) return "Changed " + Math.max(1, Math.floor(seconds / 60)) + "m ago";
-            if (seconds < 86400) return "Changed " + Math.floor(seconds / 3600) + "h ago";
-            return "Changed " + Math.floor(seconds / 86400) + "d ago";
+			if (!Number(epoch)) return "Never";
+			if (seconds < 60) return "Just now";
+			if (seconds < 3600) return Math.max(1, Math.floor(seconds / 60)) + "m ago";
+			if (seconds < 86400) return Math.floor(seconds / 3600) + "h ago";
+			return Math.floor(seconds / 86400) + "d ago";
+		};
+
+		SkynetUI.formatAge = function(epoch) {
+			const relative = this.formatRelativeTime(epoch);
+			return relative === "Never" ? "Change unknown" : "Changed " + relative.toLowerCase();
         };
 
         SkynetUI.renderFeeds = function() {
@@ -5044,46 +5335,6 @@
         };
 
         SkynetUI.renderCountries = function() {
-            const list = this.getElement(this.selectors.countryList);
-
-            if (!list) {
-                return;
-            }
-
-            while (list.firstChild) {
-                list.removeChild(list.firstChild);
-            }
-
-            if (!this.countrySelection.length) {
-                const empty = document.createElement("span");
-                empty.className = "skynet-country-empty";
-                empty.textContent = "No countries are currently blocked.";
-                list.appendChild(empty);
-            } else {
-                this.countrySelection.forEach(function(code) {
-                    const tag = document.createElement("span");
-                    const name = document.createElement("span");
-                    const countryCode = document.createElement("span");
-                    const remove = document.createElement("button");
-
-                    tag.className = "skynet-country-tag";
-                    name.textContent = SkynetUI.getCountryName(code);
-                    countryCode.className = "skynet-country-code";
-                    countryCode.textContent = code;
-                    remove.type = "button";
-                    remove.className = "skynet-country-remove";
-                    remove.dataset.country = code;
-                    remove.title = "Remove " + SkynetUI.getCountryName(code);
-                    remove.setAttribute("aria-label", remove.title);
-                    remove.textContent = "×";
-                    remove.disabled = SkynetUI.refreshInProgress;
-                    tag.appendChild(name);
-                    tag.appendChild(countryCode);
-                    tag.appendChild(remove);
-                    list.appendChild(tag);
-                });
-            }
-
             const apply = this.getElement(this.selectors.countryButton);
             if (apply && !this.refreshInProgress) {
                 apply.value = "Apply Countries";
@@ -5099,6 +5350,7 @@
                 false,
                 this.selectors.countryResult
             );
+            this.renderCountryHealth();
             this.updateCountryControls();
         };
 
@@ -5108,7 +5360,6 @@
                 this.countryOriginal = "";
                 this.populateCountryPicker();
                 this.renderCountries();
-                this.renderCountryHealth();
                 this.setUpdateResult(
                     "Reload settings after updating Skynet.",
                     false,
@@ -5123,7 +5374,6 @@
             this.countryOriginal = this.countrySelection.join(" ");
             this.populateCountryPicker();
             this.renderCountries();
-            this.renderCountryHealth();
         };
 
         SkynetUI.addCountry = function(code) {
@@ -5168,49 +5418,70 @@
             const sources = Array.isArray(window.SkynetCountries)
                 ? window.SkynetCountries
                 : [];
+            const sourceMap = {};
+            const original = String(this.countryOriginal || "").split(" ")
+                .filter(Boolean);
 
             if (!list) return;
             list.textContent = "";
-            if (!window.SkynetCountrySummary ||
-                !window.SkynetCountrySummary.available || !sources.length) {
+            if (!this.countrySelection.length) {
                 if (header) header.hidden = true;
                 const empty = document.createElement("div");
                 empty.className = "skynet-feed-empty";
-                empty.textContent = this.countrySelection.length
-                    ? "Source details will be available after the next country refresh."
-                    : "No country sources are currently selected.";
+                empty.textContent = "No countries are currently blocked.";
                 list.appendChild(empty);
                 return;
             }
-            if (header) header.hidden = false;
             sources.forEach(function(source) {
+                sourceMap[String(source.code || "").toLowerCase()] = source;
+            });
+            if (header) header.hidden = false;
+            this.countrySelection.forEach(function(code) {
+                const source = sourceMap[code] || {};
+                const pending = original.indexOf(code) === -1;
+                const stateValue = pending
+                    ? "pending"
+                    : (/^(current|cached|failed)$/.test(source.state)
+                        ? source.state : "pending");
                 const row = document.createElement("div");
                 const name = document.createElement("span");
                 const count = document.createElement("span");
                 const date = document.createElement("span");
                 const state = document.createElement("span");
                 const pill = document.createElement("span");
+                const remove = document.createElement("button");
 
                 row.className = "skynet-country-health-row";
                 name.className = "skynet-country-health-name";
-                name.textContent = SkynetUI.getCountryName(source.code) +
-                    " (" + String(source.code || "").toUpperCase() + ")";
+                name.textContent = SkynetUI.getCountryName(code) +
+                    " (" + code.toUpperCase() + ")";
                 count.className = "skynet-country-health-count";
-                count.textContent = Number(source.entries || 0).toLocaleString();
+                count.textContent = pending || !source.code
+                    ? "—" : Number(source.entries || 0).toLocaleString();
                 date.className = "skynet-country-health-date";
-                date.textContent = Number(source.success)
+                date.textContent = pending
+                    ? "After apply"
+                    : (Number(source.success)
                     ? new Date(Number(source.success) * 1000).toLocaleString()
-                    : "Never";
+                    : "Not checked");
                 date.title = date.textContent;
                 state.className = "skynet-country-health-state";
-                pill.className = "skynet-feed-pill " + source.state;
-                pill.textContent = source.state.charAt(0).toUpperCase() +
-                    source.state.slice(1);
+                pill.className = "skynet-feed-pill " + stateValue;
+                pill.textContent = stateValue.charAt(0).toUpperCase() +
+                    stateValue.slice(1);
                 state.appendChild(pill);
+                remove.type = "button";
+                remove.className = "skynet-country-remove skynet-country-health-remove";
+                remove.dataset.country = code;
+                remove.title = "Remove " + SkynetUI.getCountryName(code);
+                remove.setAttribute("aria-label", remove.title);
+                remove.textContent = "×";
+                remove.disabled = SkynetUI.refreshInProgress;
                 row.appendChild(name);
                 row.appendChild(count);
                 row.appendChild(date);
                 row.appendChild(state);
+                row.appendChild(remove);
                 list.appendChild(row);
             });
         };
@@ -5219,6 +5490,12 @@
             return Boolean(window.SkynetSettings && window.SkynetSettingsGenerated &&
                 window.SkynetRuleSummary && window.SkynetRuleSummary.available &&
                 Array.isArray(window.SkynetRules));
+        };
+
+        SkynetUI.canRefreshRules = function() {
+            const summary = window.SkynetRuleSummary || {};
+            return this.canManageRules() &&
+                (Number(summary.domains || 0) + Number(summary.asns || 0) > 0);
         };
 
         SkynetUI.isRuleRequestApplied = function() {
@@ -5356,6 +5633,7 @@
             const mode = this.getElement(this.selectors.ruleMode);
             const comment = this.getElement(this.selectors.ruleComment);
             const apply = this.getElement(this.selectors.ruleButton);
+            const refresh = this.getElement(this.selectors.ruleRefresh);
             const unban = action && action.value === "unban";
             if (comment && mode) {
                 comment.disabled = busy || !supported || mode.value !== "ip" || unban;
@@ -5370,6 +5648,7 @@
                 if (control) control.disabled = busy || !supported;
             });
             if (apply) apply.disabled = busy || !supported || !this.ruleEntries.length;
+            if (refresh) refresh.disabled = busy || !this.canRefreshRules();
             document.querySelectorAll(".skynet-rule-remove, .skynet-rule-tag-remove")
                 .forEach(function(button) { button.disabled = busy || !supported; });
         };
@@ -5432,12 +5711,33 @@
                     : (rule.display || rule.entry);
                 entry.title = entry.textContent;
                 comment.className = "skynet-rule-comment";
-                comment.textContent = rule.kind === "manual"
-                    ? (rule.display || "—")
-                    : "—";
-                comment.title = comment.textContent;
+				if (String(rule.type).toLowerCase() === "domain") {
+					const state = /^(current|cached|empty|expired|failed)$/.test(rule.state)
+						? rule.state : "pending";
+					const pill = document.createElement("span");
+					const age = document.createElement("span");
+					comment.className += " freshness skynet-rule-freshness";
+					pill.className = "skynet-feed-pill " + state;
+					pill.textContent = SkynetUI.formatRuleState(state);
+					age.className = "skynet-rule-age";
+					age.textContent = Number(rule.success)
+						? SkynetUI.formatRelativeTime(rule.success)
+						: "Never resolved";
+					comment.title = "Last success: " + (Number(rule.success)
+						? new Date(Number(rule.success) * 1000).toLocaleString() : "Never") +
+						" | Last checked: " + (Number(rule.checked)
+							? new Date(Number(rule.checked) * 1000).toLocaleString() : "Never");
+					comment.appendChild(pill);
+					comment.appendChild(age);
+				} else {
+					comment.textContent = rule.kind === "manual"
+						? (rule.display || "—")
+						: "—";
+					comment.title = comment.textContent;
+				}
                 count.className = "skynet-rule-count";
-                count.textContent = Number(rule.count || 1).toLocaleString();
+				const ruleCount = Number(rule.count);
+				count.textContent = (isNaN(ruleCount) ? 1 : ruleCount).toLocaleString();
                 remove.type = "button";
                 remove.className = "button_gen skynet-update-button skynet-settings-reload skynet-rule-remove";
                 remove.value = "Remove";
@@ -5454,11 +5754,145 @@
             this.updateRuleControls();
         };
 
+		SkynetUI.formatRuleState = function(state) {
+			return {
+				current: "Current",
+				cached: "Cached",
+				pending: "Pending",
+				empty: "No Address",
+				expired: "Expired",
+				failed: "Failed"
+			}[state] || "Unknown";
+		};
+
+		SkynetUI.formatActionLabel = function(action) {
+			const area = String(action.area || "");
+			const operation = String(action.operation || "");
+			const target = String(action.target || "");
+			const type = String(action.type || "");
+			const ruleType = {ip: "IP", range: "CIDR", address: "IP/CIDR", domain: "domain", asn: "ASN"}[type] || type;
+			if (area === "rules" && operation === "refresh" && type === "logical") return "Refreshed dynamic rules";
+			if (area === "rules" && operation === "refresh" && type === "whitelist") return "Refreshed whitelist sources";
+			if (area === "rules" && operation === "remove" && type === "comment") return "Removed bans by comment";
+			if (area === "rules" && operation === "remove" && type === "automatic") return "Removed automatic bans";
+			if (area === "rules" && operation === "remove" && type === "all") return "Cleared all bans";
+			if (area === "rules" && operation === "add" && type === "import") return "Imported " + target + " list";
+			if (area === "rules" && operation === "remove" && type === "import") return "Removed imported " + target + " list";
+			if (area === "rules" && operation === "add") return "Added " + [ruleType, target].filter(Boolean).join(" ");
+			if (area === "rules" && operation === "remove") return "Removed " + [ruleType, target].filter(Boolean).join(" ");
+			if (area === "feeds" && operation === "remove") return "Cleared threat feed entries";
+			if (area === "feeds") return "Updated threat feeds";
+			if (area === "countries" && operation === "add") {
+				return "Added " + (String(action.entries || "").trim().split(/\s+/).length === 1
+					? "country" : "countries");
+			}
+			if (area === "countries" && operation === "remove") {
+				return "Removed " + (String(action.entries || "").trim().split(/\s+/).length === 1
+					? "country" : "countries");
+			}
+			if (area === "countries" && operation === "refresh") return "Refreshed country sources";
+			if (area === "countries") return "Updated country selection";
+			if (area === "iot") return "Updated IoT isolation";
+			if (area === "settings") return "Updated Skynet settings";
+			if (area === "system" && operation === "restore") return "Restored Skynet backup";
+			return [operation, target, type].filter(Boolean).join(" ");
+		};
+
+        SkynetUI.renderRuleOverview = function() {
+            const health = this.getElement(this.selectors.ruleHealth);
+            const activity = this.getElement(this.selectors.ruleActivity);
+            const summary = window.SkynetRuleSummary || {};
+			const actions = Array.isArray(window.SkynetActions)
+				? window.SkynetActions.slice().reverse().slice(0, 8)
+                : [];
+
+            if (health) {
+                health.textContent = "";
+				const healthTotal = Number(summary.domains || 0);
+                if (!summary.available) {
+                    health.textContent = "Rule health is not currently available.";
+                } else if (!healthTotal) {
+                    health.textContent = "No dynamic domain rules are configured.";
+                } else {
+                    const label = document.createElement("span");
+                    label.textContent = "Domain health";
+                    health.appendChild(label);
+					["current", "cached", "pending", "empty", "expired", "failed"].forEach(function(state) {
+                        const count = Number(summary[state] || 0);
+                        if (!count) return;
+                        const pill = document.createElement("span");
+                        pill.className = "skynet-feed-pill " + state;
+						pill.textContent = count.toLocaleString() + " " + SkynetUI.formatRuleState(state);
+                        health.appendChild(pill);
+                    });
+                    const checked = document.createElement("span");
+                    checked.className = "skynet-rule-health-time";
+					checked.textContent = Number(summary.lastCheck)
+						? "Checked " + SkynetUI.formatRelativeTime(summary.lastCheck)
+                        : "Not checked yet";
+					checked.title = Number(summary.lastCheck)
+						? new Date(Number(summary.lastCheck) * 1000).toLocaleString() : "";
+                    health.appendChild(checked);
+                }
+            }
+
+            if (!activity) return;
+            activity.textContent = "";
+            if (!actions.length) {
+                const empty = document.createElement("div");
+                empty.className = "skynet-feed-empty";
+                empty.textContent = "No actions have been recorded yet.";
+                activity.appendChild(empty);
+                return;
+            }
+            actions.forEach(function(action) {
+                const row = document.createElement("div");
+                const time = document.createElement("span");
+                const result = document.createElement("span");
+                const summaryText = document.createElement("span");
+                const detail = document.createElement("span");
+                let entries = String(action.entries || "");
+                const extra = String(action.detail || "");
+				const countryEntries = entries.split(/\s+/).filter(Boolean);
+
+				if (String(action.area || "") === "countries" && countryEntries.length &&
+					countryEntries.every(function(code) { return /^[a-z]{2}$/i.test(code); })) {
+					entries = countryEntries.map(function(code) {
+						return SkynetUI.getCountryName(code) + " (" + code.toUpperCase() + ")";
+					}).join(", ");
+				}
+
+                row.className = "skynet-action-row";
+                time.className = "skynet-action-time";
+				time.textContent = Number(action.epoch)
+					? SkynetUI.formatRelativeTime(action.epoch)
+                    : String(action.time || "Unknown");
+				time.title = [String(action.origin || ""), Number(action.epoch)
+					? new Date(Number(action.epoch) * 1000).toLocaleString()
+					: String(action.time || "")].filter(Boolean).join(" | ");
+                result.className = "skynet-action-result " + action.result;
+                result.textContent = String(action.result || "unknown")
+                    .replace(/^./, function(value) { return value.toUpperCase(); });
+                summaryText.className = "skynet-action-summary";
+				summaryText.textContent = SkynetUI.formatActionLabel(action);
+                summaryText.title = summaryText.textContent;
+                detail.className = "skynet-action-detail";
+				detail.textContent = [entries, extra].filter(Boolean).join(" — ");
+                detail.title = detail.textContent;
+                row.appendChild(time);
+                row.appendChild(result);
+                row.appendChild(summaryText);
+                row.appendChild(detail);
+                activity.appendChild(row);
+            });
+        };
+
         SkynetUI.populateRules = function() {
             this.ruleEntries = [];
             this.ruleConfirm = "";
             this.renderRuleTags();
             this.renderRules();
+            this.renderRuleOverview();
         };
 
         SkynetUI.submitRule = function(operation, rule) {
@@ -5508,6 +5942,24 @@
             }
             this.ruleConfirm = "";
             this.submitRule("remove", rule);
+        };
+
+        SkynetUI.refreshRules = function() {
+            if (this.refreshInProgress || !this.canRefreshRules()) return;
+            custom_settings.skynet_ruleoperation = "refresh";
+            custom_settings.skynet_ruleaction = "all";
+            custom_settings.skynet_rulemode = "logical";
+            custom_settings.skynet_ruleentries = "registered rules";
+            custom_settings.skynet_rulecomment = "";
+            custom_settings.skynet_ruletarget = "";
+            custom_settings.skynet_rulesavedcomment = "";
+            custom_settings.skynet_rulerequest = String(new Date().getTime());
+            this.refreshInProgress = true;
+            this.setUpdateResult("Refreshing dynamic rules...", false, this.selectors.ruleResult);
+            this.setActionState(true, this.selectors.ruleRefresh, "Refreshing...");
+            document.form.amng_custom.value = JSON.stringify(custom_settings);
+            this.submitBackgroundAction("start_SkynetRules");
+            this.waitForUpdate(window.SkynetSettingsGenerated, 600, "ruleRefresh");
         };
 
         SkynetUI.isIPv4Range = function(value) {
@@ -5996,6 +6448,7 @@
                 this.selectors.countryRefresh,
                 this.selectors.countryClear,
                 this.selectors.ruleButton,
+                this.selectors.ruleRefresh,
                 this.selectors.ruleAdd,
                 this.selectors.iotButton,
                 this.selectors.iotClear,
@@ -6025,6 +6478,8 @@
                             !SkynetUI.countrySelection.length) ||
                         (id === SkynetUI.selectors.ruleButton &&
                             (!SkynetUI.canManageRules() || !SkynetUI.ruleEntries.length)) ||
+                        (id === SkynetUI.selectors.ruleRefresh &&
+                            !SkynetUI.canRefreshRules()) ||
                         (id === SkynetUI.selectors.ruleAdd &&
                             !SkynetUI.canManageRules()) ||
                         (id === SkynetUI.selectors.iotButton &&
@@ -6176,12 +6631,17 @@
 			if (preserveInput) return;
 			switch (requestType) {
 				case "rules": this.populateRules(); break;
+				case "ruleRefresh": this.renderRules(); this.renderRuleOverview(); break;
 				case "countries":
 				case "countryRefresh": this.populateCountries(); break;
 				case "feeds": this.populateFeeds(); this.populateMalwareStatus(); break;
 				case "malware": this.populateFeeds(); this.populateMalwareStatus(); break;
 				case "iot": this.populateIOT(); this.refreshRenderedStats(); break;
 				default: this.populateSettings(); this.refreshRenderedStats();
+			}
+			/* Rules actions already refresh the shared activity journal. */
+			if (requestType !== "rules" && requestType !== "ruleRefresh") {
+				this.renderRuleOverview();
 			}
 		};
 
@@ -6223,7 +6683,9 @@
                 if (String(currentStamp || "") !== String(previousStamp || "")) {
                     const ruleRequest = String(custom_settings.skynet_rulerequest || "");
                     const currentRequest = String(window.SkynetSettingsRequest || "");
-                    if (requestType === "rules" && ruleRequest &&
+                    const ruleRequestType = requestType === "rules" ||
+                        requestType === "ruleRefresh";
+                    if (ruleRequestType && ruleRequest &&
                         currentRequest !== ruleRequest) {
                         if (attempts > 0) {
                             window.setTimeout(function() {
@@ -6265,7 +6727,7 @@
                     self.refreshInProgress = false;
                     if (failed) {
                         self.setUpdateResult(
-							requestType === "rules"
+							ruleRequestType
 								? self.getRuleUpdateError()
 								: (requestType === "countries" || requestType === "countryRefresh")
 								? self.getCountryUpdateError()
@@ -6293,6 +6755,8 @@
                                 (cachedCountries.length
                                     ? " for " + cachedCountries.join(", ") + "."
                                     : ".");
+                        } else if (requestType === "ruleRefresh") {
+                            degradedMessage = "Dynamic domain rules refreshed using validated cached data.";
                         }
                         self.setUpdateResult(
                             degradedMessage,
@@ -6549,7 +7013,7 @@
                         ? this.selectors.ruleResult
                         : this.selectors.settingsResult));
             this.refreshInProgress = true;
-            this.setUpdateResult("Reloading settings...", false, this.reloadResult);
+            this.setUpdateResult("Reloading current data...", false, this.reloadResult);
             this.setActionState(true, this.selectors.settingsReloadButton, "Reloading...");
             this.submitBackgroundAction("start_SkynetSettingsLoad");
             this.waitForUpdate(window.SkynetSettingsGenerated, 60, "reload");
@@ -6718,7 +7182,7 @@
                 });
             }
 
-            const countryList = this.getElement(this.selectors.countryList);
+            const countryList = this.getElement(this.selectors.countryHealth);
 
             if (countryList) {
                 countryList.addEventListener("click", function(event) {
@@ -6799,6 +7263,10 @@
             const ruleApply = this.getElement(this.selectors.ruleButton);
             if (ruleApply) ruleApply.addEventListener("click", function() {
                 SkynetUI.submitRule("add");
+            });
+            const ruleRefresh = this.getElement(this.selectors.ruleRefresh);
+            if (ruleRefresh) ruleRefresh.addEventListener("click", function() {
+                SkynetUI.refreshRules();
             });
 
             const iotPicker = this.getElement(this.selectors.iotPicker);
@@ -7289,6 +7757,13 @@
                                                                             <span class="skynet-feed-title">Manual Firewall Rules</span>
                                                                             <span class="skynet-feed-help">Ban, unban or whitelist direct entries, review imported groups and remove saved rules.</span>
                                                                         </div>
+                                                                        <div class="skynet-rule-overview">
+                                                                            <div class="skynet-rule-health" id="skynetRuleHealth">Loading domain health...</div>
+                                                                            <input type="button"
+                                                                                id="skynetRefreshRules"
+                                                                                value="Refresh Dynamic Rules"
+                                                                                class="button_gen skynet-update-button skynet-settings-reload" />
+                                                                        </div>
                                                                         <div class="skynet-rules-toolbar">
                                                                             <label class="skynet-rule-field">
                                                                                 <span class="skynet-rule-label">Action</span>
@@ -7348,7 +7823,7 @@
                                                                         <div class="skynet-rule-header">
                                                                             <span>Type</span>
                                                                             <span>Entry / Group</span>
-                                                                            <span>Comment</span>
+																											<span>Details</span>
                                                                             <span>Count</span>
                                                                             <span>Action</span>
                                                                         </div>
@@ -7363,6 +7838,21 @@
                                                                                 class="button_gen skynet-update-button"
                                                                                 disabled="disabled" />
                                                                         </div>
+                                                                        <div class="skynet-action-panel">
+                                                                            <div class="skynet-feed-intro skynet-action-intro">
+                                                                                <span class="skynet-feed-title">Recent Activity</span>
+                                                                                <span class="skynet-feed-help">Latest firewall, source and settings changes.</span>
+                                                                            </div>
+                                                                            <div class="skynet-action-header">
+                                                                                <span>Time</span>
+                                                                                <span>Result</span>
+                                                                                <span>Action</span>
+                                                                                <span>Details</span>
+                                                                            </div>
+                                                                            <div class="skynet-action-list" id="skynetRuleActivity">
+                                                                                <div class="skynet-feed-empty">Loading recent actions...</div>
+                                                                            </div>
+                                                                        </div>
                                                                     </div>
                                                                 </td>
                                                             </tr>
@@ -7371,8 +7861,8 @@
                                                             </tr>
                                                             <tr>
                                                                 <th>
-                                                                    <span class="skynet-setting-name">IoT Blocking</span>
-                                                                    <span class="skynet-setting-help">Controls enforcement without clearing the saved device list.</span>
+                                                                    <span class="skynet-setting-name">IoT WAN Blocking</span>
+                                                                    <span class="skynet-setting-help">Blocks WAN access for saved devices. Disabling it preserves the device list.</span>
                                                                 </th>
                                                                 <td>
                                                                     <select class="input_option" id="skynetIotBlocking">
@@ -7486,9 +7976,6 @@
                                                                             disabled="disabled">
                                                                             <option value="">Add a country...</option>
                                                                         </select>
-                                                                        <div class="skynet-country-list" id="skynetCountryList">
-                                                                            <span class="skynet-country-empty">Loading blocked countries...</span>
-                                                                        </div>
                                                                     </div>
                                                                 </td>
                                                             </tr>
@@ -7500,6 +7987,7 @@
                                                                             <span>Ranges</span>
                                                                             <span>Last Success</span>
                                                                             <span>State</span>
+                                                                            <span>Action</span>
                                                                         </div>
                                                                         <div id="skynetCountryHealthList">
                                                                             <div class="skynet-feed-empty">Loading country source details...</div>
@@ -7583,8 +8071,9 @@
                                                                 data-action-sections="updates protection statistics" />
                                                             <input type="button"
                                                                 id="skynetReloadSettings"
-                                                                value="Reload Settings"
-                                                                class="button_gen skynet-update-button skynet-settings-reload" />
+                                                                value="Reload Data"
+                                                                class="button_gen skynet-update-button skynet-settings-reload"
+                                                                data-action-sections="updates protection iot statistics" />
                                                             <input type="button"
                                                                 id="skynetApplySettings"
                                                                 value="Apply Settings"
@@ -7611,7 +8100,7 @@
                                                                 disabled="disabled" />
                                                             <input type="button"
                                                                 id="skynetRefreshCountries"
-                                                                value="Refresh Countries"
+                                                                value="Refresh Sources"
                                                                 class="button_gen skynet-update-button skynet-settings-reload"
                                                                 data-action-sections="countries"
                                                                 disabled="disabled" />

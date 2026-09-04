@@ -90,7 +90,12 @@ Commands return `0` on success, `1` for a runtime failure, and `2` for an invali
 
 Country blocking downloads the selected IPdeny lists concurrently over verified HTTPS and accepts only complete public IPv4 CIDRs. A URL-bound validated cache is used with a warning when a selected list is temporarily unavailable. If no matching cache exists, the complete previous country selection is retained. Applying a new country selection replaces the previous selection rather than appending to it.
 
-Domain additions validate and resolve the complete IPv4 answer set before changing the firewall. Domain removals use exact stored ownership labels, so they do not depend on the domain resolving to the same addresses later. A failed batch leaves the existing IPSet unchanged.
+Domain rules are stored as logical policy and materialised in dedicated dynamic IP sets. Skynet resolves them every six hours, while dnsmasq adds newly observed answers between refreshes. A successful refresh replaces the complete answer set so addresses no longer returned by DNS are removed. Validated answers may be retained for up to 24 hours during a resolver failure; after that they expire instead of remaining trusted indefinitely. New domain rules still require a successful initial resolution, and removals use the stored rule rather than resolving the domain again.
+
+Domain health is reported as `current`, `cached`, `empty`, `expired`, or `failed`. `cached` retains a recent validated answer after a resolver failure, `empty` means completed lookups returned no usable IPv4 address, and `expired` means the last valid answer exceeded the 24-hour safety window. Resolver errors do not erase a recent valid answer.
+
+- `firewall rules status` - Display registered rule totals and the current health of every dynamic domain rule.
+- `firewall rules refresh` - Refresh registered domain rules and ASN ranges. Scheduled refreshes update domains every six hours and ASNs once daily.
 
 ### Malware Lists
 
@@ -109,8 +114,8 @@ Each source is reported as `current`, `cached`, `failed`, or `excluded`. A valid
 
 ### Whitelisting
 
-- `firewall whitelist ip 8.8.8.8 1.1.1.1 comment "Trusted"` - Whitelist one or more IPv4 addresses with one optional quoted comment and remove exact matching bans.
-- `firewall whitelist range 8.8.8.0/24 1.1.1.0/24 comment "Trusted"` - Whitelist one or more IPv4 CIDR ranges with one optional quoted comment and remove exact matching bans.
+- `firewall whitelist ip 8.8.8.8 1.1.1.1 comment "Trusted"` - Whitelist one or more IPv4 addresses with one optional quoted comment. Existing bans are retained and become effective again if the whitelist is removed.
+- `firewall whitelist range 8.8.8.0/24 1.1.1.0/24 comment "Trusted"` - Whitelist one or more IPv4 CIDR ranges with one optional quoted comment. Existing bans are retained and become effective again if the whitelist is removed.
 - `firewall whitelist domain example.com example.net` - Resolve one or more domains and whitelist their current IPv4 addresses.
 - `firewall whitelist asn AS123456 AS654321` - Download and whitelist the IPv4 ranges announced by one or more ASNs.
 - `firewall whitelist vpn` - Refresh VPN whitelist entries from Merlin's configured NVRAM values.
@@ -165,11 +170,11 @@ CDN source data is downloaded concurrently and validated before the dynamic whit
 
 #### IoT Isolation
 
-IoT blocking applies to devices in the Skynet IoT IPSet. When enabled, their forwarded WAN traffic is blocked except for ICMP, the configured TCP/UDP ports, and traffic routed through active OpenVPN or WireGuard server interfaces. By default, UDP port 123 remains available for NTP time synchronization; accurate device time is required by certificates, secure connections and scheduled activity. The default can be replaced with up to 15 custom ports or disabled entirely. The saved device list and the blocking switch are managed independently.
+IoT WAN blocking applies to devices in the Skynet IoT IPSet. When enabled, their forwarded WAN traffic is blocked except for ICMP, the configured TCP/UDP ports, and traffic routed through active OpenVPN or WireGuard server interfaces. By default, UDP port 123 remains available for NTP time synchronization; accurate device time is required by certificates, secure connections and scheduled activity. The default can be replaced with up to 15 custom ports or disabled entirely. The saved device list and the blocking switch are managed independently.
 
 - `firewall settings iot ban 192.168.1.50 192.168.1.60` - Add one or more IPv4 addresses or CIDR ranges to the IoT list.
 - `firewall settings iot unban 192.168.1.50 192.168.1.60` - Remove one or more IPv4 addresses or CIDR ranges from the IoT list.
-- `firewall settings iot enable|disable` - Start or pause IoT blocking without clearing the saved device list.
+- `firewall settings iot enable|disable` - Start or pause IoT WAN blocking without clearing the saved device list.
 - `firewall settings iot view` - Display detected clients, their IoT state, and the current allowed protocol and ports.
 - `firewall settings iot ports 123 124 125` - Replace the allowed WAN port list. Ports must be between 1 and 65535, with a maximum of 15 entries.
 - `firewall settings iot ports default` - Allow only UDP port 123 for NTP time synchronization.
@@ -205,7 +210,7 @@ Changing the IoT device list does not enable or disable enforcement. Use the mas
 - `firewall stats search malware 8.8.8.8` - Search downloaded malware feeds for an IPv4 address or CIDR range.
 - `firewall stats search reason "spamhaus" [count]` - Search live IPSet comments for a ban reason without performing network lookups.
 - `firewall stats search manualbans [count]` - Show recorded manual bans.
-- `firewall stats search actions [count]` - Show recent successful WebUI rule actions.
+- `firewall stats search actions [count]` - Show recent CLI, WebUI, scheduled and startup actions, including degraded and failed outcomes.
 - `firewall stats search device 192.168.1.50 [count]` - Show outbound blocks generated by a LAN device.
 - `firewall stats search reports [count]` - Show saved periodic summaries.
 - `firewall stats search invalid [count]` - Show logged invalid-state packets.
@@ -229,7 +234,7 @@ Generated WebUI statistics resolve country codes in batches of up to 32 addresse
 - `firewall debug genstats` - Regenerate WebUI statistics.
 - `firewall debug clean` - Archive and clean handled Skynet syslog entries.
 - `firewall debug swap install|uninstall` - Create or remove the Skynet-managed swap file.
-- `firewall debug backup` - Save the current configuration, IPSet data, and logs to `Skynet-Backup.tar.gz` in the install directory.
+- `firewall debug backup` - Save the current configuration, logical rule registry, rule cache, IPSet data, and logs to `Skynet-Backup.tar.gz` in the install directory.
 - `firewall debug restore` - Restore `Skynet-Backup.tar.gz` and restart the firewall service.
 
 ## WebUI
@@ -244,11 +249,15 @@ The WebUI provides:
 - Threat-feed status, usable entry counts, last successful checks, content age, source toggles, manual refresh, and primary filter-list configuration.
 - Country blocking with country selection and removal.
 - Manual IP, range, domain and ASN ban, unban and whitelist management, including grouped imported lists.
-- Successful WebUI rule changes are recorded as structured actions in `events.log`.
+- Recent rule, source, country, IoT and settings activity is shown with its origin and outcome. Country changes identify the countries added or removed, while source refreshes are recorded only when validated content changes.
 - IoT isolation with detected client, hostname, IPv4, MAC, online state, device list, port and protocol controls.
 - Copyable MAC addresses in blocked-device details when neighbour data is available.
 
 Empty or disabled data sections are collapsed or omitted where appropriate. Charts are generated from Skynet's stored logs, while blacklist totals and packet counters are captured during statistics generation. The page does not query the live firewall for every chart.
+
+## Action History
+
+Skynet records completed changes and operational failures as a structured, bounded action journal in `events.log`. Each entry identifies its origin, result, subsystem, operation and affected values. Normal writes append one small record; the file is compacted only when it exceeds 1MB or 2,000 entries. Existing text summaries remain available until normal retention compaction, invalid or incomplete records are discarded during compaction, and the current history is retained when restoring an older Skynet backup.
 
 ## Help
 
