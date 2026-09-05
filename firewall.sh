@@ -42,19 +42,21 @@ Cleanup_Runtime() {
 	case "$TMP_DIR" in
 		/tmp/skynet/tmp.[0-9]*) rm -rf "$TMP_DIR" ;;
 	esac
-	for tempfile in "$settingstmp" "$statstmp" "$downloadtmp" "$configtmp" "$saveipsettmp" "$malwareipsettmp" "$hooktmp" "$listmanifesttmp" "$feedstatustmp" "$countrymanifesttmp" "$countryfailedtmp" "$filterpublishtmp" "$dnsmasqtmp" "$dnsmasqrestore" "$sharedwhitelisttmp" "$clientouifile" "$debugneighbors" "$iotviewneighbors" "$updatetmp" "$updatewebuitmp" "$updatefirewallbackup" "$updatewebuibackup" "$actionqueue" "$actionpublishtmp" "$actioncompacttmp" "$actiontrimtmp" "$actionfailedtmp" "$ruleregistrytmp" "$ruleregistryrestore" "$rulestagefile" "$domainmanifeststage" "$domaincachetmp"; do
+	for tempfile in "$settingstmp" "$statstmp" "$downloadtmp" "$configtmp" "$saveipsettmp" "$malwareipsettmp" "$hooktmp" "$listmanifesttmp" "$feedstatustmp" "$countrymanifesttmp" "$countryfailedtmp" "$filterpublishtmp" "$dnsmasqtmp" "$dnsmasqrestore" "$sharedwhitelisttmp" "$clientouifile" "$debugneighbors" "$iotviewneighbors" "$updatetmp" "$updatewebuitmp" "$updatefirewallbackup" "$updatewebuibackup" "$actionqueue" "$actionpublishtmp" "$actioncompacttmp" "$actiontrimtmp" "$actionfailedtmp" "$ruleregistrytmp" "$ruleregistryrestore" "$rulestagefile" "$rulerecords" "$rulerecordssorted" "$ruleindexstage" "$ruleindextmp" "$rulemigrationstatetmp" "$maintenancestatustmp" "$domainmanifeststage" "$domaincachetmp"; do
 		[ -n "$tempfile" ] && rm -f "$tempfile"
 	done
 	for cleanupipset in $cleanupipsets; do
 		Destroy_IPSets "$cleanupipset"
 	done
+	for cleanupsidecar in $rulemigrationpublished; do
+		[ -n "$cleanupsidecar" ] && rm -f "$cleanupsidecar"
+	done
 	if [ -n "$skynetloc" ]; then
-		[ "$webuistatsactive" = "1" ] && rm -rf "${skynetloc}/webui/stats"
 		rm -f "${skynetloc}/lists/"*.tmp."$$" "${skynetloc}/lists/".*.tmp."$$"
 		rm -f "${skynetloc}/lists/rules/"*.tmp."$$" "${skynetloc}/lists/rules/".*.tmp."$$"
 	fi
-	# BusyBox ash on Merlin does not provide `command -v`; cleanup traps are
-	# installed only after every function is defined, so the worker is safe to call.
+	Release_Log_Lock
+	Release_Firewall_Lock
 	Release_Lock
 	rmdir /tmp/skynet 2>/dev/null
 	return "$cleanupstatus"
@@ -112,7 +114,11 @@ Log() {
 	# finalize message
 	logmessage="$logprefix$*"
 
-	if [ "$logstderr" = "1" ]; then
+	if ! Time_Is_Ready; then
+		# Keep pre-NTP diagnostics visible without persisting incorrect timestamps.
+		if [ "$logstderr" = "1" ]; then printf '%s\n' "$logmessage" >&2
+		else printf '%s\n' "$logmessage"; fi
+	elif [ "$logstderr" = "1" ]; then
 		# logger -s echoes to stderr
 		logger -s -t "$logtag" "$logmessage"
 	else
@@ -122,31 +128,73 @@ Log() {
 	unset "logstderr" "logtag" "logprefix" "logmessage"
 }
 
-Check_NTP() {
-	case "$1" in
-		uninstall|disable) return 0 ;;
-	esac
+Time_Is_Ready() {
+	[ "$(nvram get ntp_ready)" = "1" ]
+}
 
+Uptime_Seconds() {
+	# Kernel uptime measures elapsed work independently of NTP clock corrections.
+	read -r commanduptime _commandidle < /proc/uptime || return 1
+	printf '%s\n' "${commanduptime%%.*}"
+}
+
+Wait_For_Time() {
 	ntptimer="0"
-	while [ "$(nvram get ntp_ready)" != "1" ] && [ "$ntptimer" -lt "300" ]; do
+	while ! Time_Is_Ready && [ "$ntptimer" -lt "300" ]; do
 		ntptimer=$((ntptimer + 1))
 		if [ "$ntptimer" -eq 60 ]; then
 			echo
-			Log info -s "Waiting For NTP To Synchronize..."
+			echo "[i] Waiting For NTP To Synchronize..."
 		fi
 		sleep 1
 	done
-	if [ "$ntptimer" -ge 300 ]; then
-		Log error -s "NTP Synchronization Failed After 5 Minutes - Please Check Your Configuration"
-		echo
-		exit 1
-	fi
+	if ! Time_Is_Ready; then unset "ntptimer"; return 1; fi
 	unset "ntptimer"
+	return 0
+}
+
+Require_Time() {
+	Time_Is_Ready && return 0
+	echo "[*] Router Time Is Not Synchronized - Please Try Again Shortly"
+	echo
+	exit 1
+}
+
+Mark_Time_Dependent_State_Pending() {
+	: > "$TIME_PENDING" && chmod 600 "$TIME_PENDING"
+}
+
+Mark_Durable_State_Pending() {
+	: > "$DURABLE_PENDING" && chmod 600 "$DURABLE_PENDING"
+}
+
+Record_Maintenance_Status() {
+	maintenancestatustmp="${MAINTENANCE_STATUS}.tmp.$$"
+	if Time_Is_Ready; then maintenancestatusepoch="$(date +%s)"; else maintenancestatusepoch="0"; fi
+	printf 'M1\t%s\t%s\t%s\n' "$maintenancestatusepoch" "$1" "$2" > "$maintenancestatustmp" \
+		&& chmod 600 "$maintenancestatustmp" && mv -f "$maintenancestatustmp" "$MAINTENANCE_STATUS"
+}
+
+Time_Dependent_State_Pending() {
+	[ -f "$TIME_PENDING" ]
+}
+
+Rule_Migration_Complete() {
+	[ -f "$RULE_MIGRATION_STATE" ] && [ ! -L "$RULE_MIGRATION_STATE" ] \
+		&& [ "$(sed -n '1p' "$RULE_MIGRATION_STATE" 2>/dev/null)" = "R2" ]
+}
+
+Publish_Rule_Migration_Complete() {
+	rulemigrationstatetmp="${RULE_MIGRATION_STATE}.tmp.$$"
+	printf 'R2\n' > "$rulemigrationstatetmp" && chmod 600 "$rulemigrationstatetmp" \
+		&& mv -f "$rulemigrationstatetmp" "$RULE_MIGRATION_STATE"
 }
 
 Check_Lock() {
 	# FD 9 owns the flock for this process. The file content is diagnostic
 	# metadata only: command|pid|start_epoch.
+	[ "$state_lock_held" = "1" ] && return 0
+	[ ! -L "$LOCK_FILE" ] && { [ ! -e "$LOCK_FILE" ] || [ -f "$LOCK_FILE" ]; } || return 1
 	exec 9<>"$LOCK_FILE"
 	chmod 600 "$LOCK_FILE"
 
@@ -161,39 +209,19 @@ Check_Lock() {
 			return 0
 		fi
 
-		# An existing PID identifies an active or stale owner.
+		# flock ownership is authoritative. Metadata is retained for diagnostics only;
+		# a long-running feed or statistics job must never be killed by another command.
 		if [ -n "$locked_pid" ] && [ -d "/proc/$locked_pid" ]; then
 			lockage=$((lockcurrenttime - lock_timestamp))
-
-			if [ "$lockage" -gt 1800 ] 2>/dev/null; then
-				# Stale lock: kill and re-acquire
-				if kill "$locked_pid" 2>/dev/null; then
-					Log info -s "Killed stale Skynet process (pid=$locked_pid) after $lockage seconds"
-				fi
-				: > "$LOCK_FILE"
-				if ! flock -n 9; then
-					Log error -s "Lock acquisition failed after killing stale process - Exiting (pid=$locked_pid)"
-					if [ "$1:$2" = "webui:rules" ]; then
-						settingsresult="busy"
-						nocfg="1"
-						Generate_WebUI_Settings
-						return 1
-					fi
-					echo
-					exit 1
-				fi
-			else
-				# Active lock held by running process
-				Log error -s "Lock File Detected ($locked_cmd) (pid=$locked_pid, runtime=${lockage}s) - Exiting"
-				if [ "$1:$2" = "webui:rules" ]; then
-					settingsresult="busy"
-					nocfg="1"
-					Generate_WebUI_Settings
-					return 1
-				fi
-				echo
-				exit 1
+			Log error -s "Lock File Detected ($locked_cmd) (pid=$locked_pid, runtime=${lockage}s) - Exiting"
+			if [ "$1:$2" = "webui:rules" ]; then
+				settingsresult="busy"
+				nocfg="1"
+				Generate_WebUI_Settings
+				return 1
 			fi
+			echo
+			exit 1
 		else
 			# A locked file without valid metadata is treated as an active owner.
 			Log error -s "Lock file busy but metadata invalid (pid='$locked_pid') - another Skynet instance is running - Exiting"
@@ -211,7 +239,41 @@ Check_Lock() {
 	# Record command, PID and acquisition time after the lock is acquired.
 	: > "$LOCK_FILE"
 	echo "$0 $*|$$|$(date +%s)" > "$LOCK_FILE"
+	state_lock_held="1"
 	unset "locked_cmd" "locked_pid" "lock_timestamp" "lockcurrenttime" "lockage"
+}
+
+Wait_For_Lock() {
+	# Lifecycle events queue behind the current state transaction, then re-check
+	# live state. Interactive commands continue to fail quickly through Check_Lock.
+	[ "$state_lock_held" = "1" ] && return 0
+	[ ! -L "$LOCK_FILE" ] && { [ ! -e "$LOCK_FILE" ] || [ -f "$LOCK_FILE" ]; } || return 1
+	exec 9<>"$LOCK_FILE"
+	chmod 600 "$LOCK_FILE"
+	if [ "$1" = "maintenance" ]; then
+		# BusyBox flock has no timeout option. Sleep between attempts and never
+		# leave an hourly invocation queued indefinitely behind another command.
+		lockwaitattempts="0"
+		while ! flock -n 9; do
+			if [ "$lockwaitattempts" -ge 30 ]; then
+				exec 9>&-
+				Record_Maintenance_Status deferred state-lock || return 1
+				Log info "Maintenance Deferred - Skynet Busy After 60 Seconds"
+				return 1
+			fi
+			sleep 2
+			lockwaitattempts=$((lockwaitattempts + 1))
+		done
+		unset lockwaitattempts
+	else
+		flock 9 || { exec 9>&-; return 1; }
+	fi
+	printf '%s|%s|%s\n' "$0 $*" "$$" "$(date +%s)" > "$LOCK_FILE" || {
+		flock -u 9 2>/dev/null
+		exec 9>&-
+		return 1
+	}
+	state_lock_held="1"
 }
 
 Read_Active_Lock() {
@@ -224,7 +286,7 @@ Read_Active_Lock() {
 }
 
 Release_Lock() {
-	[ ! -f "$LOCK_FILE" ] && exec 9>&- && return
+	[ "$state_lock_held" = "1" ] || return 0
 
 	IFS='|' read -r _lockcommand lockownerpid _locktimestamp < "$LOCK_FILE"
 
@@ -234,9 +296,43 @@ Release_Lock() {
 	fi
 
 	# Only the recorded owner may release the lock file.
+	: > "$LOCK_FILE"
+	flock -u 9 2>/dev/null
 	exec 9>&-
-	rm -f "$LOCK_FILE"
+	state_lock_held="0"
 	unset "_lockcommand" "lockownerpid" "_locktimestamp"
+}
+
+Acquire_Firewall_Lock() {
+	[ "$firewall_lock_held" = "1" ] && return 0
+	[ ! -L "$FIREWALL_LOCK" ] && { [ ! -e "$FIREWALL_LOCK" ] || [ -f "$FIREWALL_LOCK" ]; } || return 1
+	exec 8<>"$FIREWALL_LOCK"
+	chmod 600 "$FIREWALL_LOCK"
+	flock 8 || { exec 8>&-; return 1; }
+	firewall_lock_held="1"
+}
+
+Release_Firewall_Lock() {
+	[ "$firewall_lock_held" = "1" ] || return 0
+	flock -u 8 2>/dev/null
+	exec 8>&-
+	firewall_lock_held="0"
+}
+
+Acquire_Log_Lock() {
+	[ "$log_lock_held" = "1" ] && return 0
+	[ ! -L "$LOG_LOCK" ] && { [ ! -e "$LOG_LOCK" ] || [ -f "$LOG_LOCK" ]; } || return 1
+	exec 7<>"$LOG_LOCK"
+	chmod 600 "$LOG_LOCK"
+	flock 7 || { exec 7>&-; return 1; }
+	log_lock_held="1"
+}
+
+Release_Log_Lock() {
+	[ "$log_lock_held" = "1" ] || return 0
+	flock -u 7 2>/dev/null
+	exec 7>&-
+	log_lock_held="0"
 }
 
 Find_Install_Dir() {
@@ -246,7 +342,10 @@ Find_Install_Dir() {
 	esac
 
 	if [ ! -d "${skynetloc}" ] || [ ! -w "${skynetloc}" ]; then
-		Check_Lock "$@"
+		case "$1" in
+			start|persist|maintenance) Wait_For_Lock "$@" || return 1 ;;
+			*) Check_Lock "$@" || return 1 ;;
+		esac
 
 		installretries="10"
 		installattempt="1"
@@ -299,6 +398,48 @@ Addon_API_Supported() {
 		addonsupportchecked="1"
 	fi
 	[ "$addonsupported" = "1" ]
+}
+
+Validate_Syslog_Path() {
+	# Log files may not exist until the next write or rotation; their directory must.
+	[ "${#1}" -le 512 ] && [ -d "${1%/*}/" ] && [ ! -d "$1" ] \
+		&& printf '%s\n' "$1" | awk 'NR != 1 || $0 !~ /^\/[A-Za-z0-9_.\/ ()+-]+$/ {bad=1} END {exit bad}'
+}
+
+Resolve_Syslog_Sources() {
+	[ "$syslogmode" = "auto" ] || return 0
+	syslogdetected=""
+	# Scribe owns its filter configuration. Read only a literal destination from
+	# its installed Skynet handler, and only while syslog-ng is running.
+	if pidof syslog-ng >/dev/null 2>&1 && [ -f /opt/etc/syslog-ng.d/skynet ]; then
+		syslogdetected="$(awk '
+			/^[[:space:]]*#/ {next}
+			match($0, /file[[:space:]]*\("[^"]+"/) {
+				path=substr($0, RSTART, RLENGTH); sub(/^[^"]*"/, "", path); sub(/"$/, "", path)
+				print path; exit
+			}' /opt/etc/syslog-ng.d/skynet)"
+	fi
+	if ! Validate_Syslog_Path "$syslogdetected"; then
+		syslogdetected=""
+		for syslogpid in $(pidof syslogd); do
+			# /proc arguments are NUL-separated, not a shell command string.
+			syslogdetected="$(tr '\000' '\n' 2>/dev/null < "/proc/$syslogpid/cmdline" | awk '
+				output {print; exit}
+				$0 == "-O" {output=1; next}
+				/^-O\// {print substr($0, 3); exit}
+			')"
+			Validate_Syslog_Path "$syslogdetected" && break
+			syslogdetected=""
+		done
+	fi
+	[ -n "$syslogdetected" ] || syslogdetected="/tmp/syslog.log"
+	# Resolve Merlin's /tmp -> /jffs aliases before any in-place log cleanup.
+	syslogresolved="$(readlink -f "$syslogdetected" 2>/dev/null)" || syslogresolved="$syslogdetected"
+	if Validate_Syslog_Path "$syslogresolved" && Validate_Syslog_Path "${syslogresolved}-1"; then
+		syslogloc="$syslogresolved"
+		syslog1loc="${syslogresolved}-1"
+	fi
+	unset "syslogdetected" "syslogresolved" "syslogpid"
 }
 
 Check_Settings() {
@@ -383,29 +524,6 @@ Check_Settings() {
 		;;
 	esac
 
-	# set syslog location on newer models that use /jffs
-	pids=$(pidof syslogd) || pids=
-	for pid in $pids; do
-		exe_path=$(readlink "/proc/$pid/exe") || continue
-		[ "$exe_path" != "/bin/busybox" ] && continue
-		if grep -qF '/jffs/syslog.log' "/proc/$pid/cmdline"; then
-			syslogloc="/jffs/syslog.log"
-			syslog1loc="/jffs/syslog.log-1"
-			break
-		fi
-	done
-
-	# scribe plugin install
-	if [ -f "/opt/bin/scribe" ] && [ ! -f "/opt/etc/syslog-ng.d/skynet" ] && [ -f "/opt/share/syslog-ng/examples/skynet" ]; then
-		Log info -s "Installing Scribe Plugin"
-		rm -rf "/opt/etc/syslog-ng.d/firewall" "/opt/etc/logrotate/firewall"
-		cp -p "/opt/share/syslog-ng/examples/skynet" "/opt/etc/syslog-ng.d"
-		syslogloc="$(grep -m1 "file(" "/opt/etc/syslog-ng.d/skynet" | awk -F '"' '{print $2}')"
-		killall -HUP syslog-ng
-	elif [ -f "/opt/bin/scribe" ] && [ -f "/opt/etc/syslog-ng.d/skynet" ] && [ "$syslogloc" = "/tmp/syslog.log" ]; then
-		syslogloc="$(grep -m1 "file(" "/opt/etc/syslog-ng.d/skynet" | awk -F '"' '{print $2}')"
-	fi
-
 	if nvram get wan0_ipaddr | Is_PrivateIP; then
 		Log error -s "Private WAN IP Detected $(nvram get wan0_ipaddr) - Please Put Your Modem In Bridge Mode / Disable CG-NAT"
 	fi
@@ -473,7 +591,7 @@ Check_Connection() {
 }
 
 Require_Connection() {
-	Check_Connection "$@" || { echo; exit 1; }
+	Check_Connection || { echo; exit 1; }
 }
 
 Curl_Fetch() {
@@ -641,6 +759,20 @@ Print_Threat_Feed_Status() {
 		}' "$feedstatusfile"
 }
 
+Build_Threat_Feed_Action_Summary() {
+	awk -F '\t' '
+		$3 == "enabled" && $4 == "current" {current++}
+		$3 == "enabled" && $4 == "cached" {cached++}
+		$3 == "excluded" || $4 == "excluded" {excluded++}
+		END {
+			if (!current && !cached) exit 1
+			printf "%d source%s: %d current", current + cached, current + cached == 1 ? "" : "s", current + 0
+			if (cached) printf ", %d cached", cached
+			if (excluded) printf ", %d excluded", excluded
+		}
+	' "${skynetloc}/lists/.sources"
+}
+
 Print_Threat_Feed_Sources() {
 	feedstatusfile="${skynetloc}/lists/.sources"
 	if [ ! -s "$feedstatusfile" ]; then
@@ -749,13 +881,19 @@ Build_Malware_Restore() {
 			if (first == 203 && second == 0 && third == 113) return 0
 			return 1
 		}
+		FNR == 1 {
+			source = FILENAME
+			sub(".*/", "", source)
+			# Only per-source counts need this map; cross-source ownership uses
+			# global_seen. Reuse the memory when moving to the next source.
+			for (value in source_seen) delete source_seen[value]
+		}
 		{
 			value = $1
-			source = FILENAME
-			gsub(".*/", "", source)
+			if (value in source_seen) next
 			if (!usable(value)) next
-			source_key = source SUBSEP value
-			if (!source_seen[source_key]++) source_count[source]++
+			source_seen[value] = 1
+			source_count[source]++
 			if (enabled[source] != "enabled" || global_seen[value]++) next
 			valid_entries++
 			if (value !~ /\// || value ~ /\/32$/)
@@ -833,7 +971,7 @@ Download_IPList() {
 Build_IPList_Restore() {
 	# The input has already passed Extract_IPList. Filter private/reserved space
 	# once, then classify a bare address or /32 as a host and every other CIDR
-	# as a range. This keeps import and deport set selection identical.
+	# as a range so imported list membership remains deterministic.
 	iplistaction="$1"
 	iplisttarget="$2"
 	iplistdescription="$3"
@@ -848,233 +986,171 @@ Build_IPList_Restore() {
 		}' > "$5"
 }
 
-Validate_Logical_Rule_Ownership() {
-	# One IPSet entry can retain one comment. Reject a logical rule when an exact
-	# address or range is already owned by another domain, ASN or rule source.
-	ruleownershipfile="$1"
-	ruleownershipsnapshot="$2"
-	ruleownershipowned="0"
-	if [ -z "$ruleownershipsnapshot" ]; then
-		ruleownershipsnapshot="$TMP_DIR/rule-ownership.$$"
-		ruleownershipowned="1"
-		{ ipset save Skynet-Blacklist 2>/dev/null \
-			&& ipset save Skynet-BlockedRanges 2>/dev/null \
-			&& ipset save Skynet-Whitelist 2>/dev/null; } > "$ruleownershipsnapshot" \
-			|| { rm -f "$ruleownershipsnapshot"; return 1; }
-	fi
-	[ -s "$ruleownershipsnapshot" ] || return 1
-	awk '
-		function saved_comment(line, position, value) {
-			position = index(line, "comment \"")
-			if (!position) return ""
-			value = substr(line, position + 9)
-			sub(/"$/, "", value)
-			return value
-		}
-		function entry_key(setname, entry) { sub(/\/32$/, "", entry); return setname SUBSEP entry }
-		NR == FNR && $1 == "add" { owner[entry_key($2, $3)] = saved_comment($0); next }
-		$1 == "del" { delete owner[entry_key($2, $3)]; delete proposed[entry_key($2, $3)]; next }
-		$1 == "add" {
-			key = entry_key($2, $3)
-			comment = saved_comment($0)
-			if ((key in owner) && owner[key] != comment) conflict = 1
-			if ((key in proposed) && proposed[key] != comment) conflict = 1
-			proposed[key] = comment
-		}
-		END { exit conflict ? 2 : 0 }
-	' "$ruleownershipsnapshot" "$ruleownershipfile"
-	ruleownershipstatus="$?"
-	[ "$ruleownershipowned" = "0" ] || rm -f "$ruleownershipsnapshot"
-	return "$ruleownershipstatus"
-}
-
-Apply_ASN_Lists() {
-	# Download and validate every ASN before applying one combined transaction.
-	# ASN downloads remain temporary and a failed member leaves live sets intact.
-	asntarget="$1"
-	asnvalues="$2"
-	asnrestore="$TMP_DIR/asn-restore.$$"
-	true > "$asnrestore" || return 1
-	for asnvalue in $asnvalues; do
-		asntmp="$TMP_DIR/asn-${asnvalue}.$$"
-		asnvalidated="${asntmp}.validated"
-		asnpublic="${asntmp}.public"
-		if ! Curl_Fetch -o "$asntmp" "https://asn.ipinfo.app/api/text/list/$asnvalue"; then
-			rm -f "$TMP_DIR"/asn-*.$$*
-			return 1
-		fi
-		Extract_IPList "$asntmp" "$asnvalidated" \
-			&& Normalize_Public_IPList "$asnvalidated" "$asnpublic" \
-			&& [ -s "$asnpublic" ] || { rm -f "$TMP_DIR"/asn-*.$$*; return 1; }
-		awk -v setname="$asntarget" -v asn="$asnvalue" \
-			'{printf "add %s %s comment \"ASN: %s \"\n", setname, $1, asn}' \
-			"$asnpublic" >> "$asnrestore" || { rm -f "$TMP_DIR"/asn-*.$$*; return 1; }
-		if ! grep -qF "ASN: $asnvalue " "$asnrestore"; then
-			rm -f "$TMP_DIR"/asn-*.$$*
-			return 1
-		fi
-	done
-	if awk '!seen[$0]++' "$asnrestore" > "${asnrestore}.dedup" \
-		&& mv -f "${asnrestore}.dedup" "$asnrestore"; then
-		Validate_Logical_Rule_Ownership "$asnrestore"
-		asnstatus="$?"
-		if [ "$asnstatus" = "0" ]; then
-			Apply_IPSet_File "$asnrestore"
-			asnstatus="$?"
-		fi
-	else
-		asnstatus="1"
-	fi
-	rm -f "$TMP_DIR"/asn-*.$$* "$asnrestore" "${asnrestore}.dedup"
-	return "$asnstatus"
-}
-
 Refresh_Registered_ASN_Rules() {
-	# Resolve every registered ASN before replacing any live member. A failed or
-	# malformed source leaves the complete previous ASN policy intact.
-	asnrefreshwork="$TMP_DIR/asn-refresh-work.$$"
-	asnrefreshrestore="$TMP_DIR/asn-refresh-restore.$$"
-	awk -F '\t' '$1 == "R1" && $3 == "asn" && $6 == "enabled" {print $2 "~" $4}' "$skynetrules" > "$asnrefreshwork" || return 1
-	[ -s "$asnrefreshwork" ] || return 0
-	asnrefreshid="0"
-	Start_Background_Jobs
-	while IFS='~' read -r asnrefreshtarget asnrefreshvalue; do
-		asnrefreshid=$((asnrefreshid + 1))
-		(
-			asnrefreshraw="$TMP_DIR/asn-refresh.${asnrefreshid}.raw"
-			asnrefreshvalidated="$TMP_DIR/asn-refresh.${asnrefreshid}.validated"
-			asnrefreshresult="$TMP_DIR/asn-refresh.${asnrefreshid}.list"
-			Curl_Fetch -o "$asnrefreshraw" "https://asn.ipinfo.app/api/text/list/$asnrefreshvalue" \
-				&& Extract_IPList "$asnrefreshraw" "$asnrefreshvalidated" \
-				&& Normalize_Public_IPList "$asnrefreshvalidated" "$asnrefreshresult" \
-				&& [ -s "$asnrefreshresult" ] || rm -f "$asnrefreshresult"
-			rm -f "$asnrefreshraw" "$asnrefreshvalidated"
-		) &
-		Wait_Background_Job_Slot 4
-	done < "$asnrefreshwork"
-	Wait_Background_Jobs
-	asnrefreshid="0"
-	while IFS='~' read -r _asnrefreshtarget _asnrefreshvalue; do
-		asnrefreshid=$((asnrefreshid + 1))
-		[ -s "$TMP_DIR/asn-refresh.${asnrefreshid}.list" ] || return 1
-	done < "$asnrefreshwork"
-	Snapshot_Registered_Rule_State || return 1
-	awk '$1 == "add" && ($2 == "Skynet-BlockedRanges" || $2 == "Skynet-Whitelist") && $0 ~ /comment "ASN: AS[0-9]+ "/ {print "del " $2 " " $3}' "$registeredsetsnapshot" > "$asnrefreshrestore" || return 1
-	asnrefreshid="0"
-	while IFS='~' read -r asnrefreshtarget asnrefreshvalue; do
-		asnrefreshid=$((asnrefreshid + 1))
-		if [ "$asnrefreshtarget" = "ban" ]; then asnrefreshset="Skynet-BlockedRanges"; else asnrefreshset="Skynet-Whitelist"; fi
-		awk -v setname="$asnrefreshset" -v asn="$asnrefreshvalue" '{printf "add %s %s comment \"ASN: %s \"\n", setname, $1, asn}' \
-			"$TMP_DIR/asn-refresh.${asnrefreshid}.list" >> "$asnrefreshrestore" || return 1
-	done < "$asnrefreshwork"
-	Validate_Logical_Rule_Ownership "$asnrefreshrestore" "$registeredsetsnapshot" || return "$?"
-	Apply_IPSet_File "$asnrefreshrestore" "$registeredsetsnapshot" || return 1
-	if ! Save_IPSets; then
-		Restore_Registered_Rule_State || Log error -s "Failed To Restore ASN Rules"
-		return 1
-	fi
-	nocfg="1"
-	return 0
-}
-
-Remove_IPSet_Exact_Comments() {
-	# Remove only entries whose complete saved comment matches one requested
-	# value. This is used for logical rules that must not depend on fresh DNS.
-	commentset="$1"
-	commentvalues="$2"
-	commentsnapshot="$TMP_DIR/comment-snapshot.$$"
-	commentrequests="$TMP_DIR/comment-requests.$$"
-	commentrestore="$TMP_DIR/comment-restore.$$"
-	printf '%s\n' "$commentvalues" | awk 'NF && !seen[$0]++' > "$commentrequests" || return 1
-	ipset save "$commentset" > "$commentsnapshot" 2>/dev/null || { rm -f "$commentrequests"; return 1; }
-	awk -v requests="$commentrequests" '
-		BEGIN {
-			while ((getline value < requests) > 0) wanted[value] = 1
-			close(requests)
-		}
-		$1 == "add" {
-			position = index($0, "comment \"")
-			if (!position) next
-			comment = substr($0, position + 9)
-			sub(/\"$/, "", comment)
-			if (comment in wanted) print "del " $2 " " $3
-		}
-	' "$commentsnapshot" > "$commentrestore" || { rm -f "$commentsnapshot" "$commentrequests" "$commentrestore"; return 1; }
-	if [ -s "$commentrestore" ]; then
-		Apply_IPSet_File "$commentrestore" "$commentsnapshot"
-		commentstatus="$?"
-	else
-		commentstatus="0"
-	fi
-	rm -f "$commentsnapshot" "$commentrequests" "$commentrestore"
-	return "$commentstatus"
-}
-
-Remove_Import_Group() {
-	importtarget="$1"
-	importcomment="$2"
-	importsnapshot="$TMP_DIR/import-snapshot.$$"
-	importrestore="$TMP_DIR/import-remove.$$"
-	true > "$importsnapshot" || return 1
-	case "$importtarget" in
-		Skynet-Whitelist) importsets="Skynet-Whitelist" ;;
-		Skynet-Blacklist) importsets="Skynet-Blacklist Skynet-BlockedRanges" ;;
-		*) return 2 ;;
-	esac
-	for importset in $importsets; do
-		ipset save "$importset" >> "$importsnapshot" 2>/dev/null || { rm -f "$importsnapshot" "$importrestore"; return 1; }
-	done
-	awk -v expected="$importcomment" '
-		$1 == "add" {
-			position = index($0, "comment \"")
-			if (!position) next
-			comment = substr($0, position + 9)
-			sub(/\"$/, "", comment)
-			if (comment == expected) { print "del " $2 " " $3; found = 1 }
-		}
-		END { if (!found) exit 2 }
-	' "$importsnapshot" > "$importrestore"
-	importstatus="$?"
-	if [ "$importstatus" = "0" ]; then
-		Apply_IPSet_File "$importrestore" "$importsnapshot"
-		importstatus="$?"
-	fi
-	rm -f "$importsnapshot" "$importrestore"
-	return "$importstatus"
+	# Refresh every registered ASN into one staged registry and publish the
+	# combined ban/whitelist policy only after all sources validate.
+	asnrefreshmap="$TMP_DIR/asn-refresh-map.$$"
+	asnrefreshchanged="0"
+	asnrefreshcandidate="${skynetrules}.tmp.$$"
+	true > "$asnrefreshmap" || return 1
+	mkdir -p "$rulesdatadir" || return 1
+	while IFS="$(printf '\t')" read -r _asnversion asnrefreshid asnrefreshtarget asnrefreshtype asnrefreshvalue \
+		_asncomment asnrefreshstate _asncreated _asnexpires _asnolddata; do
+		[ "$asnrefreshtype:$asnrefreshstate" = "asn:enabled" ] || continue
+		asnrefreshraw="$TMP_DIR/asn-${asnrefreshvalue}.$$"
+		asnrefreshvalidated="${asnrefreshraw}.validated"
+		asnrefreshpublic="${asnrefreshraw}.public"
+		if ! Curl_Fetch -o "$asnrefreshraw" "https://asn.ipinfo.app/api/text/list/$asnrefreshvalue" \
+			|| ! Extract_IPList "$asnrefreshraw" "$asnrefreshvalidated" \
+			|| ! Normalize_Public_IPList "$asnrefreshvalidated" "$asnrefreshpublic" \
+			|| [ ! -s "$asnrefreshpublic" ]; then
+			rm -f "$TMP_DIR"/asn-*.$$* "$asnrefreshmap" "$asnrefreshcandidate"
+			Prune_Unreferenced_Rule_Data
+			return 1
+		fi
+		asnrefreshhash="$(sha256sum "$asnrefreshpublic" 2>/dev/null | awk '{print $1}')"
+		[ -n "$asnrefreshhash" ] || { rm -f "$TMP_DIR"/asn-*.$$* "$asnrefreshmap"; Prune_Unreferenced_Rule_Data; return 1; }
+		asnrefreshdata="asn-${asnrefreshtarget}-${asnrefreshvalue}-${asnrefreshhash}.list"
+		asnrefreshtargetfile="$rulesdatadir/$asnrefreshdata"
+		asnrefreshtmp="${asnrefreshtargetfile}.tmp.$$"
+		if ! cp -f "$asnrefreshpublic" "$asnrefreshtmp" || ! chmod 600 "$asnrefreshtmp" \
+			|| ! mv -f "$asnrefreshtmp" "$asnrefreshtargetfile"; then
+			rm -f "$asnrefreshtmp" "$TMP_DIR"/asn-*.$$* "$asnrefreshmap" "$asnrefreshcandidate"
+			Prune_Unreferenced_Rule_Data
+			return 1
+		fi
+		printf '%s\t%s\n' "$asnrefreshid" "$asnrefreshdata" >> "$asnrefreshmap" \
+			|| { Prune_Unreferenced_Rule_Data; return 1; }
+	done < "$skynetrules"
+	rm -f "$TMP_DIR"/asn-*.$$*
+	[ -s "$asnrefreshmap" ] || { rm -f "$asnrefreshmap"; return 0; }
+	awk -F '\t' -v map="$asnrefreshmap" '
+		BEGIN { while ((getline < map) > 0) data[$1] = $2; close(map) }
+		$1 == "R2" && $2 in data {$10 = data[$2]}
+		{print $1 "\t" $2 "\t" $3 "\t" $4 "\t" $5 "\t" $6 "\t" $7 "\t" $8 "\t" $9 "\t" $10}
+	' "$skynetrules" > "$asnrefreshcandidate" \
+		|| { rm -f "$asnrefreshmap" "$asnrefreshcandidate"; Prune_Unreferenced_Rule_Data; return 1; }
+	rm -f "$asnrefreshmap"
+	if cmp -s "$asnrefreshcandidate" "$skynetrules"; then rm -f "$asnrefreshcandidate"; return 0; fi
+	if Apply_Rule_Registry_Candidate "$asnrefreshcandidate"; then asnrefreshchanged="1"; return 0; fi
+	Prune_Unreferenced_Rule_Data
+	return 1
 }
 
 Validate_Rule_Registry() {
-	# R1 rows contain target, type, normalized value, comment, enabled state and
-	# creation epoch. Every field is non-empty so BusyBox read preserves columns.
+	# R2 is the authoritative policy format. IPSet comments are deliberately not
+	# part of the key, so overlapping logical rules remain independently removable.
 	rulevalidatefile="$1"
 	[ -f "$rulevalidatefile" ] || return 1
+	rulevalidateaddresses="$TMP_DIR/registry-addresses.$$"
+	rulevalidatedomains="$TMP_DIR/registry-domains.$$"
+	rulevalidatenormalized="$TMP_DIR/registry-normalized.$$"
+	: > "$rulevalidateaddresses" && : > "$rulevalidatedomains" || return 1
+	# Structural checks collect typed values for the existing batch validators.
+	# Canonical comparison rejects host bits and alternate spellings of a key.
+	awk -F '\t' -v addresses="$rulevalidateaddresses" -v domains="$rulevalidatedomains" '
+		NF != 10 || $1 != "R2" || $2 !~ /^r[0-9]+(-[0-9]+)?$/ \
+			|| ($3 != "ban" && $3 != "whitelist") \
+			|| ($4 != "ip" && $4 != "range" && $4 != "domain" && $4 != "asn" && $4 != "import") \
+			|| $5 == "" || $6 !~ /^C/ || ($7 != "enabled" && $7 != "disabled") \
+			|| $8 !~ /^[0-9]+$/ || $9 !~ /^[0-9]+$/ || $10 == "" { exit 1 }
+		{
+			if (seen_id[$2]++) exit 1
+			if ($4 != "import") {
+				key = $3 SUBSEP $4 SUBSEP tolower($5)
+				if (seen_key[key]++) exit 1
+			}
+			if ($9 != 0 && ($3 != "ban" || ($4 != "ip" && $4 != "range"))) exit 1
+			if (($4 == "asn" || $4 == "import") && ($10 == "-" || $10 !~ /^[A-Za-z0-9._-]+$/)) exit 1
+			if ($4 != "asn" && $4 != "import" && $10 != "-") exit 1
+			if (length($6) > 243 || index($6, "\\") || index($6, "\"") || $6 ~ /[[:cntrl:]]/) exit 1
+			if ($4 == "ip" && index($5, "/")) exit 1
+			if ($4 == "range" && !index($5, "/")) exit 1
+			if ($4 == "ip" || $4 == "range") print $5 > addresses
+			else if ($4 == "domain") print $5 > domains
+			else if ($4 == "asn" && $5 !~ /^AS[0-9]{1,6}$/) exit 1
+			else if ($4 == "import" && $5 !~ /^[A-Za-z0-9._-]+$/) exit 1
+		}
+	' "$rulevalidatefile"
+	rulevalidatestatus="$?"
+	if [ "$rulevalidatestatus" = "0" ] && [ -s "$rulevalidateaddresses" ]; then
+		Normalize_IPSet_Entries any < "$rulevalidateaddresses" > "$rulevalidatenormalized" \
+			&& cmp -s "$rulevalidateaddresses" "$rulevalidatenormalized" || rulevalidatestatus="1"
+	fi
+	if [ "$rulevalidatestatus" = "0" ] && [ -s "$rulevalidatedomains" ]; then
+		Normalize_Domain_Input canonical < "$rulevalidatedomains" > "$rulevalidatenormalized" \
+			&& cmp -s "$rulevalidatedomains" "$rulevalidatenormalized" || rulevalidatestatus="1"
+	fi
+	rm -f "$rulevalidateaddresses" "$rulevalidatedomains" "$rulevalidatenormalized"
+	return "$rulevalidatestatus"
+}
+
+Validate_Legacy_Rule_Registry() {
+	[ -f "$1" ] || return 1
 	awk -F '\t' '
 		NF != 7 || $1 != "R1" || ($2 != "ban" && $2 != "whitelist") \
 			|| ($3 != "ip" && $3 != "range" && $3 != "domain" && $3 != "asn") \
 			|| $4 == "" || $5 !~ /^C/ || ($6 != "enabled" && $6 != "disabled") \
 			|| $7 !~ /^[0-9]+$/ { exit 1 }
 		{ key = $2 SUBSEP $3 SUBSEP tolower($4); if (seen[key]++) exit 1 }
-	' "$rulevalidatefile" || return 1
-	while IFS="$(printf '\t')" read -r rulerecord ruletarget ruletype rulevalue rulecomment rulestate _rulecreated; do
-		[ -n "$rulerecord" ] || continue
-		case "$ruletype" in
-			ip) [ "$(Normalize_IPSet_Entry ip "$rulevalue" 2>/dev/null)" = "$rulevalue" ] || return 1 ;;
-			range) [ "$(Normalize_IPSet_Entry range "$rulevalue" 2>/dev/null)" = "$rulevalue" ] || return 1 ;;
-			domain) [ "$(Normalize_Domain "$rulevalue" 2>/dev/null)" = "$rulevalue" ] || return 1 ;;
-			asn) printf '%s\n' "$rulevalue" | grep -qE '^AS[0-9]{1,6}$' || return 1 ;;
-		esac
-		Validate_IPSet_Comment "${rulecomment#C}" 242 || return 1
-	done < "$rulevalidatefile"
+	' "$1"
+}
+
+New_Rule_ID() {
+	# The checksum keeps IDs compact on BusyBox. The numeric suffix resolves the
+	# unlikely collision and is retained permanently once the row is published.
+	ruleidsource="$1|$2|$3|$4|$$"
+	ruleidbase="$(printf '%s\n' "$ruleidsource" | sha256sum | awk '{print substr($1, 1, 8)}')"
+	[ "${#ruleidbase}" = "8" ] || return 1
+	case "$ruleidbase" in *[!0-9a-f]*) return 1 ;; esac
+	ruleidbase="$(printf '%u' "0x$ruleidbase")" || return 1
+	ruleid="r$ruleidbase"
+	ruleidsuffix="0"
+	while awk -F '\t' -v id="$ruleid" '($1 == "R2" && $2 == id) || $4 == id {found=1} END {exit !found}' \
+		"${5:-$skynetrules}" ${6:+"$6"} 2>/dev/null; do
+		ruleidsuffix=$((ruleidsuffix + 1))
+		ruleid="r${ruleidbase}-${ruleidsuffix}"
+	done
+	unset "ruleidsource" "ruleidbase" "ruleidsuffix"
+}
+
+Append_R2_Rule() {
+	ruleappendfile="$1"
+	ruleappendtarget="$2"
+	ruleappendtype="$3"
+	ruleappendvalue="$4"
+	ruleappendcomment="$5"
+	ruleappendstate="$6"
+	ruleappendcreated="$7"
+	ruleappendexpires="$8"
+	ruleappenddata="$9"
+	if awk -F '\t' -v target="$ruleappendtarget" -v type="$ruleappendtype" -v value="$ruleappendvalue" \
+		'$1 == "R2" && $3 == target && $4 == type && tolower($5) == tolower(value) {found=1} END {exit !found}' "$ruleappendfile" 2>/dev/null; then
+		return 0
+	fi
+	New_Rule_ID "$ruleappendtarget" "$ruleappendtype" "$ruleappendvalue" "$ruleappendcreated" "$ruleappendfile" || return 1
+	printf 'R2\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$ruleid" "$ruleappendtarget" "$ruleappendtype" \
+		"$ruleappendvalue" "$ruleappendcomment" "$ruleappendstate" "$ruleappendcreated" "$ruleappendexpires" "$ruleappenddata" >> "$ruleappendfile"
 }
 
 Initialize_Rule_Registry() {
-	# Upgrade existing installations by recovering logical ownership from saved
-	# IPSet comments. The firewall snapshot remains authoritative until the staged
-	# registry has been completely validated and published.
-	[ -f "$skynetrules" ] && Validate_Rule_Registry "$skynetrules" && return 0
-	[ ! -e "$skynetrules" ] || { Log error -s "Invalid Rule Registry - Existing File Retained"; return 1; }
+	# Legacy comments are read once during the R2 migration. Normal rule handling
+	# uses stable registry IDs and never treats an IPSet comment as ownership.
+	if [ -f "$skynetrules" ] && Validate_Rule_Registry "$skynetrules"; then
+		# An empty legacy registry may still have comment-owned rules in the saved
+		# sets. Only the completed migration marker makes that empty state final.
+		if [ -s "$skynetrules" ] || Rule_Migration_Complete; then return 0; fi
+	fi
+	if [ -e "$skynetrules" ] && ! Validate_Legacy_Rule_Registry "$skynetrules"; then
+		Log error -s "Invalid Rule Registry - Existing File Retained"
+		return 1
+	fi
 	ruleregistrysource="$skynetipset"
 	ruleregistrytmp="${skynetrules}.tmp.$$"
+	rulemigrationdir="$TMP_DIR/rules-migration.$$"
+	rulemigrationsource="$TMP_DIR/rules-legacy.$$"
+	mkdir -p "$rulesdatadir" "$rulemigrationdir" || return 1
+	true > "$ruleregistrytmp" || return 1
 	if [ ! -s "$ruleregistrysource" ]; then
 		ruleregistrysource="$TMP_DIR/rules-ipset.$$"
 		{ ipset save Skynet-Blacklist \
@@ -1082,7 +1158,30 @@ Initialize_Rule_Registry() {
 			&& ipset save Skynet-Whitelist; } > "$ruleregistrysource" 2>/dev/null \
 			|| { rm -f "$ruleregistrysource"; return 1; }
 	fi
-	ruleregistryepoch="$(date +%s)"
+	if Time_Is_Ready; then ruleregistryepoch="$(date +%s)"; else ruleregistryepoch="0"; fi
+	if [ -f "$skynetrules" ]; then
+		while IFS="$(printf '\t')" read -r _ruleversion ruletarget ruletype rulevalue rulecomment rulestate rulecreated; do
+			rulecomment="C$(printf '%s\n' "${rulecomment#C}" | sed 's/["\\]/ /g' | cut -c 1-242)"
+			ruledata="-"
+			if [ "$ruletype" = "asn" ]; then
+				ruledatawork="$rulemigrationdir/asn-${ruletarget}-${rulevalue}.work"
+				awk -v expected="$rulevalue" -v target="$ruletarget" '$1 == "add" {
+					if (($2 == "Skynet-Whitelist" ? "whitelist" : "ban") != target) next
+					position=index($0,"comment \""); if (!position) next
+					comment=substr($0,position+9); sub(/\"$/, "", comment)
+					if (index(comment, "ASN: ") != 1) next
+					value=substr(comment,6); sub(/[[:space:]].*$/, "", value)
+					if (toupper(value) == expected) print $3
+				}' "$ruleregistrysource" | awk '!seen[$0]++' > "$ruledatawork"
+				[ -s "$ruledatawork" ] || { rm -f "$ruledatawork"; continue; }
+				ruledatahash="$(sha256sum "$ruledatawork" 2>/dev/null | awk '{print $1}')"
+				[ -n "$ruledatahash" ] || return 1
+				ruledata="asn-${ruletarget}-${rulevalue}-${ruledatahash}.list"
+				mv -f "$ruledatawork" "$rulemigrationdir/$ruledata" || return 1
+			fi
+			Append_R2_Rule "$ruleregistrytmp" "$ruletarget" "$ruletype" "$rulevalue" "$rulecomment" "$rulestate" "$rulecreated" 0 "$ruledata" || return 1
+		done < "$skynetrules"
+	fi
 	awk -v created="$ruleregistryepoch" '
 		function saved_comment(line, position, value) {
 			position = index(line, "comment \"")
@@ -1096,13 +1195,11 @@ Initialize_Rule_Registry() {
 			key = target SUBSEP type SUBSEP tolower(value)
 			if (value == "") return
 			gsub(/[[:cntrl:]]/, " ", detail)
-			if (key in seen) {
-				if (saved[key] != detail) invalid = 1
-				return
-			}
+			gsub(/[\\"]/, " ", detail)
+			detail = substr(detail, 1, 242)
+			if (key in seen) return
 			seen[key] = 1
-			saved[key] = detail
-			printf "R1\t%s\t%s\t%s\tC%s\tenabled\t%s\n", target, type, value, detail, created
+			printf "%s\t%s\t%s\tC%s\tenabled\t%s\n", target, type, value, detail, created
 		}
 		$1 == "add" {
 			comment = saved_comment($0)
@@ -1128,50 +1225,157 @@ Initialize_Rule_Registry() {
 				emit("whitelist", type, $3, substr(comment, 14))
 			}
 		}
-		END { if (invalid) exit 2 }
-	' "$ruleregistrysource" > "$ruleregistrytmp" \
-		|| { rm -f "$ruleregistrytmp"; [ "$ruleregistrysource" = "$skynetipset" ] || rm -f "$ruleregistrysource"; return 1; }
-	if ! Validate_Rule_Registry "$ruleregistrytmp" || ! chmod 600 "$ruleregistrytmp" \
-		|| ! mv -f "$ruleregistrytmp" "$skynetrules"; then
+	' "$ruleregistrysource" > "$rulemigrationsource" || return 1
+	while IFS="$(printf '\t')" read -r ruletarget ruletype rulevalue rulecomment rulestate rulecreated; do
+		[ -n "$ruletarget" ] || continue
+		ruledata="-"
+		if [ "$ruletype" = "asn" ]; then
+			ruledatawork="$rulemigrationdir/asn-${ruletarget}-${rulevalue}.work"
+			awk -v expected="$rulevalue" -v target="$ruletarget" '$1 == "add" {
+				if (($2 == "Skynet-Whitelist" ? "whitelist" : "ban") != target) next
+				position=index($0,"comment \""); if (!position) next
+				comment=substr($0,position+9); sub(/\"$/, "", comment)
+				if (index(comment, "ASN: ") != 1) next
+				value=substr(comment,6); sub(/[[:space:]].*$/, "", value)
+				if (toupper(value) == expected) print $3
+			}' "$ruleregistrysource" | awk '!seen[$0]++' > "$ruledatawork"
+			[ -s "$ruledatawork" ] || { rm -f "$ruledatawork"; continue; }
+			ruledatahash="$(sha256sum "$ruledatawork" 2>/dev/null | awk '{print $1}')"
+			[ -n "$ruledatahash" ] || return 1
+			ruledata="asn-${ruletarget}-${rulevalue}-${ruledatahash}.list"
+			if [ ! -f "$rulemigrationdir/$ruledata" ]; then mv -f "$ruledatawork" "$rulemigrationdir/$ruledata" || return 1; else rm -f "$ruledatawork"; fi
+		fi
+		Append_R2_Rule "$ruleregistrytmp" "$ruletarget" "$ruletype" "$rulevalue" "$rulecomment" "$rulestate" "$rulecreated" 0 "$ruledata" || return 1
+	done < "$rulemigrationsource"
+
+	# Legacy imports had no registry rows. Preserve each distinguishable target and
+	# exact comment as one group with immutable normalized membership.
+	awk '
+		$1 == "add" {
+			position=index($0,"comment \""); if (!position) next
+			comment=substr($0,position+9); sub(/\"$/, "", comment)
+			if (index(comment,"Imported: ") != 1) next
+			target=$2 == "Skynet-Whitelist" ? "whitelist" : "ban"
+			print target "\t" comment
+		}' "$ruleregistrysource" | awk -F '\t' '!seen[$1 SUBSEP $2]++' > "$rulemigrationdir/imports"
+	ruleimportnumber="0"
+	while IFS="$(printf '\t')" read -r ruletarget rulelegacycomment; do
+		[ -n "$ruletarget" ] || continue
+		ruleimportnumber=$((ruleimportnumber + 1))
+		rulevalue="legacy-import-$ruleimportnumber"
+		ruledatawork="$rulemigrationdir/import-${rulevalue}.work"
+		awk -v target="$ruletarget" -v expected="$rulelegacycomment" '$1 == "add" {
+			position=index($0,"comment \""); if (!position) next
+			comment=substr($0,position+9); sub(/\"$/, "", comment)
+			rowtarget=$2 == "Skynet-Whitelist" ? "whitelist" : "ban"
+			if (rowtarget == target && comment == expected) print $3
+		}' "$ruleregistrysource" | awk '!seen[$0]++' > "$ruledatawork" || return 1
+		[ -s "$ruledatawork" ] || return 1
+		ruledatahash="$(sha256sum "$ruledatawork" 2>/dev/null | awk '{print $1}')"
+		[ -n "$ruledatahash" ] || return 1
+		ruledata="import-${rulevalue}-${ruledatahash}.list"
+		mv -f "$ruledatawork" "$rulemigrationdir/$ruledata" || return 1
+		Append_R2_Rule "$ruleregistrytmp" "$ruletarget" import "$rulevalue" "C${rulelegacycomment#Imported: }" enabled "$ruleregistryepoch" 0 "$ruledata" || return 1
+	done < "$rulemigrationdir/imports"
+
+	rulemigrationstatus="0"
+	rulemigrationpublished=""
+	for rulemigrationfile in "$rulemigrationdir"/*.list; do
+		[ -f "$rulemigrationfile" ] || continue
+		rulemigrationtarget="$rulesdatadir/$(basename "$rulemigrationfile")"
+		if [ -f "$rulemigrationtarget" ] || [ -L "$rulemigrationtarget" ] || [ -d "$rulemigrationtarget" ]; then
+			if [ ! -f "$rulemigrationtarget" ] || [ -L "$rulemigrationtarget" ] \
+				|| ! cmp -s "$rulemigrationfile" "$rulemigrationtarget"; then rulemigrationstatus="1"; break; fi
+			continue
+		fi
+		rulemigrationtmp="${rulemigrationtarget}.tmp.$$"
+		if ! cp -f "$rulemigrationfile" "$rulemigrationtmp" || ! chmod 600 "$rulemigrationtmp" \
+			|| ! mv -f "$rulemigrationtmp" "$rulemigrationtarget"; then
+			rulemigrationstatus="1"
+			break
+		fi
+		rulemigrationpublished="${rulemigrationpublished}${rulemigrationpublished:+ }$rulemigrationtarget"
+	done
+	if [ "$rulemigrationstatus" != "0" ] || ! Validate_Rule_Registry "$ruleregistrytmp" \
+		|| ! chmod 600 "$ruleregistrytmp" || ! mv -f "$ruleregistrytmp" "$skynetrules"; then
 		rm -f "$ruleregistrytmp"
+		for rulemigrationtarget in $rulemigrationpublished; do rm -f "$rulemigrationtarget"; done
 		[ "$ruleregistrysource" = "$skynetipset" ] || rm -f "$ruleregistrysource"
 		return 1
 	fi
+	rulemigrationpublished=""
 	[ "$ruleregistrysource" = "$skynetipset" ] || rm -f "$ruleregistrysource"
 	return 0
 }
 
 Stage_Rule_Registry_Request() {
-	# The request file contains one validated type and value per row. Staging all
-	# keys in one pass keeps mixed IP/CIDR WebUI requests atomic.
+	# Request rows contain type, normalized value, optional sidecar basename and
+	# optional C-prefixed comment. The prefix preserves empty comments in ash read.
+	# Existing IDs and creation times survive edits; expiry is always absolute.
 	rulestageaction="$1"
 	rulestagetarget="$2"
 	rulestagerequest="$3"
 	Validate_IPSet_Comment "$4" 242 || return 2
 	rulestagecomment="$4"
+	rulestageexpires="${5:-0}"
 	rulestagefile="${skynetrules}.tmp.$$"
+	rulestageprepared="$TMP_DIR/rules-prepared.$$"
+	rulestagestatusfile="$TMP_DIR/rules-stage-status.$$"
 	case "$rulestageaction:$rulestagetarget" in add:ban|add:whitelist|remove:ban|remove:whitelist) ;; *) return 2 ;; esac
+	case "$rulestageexpires" in ""|*[!0-9]*) return 2 ;; esac
+	[ "$rulestageaction" != "add" ] || Time_Is_Ready || return 2
 	[ -s "$rulestagerequest" ] || return 2
 	rulestagecomment="C$rulestagecomment"
-	rulestageepoch="$(date +%s)"
+	if Time_Is_Ready; then rulestageepoch="$(date +%s)"; else rulestageepoch="0"; fi
+	true > "$rulestageprepared" && true > "$rulestagestatusfile" || return 1
+	while IFS="$(printf '\t')" read -r rulerequesttype rulerequestvalue rulerequestdata rulerequestcomment; do
+		[ -n "$rulerequesttype" ] && [ -n "$rulerequestvalue" ] || return 2
+		rulerequestdata="${rulerequestdata:--}"
+		rulerequestcomment="${rulerequestcomment:-$rulestagecomment}"
+		case "$rulerequestcomment" in C*) ;; *) return 2 ;; esac
+		Validate_IPSet_Comment "${rulerequestcomment#C}" 242 || return 2
+		rulerequestid="$(awk -F '\t' -v target="$rulestagetarget" -v type="$rulerequesttype" -v value="$rulerequestvalue" \
+			'$1 == "R2" && $3 == target && $4 == type && tolower($5) == tolower(value) {print $2; exit}' "$skynetrules")"
+		if [ -z "$rulerequestid" ]; then
+			New_Rule_ID "$rulestagetarget" "$rulerequesttype" "$rulerequestvalue" "$rulestageepoch" "$skynetrules" "$rulestageprepared" || return 1
+			rulerequestid="$ruleid"
+		fi
+		printf '%s\t%s\t%s\t%s\t%s\n' "$rulerequesttype" "$rulerequestvalue" "$rulerequestdata" "$rulerequestid" "$rulerequestcomment" >> "$rulestageprepared" || return 1
+	done < "$rulestagerequest"
 	awk -F '\t' -v action="$rulestageaction" -v target="$rulestagetarget" \
-		-v detail="$rulestagecomment" -v created="$rulestageepoch" -v requests="$rulestagerequest" '
+		-v created="$rulestageepoch" -v expires="$rulestageexpires" \
+		-v requests="$rulestageprepared" -v statusfile="$rulestagestatusfile" -v now="$rulestageepoch" '
 		BEGIN {
 			while ((getline < requests) > 0) {
 				key = $1 SUBSEP tolower($2)
 				wanted[key] = $2
 				types[key] = $1
+				data[key] = $3
+				ids[key] = $4
+				details[key] = $5
 				order[++count] = key
 			}
 			close(requests)
 		}
 		{
-			key = $3 SUBSEP tolower($4)
-			if ($2 == target && key in wanted) {
+			if ($1 == "R2" && $9 > 0 && $9 <= now) {changed++; next}
+			key = $4 SUBSEP tolower($5)
+			if ($3 == target && key in wanted) {
 				found[key] = 1
-				if (action == "remove") next
+				if (action == "remove") {changed++; next}
+				if (expires > 0 && $9 == 0) {
+					permanent++
+					print
+					next
+				}
+				old = $6 SUBSEP $7 SUBSEP $9 SUBSEP $10
+				if (details[key] != "C") $6 = details[key]
+				$7 = "enabled"
+				$9 = expires
+				if (data[key] != "-") $10 = data[key]
+				if (old != $6 SUBSEP $7 SUBSEP $9 SUBSEP $10) changed++
 			}
-			print
+			print $1 "\t" $2 "\t" $3 "\t" $4 "\t" $5 "\t" $6 "\t" $7 "\t" $8 "\t" $9 "\t" $10
 		}
 		END {
 			if (action == "remove") {
@@ -1180,8 +1384,13 @@ Stage_Rule_Registry_Request() {
 			}
 			for (i = 1; i <= count; i++) {
 				key = order[i]
-				if (!found[key]++) printf "R1\t%s\t%s\t%s\t%s\tenabled\t%s\n", target, types[key], wanted[key], detail, created
+				if (!found[key]++) {
+					printf "R2\t%s\t%s\t%s\t%s\t%s\tenabled\t%s\t%s\t%s\n", ids[key], target, types[key], wanted[key], details[key], created, expires, data[key]
+					changed++
+				}
 			}
+			print "changed\t" changed + 0 > statusfile
+			print "permanent\t" permanent + 0 >> statusfile
 		}
 	' "$skynetrules" > "$rulestagefile"
 	rulestagestatus="$?"
@@ -1189,6 +1398,10 @@ Stage_Rule_Registry_Request() {
 		rm -f "$rulestagefile"
 		return "$rulestagestatus"
 	fi
+	rulestagechanged="$(awk -F '\t' '$1 == "changed" {print $2}' "$rulestagestatusfile")"
+	rulestagepermanent="$(awk -F '\t' '$1 == "permanent" {print $2}' "$rulestagestatusfile")"
+	rulestagechanged="${rulestagechanged:-0}"
+	rulestagepermanent="${rulestagepermanent:-0}"
 	Validate_Rule_Registry "$rulestagefile"
 }
 
@@ -1200,8 +1413,8 @@ Stage_Rule_Registry() {
 	case "$rulestagetype" in ip|range|domain|asn) ;; *) return 2 ;; esac
 	[ -n "$rulestagevalues" ] || return 2
 	# shellcheck disable=SC2086 # Values are validated atomic list members.
-	printf '%s\n' $rulestagevalues | awk -v type="$rulestagetype" 'NF && !seen[tolower($0)]++ {print type "\t" $0}' > "$rulestagerequest" || return 1
-	Stage_Rule_Registry_Request "$1" "$2" "$rulestagerequest" "$5"
+	printf '%s\n' $rulestagevalues | awk -v type="$rulestagetype" 'NF && !seen[tolower($0)]++ {print type "\t" $0 "\t-"}' > "$rulestagerequest" || return 1
+	Stage_Rule_Registry_Request "$1" "$2" "$rulestagerequest" "$5" "${6:-0}"
 	rulestagestatus="$?"
 	rm -f "$rulestagerequest"
 	return "$rulestagestatus"
@@ -1211,13 +1424,35 @@ Stage_Rule_Registry_Clear() {
 	rulestagetarget="$1"
 	case "$rulestagetarget" in ban|whitelist) ;; *) return 2 ;; esac
 	rulestagefile="${skynetrules}.tmp.$$"
-	awk -F '\t' -v target="$rulestagetarget" '$1 == "R1" && $2 == target {next} {print}' \
+	awk -F '\t' -v target="$rulestagetarget" '$1 == "R2" && $3 == target {next} {print}' \
 		"$skynetrules" > "$rulestagefile"
 	rulestagestatus="$?"
 	if [ "$rulestagestatus" = "0" ] && Validate_Rule_Registry "$rulestagefile"; then return 0; fi
 	rm -f "$rulestagefile"
 	[ "$rulestagestatus" != "0" ] && return "$rulestagestatus"
 	return 1
+}
+
+Stage_Rule_Registry_Remove_ID() {
+	ruleremoveid="$1"
+	printf '%s\n' "$ruleremoveid" | grep -qE '^r[0-9]+(-[0-9]+)?$' || return 2
+	rulestagefile="${skynetrules}.tmp.$$"
+	ruleremoverow="$(awk -F '\t' -v id="$ruleremoveid" '$1 == "R2" && $2 == id {print; exit}' "$skynetrules")"
+	[ -n "$ruleremoverow" ] || return 2
+	if ! awk -F '\t' -v id="$ruleremoveid" '$1 == "R2" && $2 == id {next} {print}' "$skynetrules" > "$rulestagefile" \
+		|| ! Validate_Rule_Registry "$rulestagefile"; then rm -f "$rulestagefile"; return 1; fi
+	IFS="$(printf '\t')" read -r _ruleremoveversion ruleremoveid ruleremovetarget ruleremovetype ruleremovevalue ruleremovecomment _ruleremovestate _ruleremovecreated _ruleremoveexpires _ruleremovedata <<EOF
+$ruleremoverow
+EOF
+}
+
+Remove_Registered_Rule_ID() {
+	Stage_Rule_Registry_Remove_ID "$1" || return "$?"
+	if [ "$ruleremovetype" = "domain" ]; then
+		Update_Domain_Rules "$rulestagefile" cached
+	else
+		Apply_Rule_Registry_Candidate "$rulestagefile" remove
+	fi
 }
 
 Publish_Staged_Rule_Registry() {
@@ -1240,28 +1475,394 @@ Require_Rule_Registry() {
 	exit 1
 }
 
-Snapshot_Registered_Rule_State() {
-	registeredsetsnapshot="$TMP_DIR/registered-sets-old.$$"
-	registeredregistryold="$TMP_DIR/registered-rules-old.$$"
-	{ ipset save Skynet-Blacklist && ipset save Skynet-BlockedRanges && ipset save Skynet-Whitelist; } > "$registeredsetsnapshot" 2>/dev/null \
-		&& grep -q '^create Skynet-Blacklist ' "$registeredsetsnapshot" \
-		&& grep -q '^create Skynet-BlockedRanges ' "$registeredsetsnapshot" \
-		&& grep -q '^create Skynet-Whitelist ' "$registeredsetsnapshot" \
-		&& cp -f "$skynetrules" "$registeredregistryold"
+Ensure_User_IPSets() {
+	# R2 sets are compiled from the registry. Recreate an incompatible schema
+	# instead of preserving metadata or relative timeout options from older builds.
+	for useripset in Skynet-UserBans Skynet-TemporaryBans Skynet-UserWhitelist; do
+		if ipset -n list 2>/dev/null | grep -qxF "$useripset"; then
+			if [ "$useripset" = "Skynet-TemporaryBans" ]; then useripsetmode="temporary"; else useripsetmode="permanent"; fi
+			if ! Compiled_IPSet_Schema_Is_Valid "$useripset" "$useripsetmode"; then
+				ipset -q del Skynet-Master "$useripset" 2>/dev/null
+				ipset -q del Skynet-MasterWL "$useripset" 2>/dev/null
+				ipset -q destroy "$useripset" 2>/dev/null || return 1
+			fi
+		fi
+	done
+	Ensure_IPSet Skynet-UserBans hash:net hashsize 64 maxelem "$((65536 * 6))" || return 1
+	Ensure_IPSet Skynet-TemporaryBans hash:net hashsize 64 maxelem 65536 timeout 0 || return 1
+	Ensure_IPSet Skynet-UserWhitelist hash:net hashsize 64 maxelem "$((65536 * 6))" || return 1
+	Update_IPSet add Skynet-Master Skynet-UserBans || return 1
+	Update_IPSet add Skynet-Master Skynet-TemporaryBans || return 1
+	Update_IPSet add Skynet-MasterWL Skynet-UserWhitelist || return 1
 }
 
-Restore_Registered_Rule_State() {
-	registeredrestore="$TMP_DIR/registered-sets-restore.$$"
-	registeredrestorestatus="0"
-	awk '$1 == "add"' "$registeredsetsnapshot" > "$registeredrestore" || return 1
-	for registeredset in Skynet-Blacklist Skynet-BlockedRanges Skynet-Whitelist; do
-		ipset flush "$registeredset" 2>/dev/null || registeredrestorestatus="1"
-	done
-	ipset restore -! < "$registeredrestore" 2>/dev/null || registeredrestorestatus="1"
-	ruleregistryrestore="${skynetrules}.tmp.$$"
-	cp -f "$registeredregistryold" "$ruleregistryrestore" && chmod 600 "$ruleregistryrestore" \
-		&& mv -f "$ruleregistryrestore" "$skynetrules" || registeredrestorestatus="1"
-	return "$registeredrestorestatus"
+Compiled_IPSet_Schema_Is_Valid() {
+	compiledsetname="$1"
+	compiledsetmode="$2"
+	compiledsetcreate="$(Read_IPSet_Schema "$compiledsetname")" || return 1
+	case "$compiledsetcreate" in "create $compiledsetname hash:net "*) ;; *) return 1 ;; esac
+	case " $compiledsetcreate " in *" comment "*|*" counters "*|*" skbinfo "*) return 1 ;; esac
+	case "$compiledsetmode: $compiledsetcreate " in
+		temporary:*" timeout 0"*) return 0 ;;
+		temporary:*) return 1 ;;
+		permanent:*" timeout "*) return 1 ;;
+		permanent:*) return 0 ;;
+		*) return 1 ;;
+	esac
+}
+
+Validate_Rule_Data_File() {
+	[ -s "$1" ] && [ ! -L "$1" ] || return 1
+	# Validate the complete sidecar in one pass. Comparing canonical output also
+	# rejects host bits, leading zeroes and whitespace without a process per entry.
+	ruledatanormalized="$TMP_DIR/rule-data-normalized.$$"
+	ruledatacompare="$TMP_DIR/rule-data-compare.$$"
+	Normalize_IPSet_Entries any < "$1" > "$ruledatanormalized" \
+		&& sed '/^$/d; s~/32$~~' "$1" > "$ruledatacompare" \
+		&& cmp -s "$ruledatanormalized" "$ruledatacompare"
+	ruledatastatus="$?"
+	rm -f "$ruledatanormalized" "$ruledatacompare"
+	return "$ruledatastatus"
+}
+
+Validate_Rule_Data_Reference() {
+	ruledatatype="$1"
+	ruledataname="$2"
+	ruledatafile="$3"
+	case "$ruledatatype" in
+		asn) printf '%s\n' "$ruledataname" | grep -qE '^asn-(ban|whitelist)-AS[0-9]{1,6}-[0-9a-f]{64}\.list$' || return 1 ;;
+		import) printf '%s\n' "$ruledataname" | grep -qE '^import-[A-Za-z0-9._-]+-[0-9a-f]{64}\.list$' || return 1 ;;
+		*) return 1 ;;
+	esac
+	ruledataexpected="${ruledataname%.list}"
+	ruledataexpected="${ruledataexpected##*-}"
+	[ "$(sha256sum "$ruledatafile" 2>/dev/null | awk '{print $1}')" = "$ruledataexpected" ]
+}
+
+Prune_Unreferenced_Rule_Data() {
+	# ASN and import sidecars are immutable. Files not referenced by the committed
+	# registry cannot affect policy. Read ownership once and refuse cleanup if the
+	# registry cannot be read, rather than treating an I/O error as an unused file.
+	ruleprunecandidates="$TMP_DIR/rule-data-candidates.$$"
+	rulepruneunused="$TMP_DIR/rule-data-unused.$$"
+	printf '%s\n' "$rulesdatadir"/asn-*.list "$rulesdatadir"/import-*.list > "$ruleprunecandidates" || return 1
+	if ! awk -F '\t' -v registry="$skynetrules" '
+		BEGIN {
+			while ((status = getline line < registry) > 0) {
+				if (split(line, field, "\t") != 10 || field[1] != "R2") exit 1
+				used[field[10]] = 1
+			}
+			close(registry)
+			if (status < 0) exit 1
+		}
+		{ name = $0; sub(/.*\//, "", name); if (!(name in used)) print }
+	' "$ruleprunecandidates" > "$rulepruneunused"; then
+		rm -f "$ruleprunecandidates" "$rulepruneunused"
+		return 1
+	fi
+	ruleprunedatastatus="0"
+	while IFS= read -r rulesidecar; do
+		[ -e "$rulesidecar" ] || continue
+		rm -f "$rulesidecar" || ruleprunedatastatus="1"
+	done < "$rulepruneunused"
+	rm -f "$ruleprunecandidates" "$rulepruneunused"
+	return "$ruleprunedatastatus"
+}
+
+Build_Rule_Reason_Index() {
+	# R2I rows expand logical ownership once when policy changes. Statistics can
+	# then join reasons without reopening every ASN and import sidecar.
+	ruleindexregistry="$1"
+	ruleindexstage="$TMP_DIR/rule-reasons.$$"
+	ruleindexhash="$(Rule_Reason_Index_Hash "$ruleindexregistry")"
+	[ -n "$ruleindexhash" ] || return 1
+	printf 'R2I\t%s\n' "$ruleindexhash" > "$ruleindexstage" || return 1
+	while IFS="$(printf '\t')" read -r _ruleindexversion ruleindexid ruleindextarget ruleindextype ruleindexvalue \
+		ruleindexcomment ruleindexstate _ruleindexcreated ruleindexexpires ruleindexdata; do
+		[ "$ruleindexstate" = "enabled" ] || continue
+		ruleindexreason="${ruleindexcomment#C}"
+		case "$ruleindextype" in
+			ip|range)
+				[ -n "$ruleindexreason" ] || ruleindexreason="Manual Rule"
+				printf 'R2I\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$ruleindextarget" "$ruleindextype" \
+					"$ruleindexvalue" "$ruleindexreason" "$ruleindexid" "$ruleindexexpires" "$ruleindexvalue" >> "$ruleindexstage" || return 1
+			;;
+			asn|import)
+				ruleindexfile="$rulesdatadir/$ruleindexdata"
+				Validate_Rule_Data_File "$ruleindexfile" \
+					&& Validate_Rule_Data_Reference "$ruleindextype" "$ruleindexdata" "$ruleindexfile" || return 1
+				if [ -z "$ruleindexreason" ]; then
+					if [ "$ruleindextype" = "asn" ]; then ruleindexreason="ASN: $ruleindexvalue"; else ruleindexreason="Imported Rule"; fi
+				fi
+				awk -v target="$ruleindextarget" -v reason="$ruleindexreason" -v id="$ruleindexid" \
+					-v expires="$ruleindexexpires" -v value="$ruleindexvalue" 'NF {
+						sub(/\/32$/, "")
+						type = index($0, "/") ? "range" : "ip"
+						printf "R2I\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", target, type, $0, reason, id, expires, value
+					}' "$ruleindexfile" >> "$ruleindexstage" || return 1
+			;;
+		esac
+	done < "$ruleindexregistry"
+}
+
+Rule_Reason_Index_Hash() {
+	# Domain ownership is resolved through its own manifest and never appears in
+	# the compact address index. Excluding those rows avoids needless rebuilds.
+	awk -F '\t' '$1 == "R2" && $7 == "enabled" && ($4 == "ip" || $4 == "range" || $4 == "asn" || $4 == "import")' "$1" 2>/dev/null \
+		| sha256sum 2>/dev/null | awk '{print $1}'
+}
+
+Rule_Reason_Index_Is_Current() {
+	[ -s "$RULE_REASON_INDEX" ] && [ ! -L "$RULE_REASON_INDEX" ] || return 1
+	ruleindexexpected="$(Rule_Reason_Index_Hash "$skynetrules")"
+	[ -n "$ruleindexexpected" ] \
+		&& [ "$(awk -F '\t' 'NR == 1 && $1 == "R2I" {print $2}' "$RULE_REASON_INDEX")" = "$ruleindexexpected" ]
+}
+
+Prepare_User_Rule_Sets() {
+	# Compile logical owners into disposable sets. Publishing uses compatible swaps,
+	# so no partially built user policy becomes visible to the firewall.
+	rulecompilefile="$1"
+	rulecompilenow="$2"
+	rulecompilebanset="Skynet-UserBans-Tmp"
+	rulecompiletempset="Skynet-TemporaryBans-Tmp"
+	rulecompilewhitelistset="Skynet-UserWhitelist-Tmp"
+	rulecompilerestore="$TMP_DIR/rules-compile.$$"
+	rulecompiledeadlines="$TMP_DIR/rules-deadlines.$$"
+	cleanupipsets="${cleanupipsets}${cleanupipsets:+ }$rulecompilebanset $rulecompiletempset $rulecompilewhitelistset"
+	Destroy_IPSets "$rulecompilebanset" "$rulecompiletempset" "$rulecompilewhitelistset"
+	if ! ipset -q create "$rulecompilebanset" hash:net hashsize 64 maxelem "$((65536 * 6))" \
+		|| ! ipset -q create "$rulecompiletempset" hash:net hashsize 64 maxelem 65536 timeout 0 \
+		|| ! ipset -q create "$rulecompilewhitelistset" hash:net hashsize 64 maxelem "$((65536 * 6))" \
+		|| ! true > "$rulecompilerestore" || ! true > "$rulecompiledeadlines"; then
+		Destroy_IPSets "$rulecompilebanset" "$rulecompiletempset" "$rulecompilewhitelistset"
+		return 1
+	fi
+	while IFS="$(printf '\t')" read -r _ruleversion _ruleid ruletarget ruletype rulevalue _rulecomment rulestate _rulecreated ruleexpires ruledateref; do
+		[ "$rulestate" = "enabled" ] || continue
+		case "$ruletype" in
+			ip|range)
+				if [ "$ruletarget" = "whitelist" ]; then
+					printf 'add %s %s\n' "$rulecompilewhitelistset" "$rulevalue" >> "$rulecompilerestore" || return 1
+			elif [ "$ruleexpires" = "0" ]; then
+					printf 'add %s %s\n' "$rulecompilebanset" "$rulevalue" >> "$rulecompilerestore" || return 1
+			elif [ "$rulecompilenow" -gt "0" ] && [ "$ruleexpires" -gt "$rulecompilenow" ]; then
+				printf '%s\t%s\n' "$rulevalue" "$ruleexpires" >> "$rulecompiledeadlines" || return 1
+			fi
+			;;
+			asn|import)
+				ruledatafile="$rulesdatadir/$ruledateref"
+				Validate_Rule_Data_File "$ruledatafile" \
+					&& Validate_Rule_Data_Reference "$ruletype" "$ruledateref" "$ruledatafile" || return 1
+				if [ "$ruletarget" = "ban" ]; then rulecompiledataset="$rulecompilebanset"; else rulecompiledataset="$rulecompilewhitelistset"; fi
+				# Restore -! already tolerates duplicate owners; stream validated data
+				# without holding another full copy of the import in an AWK table.
+				awk -v setname="$rulecompiledataset" 'NF {printf "add %s %s\n", setname, $0}' "$ruledatafile" >> "$rulecompilerestore" || return 1
+			;;
+		esac
+	done < "$rulecompilefile"
+	if ! ipset restore -! < "$rulecompilerestore" 2>/dev/null; then
+		Destroy_IPSets "$rulecompilebanset" "$rulecompiletempset" "$rulecompilewhitelistset"
+		return 1
+	fi
+	# Calculate remaining lifetimes after large imports have finished compiling
+	# and restoring, so that work cannot extend an absolute expiry deadline.
+	if [ -s "$rulecompiledeadlines" ]; then
+		awk -F '\t' -v now="$(date +%s)" -v setname="$rulecompiletempset" '$2 > now {
+			printf "add %s %s timeout %d\n", setname, $1, $2 - now
+		}' "$rulecompiledeadlines" > "$rulecompilerestore" \
+			&& ipset restore -! < "$rulecompilerestore" 2>/dev/null || return 1
+	fi
+	return 0
+}
+
+Publish_User_Rule_Sets() {
+	# After each swap the temporary name holds the previous live set, allowing the
+	# complete three-set transaction to be reversed before returning a failure.
+	if ! ipset swap "$rulecompilebanset" Skynet-UserBans 2>/dev/null; then return 1; fi
+	if ! ipset swap "$rulecompiletempset" Skynet-TemporaryBans 2>/dev/null; then
+		ipset swap "$rulecompilebanset" Skynet-UserBans 2>/dev/null
+		return 1
+	fi
+	if ! ipset swap "$rulecompilewhitelistset" Skynet-UserWhitelist 2>/dev/null; then
+		ipset swap "$rulecompiletempset" Skynet-TemporaryBans 2>/dev/null
+		ipset swap "$rulecompilebanset" Skynet-UserBans 2>/dev/null
+		return 1
+	fi
+	return 0
+}
+
+Rollback_User_Rule_Sets() {
+	ipset swap "$rulecompilewhitelistset" Skynet-UserWhitelist 2>/dev/null
+	ipset swap "$rulecompiletempset" Skynet-TemporaryBans 2>/dev/null
+	ipset swap "$rulecompilebanset" Skynet-UserBans 2>/dev/null
+}
+
+Migrate_Legacy_IPSet_Ownership() {
+	# R2 owns user policy. Remove only entries recovered from the documented legacy
+	# prefixes; unrelated and unclassified effective entries remain base state.
+	legacysnapshot="$TMP_DIR/rules-legacy-sets.$$"
+	legacyrestore="$TMP_DIR/rules-legacy-restore.$$"
+	legacyblacklist="Skynet-Blacklist-Legacy"
+	legacyranges="Skynet-BlockedRanges-Legacy"
+	legacywhitelist="Skynet-Whitelist-Legacy"
+	{ ipset save Skynet-Blacklist && ipset save Skynet-BlockedRanges && ipset save Skynet-Whitelist; } > "$legacysnapshot" 2>/dev/null || return 1
+	if ! grep -qE 'comment "(ManualBan|ManualRBan|ManualWlist|ManualBanD|ManualWlistD|ASN|Imported): ' "$legacysnapshot"; then return 0; fi
+	Destroy_IPSets "$legacyblacklist" "$legacyranges" "$legacywhitelist"
+	if ! ipset -q create "$legacyblacklist" hash:ip hashsize 64 maxelem "$((65536 * 16))" comment \
+		|| ! ipset -q create "$legacyranges" hash:net hashsize 64 maxelem "$((65536 * 6))" comment \
+		|| ! ipset -q create "$legacywhitelist" hash:net hashsize 64 maxelem "$((65536 * 6))" comment; then
+		Destroy_IPSets "$legacyblacklist" "$legacyranges" "$legacywhitelist"
+		return 1
+	fi
+	awk -v blacklist="$legacyblacklist" -v ranges="$legacyranges" -v whitelist="$legacywhitelist" -v registry="$skynetrules" '
+		BEGIN {
+			while ((getline line < registry) > 0) {
+				split(line, field, "\t")
+				if (field[1] != "R2") continue
+				owned[field[3] SUBSEP field[4] SUBSEP tolower(field[5])] = 1
+				if (field[4] == "import") imported[field[3] SUBSEP "Imported: " substr(field[6], 2)] = 1
+			}
+			close(registry)
+		}
+		$1 == "add" {
+			position = index($0, "comment \"")
+			comment = position ? substr($0, position + 9) : ""
+			sub(/\"$/, "", comment)
+			target = $2 == "Skynet-Whitelist" ? "whitelist" : "ban"
+			type = ""; value = $3
+			if (index(comment, "ManualBan: ") == 1) type = "ip"
+			else if (index(comment, "ManualRBan: ") == 1) type = "range"
+			else if (index(comment, "ManualWlist: ") == 1) type = index(value, "/") && value !~ /\/32$/ ? "range" : "ip"
+			else if (index(comment, "ManualBanD: ") == 1) { type = "domain"; value = substr(comment, 13) }
+			else if (index(comment, "ManualWlistD: ") == 1) { type = "domain"; value = substr(comment, 15) }
+			else if (index(comment, "ASN: ") == 1) { type = "asn"; value = substr(comment, 6); sub(/[[:space:]].*$/, "", value) }
+			if (type == "ip") sub(/\/32$/, "", value)
+			if ((target SUBSEP type SUBSEP tolower(value)) in owned || (target SUBSEP comment) in imported) next
+			if ($2 == "Skynet-Blacklist") $2 = blacklist
+			else if ($2 == "Skynet-BlockedRanges") $2 = ranges
+			else if ($2 == "Skynet-Whitelist") $2 = whitelist
+			else next
+			print
+		}
+	' "$legacysnapshot" > "$legacyrestore" || return 1
+	if [ -s "$legacyrestore" ] && ! ipset restore -! < "$legacyrestore" 2>/dev/null; then
+		Destroy_IPSets "$legacyblacklist" "$legacyranges" "$legacywhitelist"
+		return 1
+	fi
+	trap '' INT TERM
+	if ! ipset swap "$legacyblacklist" Skynet-Blacklist 2>/dev/null; then
+		Set_Cleanup_Traps; Destroy_IPSets "$legacyblacklist" "$legacyranges" "$legacywhitelist"; return 1
+	fi
+	if ! ipset swap "$legacyranges" Skynet-BlockedRanges 2>/dev/null; then
+		ipset swap "$legacyblacklist" Skynet-Blacklist 2>/dev/null
+		Set_Cleanup_Traps; Destroy_IPSets "$legacyblacklist" "$legacyranges" "$legacywhitelist"; return 1
+	fi
+	if ! ipset swap "$legacywhitelist" Skynet-Whitelist 2>/dev/null; then
+		ipset swap "$legacyranges" Skynet-BlockedRanges 2>/dev/null
+		ipset swap "$legacyblacklist" Skynet-Blacklist 2>/dev/null
+		Set_Cleanup_Traps; Destroy_IPSets "$legacyblacklist" "$legacyranges" "$legacywhitelist"; return 1
+	fi
+	if ! Save_IPSets; then
+		ipset swap "$legacywhitelist" Skynet-Whitelist 2>/dev/null
+		ipset swap "$legacyranges" Skynet-BlockedRanges 2>/dev/null
+		ipset swap "$legacyblacklist" Skynet-Blacklist 2>/dev/null
+		Set_Cleanup_Traps
+		Destroy_IPSets "$legacyblacklist" "$legacyranges" "$legacywhitelist"
+		return 1
+	fi
+	Set_Cleanup_Traps
+	Destroy_IPSets "$legacyblacklist" "$legacyranges" "$legacywhitelist"
+	return 0
+}
+
+Apply_Rule_Registry_Candidate() {
+	rulecandidate="$1"
+	ruleregistrybackup=""
+	ruleapplymode="${2:-normal}"
+	case "$ruleapplymode" in normal|startup|remove) ;; *) return 2 ;; esac
+	if ! Time_Is_Ready && [ "$ruleapplymode" = "normal" ]; then return 2; fi
+	Validate_Rule_Registry "$rulecandidate" || return 1
+	Ensure_User_IPSets || return 1
+	Build_Rule_Reason_Index "$rulecandidate" || return 1
+	if Time_Is_Ready; then rulecompilenow="$(date +%s)"; else rulecompilenow="0"; fi
+	Prepare_User_Rule_Sets "$rulecandidate" "$rulecompilenow" || { rm -f "$ruleindexstage"; return 1; }
+	trap '' INT TERM
+	if ! Publish_User_Rule_Sets; then
+		Set_Cleanup_Traps
+		Destroy_IPSets "$rulecompilebanset" "$rulecompiletempset" "$rulecompilewhitelistset"
+		rm -f "$ruleindexstage"
+		return 1
+	fi
+	if [ "$rulecandidate" != "$skynetrules" ]; then
+		rulestagefile="$rulecandidate"
+		if ! Publish_Staged_Rule_Registry; then
+			Rollback_User_Rule_Sets
+			Set_Cleanup_Traps
+			Destroy_IPSets "$rulecompilebanset" "$rulecompiletempset" "$rulecompilewhitelistset"
+			rm -f "$ruleindexstage"
+			return 1
+		fi
+	fi
+	ruleindextmp="${RULE_REASON_INDEX}.tmp.$$"
+	if ! cp -f "$ruleindexstage" "$ruleindextmp" || ! chmod 600 "$ruleindextmp" \
+		|| ! mv -f "$ruleindextmp" "$RULE_REASON_INDEX"; then
+		Rollback_User_Rule_Sets
+		if [ -f "$ruleregistrybackup" ]; then
+			ruleregistryrestore="${skynetrules}.tmp.$$"
+			if ! cp -f "$ruleregistrybackup" "$ruleregistryrestore" || ! chmod 600 "$ruleregistryrestore" \
+				|| ! mv -f "$ruleregistryrestore" "$skynetrules"; then Log error -s "Failed To Restore Rule Registry"; fi
+		fi
+		Set_Cleanup_Traps
+		Destroy_IPSets "$rulecompilebanset" "$rulecompiletempset" "$rulecompilewhitelistset"
+		rm -f "$ruleindexstage" "$ruleindextmp"
+		return 1
+	fi
+	Set_Cleanup_Traps
+	Destroy_IPSets "$rulecompilebanset" "$rulecompiletempset" "$rulecompilewhitelistset"
+	rm -f "$ruleindexstage"
+	[ "${defer_rule_data_prune:-0}" = "1" ] || Prune_Unreferenced_Rule_Data
+	Time_Is_Ready || Mark_Time_Dependent_State_Pending || return 1
+	nocfg="1"
+	return 0
+}
+
+Apply_Complete_Rule_Registry_Candidate() {
+	# User and domain sets have separate atomic publishers. Retain the old registry
+	# and immutable sidecars until both publishers accept the same logical policy.
+	completecandidate="$1"
+	completeapplymode="${2:-normal}"
+	completeold="$TMP_DIR/rules-complete-old.$$"
+	cp -f "$skynetrules" "$completeold" || return 1
+	defer_rule_data_prune="1"
+	if ! Apply_Rule_Registry_Candidate "$completecandidate" "$completeapplymode"; then
+		defer_rule_data_prune="0"
+		rm -f "$completeold"
+		Prune_Unreferenced_Rule_Data
+		return 1
+	fi
+	if Update_Domain_Rules "$skynetrules" cached; then
+		defer_rule_data_prune="0"
+		rm -f "$completeold"
+		Prune_Unreferenced_Rule_Data
+		return 0
+	fi
+
+	completerestore="${skynetrules}.tmp.$$"
+	completerollback="0"
+	if ! cp -f "$completeold" "$completerestore" \
+		|| ! Apply_Rule_Registry_Candidate "$completerestore" remove; then
+		Log error -s "Failed To Restore User Rule Registry"
+		completerollback="1"
+	elif ! Update_Domain_Rules "$skynetrules" cached; then
+		Log error -s "Failed To Restore Domain Rule Policy"
+		completerollback="1"
+	fi
+	defer_rule_data_prune="0"
+	rm -f "$completeold" "$completerestore"
+	Prune_Unreferenced_Rule_Data
+	[ "$completerollback" = "0" ] || Log error -s "Rule Registry Rollback Requires Manual Inspection"
+	return 1
 }
 
 Apply_Registered_Manual_Rules() {
@@ -1273,6 +1874,7 @@ Apply_Registered_Manual_Rules() {
 	registeredtype="$3"
 	registeredcomment="$4"
 	registeredvalues="$5"
+	registeredexpires="${6:-0}"
 	case "$registeredtarget:$registeredtype" in
 		ban:ip|ban:range|whitelist:ip|whitelist:range) ;;
 		*) return 2 ;;
@@ -1281,7 +1883,7 @@ Apply_Registered_Manual_Rules() {
 		registerednormalized="$(Normalize_IPSet_Entry "$registeredtype" "$registeredvalue")" || return 2
 		[ "$registerednormalized" = "$registeredvalue" ] || return 2
 	done
-	Apply_Registered_Address_Rules "$registeredaction" "$registeredtarget" "$registeredvalues" "$registeredcomment"
+	Apply_Registered_Address_Rules "$registeredaction" "$registeredtarget" "$registeredvalues" "$registeredcomment" "$registeredexpires"
 }
 
 Apply_Registered_Address_Rules() {
@@ -1289,70 +1891,129 @@ Apply_Registered_Address_Rules() {
 	registeredtarget="$2"
 	registeredvalues="$3"
 	registeredcomment="$4"
+	registeredexpires="${5:-0}"
 	registeredrequest="$TMP_DIR/registered-addresses.$$"
-	registeredrestorefile="$TMP_DIR/registered-address-restore.$$"
-	true > "$registeredrequest" && true > "$registeredrestorefile" || return 1
+	true > "$registeredrequest" || return 1
 	for registeredvalue in $registeredvalues; do
 		if printf '%s\n' "$registeredvalue" | Is_IP; then
 			registeredtype="ip"
-			[ "$registeredtarget" = "ban" ] && registeredset="Skynet-Blacklist" || registeredset="Skynet-Whitelist"
 		elif printf '%s\n' "$registeredvalue" | Is_Range; then
 			registeredtype="range"
-			[ "$registeredtarget" = "ban" ] && registeredset="Skynet-BlockedRanges" || registeredset="Skynet-Whitelist"
 		else
 			return 2
 		fi
 		registerednormalized="$(Normalize_IPSet_Entry "$registeredtype" "$registeredvalue")" || return 2
 		[ "$registerednormalized" = "$registeredvalue" ] || return 2
 		printf '%s\t%s\n' "$registeredtype" "$registeredvalue" >> "$registeredrequest" || return 1
-		if [ "$registeredaction" = "add" ]; then
-			case "$registeredtarget:$registeredtype" in
-				ban:ip) registeredprefix="ManualBan: " ;;
-				ban:range) registeredprefix="ManualRBan: " ;;
-				whitelist:*) registeredprefix="ManualWlist: " ;;
-			esac
-			printf 'add %s %s comment "%s%s"\n' "$registeredset" "$registeredvalue" "$registeredprefix" "$registeredcomment" >> "$registeredrestorefile" || return 1
-		else
-			printf 'del %s %s\n' "$registeredset" "$registeredvalue" >> "$registeredrestorefile" || return 1
-		fi
 	done
-	Stage_Rule_Registry_Request "$registeredaction" "$registeredtarget" "$registeredrequest" "$registeredcomment" || return "$?"
-	Snapshot_Registered_Rule_State || return 1
-	if [ "$registeredaction" = "add" ]; then
-		Validate_Logical_Rule_Ownership "$registeredrestorefile" "$registeredsetsnapshot" || return "$?"
+	if [ -n "$6" ]; then
+		# Optional WebUI comment map must match the complete validated address batch.
+		registeredannotated="$TMP_DIR/registered-comments.$$"
+		awk -F '\t' -v comments="$6" '
+			BEGIN {
+				while ((getline line < comments) > 0) {
+					if (split(line, field, "\t") != 2 || field[1] in detail) {invalid=1; break}
+					detail[field[1]]=field[2]; count++
+				}
+				close(comments)
+			}
+			{ if (!($2 in detail) || seen[$2]++) invalid=1; print $0 "\t-\t" detail[$2]; rows++ }
+			END {exit invalid || rows != count ? 2 : 0}
+		' "$registeredrequest" > "$registeredannotated" || return 2
+		mv -f "$registeredannotated" "$registeredrequest" || return 1
 	fi
-	Apply_IPSet_File "$registeredrestorefile" "$registeredsetsnapshot" || return 1
-	if ! Publish_Staged_Rule_Registry || ! Save_IPSets; then
-		Restore_Registered_Rule_State || Log error -s "Failed To Restore Registered Address Rules"
-		return 1
+	Stage_Rule_Registry_Request "$registeredaction" "$registeredtarget" "$registeredrequest" "$registeredcomment" "$registeredexpires" || return "$?"
+	if [ "$registeredaction" = "add" ] && [ "$rulestagechanged" = "0" ]; then
+		rm -f "$rulestagefile"
+		return 0
 	fi
-	nocfg="1"
-	return 0
+	if [ "$registeredaction" = "remove" ]; then
+		Apply_Rule_Registry_Candidate "$rulestagefile" remove
+	else
+		Apply_Rule_Registry_Candidate "$rulestagefile"
+	fi
 }
 
 Apply_Registered_ASN_Rules() {
 	registeredaction="$1"
 	registeredtarget="$2"
 	registeredvalues="$3"
-	Stage_Rule_Registry "$registeredaction" "$registeredtarget" asn "$registeredvalues" "" || return "$?"
-	Snapshot_Registered_Rule_State || return 1
-	if [ "$registeredtarget" = "ban" ]; then registeredset="Skynet-BlockedRanges"; else registeredset="Skynet-Whitelist"; fi
-	if [ "$registeredaction" = "add" ]; then
-		Apply_ASN_Lists "$registeredset" "$registeredvalues" || return "$?"
-	else
-		registeredcomments=""
-		for registeredvalue in $registeredvalues; do
-			registeredcomments="${registeredcomments}${registeredcomments:+
-}ASN: $registeredvalue "
-		done
-		Remove_IPSet_Exact_Comments "$registeredset" "$registeredcomments" || return 1
+	case "$registeredaction:$registeredtarget" in add:ban|add:whitelist|remove:ban|remove:whitelist) ;; *) return 2 ;; esac
+	if [ "$registeredaction" = "remove" ]; then
+		Stage_Rule_Registry remove "$registeredtarget" asn "$registeredvalues" "" || return "$?"
+		Apply_Rule_Registry_Candidate "$rulestagefile" remove
+		return "$?"
 	fi
-	if ! Publish_Staged_Rule_Registry || ! Save_IPSets; then
-		Restore_Registered_Rule_State || Log error -s "Failed To Restore Registered ASN Rules"
-		return 1
-	fi
-	nocfg="1"
+	Time_Is_Ready || return 1
+	registeredrequest="$TMP_DIR/asn-rule-request.$$"
+	true > "$registeredrequest" || return 1
+	mkdir -p "$rulesdatadir" || return 1
+	for registeredvalue in $registeredvalues; do
+		asnraw="$TMP_DIR/asn-${registeredvalue}.$$"
+		asnvalidated="${asnraw}.validated"
+		asnpublic="${asnraw}.public"
+		if ! Curl_Fetch -o "$asnraw" "https://asn.ipinfo.app/api/text/list/$registeredvalue" \
+			|| ! Extract_IPList "$asnraw" "$asnvalidated" \
+			|| ! Normalize_Public_IPList "$asnvalidated" "$asnpublic" \
+			|| [ ! -s "$asnpublic" ]; then
+			rm -f "$TMP_DIR"/asn-*.$$*
+			Prune_Unreferenced_Rule_Data
+			return 1
+		fi
+		asnhash="$(sha256sum "$asnpublic" 2>/dev/null | awk '{print $1}')"
+		[ -n "$asnhash" ] || { Prune_Unreferenced_Rule_Data; return 1; }
+		asndata="asn-${registeredtarget}-${registeredvalue}-${asnhash}.list"
+		asntarget="$rulesdatadir/$asndata"
+		asntmp="${asntarget}.tmp.$$"
+		if ! cp -f "$asnpublic" "$asntmp" || ! chmod 600 "$asntmp" || ! mv -f "$asntmp" "$asntarget"; then
+			rm -f "$asntmp" "$TMP_DIR"/asn-*.$$*
+			Prune_Unreferenced_Rule_Data
+			return 1
+		fi
+		printf 'asn\t%s\t%s\n' "$registeredvalue" "$asndata" >> "$registeredrequest" \
+			|| { Prune_Unreferenced_Rule_Data; return 1; }
+	done
+	rm -f "$TMP_DIR"/asn-*.$$*
+	Stage_Rule_Registry_Request add "$registeredtarget" "$registeredrequest" "" 0
+	registeredstatus="$?"
+	if [ "$registeredstatus" != "0" ]; then Prune_Unreferenced_Rule_Data; return "$registeredstatus"; fi
+	if ! Apply_Rule_Registry_Candidate "$rulestagefile"; then Prune_Unreferenced_Rule_Data; return 1; fi
+	for asnsidecar in "$rulesdatadir"/asn-*.list; do
+		[ -f "$asnsidecar" ] || continue
+		awk -F '\t' -v data="${asnsidecar##*/}" '$1 == "R2" && $10 == data {found=1} END {exit !found}' "$skynetrules" \
+			|| rm -f "$asnsidecar"
+	done
 	return 0
+}
+
+Apply_Registered_Import() {
+	importtarget="$1"
+	importsource="$2"
+	importcomment="$3"
+	importrestore="$4"
+	case "$importtarget" in ban|whitelist) ;; *) return 2 ;; esac
+	Time_Is_Ready || return 1
+	importentries="$TMP_DIR/import-entries.$$"
+	awk '$1 == "add" {print $3}' "$importrestore" | awk 'NF && !seen[$0]++' > "$importentries" || return 1
+	Validate_Rule_Data_File "$importentries" || return 1
+	importhash="$(sha256sum "$importentries" 2>/dev/null | awk '{print $1}')"
+	New_Rule_ID "$importtarget" import "$importsource" "$(date +%s)" || return 1
+	importid="$ruleid"
+	importdata="import-${importid}-${importhash}.list"
+	importdatatarget="$rulesdatadir/$importdata"
+	importdatatmp="${importdatatarget}.tmp.$$"
+	mkdir -p "$rulesdatadir" || return 1
+	if ! cp -f "$importentries" "$importdatatmp" || ! chmod 600 "$importdatatmp" \
+		|| ! mv -f "$importdatatmp" "$importdatatarget"; then rm -f "$importdatatmp"; return 1; fi
+	importrequest="$TMP_DIR/import-request.$$"
+	printf 'import\t%s\t%s\n' "$importid" "$importdata" > "$importrequest" \
+		|| { Prune_Unreferenced_Rule_Data; return 1; }
+	Stage_Rule_Registry_Request add "$importtarget" "$importrequest" "$importcomment" 0
+	importstatus="$?"
+	if [ "$importstatus" != "0" ]; then Prune_Unreferenced_Rule_Data; return "$importstatus"; fi
+	if Apply_Rule_Registry_Candidate "$rulestagefile"; then return 0; fi
+	Prune_Unreferenced_Rule_Data
+	return 1
 }
 
 ############################
@@ -1415,8 +2076,8 @@ Maintain_Script_Hooks() {
 		echo 'swapoff -a 2>/dev/null # Skynet' >> /jffs/scripts/unmount || return 1
 	fi
 
-	# Save firewall state during service shutdown.
-	servicesstophook='sh /jffs/scripts/firewall save # Skynet'
+	# Archive correctly timed logs and persist changed base state during shutdown.
+	servicesstophook='sh /jffs/scripts/firewall persist # Skynet'
 	if ! Check_Skynet_Hook /jffs/scripts/services-stop "$servicesstophook"; then
 		Publish_Skynet_Hook /jffs/scripts/services-stop "$servicesstophook" || return 1
 	fi
@@ -1496,9 +2157,14 @@ Check_Security() {
 	# Detect chkupdate.sh malware
 	if [ -f "/jffs/chkupdate.sh" ] || [ -f "/tmp/update" ] || [ -f "/tmp/.update.log" ] || [ -f "/jffs/runtime.log" ] || grep -qsF "upgrade.sh" "/jffs/scripts/openvpn-event"; then
 		Log error -s "Warning! Router Malware Detected (chkupdate.sh) - Investigate Immediately!"
-		grep -hoE '([0-9]{1,3}\.){3}[0-9]{1,3}' "/jffs/chkupdate.sh" "/tmp/update" "/tmp/.update.log" "/jffs/runtime.log" "/jffs/scripts/openvpn-event" 2>/dev/null | awk '!x[$0]++' | while IFS= read -r ip; do
-			echo "add Skynet-Blacklist $ip comment \"Malware: chkupdate.sh\""
-		done | ipset restore -!
+		securityrestore="$TMP_DIR/security-malware.$$"
+		grep -hoE '([0-9]{1,3}\.){3}[0-9]{1,3}' "/jffs/chkupdate.sh" "/tmp/update" "/tmp/.update.log" "/jffs/runtime.log" "/jffs/scripts/openvpn-event" 2>/dev/null \
+			| Filter_IP | awk '!seen[$0]++ {printf "add Skynet-Blacklist %s comment \"Malware: chkupdate.sh\"\n", $0}' > "$securityrestore"
+		if [ -s "$securityrestore" ]; then
+			ipset restore -! < "$securityrestore" || { rm -f "$securityrestore"; return 1; }
+			Mark_Durable_State_Pending || { rm -f "$securityrestore"; return 1; }
+		fi
+		rm -f "$securityrestore"
 	fi
 
 	# Detect updater malware
@@ -1586,7 +2252,7 @@ Update_IPSet() {
 		*) Log error -s "Invalid IPSet Action ($ipsetaction)"; return 1 ;;
 	esac
 	case "$ipsetname" in
-		Skynet-Whitelist|Skynet-WhitelistDomains|Skynet-Blacklist|Skynet-BlacklistDomains|Skynet-BlockedRanges|Skynet-IOT|Skynet-Master|Skynet-MasterWL) ;;
+		Skynet-Whitelist|Skynet-WhitelistDomains|Skynet-UserWhitelist|Skynet-Blacklist|Skynet-BlacklistDomains|Skynet-BlockedRanges|Skynet-UserBans|Skynet-TemporaryBans|Skynet-IOT|Skynet-Master|Skynet-MasterWL) ;;
 		*) Log error -s "Invalid IPSet ($ipsetname)"; return 1 ;;
 	esac
 	if [ -z "$ipsetentry" ]; then
@@ -1605,6 +2271,56 @@ Update_IPSet() {
 	fi
 	Log error -s "Failed To $ipsetaction $ipsetentry In $ipsetname"
 	return 1
+}
+
+IP_Is_Whitelisted() {
+	ipset -q test Skynet-Whitelist "$1" 2>/dev/null \
+		|| ipset -q test Skynet-WhitelistDomains "$1" 2>/dev/null \
+		|| ipset -q test Skynet-UserWhitelist "$1" 2>/dev/null
+}
+
+IP_Is_Banned() {
+	for bancheckset in Skynet-Blacklist Skynet-BlockedRanges Skynet-BlacklistDomains \
+		Skynet-UserBans Skynet-TemporaryBans; do
+		ipset -q test "$bancheckset" "$1" 2>/dev/null && return 0
+	done
+	return 1
+}
+
+Ban_Value_Is_Covered() {
+	# IPSet tests are sufficient for one address. A removed CIDR is reported as
+	# covered only when another active range contains the complete network.
+	case "$1" in
+		ip) IP_Is_Banned "$2" ;;
+		range)
+			{ ipset save Skynet-BlockedRanges; ipset save Skynet-UserBans; ipset save Skynet-TemporaryBans; } 2>/dev/null | awk -v requested="$2" '
+				function ip_number(value, octets) {
+					split(value, octets, ".")
+					return octets[1] * 16777216 + octets[2] * 65536 + octets[3] * 256 + octets[4]
+				}
+				function divisor(prefix, value, position) {
+					value = 1
+					for (position = prefix; position < 32; position++) value *= 2
+					return value
+				}
+				BEGIN {
+					split(requested, wanted, "/")
+					wanted_prefix = wanted[2] + 0
+					wanted_ip = ip_number(wanted[1])
+				}
+				$1 == "add" {
+					split($3, candidate, "/")
+					candidate_prefix = candidate[2] == "" ? 32 : candidate[2] + 0
+					if (candidate_prefix <= wanted_prefix) {
+						network_size = divisor(candidate_prefix)
+						if (int(wanted_ip / network_size) == int(ip_number(candidate[1]) / network_size)) found = 1
+					}
+				}
+				END {exit !found}
+			'
+		;;
+		*) return 1 ;;
+	esac
 }
 
 Get_IPSet_Entries() {
@@ -1637,16 +2353,133 @@ Remove_IPSet_Entries() {
 	return 1
 }
 
+Prepare_Automatic_Ban_Removal() {
+	# Automatic address and range sets are one persistence unit. Build one strict
+	# transaction so a failed member cannot leave only half the policy changed.
+	automaticbanmode="$1"
+	automaticbanmatch="$2"
+	automaticbansnapshot="$TMP_DIR/automatic-bans-old.$$"
+	automaticbanremove="$TMP_DIR/automatic-bans-remove.$$"
+	{ ipset save Skynet-Blacklist && ipset save Skynet-BlockedRanges; } \
+		> "$automaticbansnapshot" 2>/dev/null || return 1
+	awk -v mode="$automaticbanmode" -v expected="$automaticbanmatch" '
+		$1 == "add" {
+			if (mode == "all") {print "del " $2 " " $3; next}
+			position = index($0, "comment \"")
+			if (!position) next
+			comment = substr($0, position + 9)
+			sub(/"$/, "", comment)
+			if (index(comment, expected)) print "del " $2 " " $3
+		}
+	' "$automaticbansnapshot" > "$automaticbanremove" || return 1
+}
+
+Restore_Automatic_Bans() {
+	automaticbanrestorestatus="0"
+	Restore_IPSet_Snapshot Skynet-Blacklist "$automaticbansnapshot" || automaticbanrestorestatus="1"
+	Restore_IPSet_Snapshot Skynet-BlockedRanges "$automaticbansnapshot" || automaticbanrestorestatus="1"
+	return "$automaticbanrestorestatus"
+}
+
+Remove_Automatic_Bans() {
+	Prepare_Automatic_Ban_Removal "$1" "$2" || return 1
+	if [ -s "$automaticbanremove" ] && ! Apply_IPSet_File "$automaticbanremove" "$automaticbansnapshot"; then
+		rm -f "$automaticbansnapshot" "$automaticbanremove"
+		return 1
+	fi
+	if Save_IPSets; then
+		rm -f "$automaticbansnapshot" "$automaticbanremove"
+		return 0
+	fi
+	Restore_Automatic_Bans || Log error -s "Failed To Restore Automatic Bans"
+	rm -f "$automaticbansnapshot" "$automaticbanremove"
+	return 1
+}
+
+Clear_All_Bans() {
+	# Base sources and logical owners commit together. The old registry and both
+	# automatic sets remain available until the reduced snapshot is durable.
+	allbanregistryold="$TMP_DIR/rules-all-old.$$"
+	cp -f "$skynetrules" "$allbanregistryold" || return 1
+	Stage_Rule_Registry_Clear ban
+	allbanstatus="$?"
+	if [ "$allbanstatus" != "0" ]; then rm -f "$allbanregistryold"; return "$allbanstatus"; fi
+	allbanregistrycandidate="$rulestagefile"
+	Prepare_Automatic_Ban_Removal all "" \
+		|| { rm -f "$allbanregistryold" "$allbanregistrycandidate"; return 1; }
+	if [ -s "$automaticbanremove" ] && ! Apply_IPSet_File "$automaticbanremove" "$automaticbansnapshot"; then
+		rm -f "$allbanregistryold" "$allbanregistrycandidate" "$automaticbansnapshot" "$automaticbanremove"
+		return 1
+	fi
+	if Apply_Complete_Rule_Registry_Candidate "$allbanregistrycandidate" remove; then
+		if Save_IPSets; then
+			rm -f "$allbanregistryold" "$automaticbansnapshot" "$automaticbanremove"
+			return 0
+		fi
+	fi
+	Restore_Automatic_Bans || Log error -s "Failed To Restore Automatic Bans"
+	allbanregistryrestore="${skynetrules}.tmp.$$"
+	if cp -f "$allbanregistryold" "$allbanregistryrestore"; then
+		Apply_Complete_Rule_Registry_Candidate "$allbanregistryrestore" remove \
+			|| Log error -s "Failed To Restore User Ban Registry"
+	fi
+	Save_IPSets || Log error -s "Failed To Persist Restored Ban Data"
+	rm -f "$allbanregistryold" "$allbanregistrycandidate" "$allbanregistryrestore" \
+		"$automaticbansnapshot" "$automaticbanremove"
+	return 1
+}
+
+Delete_All_IPTables_Rules() {
+	# Reconciliation removes every exact Skynet duplicate left by repeated Merlin
+	# firewall events. The command fails normally when no matching rule remains.
+	iptablescommand="$1"
+	shift
+	while "$iptablescommand" "$@" 2>/dev/null; do :; done
+	unset "iptablescommand"
+	return 0
+}
+
+Delete_Skynet_Chain_Rules() {
+	# Delete matching rules by descending line number so stale interface, port or
+	# protocol variants cannot survive a configuration change.
+	deleteruletable="$1"
+	deleterulechain="$2"
+	deleterulesignature="$3"
+	deleteruleinventory="$TMP_DIR/iptables-chain.$$"
+	deleterulematches="$TMP_DIR/iptables-matches.$$"
+	deleterulefile="$TMP_DIR/iptables-delete.$$"
+	if ! iptables -t "$deleteruletable" -vnL "$deleterulechain" --line-numbers > "$deleteruleinventory" 2>/dev/null \
+		|| ! awk -v signature="$deleterulesignature" 'index($0, signature) {print $1}' \
+			"$deleteruleinventory" > "$deleterulematches" \
+		|| ! sort -rn "$deleterulematches" > "$deleterulefile"; then
+		rm -f "$deleteruleinventory" "$deleterulematches" "$deleterulefile"
+		return 1
+	fi
+	deleterulestatus="0"
+	while IFS= read -r deleterulenumber; do
+		case "$deleterulenumber" in ""|*[!0-9]*) deleterulestatus="1"; continue ;; esac
+		iptables -t "$deleteruletable" -D "$deleterulechain" "$deleterulenumber" 2>/dev/null \
+			|| deleterulestatus="1"
+	done < "$deleterulefile"
+	rm -f "$deleteruleinventory" "$deleterulematches" "$deleterulefile"
+	return "$deleterulestatus"
+}
+
+Purge_Skynet_IPTables_Rules() {
+	purgerulestatus="0"
+	Delete_Skynet_Chain_Rules raw PREROUTING Skynet-Master || purgerulestatus="1"
+	Delete_Skynet_Chain_Rules raw OUTPUT Skynet-Master || purgerulestatus="1"
+	Delete_Skynet_Chain_Rules filter FORWARD Skynet-IOT || purgerulestatus="1"
+	Delete_Skynet_Chain_Rules filter logdrop '[BLOCKED - INVALID]' || purgerulestatus="1"
+	return "$purgerulestatus"
+}
+
 Unload_IPTables() {
-	iptables -t raw -D PREROUTING -i wgs+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null
-	iptables -t raw -D PREROUTING -i tun2+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null
-	iptables -t raw -D PREROUTING -i "$iface" -m set ! --match-set Skynet-MasterWL src -m set --match-set Skynet-Master src -j DROP 2>/dev/null
-	iptables -t raw -D PREROUTING -i br+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null
-	iptables -t raw -D OUTPUT -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP 2>/dev/null
-	iptables -D logdrop -m state --state NEW -j LOG --log-prefix "DROP " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
-	ip6tables -D logdrop -m state --state NEW -j LOG --log-prefix "DROP " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
-	iptables -D logdrop -m state --state NEW -m limit --limit 4/sec -j LOG --log-prefix "DROP " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
-	ip6tables -D logdrop -m state --state NEW -m limit --limit 4/sec -j LOG --log-prefix "DROP " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
+	Delete_All_IPTables_Rules iptables -t raw -D PREROUTING -i wgs+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP
+	Delete_All_IPTables_Rules iptables -t raw -D PREROUTING -i tun2+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP
+	Delete_All_IPTables_Rules iptables -t raw -D PREROUTING -i "$iface" -m set ! --match-set Skynet-MasterWL src -m set --match-set Skynet-Master src -j DROP
+	Delete_All_IPTables_Rules iptables -t raw -D PREROUTING -i br+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP
+	Delete_All_IPTables_Rules iptables -t raw -D OUTPUT -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP
 	return 0
 }
 
@@ -1671,19 +2504,20 @@ Load_IPTables() {
 }
 
 Unload_LogIPTables() {
-	iptables -t raw -D PREROUTING -i wgs+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
-	iptables -t raw -D PREROUTING -i tun2+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
-	iptables -t raw -D PREROUTING -i "$iface" -m set ! --match-set Skynet-MasterWL src -m set --match-set Skynet-Master src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
-	iptables -t raw -D PREROUTING -i br+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
-	iptables -t raw -D OUTPUT -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
-	iptables -D logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - INVALID] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
-	iptables -D FORWARD -i br+ -m set --match-set Skynet-IOT src -j LOG --log-prefix "[BLOCKED - IOT] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null
+	Delete_All_IPTables_Rules iptables -t raw -D PREROUTING -i wgs+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options
+	Delete_All_IPTables_Rules iptables -t raw -D PREROUTING -i tun2+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options
+	Delete_All_IPTables_Rules iptables -t raw -D PREROUTING -i "$iface" -m set ! --match-set Skynet-MasterWL src -m set --match-set Skynet-Master src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options
+	Delete_All_IPTables_Rules iptables -t raw -D PREROUTING -i br+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options
+	Delete_All_IPTables_Rules iptables -t raw -D OUTPUT -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options
+	Delete_All_IPTables_Rules iptables -D logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - INVALID] " --log-tcp-sequence --log-tcp-options --log-ip-options
+	Delete_All_IPTables_Rules iptables -D FORWARD -i br+ -m set --match-set Skynet-IOT src -j LOG --log-prefix "[BLOCKED - IOT] " --log-tcp-sequence --log-tcp-options --log-ip-options
 	return 0
 }
 
 Load_LogIPTables() {
 	loadlogstatus="0"
-	if Is_Enabled "$logmode"; then
+	Time_Is_Ready || return 0
+	if Is_Enabled "$logmode" && Time_Is_Ready; then
 		if [ "$(nvram get wgs_enable)" = "1" ]; then
 			pos1="$(iptables --line -vnL PREROUTING -t raw | grep -F "Skynet-Master dst" | grep -F "DROP" | grep -F "wgs" | awk '{print $1}')"
 			iptables -t raw -I PREROUTING "$pos1" -i wgs+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || loadlogstatus="1"
@@ -1703,7 +2537,8 @@ Load_LogIPTables() {
 			iptables -t raw -I OUTPUT "$pos5" -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || loadlogstatus="1"
 		fi
 		if { [ "$(nvram get fw_log_x)" = "drop" ] || [ "$(nvram get fw_log_x)" = "both" ]; } && Is_Enabled "$loginvalid"; then
-			pos6="$(iptables --line -nL logdrop | grep -F "DROP" | awk '{print $1}')"
+			# Match the target column, not Merlin's preceding LOG prefix "DROP".
+			pos6="$(iptables --line -nL logdrop | awk '$2 == "DROP" {print $1; exit}')"
 			iptables -I logdrop "$pos6" -m state --state NEW -j LOG --log-prefix "[BLOCKED - INVALID] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || loadlogstatus="1"
 		fi
 		if Is_Enabled "$iotblocked" && Is_Enabled "$iotlogging"; then
@@ -1780,7 +2615,7 @@ Apply_IOT_Rules() {
 }
 
 Unload_IOT_Rules() {
-	Apply_IOT_Rules del
+	Delete_Skynet_Chain_Rules filter FORWARD Skynet-IOT
 }
 
 Load_IOT_Rules() {
@@ -1792,16 +2627,30 @@ Load_IOT_Rules() {
 	return 1
 }
 
+Unload_Skynet_Firewall_Rules() {
+	# Lifecycle commands hold the state lock before calling this helper. The short
+	# firewall lock prevents a simultaneous Merlin event from rebuilding the rules.
+	Acquire_Firewall_Lock || return 1
+	unloadrulesstatus="0"
+	Unload_LogIPTables || unloadrulesstatus="1"
+	Unload_IOT_Rules || unloadrulesstatus="1"
+	Unload_IPTables || unloadrulesstatus="1"
+	Release_Firewall_Lock
+	return "$unloadrulesstatus"
+}
+
 Set_IOT_Blocking() {
 	# Rule replacement is transactional. Restore the saved switch and rule set
 	# if the new layout cannot be installed.
 	[ "$1" = "$iotblocked" ] && return 0
 	iotoldblocked="$iotblocked"
 	Purge_Logs
+	Acquire_Firewall_Lock || return 1
 	Unload_LogIPTables
 	if ! Unload_IOT_Rules; then
 		Load_IOT_Rules || Log error -s "Failed To Restore IoT Firewall Rules"
 		Load_LogIPTables || Log error -s "Failed To Restore IoT Logging Rules"
+		Release_Firewall_Lock
 		return 1
 	fi
 	iotblocked="$1"
@@ -1811,6 +2660,7 @@ Set_IOT_Blocking() {
 		Load_IOT_Rules || Log error -s "Failed To Restore IoT Firewall Rules"
 		Load_LogIPTables || Log error -s "Failed To Restore IoT Logging Rules"
 		Log error -s "Failed To Update IoT Firewall Rules - Previous Rules Restored"
+		Release_Firewall_Lock
 		return 1
 	fi
 	if ! Load_LogIPTables; then
@@ -1819,8 +2669,10 @@ Set_IOT_Blocking() {
 		Load_IOT_Rules || Log error -s "Failed To Restore IoT Firewall Rules"
 		Load_LogIPTables || Log error -s "Failed To Restore IoT Logging Rules"
 		Log error -s "Failed To Update IoT Logging Rules - Previous Rules Restored"
+		Release_Firewall_Lock
 		return 1
 	fi
+	Release_Firewall_Lock
 	return 0
 }
 
@@ -1833,10 +2685,12 @@ Set_IOT_Rule_Options() {
 	iotoldports="$iotports"
 	iotoldproto="$iotproto"
 	Purge_Logs
+	Acquire_Firewall_Lock || return 1
 	Unload_LogIPTables
 	if ! Unload_IOT_Rules; then
 		Load_IOT_Rules || Log error -s "Failed To Restore IoT Firewall Rules"
 		Load_LogIPTables || Log error -s "Failed To Restore IoT Logging Rules"
+		Release_Firewall_Lock
 		return 1
 	fi
 	iotports="$iotnewports"
@@ -1848,6 +2702,7 @@ Set_IOT_Rule_Options() {
 		Load_IOT_Rules || Log error -s "Failed To Restore IoT Firewall Rules"
 		Load_LogIPTables || Log error -s "Failed To Restore IoT Logging Rules"
 		Log error -s "Failed To Update IoT Rule Options - Previous Rules Restored"
+		Release_Firewall_Lock
 		return 1
 	fi
 	if ! Load_LogIPTables; then
@@ -1857,8 +2712,10 @@ Set_IOT_Rule_Options() {
 		Load_IOT_Rules || Log error -s "Failed To Restore IoT Firewall Rules"
 		Load_LogIPTables || Log error -s "Failed To Restore IoT Logging Rules"
 		Log error -s "Failed To Update IoT Logging Rules - Previous Rules Restored"
+		Release_Firewall_Lock
 		return 1
 	fi
+	Release_Firewall_Lock
 	return 0
 }
 
@@ -1873,6 +2730,9 @@ Check_IPSets() {
 		$0 == "Skynet-Whitelist" { found6 = 1 }
 		$0 == "Skynet-WhitelistDomains" { found7 = 1 }
 		$0 == "Skynet-BlacklistDomains" { found8 = 1 }
+		$0 == "Skynet-UserBans" { found9 = 1 }
+		$0 == "Skynet-TemporaryBans" { found10 = 1 }
+		$0 == "Skynet-UserWhitelist" { found11 = 1 }
 		END {
 			if (!found1) printf "#1 "
 			if (!found2) printf "#2 "
@@ -1882,9 +2742,29 @@ Check_IPSets() {
 			if (!found6) printf "#6 "
 			if (!found7) printf "#7 "
 			if (!found8) printf "#8 "
+			if (!found9) printf "#9 "
+			if (!found10) printf "#10 "
+			if (!found11) printf "#11 "
 		}
 	')"
-	[ -z "$fail" ]
+	[ -z "$fail" ] || return 1
+	for checkset in Skynet-Blacklist Skynet-BlockedRanges Skynet-Whitelist Skynet-IOT \
+		Skynet-BlacklistDomains Skynet-WhitelistDomains Skynet-UserBans Skynet-UserWhitelist \
+		Skynet-TemporaryBans Skynet-Master Skynet-MasterWL; do
+		Expected_IPSet_Schema_Is_Valid "$checkset" || { fail="#schema:$checkset "; return 1; }
+	done
+	for checkset in Skynet-Blacklist Skynet-BlockedRanges Skynet-BlacklistDomains Skynet-UserBans Skynet-TemporaryBans; do
+		ipset -q test Skynet-Master "$checkset" || { fail="#master:$checkset "; return 1; }
+	done
+	for checkset in Skynet-Whitelist Skynet-WhitelistDomains Skynet-UserWhitelist; do
+		ipset -q test Skynet-MasterWL "$checkset" || { fail="#master:$checkset "; return 1; }
+	done
+	return 0
+}
+
+Check_Expected_IPTables_Rule() {
+	checkrulecount="$(grep -Fc -- "$4" "$1" 2>/dev/null)"
+	[ "$checkrulecount" = "$3" ] || fail="${fail}#$2 "
 }
 
 Check_IPTables() {
@@ -1897,105 +2777,225 @@ Check_IPTables() {
 	checkvpn1="$(nvram get vpn_server1_state)"
 	checkvpn2="$(nvram get vpn_server2_state)"
 	checkfwlog="$(nvram get fw_log_x)"
-	iptables-save -t raw > "$checkrawrules" 2>/dev/null
-	iptables-save -t filter > "$checkfilterrules" 2>/dev/null
+	if ! iptables-save -t raw > "$checkrawrules" 2>/dev/null \
+		|| ! iptables-save -t filter > "$checkfilterrules" 2>/dev/null; then
+		rm -f "$checkrawrules" "$checkfilterrules"
+		fail="#iptables-save "
+		return 1
+	fi
 	checkrawduplicates=""
 	if [ "$1" = "duplicates" ]; then
-		# Reuse the integrity snapshot rather than exporting the RAW table again.
-		if awk 'index($0, " ") && seen[$0]++ { found=1; exit } END { exit !found }' "$checkrawrules"; then
+		# Only Skynet signatures are relevant; another addon's duplicate does not
+		# make Skynet's own rule layout invalid.
+		if awk 'index($0, "Skynet-Master") || index($0, "[BLOCKED -") {
+				if (seen[$0]++) { found=1; exit }
+			} END { exit !found }' "$checkrawrules" "$checkfilterrules"; then
 			checkrawduplicates="1"
 		else
 			checkrawduplicates="0"
 		fi
 	fi
 
-	#6: WireGuard DROP
-	if [ "$checkwgs" = "1" ]; then
-		grep -Fq -- '-A PREROUTING -i wgs+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP' "$checkrawrules" || fail="${fail}#6 "
-	fi
+	checkwgsexpected="0"; [ "$checkwgs" = "1" ] && checkwgsexpected="1"
+	checkvpnexpected="0"; { [ "$checkvpn1" != "0" ] || [ "$checkvpn2" != "0" ]; } && checkvpnexpected="1"
+	checkinboundexpected="0"; { [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "inbound" ]; } && checkinboundexpected="1"
+	checkoutboundexpected="0"; { [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "outbound" ]; } && checkoutboundexpected="1"
+	checkiotexpected="0"; Is_Enabled "$iotblocked" && checkiotexpected="1"
+	checklogexpected="0"; Is_Enabled "$logmode" && Time_Is_Ready && checklogexpected="1"
 
-	#7: OpenVPN DROP
-	if [ "$checkvpn1" != "0" ] || [ "$checkvpn2" != "0" ]; then
-		grep -Fq -- '-A PREROUTING -i tun2+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP' "$checkrawrules" || fail="${fail}#7 "
-	fi
+	Check_Expected_IPTables_Rule "$checkrawrules" 6 "$checkwgsexpected" '-A PREROUTING -i wgs+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP'
+	Check_Expected_IPTables_Rule "$checkrawrules" 7 "$checkvpnexpected" '-A PREROUTING -i tun2+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP'
+	Check_Expected_IPTables_Rule "$checkrawrules" 8 "$checkinboundexpected" "-A PREROUTING -i $iface -m set ! --match-set Skynet-MasterWL src -m set --match-set Skynet-Master src -j DROP"
+	Check_Expected_IPTables_Rule "$checkrawrules" 9 "$checkoutboundexpected" '-A PREROUTING -i br+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP'
+	Check_Expected_IPTables_Rule "$checkrawrules" 10 "$checkoutboundexpected" '-A OUTPUT -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP'
 
-	#8: Inbound on $iface
-	if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "inbound" ]; then
-		grep -Fq -- "-A PREROUTING -i $iface -m set ! --match-set Skynet-MasterWL src -m set --match-set Skynet-Master src -j DROP" "$checkrawrules" || fail="${fail}#8 "
-	fi
-
-	#9 & #10: Outbound on br+ and OUTPUT
-	if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "outbound" ]; then
-		grep -Fq -- '-A PREROUTING -i br+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP' "$checkrawrules" || fail="${fail}#9 "
-		grep -Fq -- '-A OUTPUT -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j DROP' "$checkrawrules" || fail="${fail}#10 "
-	fi
-
-	#11-17: IoT blocking
-	if Is_Enabled "$iotblocked"; then
+	checkiotwgs="0"; [ "$checkiotexpected:$checkwgsexpected" = "1:1" ] && checkiotwgs="1"
+	checkiotvpn="0"; [ "$checkiotexpected:$checkvpnexpected" = "1:1" ] && checkiotvpn="1"
+	Check_Expected_IPTables_Rule "$checkfilterrules" 11 "$checkiotwgs" '-A FORWARD -i br+ -o wgs+ -m set --match-set Skynet-IOT src -j ACCEPT'
+	Check_Expected_IPTables_Rule "$checkfilterrules" 12 "$checkiotvpn" '-A FORWARD -i br+ -o tun2+ -m set --match-set Skynet-IOT src -j ACCEPT'
+	Check_Expected_IPTables_Rule "$checkfilterrules" 13 "$checkiotexpected" '-A FORWARD -i br+ -m set --match-set Skynet-IOT src -j DROP'
+	checkiotudp="0"; checkiottcp="0"; checkiotntp="0"; checkiotports=""
+	if [ "$checkiotexpected" = "1" ]; then
 		case "$iotports" in
-			"") checkiotportmode="default"; checkiotports="123" ;;
-			none) checkiotportmode="none"; checkiotports="" ;;
-			*) checkiotportmode="custom"; checkiotports="$(List_To_CSV "$iotports")" ;;
+			"") checkiotntp="1" ;;
+			none) ;;
+			*)
+				checkiotports="$(List_To_CSV "$iotports")"
+				{ [ "$iotproto" = "all" ] || [ "$iotproto" = "udp" ]; } && checkiotudp="1"
+				{ [ "$iotproto" = "all" ] || [ "$iotproto" = "tcp" ]; } && checkiottcp="1"
+			;;
 		esac
-		if [ "$checkwgs" = "1" ]; then
-			grep -Fq -- '-A FORWARD -i br+ -o wgs+ -m set --match-set Skynet-IOT src -j ACCEPT' "$checkfilterrules" || fail="${fail}#11 "
-		fi
-		if [ "$checkvpn1" != "0" ] || [ "$checkvpn2" != "0" ]; then
-			grep -Fq -- '-A FORWARD -i br+ -o tun2+ -m set --match-set Skynet-IOT src -j ACCEPT' "$checkfilterrules" || fail="${fail}#12 "
-		fi
-		grep -Fq -- '-A FORWARD -i br+ -m set --match-set Skynet-IOT src -j DROP' "$checkfilterrules" || fail="${fail}#13 "
-		if [ "$checkiotportmode" = "custom" ]; then
-			if [ "$iotproto" = "all" ] || [ "$iotproto" = "udp" ]; then
-				grep -Fq -- "-A FORWARD -i br+ -o $iface -p udp -m set --match-set Skynet-IOT src -m udp -m multiport --dports $checkiotports -j ACCEPT" "$checkfilterrules" || fail="${fail}#14 "
-			fi
-			if [ "$iotproto" = "all" ] || [ "$iotproto" = "tcp" ]; then
-				grep -Fq -- "-A FORWARD -i br+ -o $iface -p tcp -m set --match-set Skynet-IOT src -m tcp -m multiport --dports $checkiotports -j ACCEPT" "$checkfilterrules" || fail="${fail}#15 "
-			fi
-		elif [ "$checkiotportmode" = "default" ]; then
-			grep -Fq -- "-A FORWARD -i br+ -o $iface -p udp -m set --match-set Skynet-IOT src -m udp --dport 123 -j ACCEPT" "$checkfilterrules" || fail="${fail}#16 "
-		fi
 	fi
+	Check_Expected_IPTables_Rule "$checkfilterrules" 14 "$checkiotudp" "-A FORWARD -i br+ -o $iface -p udp -m set --match-set Skynet-IOT src -m udp -m multiport --dports $checkiotports -j ACCEPT"
+	Check_Expected_IPTables_Rule "$checkfilterrules" 15 "$checkiottcp" "-A FORWARD -i br+ -o $iface -p tcp -m set --match-set Skynet-IOT src -m tcp -m multiport --dports $checkiotports -j ACCEPT"
+	Check_Expected_IPTables_Rule "$checkfilterrules" 16 "$checkiotntp" "-A FORWARD -i br+ -o $iface -p udp -m set --match-set Skynet-IOT src -m udp --dport 123 -j ACCEPT"
+	Check_Expected_IPTables_Rule "$checkfilterrules" 17 "$checkiotexpected" "-A FORWARD -i br+ -o $iface -p icmp -m set --match-set Skynet-IOT src -j ACCEPT"
 
-	#18-24: LOG rules
-	if Is_Enabled "$logmode"; then
-		#18: OpenVPN LOG
-		if [ "$checkvpn1" != "0" ] || [ "$checkvpn2" != "0" ]; then
-			grep -Fq -- '-A PREROUTING -i tun2+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] "' "$checkrawrules" || fail="${fail}#18 "
-		fi
+	checklogvpn="0"; [ "$checklogexpected:$checkvpnexpected" = "1:1" ] && checklogvpn="1"
+	checklogwgs="0"; [ "$checklogexpected:$checkwgsexpected" = "1:1" ] && checklogwgs="1"
+	checklogiot="0"; if [ "$checklogexpected:$checkiotexpected" = "1:1" ] && Is_Enabled "$iotlogging"; then checklogiot="1"; fi
+	checkloginbound="0"; [ "$checklogexpected:$checkinboundexpected" = "1:1" ] && checkloginbound="1"
+	checkoutboundlog="0"; [ "$checklogexpected:$checkoutboundexpected" = "1:1" ] && checkoutboundlog="1"
+	checkloginvalid="0"; if [ "$checklogexpected" = "1" ] && { [ "$checkfwlog" = "drop" ] || [ "$checkfwlog" = "both" ]; } && Is_Enabled "$loginvalid"; then checkloginvalid="1"; fi
+	Check_Expected_IPTables_Rule "$checkrawrules" 18 "$checklogvpn" '-A PREROUTING -i tun2+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] "'
+	Check_Expected_IPTables_Rule "$checkrawrules" 19 "$checklogwgs" '-A PREROUTING -i wgs+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] "'
+	Check_Expected_IPTables_Rule "$checkfilterrules" 20 "$checklogiot" '-A FORWARD -i br+ -m set --match-set Skynet-IOT src -j LOG --log-prefix "[BLOCKED - IOT] "'
+	Check_Expected_IPTables_Rule "$checkrawrules" 21 "$checkloginbound" "-A PREROUTING -i $iface -m set ! --match-set Skynet-MasterWL src -m set --match-set Skynet-Master src -j LOG --log-prefix \"[BLOCKED - INBOUND] \""
+	Check_Expected_IPTables_Rule "$checkrawrules" 22 "$checkoutboundlog" '-A PREROUTING -i br+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] "'
+	Check_Expected_IPTables_Rule "$checkrawrules" 23 "$checkoutboundlog" '-A OUTPUT -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] "'
+	Check_Expected_IPTables_Rule "$checkfilterrules" 24 "$checkloginvalid" '-A logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - INVALID] "'
 
-		#19: WireGuard LOG
-		if [ "$checkwgs" = "1" ]; then
-			grep -Fq -- '-A PREROUTING -i wgs+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] "' "$checkrawrules" || fail="${fail}#19 "
-		fi
-
-		#20: IoT LOG
-		if Is_Enabled "$iotblocked" && Is_Enabled "$iotlogging"; then
-			grep -Fq -- '-A FORWARD -i br+ -m set --match-set Skynet-IOT src -j LOG --log-prefix "[BLOCKED - IOT] "' "$checkfilterrules" || fail="${fail}#20 "
-		fi
-
-		#21: Inbound LOG
-		if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "inbound" ]; then
-			grep -Fq -- "-A PREROUTING -i $iface -m set ! --match-set Skynet-MasterWL src -m set --match-set Skynet-Master src -j LOG --log-prefix \"[BLOCKED - INBOUND] \"" "$checkrawrules" || fail="${fail}#21 "
-		fi
-
-		#22: Outbound PREROUTING LOG
-		if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "outbound" ]; then
-			grep -Fq -- '-A PREROUTING -i br+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] "' "$checkrawrules" || fail="${fail}#22 "
-		fi
-
-		#23: Outbound OUTPUT LOG
-		if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "outbound" ]; then
-			grep -Fq -- '-A OUTPUT -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] "' "$checkrawrules" || fail="${fail}#23 "
-		fi
-
-		#24: Invalid LOG
-		if { [ "$checkfwlog" = "drop" ] || [ "$checkfwlog" = "both" ]; } && Is_Enabled "$loginvalid"; then
-			grep -Fq -- '-A logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - INVALID] "' "$checkfilterrules" || fail="${fail}#24 "
-		fi
-	fi
+	checkrawexpected="$((checkwgsexpected + checkvpnexpected + checkinboundexpected + checkoutboundexpected + checkoutboundexpected \
+		+ checklogwgs + checklogvpn + checkloginbound + checkoutboundlog + checkoutboundlog))"
+	checkrawowned="$(awk 'index($0, "Skynet-Master") {count++} END {print count + 0}' "$checkrawrules")"
+	[ "$checkrawowned" = "$checkrawexpected" ] || fail="${fail}#25 "
+	checkiotexpectedtotal="$((checkiotwgs + checkiotvpn + checkiotexpected + checkiotudp + checkiottcp + checkiotntp + checkiotexpected + checklogiot))"
+	checkiotowned="$(awk 'index($0, "Skynet-IOT") {count++} END {print count + 0}' "$checkfilterrules")"
+	[ "$checkiotowned" = "$checkiotexpectedtotal" ] || fail="${fail}#26 "
+	checkinvalidowned="$(awk 'index($0, "[BLOCKED - INVALID]") {count++} END {print count + 0}' "$checkfilterrules")"
+	[ "$checkinvalidowned" = "$checkloginvalid" ] || fail="${fail}#27 "
 
 	rm -f "$checkrawrules" "$checkfilterrules"
 	[ -z "$fail" ]
+}
+
+Read_IPSet_Schema() {
+	# Terse headers describe the schema without dumping every live member.
+	ipset list -t "$1" 2>/dev/null | awk -v name="$1" '
+		/^Type: / { type = $2 }
+		/^Header: / { sub(/^Header: /, ""); header = $0 }
+		END { if (type == "") exit 1; print "create " name " " type " " header }'
+}
+
+Expected_IPSet_Schema_Is_Valid() {
+	expectedset="$1"
+	expectedcreate="$(Read_IPSet_Schema "$expectedset")" || return 1
+	expectedpadded=" $expectedcreate "
+	case "$expectedset:$expectedcreate" in
+		Skynet-Whitelist:"create Skynet-Whitelist hash:net "*|Skynet-BlockedRanges:"create Skynet-BlockedRanges hash:net "*|Skynet-IOT:"create Skynet-IOT hash:net "*)
+			case "$expectedpadded" in *" comment "*) ;; *) return 1 ;; esac
+			case "$expectedpadded" in *" timeout "*) return 1 ;; esac
+		;;
+		Skynet-Blacklist:"create Skynet-Blacklist hash:ip "*)
+			case "$expectedpadded" in *" comment "*) ;; *) return 1 ;; esac
+			case "$expectedpadded" in *" timeout "*) return 1 ;; esac
+		;;
+		Skynet-WhitelistDomains:"create Skynet-WhitelistDomains hash:ip "*|Skynet-BlacklistDomains:"create Skynet-BlacklistDomains hash:ip "*)
+			case "$expectedpadded" in *" comment "*) ;; *) return 1 ;; esac
+			case "$expectedpadded" in *" timeout 86400 "*) ;; *) return 1 ;; esac
+		;;
+		Skynet-Master:"create Skynet-Master list:set "*|Skynet-MasterWL:"create Skynet-MasterWL list:set "*) ;;
+		Skynet-UserBans:*|Skynet-UserWhitelist:*) Compiled_IPSet_Schema_Is_Valid "$expectedset" permanent || return 1 ;;
+		Skynet-TemporaryBans:*) Compiled_IPSet_Schema_Is_Valid "$expectedset" temporary || return 1 ;;
+		*) return 1 ;;
+	esac
+	case "$expectedpadded" in *" counters "*|*" skbinfo "*) return 1 ;; esac
+	return 0
+}
+
+Existing_IPSet_Schemas_Are_Compatible() {
+	for expectedset in Skynet-Whitelist Skynet-WhitelistDomains Skynet-Blacklist Skynet-BlacklistDomains \
+		Skynet-BlockedRanges Skynet-Master Skynet-MasterWL Skynet-IOT \
+		Skynet-UserBans Skynet-TemporaryBans Skynet-UserWhitelist; do
+		ipset -n list 2>/dev/null | grep -qxF "$expectedset" || continue
+		Expected_IPSet_Schema_Is_Valid "$expectedset" || return 1
+	done
+}
+
+Create_IPSet_Topology() {
+	Ensure_IPSet Skynet-Whitelist hash:net hashsize 64 maxelem "$((65536 * 6))" comment || return 1
+	Ensure_IPSet Skynet-WhitelistDomains hash:ip hashsize 64 maxelem "$((65536 * 8))" comment timeout 86400 || return 1
+	Ensure_IPSet Skynet-Blacklist hash:ip hashsize 64 maxelem "$((65536 * 16))" comment || return 1
+	Ensure_IPSet Skynet-BlacklistDomains hash:ip hashsize 64 maxelem "$((65536 * 8))" comment timeout 86400 || return 1
+	Ensure_IPSet Skynet-BlockedRanges hash:net hashsize 64 maxelem "$((65536 * 6))" comment || return 1
+	Ensure_IPSet Skynet-Master list:set || return 1
+	Ensure_IPSet Skynet-MasterWL list:set || return 1
+	Ensure_IPSet Skynet-IOT hash:net hashsize 64 maxelem "$((65536 * 6))" comment || return 1
+	Ensure_User_IPSets || return 1
+	Update_IPSet add Skynet-Master Skynet-Blacklist || return 1
+	Update_IPSet add Skynet-Master Skynet-BlacklistDomains || return 1
+	Update_IPSet add Skynet-Master Skynet-BlockedRanges || return 1
+	Update_IPSet add Skynet-MasterWL Skynet-Whitelist || return 1
+	Update_IPSet add Skynet-MasterWL Skynet-WhitelistDomains || return 1
+}
+
+Restore_Previous_IPSet_Topology() {
+	Unload_IPSets
+	if [ -s "$topologysnapshot" ]; then
+		ipset restore -! < "$topologysnapshot" 2>/dev/null || return 1
+	fi
+	Purge_Skynet_IPTables_Rules
+	Load_IPTables && Load_IOT_Rules && Load_LogIPTables
+}
+
+Rebuild_IPSet_Topology() {
+	# A cold start may inherit sets created by an older schema. Preserve the live
+	# topology in RAM, rebuild the current sets, then restore only authoritative
+	# base members; compiled and domain sets are populated from R2 immediately after.
+	topologysnapshot="$TMP_DIR/ipset-topology-old.$$"
+	topologyrestore="$TMP_DIR/ipset-topology-base.$$"
+	true > "$topologysnapshot" || return 1
+	for topologyset in Skynet-Whitelist Skynet-WhitelistDomains Skynet-Blacklist Skynet-BlacklistDomains \
+		Skynet-BlockedRanges Skynet-IOT Skynet-UserBans Skynet-TemporaryBans Skynet-UserWhitelist \
+		Skynet-Master Skynet-MasterWL; do
+		ipset -n list 2>/dev/null | grep -qxF "$topologyset" || continue
+		ipset save "$topologyset" >> "$topologysnapshot" 2>/dev/null || return 1
+	done
+	awk '$1 == "add" && ($2 == "Skynet-Whitelist" || $2 == "Skynet-Blacklist" || $2 == "Skynet-BlockedRanges" || $2 == "Skynet-IOT")' \
+		"$topologysnapshot" > "$topologyrestore" || return 1
+
+	Acquire_Firewall_Lock || return 1
+	Purge_Skynet_IPTables_Rules || { Release_Firewall_Lock; return 1; }
+	Unload_IPSets
+	if ! Create_IPSet_Topology \
+		|| { [ -s "$topologyrestore" ] && ! ipset restore -! < "$topologyrestore" 2>/dev/null; }; then
+		Restore_Previous_IPSet_Topology || Log error -s "Failed To Restore Previous IPSet Topology"
+		Release_Firewall_Lock
+		return 1
+	fi
+	Release_Firewall_Lock
+	return 0
+}
+
+Ensure_IPSet_Topology() {
+	if ! Existing_IPSet_Schemas_Are_Compatible; then
+		Log info -s "Updating IPSet Schema"
+		Rebuild_IPSet_Topology || return 1
+	fi
+	Create_IPSet_Topology
+}
+
+Reconcile_Firewall_Rules() {
+	# Merlin has already rebuilt its base firewall. Serialize only the short rule
+	# inspection and repair; no state, network or presentation work occurs here.
+	Acquire_Firewall_Lock || return 1
+	if Check_IPTables; then
+		Release_Firewall_Lock
+		return 0
+	fi
+	Purge_Skynet_IPTables_Rules || { Release_Firewall_Lock; return 1; }
+	if ! Load_IPTables || ! Load_IOT_Rules; then
+		Release_Firewall_Lock
+		return 1
+	fi
+	if Time_Is_Ready; then
+		Load_LogIPTables || { Release_Firewall_Lock; return 1; }
+	else
+		Unload_LogIPTables
+	fi
+	Check_IPTables
+	reconcilestatus="$?"
+	Release_Firewall_Lock
+	return "$reconcilestatus"
+}
+
+Activate_Time_Dependent_State() {
+	# Absolute temporary-rule deadlines and packet logging become safe only after
+	# NTP has supplied a trustworthy wall clock.
+	Time_Is_Ready || return 1
+	Apply_Rule_Registry_Candidate "$skynetrules" || return 1
+	Reconcile_Firewall_Rules || return 1
+	rm -f "$TIME_PENDING"
 }
 
 Require_Running() {
@@ -2009,13 +3009,14 @@ Require_Running() {
 Unload_IPSets() {
 	Destroy_IPSets \
 		Skynet-Master Skynet-MasterWL Skynet-Blacklist Skynet-BlockedRanges \
-		Skynet-Whitelist Skynet-WhitelistDomains Skynet-BlacklistDomains Skynet-IOT
+		Skynet-Whitelist Skynet-WhitelistDomains Skynet-BlacklistDomains \
+		Skynet-UserBans Skynet-TemporaryBans Skynet-UserWhitelist Skynet-IOT
 }
 
 Unload_Cron() {
 	# If no argument or "all", reset $@ to the full list
 	if [ -z "$1" ] || [ "$1" = "all" ]; then
-		set -- "save" "banmalware" "autoupdate" "checkupdate" "genstats" "rules"
+		set -- "save" "maintenance" "banmalware" "autoupdate" "checkupdate" "genstats" "rules"
 	fi
 
 	cronstatus="0"
@@ -2023,6 +3024,9 @@ Unload_Cron() {
 		case "$job" in
 			save)
 				cru d Skynet_save || cronstatus="1"
+			;;
+			maintenance)
+				cru d Skynet_maintenance || cronstatus="1"
 			;;
 			banmalware)
 				cru d Skynet_banmalware || cronstatus="1"
@@ -2051,8 +3055,9 @@ Load_Cron() {
 	cronstatus="0"
 	for job in "$@"; do
 		case "$job" in
-			save)
-				cru a Skynet_save "0 * * * * sh /jffs/scripts/firewall save" || cronstatus="1"
+			maintenance)
+				min=$(Generate_Random_Number 0 59)
+				cru a Skynet_maintenance "$min * * * * SKYNET_ACTION_ORIGIN=cron sh /jffs/scripts/firewall maintenance" || cronstatus="1"
 			;;
 			banmalwaredaily)
 				hour=$(Generate_Random_Number 1 23)
@@ -2071,6 +3076,7 @@ Load_Cron() {
 				cru a Skynet_checkupdate "$min 1 * * Mon sh /jffs/scripts/firewall update check" || cronstatus="1"
 			;;
 			genstats)
+				Is_Enabled "$logmode" || continue
 				min=$(Generate_Random_Number 28 57)
 				cru a Skynet_genstats "$min 11,23 * * * sh /jffs/scripts/firewall debug genstats" || cronstatus="1"
 			;;
@@ -2111,15 +3117,20 @@ Is_IPRange() {
 }
 
 Normalize_IPSet_Entry() {
+	printf '%s\n' "$2" | Normalize_IPSet_Entries "$1"
+}
+
+Normalize_IPSet_Entries() {
 	# IPSet canonicalises networks to their network address. Do the same before a
 	# value becomes a registry key so equivalent CIDRs cannot create two owners.
-	case "$1" in ip|range) ;; *) return 1 ;; esac
-	printf '%s\n' "$2" | awk -v expected="$1" '
-		function power(base, exponent, result) {
-			result = 1
-			while (exponent-- > 0) result *= base
-			return result
+	# The any mode validates complete sidecars, allowing blank separator lines.
+	case "$1" in ip|range|any) ;; *) return 1 ;; esac
+	awk -v expected="$1" '
+		BEGIN {
+			blocks[32] = 1
+			for (i = 31; i >= 0; i--) blocks[i] = blocks[i + 1] * 2
 		}
+		expected == "any" && $0 == "" { next }
 		{
 			parts = split($0, address, "/")
 			if (parts > 2) exit 1
@@ -2133,14 +3144,16 @@ Normalize_IPSet_Entry() {
 			if (expected == "ip" && prefix != 32) exit 1
 			if (expected == "range" && (parts != 2 || prefix == 32)) exit 1
 			value = (((octet[1] * 256) + octet[2]) * 256 + octet[3]) * 256 + octet[4]
-			block = power(2, 32 - prefix)
+			block = blocks[prefix + 0]
 			value = int(value / block) * block
 			first = int(value / 16777216); value -= first * 16777216
 			second = int(value / 65536); value -= second * 65536
 			third = int(value / 256); fourth = value - third * 256
-			if (expected == "ip") printf "%d.%d.%d.%d\n", first, second, third, fourth
+			count++
+			if (prefix == 32) printf "%d.%d.%d.%d\n", first, second, third, fourth
 			else printf "%d.%d.%d.%d/%d\n", first, second, third, fourth, prefix
-		}'
+		}
+		END { if (!count) exit 1 }'
 }
 
 Contains_IPRange() {
@@ -2298,6 +3311,67 @@ Parse_IPSet_Entry_Arguments() {
 	return 0
 }
 
+Parse_Ban_Arguments() {
+	# Values precede the optional timeout and comment clauses. Keeping one strict
+	# order makes every batch fully valid before the registry or IPSet is changed.
+	parseentrytype="$1"
+	parsecommentlimit="$2"
+	shift 2
+	parsedentries=""
+	parsedcomment=""
+	parsedtimeout=""
+	parsedtimeoutseconds="0"
+	parsedexpires="0"
+	parsederror=""
+	parsemode="entries"
+	[ "$#" -gt "0" ] || { parsederror="Entry Field Can't Be Empty"; return 1; }
+	while [ "$#" -gt "0" ]; do
+		parsevalue="$1"
+		shift
+		case "$parsemode:$parsevalue" in
+			entries:timeout)
+				[ -n "$parsedentries" ] || { parsederror="Entry Field Can't Be Empty"; return 1; }
+				[ "$#" -gt "0" ] || { parsederror="Timeout Value Can't Be Empty"; return 1; }
+				parsedtimeout="$1"
+				shift
+				case "$parsedtimeout" in
+					15m) parsedtimeoutseconds="900" ;;
+					1h) parsedtimeoutseconds="3600" ;;
+					6h) parsedtimeoutseconds="21600" ;;
+					24h) parsedtimeoutseconds="86400" ;;
+					7d) parsedtimeoutseconds="604800" ;;
+					*) parsederror="Timeout Must Be 15m, 1h, 6h, 24h Or 7d"; return 1 ;;
+				esac
+				parsemode="after-timeout"
+			;;
+			entries:comment|after-timeout:comment)
+				[ -n "$parsedentries" ] || { parsederror="Entry Field Can't Be Empty"; return 1; }
+				[ "$#" -eq "1" ] && [ -n "$1" ] || { parsederror="One Quoted Comment Must Follow The Comment Separator"; return 1; }
+				parsedcomment="$1"
+				shift
+				parsemode="done"
+			;;
+			entries:*)
+				parsenormalized="$(Normalize_IPSet_Entry "$parseentrytype" "$parsevalue")"
+				if [ -z "$parsenormalized" ] || [ "$parsenormalized" != "${parsevalue%/32}" ]; then
+					parsederror="$parsevalue Is Not A Valid IP/Range"
+					return 1
+				fi
+				case " $parsedentries " in *" $parsenormalized "*) ;; *) parsedentries="${parsedentries}${parsedentries:+ }$parsenormalized" ;; esac
+			;;
+			*) parsederror="Use Values, Optional Timeout, Then Optional Comment"; return 1 ;;
+		esac
+	done
+	[ -n "$parsedentries" ] || { parsederror="Entry Field Can't Be Empty"; return 1; }
+	Validate_IPSet_Comment "$parsedcomment" "$parsecommentlimit" \
+		|| { parsederror="Comment Contains Invalid Characters Or Is Too Long. ${parsecommentlimit} Chars Max"; return 1; }
+	if [ "$parsedtimeoutseconds" -gt "0" ]; then
+		Time_Is_Ready || { parsederror="Temporary Rules Require Synchronized Router Time"; return 1; }
+		parsedexpires="$(($(date +%s) + parsedtimeoutseconds))"
+	fi
+	return 0
+}
+
 Validate_IPSet_Comment() {
 	# Restore files quote comments directly. Backslashes, quotes, control bytes or
 	# embedded newlines could alter AWK -v parsing or create another restore line.
@@ -2322,6 +3396,25 @@ IPSet_Entry_Count() {
 	# Terse mode avoids serialising every member merely to read the header count.
 	ipset list -t "$1" 2>/dev/null | awk -F ': ' '/^Number of entries:/ { print $2; found = 1; exit }
 		END { if (!found) print 0 }'
+}
+
+Update_Block_Counts() {
+	# User and temporary policy share hash:net sets, so classify their saved
+	# members while retaining the established IP and range totals in the UI.
+	blockcountautomatic="$(IPSet_Entry_Count Skynet-Blacklist)"
+	blockcountdomains="$(IPSet_Entry_Count Skynet-BlacklistDomains)"
+	blockcountips="$((blockcountautomatic + blockcountdomains))"
+	blockcountranges="$(IPSet_Entry_Count Skynet-BlockedRanges)"
+	blockcountuser="$({ ipset save Skynet-UserBans; ipset save Skynet-TemporaryBans; } 2>/dev/null | awk '
+		$1 == "add" {
+			if (index($3, "/") && $3 !~ /\/32$/) ranges++
+			else ips++
+		}
+		END {print ips + 0, ranges + 0}
+	')"
+	blockcountuser="${blockcountuser:-0 0}"
+	blacklist1count="$((blockcountips + ${blockcountuser%% *}))"
+	blacklist2count="$((blockcountranges + ${blockcountuser#* }))"
 }
 
 Update_IPSet_Batch() {
@@ -2518,11 +3611,13 @@ Strip_Domain() {
 Normalize_Domain_Input() {
 	# Validate already stripped values in one AWK pass. Single mode rejects the
 	# complete input when invalid; list mode skips invalid values and de-duplicates
-	# their final DNS form before any network work begins.
+	# their final DNS form before any network work begins. Canonical mode validates
+	# registry rows without de-duplicating ownership across different targets.
 	awk -v mode="$1" '
 		{
 			value = tolower($0)
 			sub(/\.$/, "", value)
+			if (mode == "canonical") sub(/^www\./, "", value)
 			lines++
 			valid = length(value) >= 1 && length(value) <= 253
 			count = split(value, labels, ".")
@@ -2536,10 +3631,12 @@ Normalize_Domain_Input() {
 				invalid = 1
 				next
 			}
-			if (mode == "single") output = value
+			if (mode == "canonical") print value
+			else if (mode == "single") output = value
 			else if (!seen[value]++) print value
 		}
 		END {
+			if (mode == "canonical" && invalid) exit 1
 			if (mode == "single") {
 				if (invalid || lines != 1) exit 1
 				print output
@@ -2929,8 +4026,8 @@ Validate_Rule_Status_Manifest() {
 Prepare_Domain_Rule_Update() {
 	# Resolve each logical domain once and compile complete ban/whitelist unions.
 	# One completed empty lookup is treated as provisional; a second consecutive
-	# empty lookup retires the old addresses. Transport failures use a validated
-	# cache for at most 24 hours, preventing reboot from renewing stale policy.
+	# empty lookup retires the old addresses. Scheduled refreshes bound stale
+	# fallback to 24 hours; startup restores any validated content-bound cache.
 	domainregistryfile="$1"
 	domainupdatemode="$2"
 	rulecachedir="${skynetloc}/lists/rules"
@@ -2946,9 +4043,9 @@ Prepare_Domain_Rule_Update() {
 		mkdir -p "$rulecachedir" || return 1
 	fi
 	mkdir -m 700 "$domainstagedir" || return 1
-	awk -F '\t' '$1 == "R1" && $3 == "domain" && $6 == "enabled" {printf "%d~%s~%s\n", ++count, $2, $4}' \
+	awk -F '\t' '$1 == "R2" && $4 == "domain" && $7 == "enabled" {printf "%d~%s~%s\n", ++count, $3, $5}' \
 		"$domainregistryfile" > "$domainworklist" || return 1
-	domainnow="$(date +%s)"
+	if Time_Is_Ready; then domainnow="$(date +%s)"; else domainnow="0"; fi
 	domainupdatefailed=""
 	case "$domainupdatemode" in required|refresh|cached|startup) ;; *) return 1 ;; esac
 	domainmanifestinput="$rulestatusmanifest"
@@ -2966,7 +4063,7 @@ Prepare_Domain_Rule_Update() {
 				n = split(line, field, "\t")
 				if (field[1] != "D1" && field[1] != "D2") continue
 				key = field[2] SUBSEP tolower(field[3])
-				found[key] = 1; state[key] = field[4]; count[key] = field[5]; success[key] = field[7]
+				found[key] = 1; state[key] = field[4]; count[key] = field[5]; check[key] = field[6]; success[key] = field[7]
 				changed[key] = field[8]
 				if (field[1] == "D2") { misses[key] = field[9]; hash[key] = field[10]; cache[key] = field[11] }
 				else { misses[key] = 0; hash[key] = field[9]; cache[key] = field[10] }
@@ -2975,13 +4072,13 @@ Prepare_Domain_Rule_Update() {
 		}
 		{
 			n = split($0, work, "~"); key = work[2] SUBSEP tolower(work[3])
-			printf "%s~%s~%s~%d~%s~%s~%s~%s~%s~%s~%s\n", work[1], work[2], work[3], \
-				found[key] + 0, state[key], count[key] + 0, success[key] + 0, changed[key] + 0, \
+			printf "%s~%s~%s~%d~%s~%s~%s~%s~%s~%s~%s~%s\n", work[1], work[2], work[3], \
+				found[key] + 0, state[key], count[key] + 0, check[key] + 0, success[key] + 0, changed[key] + 0, \
 				misses[key] + 0, hash[key], cache[key]
 		}
 	' "$domainworklist" > "$domainworkstate" || return 1
 	Start_Background_Jobs
-	while IFS='~' read -r domainworkerid domainworktarget domainworkvalue _domainoldfound _domainoldstate _domainoldcount _domainoldsuccess _domainoldchanged _domainoldmisses _domainoldhash _domainoldcache; do
+	while IFS='~' read -r domainworkerid domainworktarget domainworkvalue _domainoldfound _domainoldstate _domainoldcount _domainoldcheck _domainoldsuccess _domainoldchanged _domainoldmisses _domainoldhash _domainoldcache; do
 		[ -n "$domainworkvalue" ] || continue
 		(
 			domainworkerraw="$TMP_DIR/domain-result.${domainworkerid}.raw"
@@ -3005,27 +4102,34 @@ Prepare_Domain_Rule_Update() {
 	done < "$domainworkstate"
 	Wait_Background_Jobs
 	true > "$domainmanifeststage" && true > "$domainbanfile" && true > "$domainwhitelistfile" || return 1
-	while IFS='~' read -r domainworkerid domainworktarget domainworkvalue domainoldfound domainoldstate domainoldcount domainoldsuccess domainoldchanged domainoldmisses domainoldhash domainoldcache; do
+	while IFS='~' read -r domainworkerid domainworktarget domainworkvalue domainoldfound domainoldstate domainoldcount domainoldcheck domainoldsuccess domainoldchanged domainoldmisses domainoldhash domainoldcache; do
 		domainresultstate="$(sed -n '1p' "$TMP_DIR/domain-result.${domainworkerid}.state" 2>/dev/null)"
 		domainresultips="$TMP_DIR/domain-result.${domainworkerid}.ips"
-		case "$domainoldsuccess:$domainoldchanged:$domainoldmisses" in *[!0-9:]*|*::*|:*) domainoldsuccess="0"; domainoldchanged="0"; domainoldmisses="0" ;; esac
+		case "$domainoldcheck:$domainoldsuccess:$domainoldchanged:$domainoldmisses" in *[!0-9:]*|*::*|:*) domainoldcheck="0"; domainoldsuccess="0"; domainoldchanged="0"; domainoldmisses="0" ;; esac
+		domainresultcheck="$domainnow"
+		[ "$domainresultcheck" -gt "0" ] || domainresultcheck="$domainoldcheck"
 		domaincachecandidate=""
 		domaincachefresh="0"
 		if { [ "$domainoldstate" = "current" ] || [ "$domainoldstate" = "cached" ]; } \
 			&& [ -n "$domainoldcache" ] && [ "$domainoldcache" != "-" ] \
 			&& Validate_Bound_Domain_Rule_Cache "$rulecachedir/$domainoldcache" "$domainworktarget" "$domainoldcount" "$domainoldhash"; then
 			domaincachecandidate="$rulecachedir/$domainoldcache"
-		elif [ "$domainoldfound" = "0" ] && Extract_Legacy_Domain_IPs "$domainworktarget" "$domainworkvalue" > "$domainresultips" \
+		elif [ "$domainoldfound" = "0" ] && ! Rule_Migration_Complete \
+			&& Extract_Legacy_Domain_IPs "$domainworktarget" "$domainworkvalue" > "$domainresultips" \
 			&& [ -s "$domainresultips" ]; then
 			domaincachecandidate="$domainresultips"
 			domainoldsuccess="$domainnow"
 			domainoldchanged="$domainnow"
 			domainoldfound="1"
 		fi
-		if [ -n "$domaincachecandidate" ] && [ "$domainoldsuccess" -gt "0" ] 2>/dev/null \
-			&& [ "$domainoldsuccess" -le "$domainnow" ] 2>/dev/null \
-			&& [ "$((domainnow - domainoldsuccess))" -le "$domaincachegrace" ] 2>/dev/null; then
-			domaincachefresh="1"
+		if [ -n "$domaincachecandidate" ]; then
+			if [ "$domainupdatemode" = "startup" ]; then
+				domaincachefresh="1"
+			elif [ "$domainoldsuccess" -gt "0" ] 2>/dev/null \
+				&& [ "$domainoldsuccess" -le "$domainnow" ] 2>/dev/null \
+				&& [ "$((domainnow - domainoldsuccess))" -le "$domaincachegrace" ] 2>/dev/null; then
+				domaincachefresh="1"
+			fi
 		fi
 		domainresultmisses="$domainoldmisses"
 		case "$domainresultstate" in
@@ -3086,7 +4190,7 @@ Prepare_Domain_Rule_Update() {
 			if [ "$domainoldstate:$domainoldhash" = "$domainresultstate:-" ]; then domainresultchanged="$domainoldchanged"; else domainresultchanged="$domainnow"; fi
 		fi
 		printf 'D2\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
-			"$domainworktarget" "$domainworkvalue" "$domainresultstate" "$domainresultcount" "$domainnow" \
+			"$domainworktarget" "$domainworkvalue" "$domainresultstate" "$domainresultcount" "$domainresultcheck" \
 			"$domainresultsuccess" "$domainresultchanged" "$domainresultmisses" "$domainresulthash" "$domaincachefile" >> "$domainmanifeststage" || return 1
 		if [ "$domainworktarget" = "ban" ]; then
 			[ ! -s "$domainresultips" ] || cat "$domainresultips" >> "$domainbanfile" || return 1
@@ -3172,7 +4276,7 @@ Rollback_Domain_Rule_Update() {
 	fi
 	for domaincachetarget in $domainpublishedcaches; do rm -f "$domaincachetarget"; done
 	Publish_Domain_Dnsmasq_Config || { Log error -s "Failed To Restore Domain DNS Rules"; domainrollbackstatus="1"; }
-	if [ "${domainmembershipchanged:-1}" = "1" ] || [ "${domainbasechanged:-0}" = "1" ]; then
+	if [ "${domainbasechanged:-0}" = "1" ]; then
 		Save_IPSets || { Log error -s "Failed To Persist Restored Domain Rules"; domainrollbackstatus="1"; }
 	fi
 	[ "${domainrollbackcleanup:-0}" = "1" ] || Set_Cleanup_Traps
@@ -3194,7 +4298,7 @@ Apply_Domain_Rule_Update() {
 		&& ipset save Skynet-WhitelistDomains; } > "$domainsetsnapshot" 2>/dev/null || return 1
 	grep -q '^create Skynet-BlacklistDomains ' "$domainsetsnapshot" \
 		&& grep -q '^create Skynet-WhitelistDomains ' "$domainsetsnapshot" || return 1
-	if grep -qE 'comment "Manual(BanD|WlistD): ' "$skynetipset" 2>/dev/null; then
+	if ! Rule_Migration_Complete && grep -qE 'comment "Manual(BanD|WlistD): ' "$skynetipset" 2>/dev/null; then
 		domainlegacyneeded="1"
 		{ ipset save Skynet-Blacklist \
 			&& ipset save Skynet-BlockedRanges \
@@ -3300,7 +4404,9 @@ Apply_Domain_Rule_Update() {
 		Rollback_Domain_Rule_Update
 		return 1
 	fi
-	if { [ "$domainmembershipchanged" = "1" ] || [ "$domainbasechanged" = "1" ]; } && ! Save_IPSets; then
+	# Domain members are restored from their own cache; only migration can change
+	# automatic base state and require an IPSet snapshot here.
+	if [ "$domainbasechanged" = "1" ] && ! Save_IPSets; then
 		Rollback_Domain_Rule_Update
 		return 1
 	fi
@@ -3328,42 +4434,54 @@ Update_Domain_Rules() {
 }
 
 Clear_Registered_Rules() {
-	# Remove one complete user policy while preserving default whitelist sources.
-	# Domain state is committed first so its rollback snapshot also protects the
-	# permanent sets changed by the second phase.
+	# Remove one logical policy without touching automatic blacklist or whitelist
+	# sources. Compiled sets are regenerated from the remaining R2 owners.
 	registeredtarget="$1"
 	Stage_Rule_Registry_Clear "$registeredtarget" || return "$?"
-	Update_Domain_Rules "$rulestagefile" cached || return 1
-	if [ "$registeredtarget" = "ban" ]; then
-		if ! ipset flush Skynet-Blacklist || ! ipset flush Skynet-BlockedRanges; then
-			Rollback_Domain_Rule_Update || Log error -s "Failed To Restore Cleared Ban Rules"
-			return 1
-		fi
-	else
-		registeredrestorefile="$TMP_DIR/clear-whitelist.$$"
-		awk '$1 == "add" && $2 == "Skynet-Whitelist" \
-			&& ($0 ~ /comment "ManualWlist: / || $0 ~ /comment "ASN: AS[0-9]+ "/ || $0 ~ /comment "Imported: /) \
-			{print "del " $2 " " $3}' "$domainsetsnapshot" > "$registeredrestorefile" || { Rollback_Domain_Rule_Update; return 1; }
-		[ ! -s "$registeredrestorefile" ] || Apply_IPSet_File "$registeredrestorefile" || { Rollback_Domain_Rule_Update; return 1; }
-	fi
-	if ! Save_IPSets; then
-		Rollback_Domain_Rule_Update || Log error -s "Failed To Restore Cleared Rules"
-		return 1
-	fi
+	registeredclearcandidate="$rulestagefile"
+	Apply_Complete_Rule_Registry_Candidate "$registeredclearcandidate" remove || return 1
 	nocfg="1"
 	return 0
 }
 
 Save_IPSets() {
-	# Persist every Skynet set as one snapshot and atomically replace the previous
-	# file only after all ipset save calls complete.
-	Check_IPSets || return 1
+	# The snapshot is offline base state only. Compiled rule, domain, temporary and
+	# master sets are rebuilt from their authoritative stores during initialization.
+	# Sorting members makes the comparison independent of IPSet insertion order.
+	saveipsetraw="$TMP_DIR/skynet.ipset.raw.$$"
+	saveipsetadds="$TMP_DIR/skynet.ipset.adds.$$"
+	saveipsetwork="$TMP_DIR/skynet.ipset"
 	saveipsettmp="${skynetipset}.tmp.$$"
-	if { ipset save Skynet-Whitelist && ipset save Skynet-WhitelistDomains && ipset save Skynet-Blacklist && ipset save Skynet-BlacklistDomains && ipset save Skynet-BlockedRanges && ipset save Skynet-Master && ipset save Skynet-MasterWL && ipset save Skynet-IOT; } > "$saveipsettmp" 2>/dev/null \
-		&& [ -s "$saveipsettmp" ] && mv -f "$saveipsettmp" "$skynetipset"; then
+	if ! { ipset save Skynet-Whitelist && ipset save Skynet-Blacklist \
+		&& ipset save Skynet-BlockedRanges && ipset save Skynet-IOT; } > "$saveipsetraw" 2>/dev/null \
+		|| [ ! -s "$saveipsetraw" ] \
+		|| ! awk -v entries="$saveipsetadds" '
+			BEGIN { printf "%s", "" > entries }
+			$1 == "create" { creates++; print; next }
+			$1 == "add" { print > entries; next }
+			{ invalid = 1; exit 1 }
+			END { if (close(entries) || invalid || creates != 4) exit 1 }
+		' "$saveipsetraw" > "$saveipsetwork" \
+		|| ! rm -f "$saveipsetraw" \
+		|| ! LC_ALL=C sort -k2,2 -k3,3 "$saveipsetadds" >> "$saveipsetwork" \
+		|| [ ! -s "$saveipsetwork" ]; then
+		rm -f "$saveipsetraw" "$saveipsetadds" "$saveipsetwork" "$saveipsettmp"
+		Log error "Failed To Save IPSet Data - Existing File Retained"
+		return 1
+	fi
+	rm -f "$saveipsetraw" "$saveipsetadds"
+	if cmp -s "$saveipsetwork" "$skynetipset" 2>/dev/null; then
+		rm -f "$saveipsetwork"
+		rm -f "$DURABLE_PENDING"
 		return 0
 	fi
-	rm -f "$saveipsettmp"
+	if cp -f "$saveipsetwork" "$saveipsettmp" && chmod 600 "$saveipsettmp" \
+		&& mv -f "$saveipsettmp" "$skynetipset"; then
+		rm -f "$saveipsetwork"
+		rm -f "$DURABLE_PENDING"
+		return 0
+	fi
+	rm -f "$saveipsetwork" "$saveipsettmp"
 	Log error "Failed To Save IPSet Data - Existing File Retained"
 	return 1
 }
@@ -3420,6 +4538,7 @@ Apply_Blacklist_File() {
 }
 
 Whitelist_Blocked_Private_IPs() {
+	Time_Is_Ready || return 0
 	if Is_Enabled "$unbanprivateip" && Is_Enabled "$logmode"; then
 		privateipfile="$TMP_DIR/private-whitelist.$$"
 		# Extract inbound sources and outbound destinations in one syslog pass. The
@@ -3444,9 +4563,10 @@ Whitelist_Blocked_Private_IPs() {
 				}
 				field = ""
 			}
-		' "$syslogloc" > "$privateipfile" || { rm -f "$privateipfile"; return 1; }
+		' "${1:-$syslogloc}" > "$privateipfile" || { rm -f "$privateipfile"; return 1; }
 		if [ -s "$privateipfile" ]; then
 			Apply_IPSet_File "$privateipfile" || { rm -f "$privateipfile"; return 1; }
+			Mark_Durable_State_Pending || { rm -f "$privateipfile"; return 1; }
 		fi
 		rm -f "$privateipfile"
 	fi
@@ -3888,18 +5008,14 @@ Whitelist_VPN() {
 			&& printf '%s/%s~nvram: %s\n' "$vpnsubnet" "$vpnprefix" "$vpnserver" >> "$vpnentries"
 	done
 
-	# Prefer Merlin's resolved endpoint, then resolve the configured address.
-	# Configured profiles are included before the tunnel connects.
+	# Merlin's resolved endpoint is authoritative. Hostnames are not treated as
+	# client networks and startup never performs network lookups for VPN policy.
 	for vpnclient in vpn_client1 vpn_client2 vpn_client3 vpn_client4 vpn_client5; do
 		vpnendpoint="$(nvram get "${vpnclient}_rip")"
 		if ! printf '%s\n' "$vpnendpoint" | Filter_IP >/dev/null; then
 			vpnaddress="$(nvram get "${vpnclient}_addr")"
-			[ -n "$vpnaddress" ] || continue
-			if printf '%s\n' "$vpnaddress" | Filter_IP >/dev/null; then
-				vpnendpoint="$vpnaddress"
-			else
-				vpnendpoint="$(Resolve_Domain_IP_List "$vpnaddress" public 2>/dev/null)" || continue
-			fi
+			printf '%s\n' "$vpnaddress" | Filter_IP >/dev/null || continue
+			vpnendpoint="$vpnaddress"
 		fi
 		List_To_Lines "$vpnendpoint" | while IFS= read -r vpnaddress; do
 			[ -n "$vpnaddress" ] || continue
@@ -3908,9 +5024,7 @@ Whitelist_VPN() {
 	done
 	if [ "$(nvram get wgc_enable)" = "1" ]; then
 		vpnendpoint="$(nvram get wgc_ep_addr)"
-		if ! printf '%s\n' "$vpnendpoint" | Filter_IP >/dev/null; then
-			vpnendpoint="$(Resolve_Domain_IP_List "$vpnendpoint" public 2>/dev/null)" || vpnendpoint=""
-		fi
+		printf '%s\n' "$vpnendpoint" | Filter_IP >/dev/null || vpnendpoint=""
 		List_To_Lines "$vpnendpoint" | while IFS= read -r vpnaddress; do
 			[ -n "$vpnaddress" ] || continue
 			printf '%s.0/24~nvram: wgc_ep_addr\n' "${vpnaddress%.*}" >> "$vpnentries"
@@ -3918,9 +5032,7 @@ Whitelist_VPN() {
 	fi
 	if [ -f "/dev/astrill/openvpn.conf" ]; then
 		vpnendpoint="$(awk '$1 == "remote" {print $2; exit}' /dev/astrill/openvpn.conf)"
-		if ! printf '%s\n' "$vpnendpoint" | Filter_IP >/dev/null; then
-			vpnendpoint="$(Resolve_Domain_IP_List "$vpnendpoint" public 2>/dev/null)" || vpnendpoint=""
-		fi
+		printf '%s\n' "$vpnendpoint" | Filter_IP >/dev/null || vpnendpoint=""
 		List_To_Lines "$vpnendpoint" | while IFS= read -r vpnaddress; do
 			[ -n "$vpnaddress" ] || continue
 			printf '%s.0/24~nvram: Astrill_VPN\n' "${vpnaddress%.*}" >> "$vpnentries"
@@ -3992,7 +5104,7 @@ Publish_Domain_Dnsmasq_Config() {
 			return 1
 		}
 	done
-	awk -F '\t' '$1 == "R1" && $2 == "whitelist" && $3 == "domain" && $6 == "enabled" {print $4}' "$skynetrules" >> "$dnsmasqcandidates" 2>/dev/null \
+	awk -F '\t' '$1 == "R2" && $3 == "whitelist" && $4 == "domain" && $7 == "enabled" {print $5}' "$skynetrules" >> "$dnsmasqcandidates" 2>/dev/null \
 		|| { rm -f "$dnsmasqtmp" "$dnsmasqwhitelist" "$dnsmasqblacklist" "$dnsmasqcandidates"; return 1; }
 	true > "$dnsmasqwhitelist" || return 1
 	while IFS= read -r dnsmasqdomain; do
@@ -4004,7 +5116,7 @@ Publish_Domain_Dnsmasq_Config() {
 		rm -f "$dnsmasqtmp" "$dnsmasqwhitelist" "${dnsmasqwhitelist}.sorted" "$dnsmasqblacklist" "$dnsmasqcandidates"
 		return 1
 	fi
-	awk -F '\t' '$1 == "R1" && $2 == "ban" && $3 == "domain" && $6 == "enabled" {print $4}' "$skynetrules" 2>/dev/null \
+	awk -F '\t' '$1 == "R2" && $3 == "ban" && $4 == "domain" && $7 == "enabled" {print $5}' "$skynetrules" 2>/dev/null \
 		| awk 'NF && !seen[tolower($0)]++ {print tolower($0)}' > "$dnsmasqblacklist" \
 		|| { rm -f "$dnsmasqtmp" "$dnsmasqwhitelist" "$dnsmasqblacklist" "$dnsmasqcandidates"; return 1; }
 	for dnsmasqset in Skynet-WhitelistDomains Skynet-BlacklistDomains; do
@@ -4269,6 +5381,10 @@ Extract_Stats_Values() {
 	fi
 
 	awk -v matchpattern="$statsextractinclude" -v skippattern="$statsextractexclude" -v field="$statsextractfield" -v mode="$statsextractmode" -v limit="$statsextractlimit" '
+		BEGIN {
+			if (mode != "top" && limit <= 0) exit
+			mode = mode == "top" ? 1 : (mode == "oldest" ? 2 : 0)
+		}
 		$0 ~ matchpattern && (skippattern == "" || $0 !~ skippattern) {
 			position = index($0, field)
 			if (field != "" && position > 0) {
@@ -4280,22 +5396,22 @@ Extract_Stats_Values() {
 				next
 			}
 
-			if (mode == "top") hits[value]++
-			else values[++entries] = value
+			if (!mode) values[++entries] = value
+			else if (mode == 1) hits[value]++
+			else {
+				# The first requested unique values are final; do not retain or scan
+				# the remaining history once this result is complete.
+				if (!(value in seen)) {
+					print value
+					seen[value] = 1
+					if (++output >= limit) exit
+				}
+			}
 		}
 		END {
-			if (mode == "top") {
+			if (mode == 1) {
 				for (value in hits) printf "%7d %s\n", hits[value], value
-			} else if (mode == "oldest") {
-				for (i = 1; i <= entries && output < limit; i++) {
-					value = values[i]
-					if (!(value in seen)) {
-						print value
-						seen[value] = 1
-						output++
-					}
-				}
-			} else {
+			} else if (!mode) {
 				for (i = entries; i >= 1 && output < limit; i--) {
 					value = values[i]
 					if (!(value in seen)) {
@@ -4353,6 +5469,28 @@ Print_Stats_IPSet_Reasons() {
 		}
 	' "$statsdetailsource"
 	statsdetailstatus="$?"
+	statsdetailreasonindex=""
+	if Rule_Reason_Index_Is_Current; then statsdetailreasonindex="$RULE_REASON_INDEX"
+	elif Build_Rule_Reason_Index "$skynetrules"; then statsdetailreasonindex="$ruleindexstage"; fi
+	if [ -n "$statsdetailreasonindex" ]; then
+		awk -F '\t' -v ip="$statsdetailip" -v target="$statsdetailmode" -v now="$(date +%s)" '
+			function ip_number(value, octets) {
+				split(value, octets, ".")
+				return octets[1] * 16777216 + octets[2] * 65536 + octets[3] * 256 + octets[4]
+			}
+			function contains_ip(entry, cidr, prefix, divisor, i) {
+				split(entry, cidr, "/"); prefix = cidr[2] == "" ? 32 : cidr[2] + 0; divisor = 1
+				for (i = 0; i < 32 - prefix; i++) divisor *= 2
+				return int(ipnumber / divisor) == int(ip_number(cidr[1]) / divisor)
+			}
+			BEGIN {ipnumber = ip_number(ip)}
+			$1 == "R2I" && NF == 8 && $2 == target && ($7 == 0 || $7 > now) && contains_ip($4) {
+				printf "%s [%s; %s]\n", $5, $4, $6
+			}
+		' "$statsdetailreasonindex"
+	fi
+	[ "$statsdetailreasonindex" = "$RULE_REASON_INDEX" ] \
+		|| { [ -z "$statsdetailreasonindex" ] || rm -f "$statsdetailreasonindex"; }
 	if [ "$statsdetailstatus" = "0" ] && [ -s "$rulestatusmanifest" ]; then
 		while IFS="$(printf '\t')" read -r domainruleversion domainruletarget domainrulevalue domainrulestate _domaincount _domainchecked _domainsuccess _domainchanged _domainfield9 domainrulefield10 domainrulefield11; do
 			[ "$domainruletarget" = "$statsdetailmode" ] || continue
@@ -4376,8 +5514,15 @@ Build_Stats_Ban_Reason_Cache() {
 	statsreasonrequests="$1"
 	statsreasonsource="$2"
 	statsreasonoutput="$3"
+	: > "$statsreasonoutput" || return 1
+	[ -s "$statsreasonrequests" ] || return 0
+	statsreasonindex=""
+	if Rule_Reason_Index_Is_Current; then statsreasonindex="$RULE_REASON_INDEX"
+	elif Build_Rule_Reason_Index "$skynetrules"; then statsreasonindex="$ruleindexstage"; fi
+	[ -n "$statsreasonindex" ] || statsreasonindex="/dev/null"
 
-	awk -v requests="$statsreasonrequests" -v domainstatus="$rulestatusmanifest" -v domaincache="${skynetloc}/lists/rules" '
+	awk -v requests="$statsreasonrequests" -v domainstatus="$rulestatusmanifest" -v domaincache="${skynetloc}/lists/rules" \
+		-v reasonindex="$statsreasonindex" -v now="$(date +%s)" '
 		function ip_number(ip, octets) {
 			split(ip, octets, ".")
 			return octets[1] * 16777216 + octets[2] * 65536 + octets[3] * 256 + octets[4]
@@ -4391,7 +5536,37 @@ Build_Stats_Ban_Reason_Cache() {
 			if (range) reason = reason "*"
 			return reason
 		}
+		function add_reason(address, reason) {
+			if (reason == "") reason = "Manual Rule"
+			if (user_reason[address] == "") user_reason[address] = reason
+			else if (!index(", " user_reason[address] ", ", ", " reason ",")) user_reason[address] = user_reason[address] ", " reason
+		}
+		function match_range(address, reason, automatic, cidr, prefix, key, ip, matches, total, j) {
+			split(address, cidr, "/")
+			prefix = cidr[2] + 0
+			if (prefix < 0 || prefix > 32) return
+			# Index only requested IPs, once per encountered prefix. Streaming ranges
+			# keeps memory independent of the number of imported or automatic rules.
+			if (!(prefix in indexed)) {
+				for (ip in wanted) {
+					key = prefix SUBSEP int(wanted[ip] / divisor[prefix])
+					network_ips[key] = network_ips[key] " " ip
+				}
+				indexed[prefix] = 1
+			}
+			key = prefix SUBSEP int(ip_number(cidr[1]) / divisor[prefix])
+			if (!(key in network_ips)) return
+			total = split(network_ips[key], matches, " ")
+			for (j = 1; j <= total; j++) {
+				ip = matches[j]
+				if (automatic) {
+					if (!resolved[ip]) { result[ip] = reason; resolved[ip] = 1 }
+				} else if (!(ip in user_range_reason)) user_range_reason[ip] = reason "*"
+			}
+		}
 		BEGIN {
+			divisor[32] = 1
+			for (i = 31; i >= 0; i--) divisor[i] = divisor[i + 1] * 2
 			while ((getline ip < requests) > 0) {
 				if (ip != "" && !(ip in wanted)) {
 					wanted[ip] = ip_number(ip)
@@ -4405,12 +5580,22 @@ Build_Stats_Ban_Reason_Cache() {
 				if (field[4] != "current" && field[4] != "cached") continue
 				cachefile = domaincache "/" (field[1] == "D2" ? field[11] : field[10])
 				while ((getline address < cachefile) > 0) {
+					if (!(address in wanted)) continue
 					if (domain_reason[address] == "") domain_reason[address] = "Domain: " field[3]
 					else domain_reason[address] = domain_reason[address] ", " field[3]
 				}
 				close(cachefile)
 			}
 			close(domainstatus)
+			while ((getline line < reasonindex) > 0) {
+				n = split(line, field, "\t")
+				if (n != 8 || field[1] != "R2I" || field[2] != "ban") continue
+				if (field[7] > 0 && field[7] <= now) continue
+				address = field[4]; reason = field[5]
+				if (field[3] == "range") match_range(address, reason, 0)
+				else { sub(/\/32$/, "", address); if (address in wanted) add_reason(address, reason) }
+			}
+			close(reasonindex)
 		}
 		$1 == "add" && $2 == "Skynet-Blacklist" && ($3 in wanted) && !resolved[$3] {
 			result[$3] = entry_reason(0)
@@ -4419,25 +5604,21 @@ Build_Stats_Ban_Reason_Cache() {
 		}
 		$1 == "add" && $2 == "Skynet-BlockedRanges" {
 			split($3, cidr, "/")
-			prefix = cidr[2]
-			network = ip_number(cidr[1])
-			divisor = 1
-			for (i = 0; i < 32 - prefix; i++) divisor *= 2
-			for (ip in wanted) {
-				if (!resolved[ip] && int(wanted[ip] / divisor) == int(network / divisor)) {
-					result[ip] = entry_reason(prefix < 32)
-					resolved[ip] = 1
-				}
-			}
+			match_range($3, entry_reason(cidr[2] < 32), 1)
 		}
 		END {
 			for (i = 1; i <= count; i++) {
 				ip = order[i]
+				if (result[ip] == "" && user_reason[ip] != "") result[ip] = user_reason[ip]
+				if (result[ip] == "" && (ip in user_range_reason)) result[ip] = user_range_reason[ip]
 				if (result[ip] == "" && domain_reason[ip] != "") result[ip] = domain_reason[ip]
 				print ip "~" result[ip]
 			}
 		}
 	' "$statsreasonsource" > "$statsreasonoutput"
+	statsreasonstatus="$?"
+	[ "$statsreasonindex" = "$RULE_REASON_INDEX" ] || [ "$statsreasonindex" = "/dev/null" ] || rm -f "$statsreasonindex"
+	return "$statsreasonstatus"
 }
 
 Build_Stats_Country_Cache() {
@@ -4549,6 +5730,7 @@ Build_Stats_Domain_Cache() {
 	statsdomainoutput="$2"
 	shift 2
 	true > "$statsdomainoutput" || return 1
+	[ -s "$statsdomainrequests" ] || return 0
 	if ! Is_Enabled "$extendedstats"; then
 		return 0
 	fi
@@ -4570,7 +5752,7 @@ Build_Stats_Domain_Cache() {
 			domain = $(NF-2)
 			sub(/^http[s]*:\/\//, "", domain)
 			sub(/\/.*/, "", domain)
-			gsub(/www\./, "", domain)
+			sub(/^www\./, "", domain)
 			key = ip SUBSEP domain
 			if (domain != "" && !seen[key]++) {
 				if (domains[ip] == "") domains[ip] = domain
@@ -4849,7 +6031,7 @@ Prepare_CLI_Stats_Data() {
 		Extract_Stats_Values "${statsindexpath}/outbound-all-dst.txt" ".*" "" "" "recent" "$statsclilimit"
 		Extract_Stats_Values "${statsindexpath}/invalid-src.txt" ".*" "" "" "recent" "$statsclilimit"
 		Extract_Stats_Values "${statsindexpath}/outbound-http-dst.txt" ".*" "" "" "recent" "$statsclilimit"
-		awk -F '\t' '$1 == "R1" && $2 == "ban" && ($3 == "ip" || $3 == "range") && $6 == "enabled" {print $4}' "$skynetrules" | tail -"$statsclilimit"
+		awk -F '\t' '$1 == "R2" && $3 == "ban" && ($4 == "ip" || $4 == "range") && $7 == "enabled" {print $5}' "$skynetrules" | tail -"$statsclilimit"
 		Extract_Stats_Values "${statsindexpath}/inbound-src.txt" ".*" "" "" "top" "$statsclilimit" | awk 'NF >= 2 {print $NF}'
 		Extract_Stats_Values "${statsindexpath}/outbound-all-dst.txt" ".*" "" "" "top" "$statsclilimit" | awk 'NF >= 2 {print $NF}'
 		Extract_Stats_Values "${statsindexpath}/invalid-src.txt" ".*" "" "" "top" "$statsclilimit" | awk 'NF >= 2 {print $NF}'
@@ -5060,7 +6242,7 @@ Print_Stats_Logging_Header() {
 	else
 		Generate_Blocked_Events
 	fi
-	printf '║ %-20s │ %-82s ║\n' "Manual Bans" "$(awk -F '\t' '$1 == "R1" && $2 == "ban" && $6 == "enabled" {count++} END {print count + 0}' "$skynetrules")"
+	printf '║ %-20s │ %-82s ║\n' "Manual Bans" "$(awk -F '\t' '$1 == "R2" && $3 == "ban" && $7 == "enabled" {count++} END {print count + 0}' "$skynetrules")"
 	printf '║ %-20s │ %-84s ║\n' "Monitor Span" "$monitorspan"
 	printf '╚══════════════════════╧════════════════════════════════════════════════════════════════════════════════════╝\n\n\n'
 }
@@ -5681,11 +6863,13 @@ Generate_WebUI_Country_Data() {
 
 Generate_WebUI_Rule_Data() {
 	rulerecords="$TMP_DIR/webui-rules-records.$$"
+	rulerecordssorted="${rulerecords}.sorted"
 	if [ ! -f "$skynetrules" ]; then
-		printf 'var SkynetRules = [];\nvar SkynetRuleSummary = {available:false,total:0,manualBans:0,manualWhitelists:0,groups:0,groupEntries:0,domains:0,asns:0,current:0,cached:0,pending:0,empty:0,expired:0,failed:0,lastCheck:0};\n' >> "$settingstmp"
+		printf 'var SkynetRules = [];\nvar SkynetRuleSummary = {available:false,timeReady:false,now:0,total:0,manualBans:0,manualWhitelists:0,temporary:0,groups:0,groupEntries:0,domains:0,asns:0,current:0,cached:0,pending:0,empty:0,expired:0,failed:0,lastCheck:0};\n' >> "$settingstmp"
 		return
 	fi
-	awk -F '\t' -v OFS='\t' -v status="$rulestatusmanifest" -v saved="$skynetipset" '
+	if Time_Is_Ready; then rulewebnow="$(date +%s)"; rulewebtimeready="true"; else rulewebnow="0"; rulewebtimeready="false"; fi
+	awk -F '\t' -v OFS='\t' -v status="$rulestatusmanifest" -v datadir="$rulesdatadir" -v now="$rulewebnow" '
 		BEGIN {
 			while ((getline line < status) > 0) {
 				split(line, field, "\t")
@@ -5696,58 +6880,40 @@ Generate_WebUI_Rule_Data() {
 				}
 			}
 			close(status)
-			while ((getline line < saved) > 0) {
-				position = index(line, "comment \"")
-				if (!position) continue
-				comment = substr(line, position + 9); sub(/\"$/, "", comment)
-				if (comment ~ /^ASN: AS[0-9]+ $/) {
-					value = comment; sub(/^ASN: /, "", value); sub(/ $/, "", value)
-					split(line, entry, " ")
-					target = entry[2] == "Skynet-Whitelist" ? "whitelist" : "ban"
-					asn_count[target SUBSEP value]++
-				}
-			}
-			close(saved)
 		}
-		$1 == "R1" && $6 == "enabled" {
-			action = $2; type = $3; value = $4; detail = substr($5, 2); count = 1
+		$1 == "R2" && $7 == "enabled" {
+			id = $2; action = $3; type = $4; value = $5; detail = substr($6, 2)
+			created = $8 + 0; expires = $9 + 0; data = $10; count = 1
+			if (expires > 0 && now > 0 && expires <= now) next
 			state = "-"; checked = 0; success = 0
-			if (action == "ban" && type == "ip") { kind = "manual"; setname = "Skynet-Blacklist"; comment = "ManualBan: " detail; display = detail }
-			else if (action == "ban" && type == "range") { kind = "manual"; setname = "Skynet-BlockedRanges"; comment = "ManualRBan: " detail; display = detail }
-			else if (action == "whitelist" && (type == "ip" || type == "range")) { kind = "manual"; setname = "Skynet-Whitelist"; comment = "ManualWlist: " detail; display = detail }
+			if (action == "ban" && (type == "ip" || type == "range")) {
+				kind = expires > 0 ? "temporary" : "manual"
+				setname = expires > 0 ? "Skynet-TemporaryBans" : "Skynet-UserBans"
+				display = detail
+			}
+			else if (action == "whitelist" && (type == "ip" || type == "range")) { kind = "manual"; setname = "Skynet-UserWhitelist"; display = detail }
 			else if (type == "domain") {
 				kind = "group"; setname = action == "ban" ? "Skynet-BlacklistDomains" : "Skynet-WhitelistDomains"
-				comment = "Domain: " value; display = value; key = action SUBSEP value
+				display = value; key = action SUBSEP value
 				count = domain_count[key] + 0; state = domain_state[key] == "" ? "pending" : domain_state[key]
 				checked = domain_checked[key] + 0; success = domain_success[key] + 0
 			}
-			else if (type == "asn") { kind = "group"; setname = action == "ban" ? "Skynet-BlockedRanges" : "Skynet-Whitelist"; comment = "ASN: " value; display = value; count = asn_count[action SUBSEP value] + 0 }
+			else if (type == "asn" || type == "import") {
+				kind = type == "import" ? "import" : "group"
+				setname = action == "ban" ? "Skynet-UserBans" : "Skynet-UserWhitelist"; display = value; count = 0
+				datafile = datadir "/" data
+				while ((getline line < datafile) > 0) if (line != "") count++
+				close(datafile)
+			}
 			else next
 			# Prefix empty-capable fields because BusyBox ash collapses adjacent tab
 			# delimiters when the generated records are read below.
-			print kind, action, type, setname, value, "@" comment, "@" display, count, state, checked, success
+			print id, kind, action, type, setname, value, "@" detail, "@" display, count, state, checked, success, created, expires
 		}
 	' "$skynetrules" > "$rulerecords" || { rm -f "$rulerecords"; return 1; }
-	awk -v OFS='\t' '
-		$1 == "add" && ($2 == "Skynet-Blacklist" || $2 == "Skynet-BlockedRanges" || $2 == "Skynet-Whitelist") {
-			position = index($0, "comment \""); if (!position) next
-			comment = substr($0, position + 9); sub(/\"$/, "", comment)
-			if (comment !~ /^Imported: /) next
-			action = $2 == "Skynet-Whitelist" ? "whitelist" : "ban"
-			setname = action == "ban" ? "Skynet-Blacklist" : "Skynet-Whitelist"
-			key = action SUBSEP setname SUBSEP comment
-			count[key]++
-		}
-		END {
-			for (key in count) {
-				split(key, field, SUBSEP); display = substr(field[3], 11)
-				print "import", field[1], "import", field[2], field[3], "@" field[3], "@" display, count[key], "-", 0, 0
-			}
-		}
-	' "$skynetipset" >> "$rulerecords" || { rm -f "$rulerecords"; return 1; }
-	if ! sort -t "$(printf '\t')" -k2,2 -k3,3 -k5,5 "$rulerecords" > "${rulerecords}.sorted" \
-		|| ! mv -f "${rulerecords}.sorted" "$rulerecords"; then
-		rm -f "$rulerecords" "${rulerecords}.sorted"
+	if ! sort -t "$(printf '\t')" -k3,3 -k4,4 -k6,6 "$rulerecords" > "$rulerecordssorted" \
+		|| ! mv -f "$rulerecordssorted" "$rulerecords"; then
+		rm -f "$rulerecords" "$rulerecordssorted"
 		return 1
 	fi
 	printf 'var SkynetRules = [' >> "$settingstmp" || return 1
@@ -5755,11 +6921,12 @@ Generate_WebUI_Rule_Data() {
 	ruletotal="0"
 	rulemanualbans="0"
 	rulemanualwhitelists="0"
+	ruletemporary="0"
 	rulegroups="0"
 	rulegroupentries="0"
 	ruledomains="0"
 	ruleasns="0"
-	while IFS="$(printf '\t')" read -r rulekind ruleaction ruletype ruletarget ruleentry rulecomment ruledisplay rulecount rulestate rulechecked rulesuccess; do
+	while IFS="$(printf '\t')" read -r ruleid rulekind ruleaction ruletype ruletarget ruleentry rulecomment ruledisplay rulecount rulestate rulechecked rulesuccess rulecreated ruleexpires; do
 		[ -n "$rulekind" ] || continue
 		rulecomment="${rulecomment#@}"
 		ruledisplay="${ruledisplay#@}"
@@ -5768,8 +6935,8 @@ Generate_WebUI_Rule_Data() {
 		ruledisplayjs="$(printf '%s\n' "$ruledisplay" | Escape_JS)"
 		[ "$rulefirst" = "1" ] || printf ',' >> "$settingstmp"
 		case "$rulechecked:$rulesuccess" in *[!0-9:]*|:*) rulechecked="0"; rulesuccess="0" ;; esac
-		printf '\n\t{kind:\x27%s\x27,action:\x27%s\x27,type:\x27%s\x27,target:\x27%s\x27,entry:\x27%s\x27,comment:\x27%s\x27,display:\x27%s\x27,count:%s,state:\x27%s\x27,checked:%s,success:%s}' \
-			"$rulekind" "$ruleaction" "$ruletype" "$ruletarget" "$ruleentryjs" "$rulecommentjs" "$ruledisplayjs" "$rulecount" "$rulestate" "$rulechecked" "$rulesuccess" >> "$settingstmp" || return 1
+		printf '\n\t{id:\x27%s\x27,kind:\x27%s\x27,action:\x27%s\x27,type:\x27%s\x27,target:\x27%s\x27,entry:\x27%s\x27,comment:\x27%s\x27,display:\x27%s\x27,count:%s,state:\x27%s\x27,checked:%s,success:%s,created:%s,expires:%s}' \
+			"$ruleid" "$rulekind" "$ruleaction" "$ruletype" "$ruletarget" "$ruleentryjs" "$rulecommentjs" "$ruledisplayjs" "$rulecount" "$rulestate" "$rulechecked" "$rulesuccess" "$rulecreated" "$ruleexpires" >> "$settingstmp" || return 1
 		rulefirst="0"
 		ruletotal=$((ruletotal + 1))
 		[ "$ruletype" != "domain" ] || ruledomains=$((ruledomains + 1))
@@ -5777,27 +6944,28 @@ Generate_WebUI_Rule_Data() {
 		case "$rulekind:$ruleaction" in
 			manual:ban) rulemanualbans=$((rulemanualbans + 1)) ;;
 			manual:whitelist) rulemanualwhitelists=$((rulemanualwhitelists + 1)) ;;
+			temporary:ban) ruletemporary=$((ruletemporary + 1)) ;;
 			*) rulegroups=$((rulegroups + 1)); rulegroupentries=$((rulegroupentries + rulecount)) ;;
 		esac
 	done < "$rulerecords"
 	printf '\n];\n' >> "$settingstmp" || return 1
 	rulehealth="$(awk -F '\t' '
-		$3 == "domain" {
-			if ($9 == "current") current++
-			else if ($9 == "cached") cached++
-			else if ($9 == "empty") empty++
-			else if ($9 == "expired") expired++
-			else if ($9 == "failed") failed++
+		$4 == "domain" {
+			if ($10 == "current") current++
+			else if ($10 == "cached") cached++
+			else if ($10 == "empty") empty++
+			else if ($10 == "expired") expired++
+			else if ($10 == "failed") failed++
 			else pending++
-			if ($10 > lastcheck) lastcheck = $10
+			if ($11 > lastcheck) lastcheck = $11
 		}
 		END {print current + 0, cached + 0, pending + 0, empty + 0, expired + 0, failed + 0, lastcheck + 0}
 	' "$rulerecords" 2>/dev/null)"
 	IFS=' ' read -r rulecurrent rulecached rulepending ruleempty ruleexpired rulefailed rulelastcheck <<EOF
 ${rulehealth:-0 0 0 0 0 0 0}
 EOF
-	printf 'var SkynetRuleSummary = {available:true,total:%s,manualBans:%s,manualWhitelists:%s,groups:%s,groupEntries:%s,domains:%s,asns:%s,current:%s,cached:%s,pending:%s,empty:%s,expired:%s,failed:%s,lastCheck:%s};\n' \
-		"$ruletotal" "$rulemanualbans" "$rulemanualwhitelists" "$rulegroups" "$rulegroupentries" "$ruledomains" "$ruleasns" "$rulecurrent" "$rulecached" "$rulepending" "$ruleempty" "$ruleexpired" "$rulefailed" "$rulelastcheck" >> "$settingstmp" || return 1
+	printf 'var SkynetRuleSummary = {available:true,timeReady:%s,now:%s,total:%s,manualBans:%s,manualWhitelists:%s,temporary:%s,groups:%s,groupEntries:%s,domains:%s,asns:%s,current:%s,cached:%s,pending:%s,empty:%s,expired:%s,failed:%s,lastCheck:%s};\n' \
+		"$rulewebtimeready" "$rulewebnow" "$ruletotal" "$rulemanualbans" "$rulemanualwhitelists" "$ruletemporary" "$rulegroups" "$rulegroupentries" "$ruledomains" "$ruleasns" "$rulecurrent" "$rulecached" "$rulepending" "$ruleempty" "$ruleexpired" "$rulefailed" "$rulelastcheck" >> "$settingstmp" || return 1
 	rm -f "$rulerecords"
 }
 
@@ -5837,6 +7005,7 @@ Generate_WebUI_Settings() {
 	# settings.js is a complete point-in-time payload. The epoch.pid generation
 	# stamp is written last and lets the browser distinguish a completed action
 	# from a cached copy of the previous payload.
+	Update_Block_Counts
 	settingsfile="${skynetloc}/webui/settings.js"
 	settingstmp="${settingsfile}.tmp.$$"
 	customlistjs="$(printf '%s' "$customlisturl" | tr '\r\n' '  ' | sed 's/\\/\\\\/g;s/"/\\"/g')"
@@ -5844,6 +7013,10 @@ Generate_WebUI_Settings() {
 	iotentries="$(ipset save Skynet-IOT 2>/dev/null | awk '$1 == "add" { if (output != "") output = output " "; output = output $3 } END { print output }')"
 	iotcount="$(IPSet_Entry_Count Skynet-IOT)"
 	if printf 'var SkynetSettings = {"autoupdate":"%s","banmalwareupdate":"%s","banmalwarelastupdated":"%s","blacklist1count":"%s","blacklist2count":"%s","countrylist":"%s","customlisturl":"%s","excludelists":"%s","filtertraffic":"%s","unbanprivateip":"%s","banaiprotect":"%s","securemode":"%s","loginvalid":"%s","logsize":"%s","extendedstats":"%s","lookupcountry":"%s","cdnwhitelist":"%s","iotblocked":"%s","iotlogging":"%s","iotports":"%s","iotproto":"%s","iotentries":"%s","iotcount":"%s"};\n' "$autoupdate" "$banmalwareupdate" "$banmalwarelastupdated" "$blacklist1count" "$blacklist2count" "$countrylist" "$customlistjs" "$excludelistsjs" "$filtertraffic" "$unbanprivateip" "$banaiprotect" "$securemode" "$loginvalid" "$logsize" "$extendedstats" "$lookupcountry" "$cdnwhitelist" "$iotblocked" "$iotlogging" "$iotports" "$iotproto" "$iotentries" "$iotcount" > "$settingstmp" \
+		&& printf 'SkynetSettings.logmode = "%s";\n' "$logmode" >> "$settingstmp" \
+		&& printf 'SkynetSettings.syslogmode = "%s";\n' "$syslogmode" >> "$settingstmp" \
+		&& printf 'SkynetSettings.syslogloc = "%s";\nSkynetSettings.syslog1loc = "%s";\n' \
+			"$(printf '%s' "$syslogloc" | Escape_JS)" "$(printf '%s' "$syslog1loc" | Escape_JS)" >> "$settingstmp" \
 		&& Generate_WebUI_IOT_Data \
 		&& Generate_WebUI_Feed_Data \
 		&& Generate_WebUI_Country_Data \
@@ -5866,11 +7039,13 @@ Generate_Stats() {
 	# parsing, lookup or write failure.
 	Addon_API_Supported || return 0
 	Is_Enabled "$displaywebui" || return 0
+	Is_Enabled "$logmode" || return 0
+	Update_Block_Counts
 
-	webuistatsactive="1"
-	statsworkspace="${skynetloc}/webui/stats"
+	# Intermediate chart indexes stay in RAM; only the complete payload is
+	# published to USB. The process workspace is removed by the cleanup trap.
+	statsworkspace="$TMP_DIR/stats"
 	if ! mkdir -p "$statsworkspace" || [ ! -w "$statsworkspace" ]; then
-		unset "webuistatsactive"
 		Log error "Failed To Create WebUI Statistics Workspace"
 		return 1
 	fi
@@ -5993,6 +7168,7 @@ Generate_Stats() {
 	Extract_Stats_Values "${statsworkspace}/outbound-src.txt" ".*" "" "" "top" "10" > "${statsworkspace}/clients.txt"
 	statsneighbors="${statsworkspace}/neighbors.txt"
 	ip neigh > "$statsneighbors" 2>/dev/null
+	Prepare_Client_Name_Data "$statsneighbors" || true
 	while read -r statsclienthits statsclientip; do
 		[ -n "$statsclientip" ] || continue
 		ipaddr="$statsclientip"
@@ -6002,19 +7178,18 @@ Generate_Stats() {
 		[ "${#localname}" -le 20 ] || localname="$(printf '%s' "$localname" | cut -c1-20)"
 		printf '%s~%s (%s)~%s\n' "$statsclienthits" "$statsclientip" "$localname" "$macaddr"
 	done < "${statsworkspace}/clients.txt" > "${statsworkspace}/tcconn.txt"
+	Clear_Client_Name_Data
 	Write_Data_ToJS "${statsworkspace}/tcconn.txt" "$statstmp" "DataTCConnHits" "LabelTCConnHits" "LabelTCConnHits_MAC" || statsstatus="1"
 
 	if [ "$statsstatus" = "0" ] && printf 'var SkynetStatsComplete = true;\n' >> "$statstmp" \
 		&& [ -s "$statstmp" ] && mv -f "$statstmp" "$statsfile"; then
 		rm -rf "$statsworkspace"
-		unset "webuistatsactive"
 		Generate_WebUI_Settings
 		return "$?"
 	fi
 
 	rm -f "$statstmp"
 	rm -rf "$statsworkspace"
-	unset "webuistatsactive"
 	Log error "Failed To Generate WebUI Statistics - Existing File Retained"
 	Generate_WebUI_Settings
 	return 1
@@ -6089,10 +7264,6 @@ Find_WebUI_Page() {
 }
 
 Install_WebUI_Page() {
-	if ! Is_Enabled "$logmode"; then
-		Log error "WebUI Integration Requires Logging To Be Enabled"
-		return 1
-	fi
 	Addon_API_Supported || return 1
 	Is_Enabled "$displaywebui" || return 0
 	[ -f "${skynetloc}/webui/skynet.asp" ] || {
@@ -6377,6 +7548,12 @@ Manage_Device() {
 			;;
 		esac
 	done
+	for tempfile in /tmp/skynet/maintenance.status.tmp.*; do
+		[ -f "$tempfile" ] || continue
+		temppid="${tempfile##*.}"
+		[ "$temppid" = "$$" ] && continue
+		[ -d "/proc/$temppid" ] || rm -f "$tempfile"
+	done
 }
 
 Create_Swap() {
@@ -6584,6 +7761,8 @@ Sanitize_Action_Field() {
 Queue_Action() {
 	# A1: epoch, timestamp, origin, result, area, operation, target, type,
 	# subjects, detail and transaction ID. One row describes one committed batch.
+	# Persistent history is intentionally silent until the router clock is trusted.
+	Time_Is_Ready || return 0
 	actionresult="$1"
 	actionarea="$2"
 	actionoperation="$3"
@@ -6593,7 +7772,7 @@ Queue_Action() {
 	actiondetail="$7"
 	case "$actionresult" in success|degraded|failed) ;; *) return 1 ;; esac
 	case "$actionarea" in rules|iot|countries|feeds|settings|system) ;; *) return 1 ;; esac
-	case "$actionoperation" in add|remove|enable|disable|refresh|update|restore) ;; *) return 1 ;; esac
+	case "$actionoperation" in add|remove|enable|disable|refresh|update|restore|expire) ;; *) return 1 ;; esac
 	case "$actiontarget" in ""|*[!A-Za-z0-9_-]*) return 1 ;; esac
 	case "$actiontype" in ""|*[!A-Za-z0-9_-]*) return 1 ;; esac
 	actionorigin="${SKYNET_ACTION_ORIGIN:-cli}"
@@ -6628,7 +7807,7 @@ Inspect_Action_File() {
 				&& $4 ~ /^(cli|menu|webui|cron|startup)$/ \
 				&& $5 ~ /^(success|degraded|failed)$/ \
 				&& $6 ~ /^(rules|iot|countries|feeds|settings|system)$/ \
-				&& $7 ~ /^(add|remove|enable|disable|refresh|update|restore)$/ \
+				&& $7 ~ /^(add|remove|enable|disable|refresh|update|restore|expire)$/ \
 				&& $8 ~ /^[A-Za-z0-9_-]+$/ && $9 ~ /^[A-Za-z0-9_-]+$/ \
 				&& $10 != "" && length($10) <= 8192 && $10 !~ /[[:cntrl:]]/ \
 				&& length($11) <= 512 && $11 !~ /[[:cntrl:]]/ \
@@ -6659,7 +7838,7 @@ Filter_Action_Files() {
 				&& $4 ~ /^(cli|menu|webui|cron|startup)$/ \
 				&& $5 ~ /^(success|degraded|failed)$/ \
 				&& $6 ~ /^(rules|iot|countries|feeds|settings|system)$/ \
-				&& $7 ~ /^(add|remove|enable|disable|refresh|update|restore)$/ \
+				&& $7 ~ /^(add|remove|enable|disable|refresh|update|restore|expire)$/ \
 				&& $8 ~ /^[A-Za-z0-9_-]+$/ && $9 ~ /^[A-Za-z0-9_-]+$/ \
 				&& $10 != "" && length($10) <= 8192 && $10 !~ /[[:cntrl:]]/ \
 				&& length($11) <= 512 && $11 !~ /[[:cntrl:]]/ \
@@ -6669,7 +7848,7 @@ Filter_Action_Files() {
 	' "$@"
 }
 
-Publish_Actions() {
+Publish_Actions_Locked() {
 	[ -n "$actionqueue" ] && [ -s "$actionqueue" ] || return 0
 	[ ! -L "$skynetevents" ] || { Log error -s "Refusing To Write Action History Through A Symbolic Link"; return 1; }
 	[ ! -e "$skynetevents" ] || [ -f "$skynetevents" ] \
@@ -6781,6 +7960,15 @@ EOF
 	return 0
 }
 
+Publish_Actions() {
+	[ -n "$actionqueue" ] && [ -s "$actionqueue" ] || return 0
+	Acquire_Log_Lock || return 1
+	Publish_Actions_Locked
+	actionpublishstatus="$?"
+	Release_Log_Lock
+	return "$actionpublishstatus"
+}
+
 Discard_Actions() {
 	[ -n "$actionqueue" ] && rm -f "$actionqueue"
 	actionqueue=""
@@ -6802,18 +7990,74 @@ Publish_Failed_Actions() {
 	fi
 }
 
-Purge_Logs() {
-	# Extract all BLOCKED lines into skynetlog, then delete them from source
+Archive_Block_Logs() {
+	# Pre-NTP records are deliberately left in the source log and are never copied
+	# into persistent Skynet history with an untrusted timestamp.
+	Time_Is_Ready || return 0
+	Acquire_Log_Lock || return 1
 	archivefailed="0"
+	archiverewritten="0"
+	archiverecords="$TMP_DIR/archive-records.$$"
+	archiverollback="$TMP_DIR/archive-rollback.$$"
 	for syslogfile in "$syslog1loc" "$syslogloc"; do
 		[ -f "$syslogfile" ] || continue
-		if sed -n '\~BLOCKED -~p' "$syslogfile" >> "$skynetlog" 2>/dev/null; then
-			sed -i '\~BLOCKED -~d' "$syslogfile" 2>/dev/null || archivefailed="1"
+		# Detect cleanup and extract Skynet records in one pass. Native DROP
+		# messages are discarded; unrelated system messages stay in syslog.
+		awk '
+			/BLOCKED -/ { print; found = 1; next }
+			/kernel: DROP IN=/ { found = 1 }
+			END { exit found ? 0 : 3 }
+		' "$syslogfile" > "$archiverecords" 2>/dev/null
+		case "$?" in 0) ;; 3) continue ;; *) archivefailed="1"; continue ;; esac
+		archiveoldsize="$(wc -c < "$skynetlog" 2>/dev/null)"
+		case "$archiveoldsize" in ""|*[!0-9]*) archivefailed="1"; continue ;; esac
+		if cat "$archiverecords" >> "$skynetlog" 2>/dev/null \
+			&& sed -i '\~BLOCKED -~d; /kernel: DROP IN=/d' "$syslogfile" 2>/dev/null; then
+			archiverewritten="1"
+			if [ -s "$archiverecords" ]; then Whitelist_Blocked_Private_IPs "$archiverecords" || archivefailed="1"; fi
 		else
 			archivefailed="1"
+			if head -c "$archiveoldsize" "$skynetlog" > "$archiverollback" 2>/dev/null \
+				&& chmod 600 "$archiverollback" && mv -f "$archiverollback" "$skynetlog"; then :; else
+				Log error "Failed To Restore Firewall Log After Archive Failure"
+			fi
 		fi
 	done
-	[ "$archivefailed" = "0" ] || Log error "Failed To Archive Firewall Logs - Source Logs Retained"
+	rm -f "$archiverecords" "$archiverollback"
+	Release_Log_Lock
+	if [ "$archiverewritten" = "1" ] && [ -f "/opt/etc/syslog-ng.d/skynet" ]; then
+		killall -HUP syslog-ng 2>/dev/null
+	fi
+	[ "$archivefailed" = "0" ] || { Log error "Failed To Archive Firewall Logs - Source Logs Retained"; return 1; }
+}
+
+Enforce_Log_Limit_Locked() {
+	log_kb="$(du -k "$skynetlog" 2>/dev/null | cut -f1)" || log_kb="0"
+	log_kb="${log_kb:-0}"
+	log_kb_limit="$((logsize * 1024))"
+	if [ "$log_kb" -ge "$log_kb_limit" ] || [ "$1" = "force" ]; then
+		if Generate_Stats; then
+			sed -i '/BLOCKED -/d' "$skynetlog" 2>/dev/null || return 1
+			iptables -Z PREROUTING -t raw || return 1
+			log_kb="$(du -k "$skynetlog" 2>/dev/null | cut -f1)" || log_kb="0"
+			if [ "${log_kb:-0}" -ge 3000 ]; then : > "$skynetlog" || return 1; fi
+		else
+			Log error "Failed To Generate Statistics - Firewall Logs Retained"
+			return 1
+		fi
+	fi
+	return 0
+}
+
+Enforce_Log_Limit() {
+	Acquire_Log_Lock || return 1
+	Enforce_Log_Limit_Locked "$@"
+	loglimitstatus="$?"
+	Release_Log_Lock
+	return "$loglimitstatus"
+}
+
+Housekeep_Syslog() {
 	logcounts="$(awk '
 		/Skynet: \[i\] Startup Initiated/ { starts++ }
 		/Skynet: \[i\] Restarting Firewall Service/ { restarts++ }
@@ -6822,53 +8066,38 @@ Purge_Logs() {
 	logcounts="${logcounts:-0 0}"
 	start_count="${logcounts%% *}"
 	restart_count="${logcounts#* }"
-
-	# Ensure skynetlog isn’t too large (or force), run stats, and truncate if still big
-	log_kb=$(du -k "$skynetlog" 2>/dev/null | cut -f1) || log_kb=0
-	log_kb=${log_kb:-0}
-	log_kb_limit="$((logsize * 1024))"
-	if [ "$log_kb" -ge "$log_kb_limit" ] || [ "$1" = "force" ]; then
-		if Generate_Stats; then
-			sed -i '/BLOCKED -/d' "$skynetlog" 2>/dev/null
-			iptables -Z PREROUTING -t raw
-			log_kb=$(du -k "$skynetlog" 2>/dev/null | cut -f1) || log_kb=0
-			log_kb=${log_kb:-0}
-			[ "$log_kb" -ge 3000 ] && : > "$skynetlog"
-		else
-			Log error "Failed To Generate Statistics - Firewall Logs Retained"
-		fi
-	fi
-
-	# Action history is written only by Publish_Actions. Runtime notices remain in
-	# syslog and can be viewed without competing writers replacing the journal.
+	sysloghousekeeping="0"
 	if [ "$1" = "all" ]; then
 		sed -i '/Skynet: \[i\] /{
 			/Startup Initiated/!{
 				/Restarting Firewall Service/!d
 			}
 		}; /Skynet: \[#\] /d; /Skynet: \[\*\] Lock /d' "$syslog1loc" "$syslogloc" 2>/dev/null
+		sysloghousekeeping="1"
 	fi
-
-	# If more than three startup banners exist, remove them all so only the next one appears
 	if [ "$start_count" -gt 3 ]; then
 		sed -i '/Skynet: \[i\] Startup Initiated/d' "$syslog1loc" "$syslogloc" 2>/dev/null
+		sysloghousekeeping="1"
 	fi
-
-	# If more than three restart banners exist, remove them all so only the next one appears
 	if [ "$restart_count" -gt 3 ]; then
 		sed -i '/Skynet: \[i\] Restarting Firewall Service/d' "$syslog1loc" "$syslogloc" 2>/dev/null
+		sysloghousekeeping="1"
 	fi
+	if [ "$sysloghousekeeping" = "1" ] && [ -f "/opt/etc/syslog-ng.d/skynet" ]; then
+		killall -HUP syslog-ng 2>/dev/null
+	fi
+}
 
-	# Reload syslog-ng only if configured
-	[ -f "/opt/etc/syslog-ng.d/skynet" ] && killall -HUP syslog-ng 2>/dev/null
-	return 0
+Purge_Logs() {
+	Archive_Block_Logs || return 1
+	Enforce_Log_Limit "$1" || return 1
+	Housekeep_Syslog "$1"
 }
 
 Print_Command_Summary() {
 	oldips="${blacklist1count:-0}"
 	oldranges="${blacklist2count:-0}"
-	blacklist1count="$(IPSet_Entry_Count Skynet-Blacklist)"
-	blacklist2count="$(IPSet_Entry_Count Skynet-BlockedRanges)"
+	Update_Block_Counts
 	blacklist1count="${blacklist1count:-0}"
 	blacklist2count="${blacklist2count:-0}"
 	hits1="0"
@@ -6886,7 +8115,7 @@ Print_Command_Summary() {
 		[ "$filtertraffic" = "outbound" ] && hits1="0"
 		[ "$filtertraffic" = "inbound" ] && hits2="0"
 	fi
-	ftime="$(($(date +%s) - stime))"
+	ftime="$(($(Uptime_Seconds) - stime))"
 	ipdelta="$((blacklist1count - oldips))"
 	rangedelta="$((blacklist2count - oldranges))"
 	case "$ipdelta" in -*) newips="$ipdelta" ;; *) newips="+$ipdelta" ;; esac
@@ -6928,6 +8157,7 @@ EOF
 
 Load_Config() {
 	[ -f "$skynetcfg" ] || return 1
+	syslogmode=""
 	# skynet.cfg is generated exclusively by Write_Config. Keep the saved version
 	# as the upgrade marker until startup migration completes successfully.
 	# shellcheck disable=SC1090
@@ -6970,6 +8200,11 @@ Load_Config() {
 	esac
 	[ -n "$syslogloc" ] || { syslogloc="/tmp/syslog.log"; configchanged="1"; }
 	[ -n "$syslog1loc" ] || { syslog1loc="/tmp/syslog.log-1"; configchanged="1"; }
+	case "$syslogmode" in
+		auto|custom) ;;
+		*) syslogmode="auto"; configchanged="1" ;;
+	esac
+	Resolve_Syslog_Sources
 
 	if [ -n "$countrylist" ]; then
 		# Country codes are lowercase, unique and space separated. If an older
@@ -7109,6 +8344,7 @@ Write_Config() {
 		Write_Config_Value "loginvalid" "$loginvalid"
 		Write_Config_Value "logsize" "$logsize"
 		Write_Config_Value "extendedstats" "$extendedstats"
+		Write_Config_Value "syslogmode" "${syslogmode:-auto}"
 		Write_Config_Value "syslogloc" "$syslogloc"
 		Write_Config_Value "syslog1loc" "$syslog1loc"
 		Write_Config_Value "lookupcountry" "$lookupcountry"
@@ -7122,19 +8358,30 @@ Write_Config() {
 }
 
 Run_WebUI_Command() {
-	# Merlin service-event actions run independently of the page request. Wait
-	# for the active Skynet owner to finish, then invoke the normal CLI handler.
-	webuiwait="0"
-	while [ -f "$LOCK_FILE" ]; do
-		webuipid="$(cut -d'|' -f2 "$LOCK_FILE" 2>/dev/null)"
-		if [ -z "$webuipid" ] || [ ! -d "/proc/$webuipid" ]; then
-			break
-		fi
-		[ "$webuiwait" -ge "300" ] && return 1
-		sleep 1
-		webuiwait=$((webuiwait + 1))
-	done
+	# The invoked command acquires the kernel-owned state lock. A concurrent
+	# operation reports busy immediately; lock-file existence is never ownership.
 	SKYNET_ACTION_ORIGIN="webui" SKYNET_ACTION_TRANSACTION="${webuirequestid:-}" sh "$0" "$@"
+}
+
+Apply_WebUI_Stats() {
+	nocfg="1"
+	settingsresult="error"
+	[ -f "/usr/sbin/helper.sh" ] || { Generate_WebUI_Settings; return 1; }
+	# shellcheck disable=SC1091
+	. /usr/sbin/helper.sh
+	webuirequestid="$(am_settings_get skynet_statsrequest)"
+	case "$webuirequestid" in ""|*[!0-9]*) webuirequestid="" ;; esac
+	webuistatsoutput="$TMP_DIR/webui-stats-output.$$"
+	# A rejected worker never publishes stats.js. Publish its result separately
+	# so polling can finish without replacing the previous charts.
+	if Run_WebUI_Command debug genstats > "$webuistatsoutput" 2>&1; then
+		settingsresult="success"
+	elif grep -qE 'Lock File Detected|Lock file busy' "$webuistatsoutput"; then
+		settingsresult="busy"
+	fi
+	rm -f "$webuistatsoutput"
+	Generate_WebUI_Settings || return 1
+	[ "$settingsresult" = "success" ]
 }
 
 Apply_WebUI_Toggle() {
@@ -7163,6 +8410,15 @@ Apply_WebUI_Settings() {
 		webuiunbanprivate="$(am_settings_get skynet_unbanprivateip)"
 		webuiaiprotect="$(am_settings_get skynet_banaiprotect)"
 		webuisecuremode="$(am_settings_get skynet_securemode)"
+		webuilogmode="$(am_settings_get skynet_logmode)"
+		webuisyslogmode="$(am_settings_get skynet_syslogmode)"
+		webuisyslog="$(am_settings_get skynet_syslogloc)"
+		webuisyslog1="$(am_settings_get skynet_syslog1loc)"
+		# Older open pages omit these controls; retain their saved values.
+		[ -n "$webuilogmode" ] || webuilogmode="$logmode"
+		[ -n "$webuisyslogmode" ] || webuisyslogmode="$syslogmode"
+		[ -n "$webuisyslog" ] || webuisyslog="$syslogloc"
+		[ -n "$webuisyslog1" ] || webuisyslog1="$syslog1loc"
 		webuiloginvalid="$(am_settings_get skynet_loginvalid)"
 		webuilogsize="$(am_settings_get skynet_logsize)"
 		webuiextended="$(am_settings_get skynet_extendedstats)"
@@ -7181,6 +8437,15 @@ Apply_WebUI_Settings() {
 		case "$webuiunbanprivate" in enabled|disabled) ;; *) settingsresult="error" ;; esac
 		case "$webuiaiprotect" in enabled|disabled) ;; *) settingsresult="error" ;; esac
 		case "$webuisecuremode" in enabled|disabled) ;; *) settingsresult="error" ;; esac
+		case "$webuilogmode" in enabled|disabled) ;; *) settingsresult="error" ;; esac
+		case "$webuisyslogmode" in
+			auto) ;;
+			custom)
+				Validate_Syslog_Path "$webuisyslog" && Validate_Syslog_Path "$webuisyslog1" \
+					&& [ "$webuisyslog" != "$webuisyslog1" ] || settingsresult="error"
+			;;
+			*) settingsresult="error" ;;
+		esac
 		case "$webuiloginvalid" in enabled|disabled) ;; *) settingsresult="error" ;; esac
 		case "$webuilogsize" in ""|*[!0-9]*) settingsresult="error" ;; *) [ "$webuilogsize" -ge 10 ] 2>/dev/null || settingsresult="error" ;; esac
 		case "$webuiextended" in enabled|disabled) ;; *) settingsresult="error" ;; esac
@@ -7209,6 +8474,9 @@ Apply_WebUI_Settings() {
 		if [ "$settingsresult" = "success" ]; then
 			Apply_WebUI_Toggle "$webuiloginvalid" "$loginvalid" loginvalid || settingsresult="error"
 		fi
+		if [ "$settingsresult" = "success" ]; then
+			Apply_WebUI_Toggle "$webuilogmode" "$logmode" logmode || settingsresult="error"
+		fi
 		if [ "$settingsresult" = "success" ] && [ "$webuilogsize" != "$logsize" ]; then
 			Run_WebUI_Command settings logsize "$webuilogsize" >/dev/null 2>&1 || settingsresult="error"
 		fi
@@ -7230,6 +8498,14 @@ Apply_WebUI_Settings() {
 		fi
 	fi
 
+	# Apply log source paths last so preceding commands archive from the saved sources.
+	if [ "$settingsresult" = "success" ]; then
+		if [ "$webuisyslogmode" = "auto" ]; then
+			[ "$syslogmode" = "auto" ] || Run_WebUI_Command settings syslog auto >/dev/null 2>&1 || settingsresult="error"
+		elif [ "$syslogmode" != "custom" ] || [ "$webuisyslog" != "$syslogloc" ] || [ "$webuisyslog1" != "$syslog1loc" ]; then
+			Run_WebUI_Command settings syslog "$webuisyslog" "$webuisyslog1" >/dev/null 2>&1 || settingsresult="error"
+		fi
+	fi
 	Load_Config || settingsresult="error"
 	Generate_WebUI_Settings
 }
@@ -7352,29 +8628,6 @@ Apply_WebUI_Countries() {
 	Generate_WebUI_Settings
 }
 
-Snapshot_WebUI_Rules() {
-	webuirulesnapshot="$TMP_DIR/webui-rules-old.$$"
-	{ ipset save Skynet-Blacklist \
-		&& ipset save Skynet-BlockedRanges \
-		&& ipset save Skynet-Whitelist; } > "$webuirulesnapshot" 2>/dev/null \
-		&& [ -s "$webuirulesnapshot" ]
-}
-
-Restore_WebUI_Rules() {
-	[ -s "$webuirulesnapshot" ] || return 1
-	webuirulerestorefile="$TMP_DIR/webui-rules-restore.$$"
-	awk '$1 == "add"' "$webuirulesnapshot" > "$webuirulerestorefile" \
-		|| { rm -f "$webuirulerestorefile"; return 1; }
-	for webuirulerestoreset in Skynet-Blacklist Skynet-BlockedRanges Skynet-Whitelist; do
-		ipset flush "$webuirulerestoreset" 2>/dev/null \
-			|| { rm -f "$webuirulerestorefile"; return 1; }
-	done
-	ipset restore < "$webuirulerestorefile" 2>/dev/null
-	webuirulerestorestatus="$?"
-	rm -f "$webuirulerestorefile"
-	return "$webuirulerestorestatus"
-}
-
 Set_WebUI_Rule_Result() {
 	# Translate the public command result without exposing command output in the
 	# generated payload. Specific tokens let the WebUI distinguish input, source,
@@ -7450,16 +8703,24 @@ Apply_WebUI_Rules() {
 	webuirulemode="$(am_settings_get skynet_rulemode)"
 	webuiruleentries="$(am_settings_get skynet_ruleentries)"
 	webuirulecomment="$(am_settings_get skynet_rulecomment)"
-	webuiruletarget="$(am_settings_get skynet_ruletarget)"
-	webuirulesavedcomment="$(am_settings_get skynet_rulesavedcomment)"
+	webuirulecomments="$(am_settings_get skynet_rulecomments)"
+	webuirulecommentfile=""
+	webuiruletimeout="$(am_settings_get skynet_ruletimeout)"
+	webuiruleid="$(am_settings_get skynet_ruleid)"
 	webuirequestid="$(am_settings_get skynet_rulerequest)"
 	webuirulepersisted="0"
-	webuirulesnapshot=""
 	webuiruleoutput=""
 	settingsresult="ready"
 	case "$webuirequestid" in ""|*[!0-9]*) webuirequestid="" ;; esac
 	SKYNET_ACTION_ORIGIN="webui"
 	SKYNET_ACTION_TRANSACTION="$webuirequestid"
+	if ! Time_Is_Ready && { [ "$webuiruleoperation" = "refresh" ] \
+		|| { [ "$webuiruleoperation" = "add" ] && [ "$webuiruleaction" != "unban" ]; }; }; then
+		settingsresult="time"
+		nocfg="1"
+		Generate_WebUI_Settings
+		return 1
+	fi
 
 	case "$webuiruleoperation:$webuiruleaction:$webuirulemode" in
 		refresh:*:*)
@@ -7492,12 +8753,17 @@ Apply_WebUI_Rules() {
 				if [ "$webuirulestatus" = "0" ]; then
 					settingsresult="success"
 					webuirulepersisted="1"
-					Queue_Action success rules remove ban address "$webuiruleentries" "" \
-						|| Log error -s "Failed To Queue Rule Action"
+					webuirulecovered="0"
 					for webuiruleentry in $webuiruleentries; do
 						webuirulepattern="$(printf '%s\n' "$webuiruleentry" | sed 's/\./\\./g')"
 						sed -i "\\~BLOCKED.*=$webuirulepattern ~d" "$skynetlog"
+						if printf '%s\n' "$webuiruleentry" | Is_IP; then webuiruleentrytype="ip"; else webuiruleentrytype="range"; fi
+						Ban_Value_Is_Covered "$webuiruleentrytype" "$webuiruleentry" && webuirulecovered="1"
 					done
+					if [ "$webuirulecovered" = "1" ]; then settingsresult="warning:covered"; webuiruleresult="degraded"
+					else webuiruleresult="success"; fi
+					Queue_Action "$webuiruleresult" rules remove ban address "$webuiruleentries" "" \
+						|| Log error -s "Failed To Queue Rule Action"
 				elif [ "$webuirulestatus" = "2" ]; then settingsresult="stale"
 				else settingsresult="apply"
 				fi
@@ -7507,30 +8773,84 @@ Apply_WebUI_Rules() {
 			Check_Lock webui rules || return 1
 			webuiruleentries="$(Normalize_List "$webuiruleentries")" || settingsresult="validation"
 			Validate_IPSet_Comment "$webuirulecomment" 242 || settingsresult="validation"
+			if [ -n "$webuirulecomments" ]; then
+				# One-line tab-separated address/comment pairs fit Merlin custom settings;
+				# comments reject tabs/newlines and are validated again during staging.
+				webuirulecommentfile="$TMP_DIR/webui-rule-comments.$$"
+				printf '%s\n' "$webuirulecomments" | awk -F '\t' '
+					NR != 1 || NF % 2 {invalid=1}
+					{for (i=1; i<NF; i+=2) print $i "\t" $(i+1)}
+					END {exit invalid ? 2 : 0}
+				' > "$webuirulecommentfile" || settingsresult="validation"
+			fi
+			webuiruleexpires="0"
+			if [ "$webuiruleaction" = "whitelist" ] && [ -n "$webuiruletimeout" ]; then settingsresult="validation"; fi
+			if [ "$webuiruleaction" = "ban" ] && [ -n "$webuiruletimeout" ]; then
+				case "$webuiruletimeout" in
+					15m) webuiruleduration="900" ;;
+					1h) webuiruleduration="3600" ;;
+					6h) webuiruleduration="21600" ;;
+					24h) webuiruleduration="86400" ;;
+					7d) webuiruleduration="604800" ;;
+					*) settingsresult="validation" ;;
+				esac
+				if [ "$settingsresult" = "ready" ] || [ "$settingsresult" = "error" ]; then
+					if Time_Is_Ready; then webuiruleexpires="$(($(date +%s) + webuiruleduration))"; else settingsresult="time"; fi
+				fi
+			fi
 			webuirulewarning="0"
-			if [ "$settingsresult" != "validation" ] && [ "$settingsresult" != "error" ]; then settingsresult="ready"; fi
 			if [ "$settingsresult" = "ready" ]; then
-				[ -n "$webuirulecomment" ] || webuirulecomment="$(date +"%b %e %T")"
+				if ! Time_Is_Ready; then settingsresult="time"; fi
 				for webuiruleentry in $webuiruleentries; do
 					printf '%s\n' "$webuiruleentry" | Is_IPRange || { settingsresult="validation"; break; }
 					if [ "$webuiruleaction" = "ban" ]; then
 						webuirulewhitelisttest="${webuiruleentry%%/*}"
-						ipset -q test Skynet-Whitelist "$webuirulewhitelisttest" && webuirulewarning="1"
+						IP_Is_Whitelisted "$webuirulewhitelisttest" && webuirulewarning="1"
 					fi
 				done
 			fi
-			if [ "$settingsresult" = "ready" ] && Apply_Registered_Address_Rules add "$webuiruleaction" "$webuiruleentries" "$webuirulecomment"; then
+			if [ "$settingsresult" = "ready" ]; then
+				Apply_Registered_Address_Rules add "$webuiruleaction" "$webuiruleentries" "$webuirulecomment" "$webuiruleexpires" "$webuirulecommentfile"
+				webuirulestatus="$?"
+			fi
+			if [ "$settingsresult" = "ready" ] && [ "$webuirulestatus" = "0" ]; then
 				webuirulepersisted="1"
-				if [ "$webuirulewarning" = "1" ]; then
+				if [ "$webuiruleexpires" -gt "0" ] && [ "$rulestagepermanent" -gt "0" ]; then
+					settingsresult="warning:permanent"
+					webuiruleactionresult="degraded"
+				elif [ "$webuirulewarning" = "1" ]; then
 					settingsresult="warning:whitelist"
 					webuiruleactionresult="degraded"
 				else
 					settingsresult="success"
 					webuiruleactionresult="success"
 				fi
-				Queue_Action "$webuiruleactionresult" rules add "$webuiruleaction" address "$webuiruleentries" "$webuirulecomment" \
-					|| Log error -s "Failed To Queue Rule Action"
-			elif [ "$settingsresult" = "ready" ]; then settingsresult="apply"
+				if [ -n "$webuirulecommentfile" ]; then webuiruledetail="Comments stored per rule"; else webuiruledetail="$webuirulecomment"; fi
+				if [ "$webuiruleexpires" -gt "0" ]; then webuiruledetail="${webuiruledetail}${webuiruledetail:+; }Expires $(Format_Threat_Feed_Time "$webuiruleexpires")"; fi
+				if [ "$rulestagechanged" -gt "0" ]; then
+					Queue_Action "$webuiruleactionresult" rules add "$webuiruleaction" address "$webuiruleentries" "$webuiruledetail" \
+						|| Log error -s "Failed To Queue Rule Action"
+				fi
+			elif [ "$settingsresult" = "ready" ]; then
+				if [ "$webuirulestatus" = "2" ]; then settingsresult="validation"; else settingsresult="apply"; fi
+			fi
+		;;
+		remove:*:id)
+			Check_Lock webui rules || return 1
+			if ! printf '%s\n' "$webuiruleid" | grep -qE '^r[0-9]+(-[0-9]+)?$'; then settingsresult="validation"; fi
+			if [ "$settingsresult" = "ready" ]; then
+				Remove_Registered_Rule_ID "$webuiruleid"
+				case "$?" in 0) settingsresult="success"; webuirulepersisted="1" ;; 2) settingsresult="stale" ;; *) settingsresult="apply" ;; esac
+				if [ "$settingsresult" = "success" ]; then
+					webuiruleresult="success"
+					if [ "$ruleremovetarget" = "ban" ] && { [ "$ruleremovetype" = "ip" ] || [ "$ruleremovetype" = "range" ]; } \
+						&& Ban_Value_Is_Covered "$ruleremovetype" "$ruleremovevalue"; then
+						settingsresult="warning:covered"
+						webuiruleresult="degraded"
+					fi
+					Queue_Action "$webuiruleresult" rules remove "$ruleremovetarget" "$ruleremovetype" "$ruleremovevalue" "${ruleremovecomment#C}" \
+						|| Log error -s "Failed To Queue Rule Action"
+				fi
 			fi
 		;;
 		add:ban:domain|add:whitelist:domain|add:unban:domain|add:ban:asn|add:whitelist:asn|add:unban:asn)
@@ -7566,86 +8886,20 @@ Apply_WebUI_Rules() {
 				rm -f "$webuiruleoutput"
 			fi
 		;;
-		remove:*:manual)
-			Check_Lock webui rules || return 1
-			case "$webuiruletarget:$webuiruleaction:$webuirulesavedcomment" in
-				Skynet-Blacklist:ban:ManualBan:\ *) webuiruleeventtype="ip"; webuiruleregistrycomment="C${webuirulesavedcomment#ManualBan: }" ;;
-				Skynet-BlockedRanges:ban:ManualRBan:\ *) webuiruleeventtype="range"; webuiruleregistrycomment="C${webuirulesavedcomment#ManualRBan: }" ;;
-				Skynet-Whitelist:whitelist:ManualWlist:\ *)
-					if printf '%s\n' "$webuiruleentries" | Is_Range; then webuiruleeventtype="range"; else webuiruleeventtype="ip"; fi
-					webuiruleregistrycomment="C${webuirulesavedcomment#ManualWlist: }"
-				;;
-				*) settingsresult="validation" ;;
-			esac
-			case "$webuiruleentries" in *" "*) settingsresult="validation" ;; esac
-			printf '%s\n' "$webuiruleentries" | Is_IPRange || settingsresult="validation"
-			if [ "$settingsresult" = "ready" ] && ! awk -F '\t' -v target="$webuiruleaction" -v type="$webuiruleeventtype" \
-				-v value="$webuiruleentries" -v detail="$webuiruleregistrycomment" \
-				'$1 == "R1" && $2 == target && $3 == type && $4 == value && $5 == detail {found = 1} END {exit !found}' "$skynetrules"; then
-				settingsresult="stale"
-			fi
-			if [ "$settingsresult" = "ready" ]; then
-				Apply_Registered_Address_Rules remove "$webuiruleaction" "$webuiruleentries" ""
-				case "$?" in 0) settingsresult="success"; webuirulepersisted="1" ;; 2) settingsresult="stale" ;; *) settingsresult="apply" ;; esac
-				if [ "$settingsresult" = "success" ]; then
-					Queue_Action success rules remove "$webuiruleaction" "$webuiruleeventtype" "$webuiruleentries" "" \
-						|| Log error -s "Failed To Queue Rule Action"
-				fi
-			fi
-		;;
-		remove:*:import)
-			Check_Lock webui rules || return 1
-			Snapshot_WebUI_Rules || settingsresult="error"
-			case "$webuiruletarget:$webuiruleaction" in
-				Skynet-Blacklist:ban|Skynet-Whitelist:whitelist) ;;
-				*) settingsresult="validation" ;;
-			esac
-			case "$webuirulesavedcomment" in Imported:\ *) ;; *) settingsresult="validation" ;; esac
-			if [ "$settingsresult" = "ready" ]; then
-				Remove_Import_Group "$webuiruletarget" "$webuirulesavedcomment"
-				case "$?" in 0) settingsresult="success" ;; 2) settingsresult="stale" ;; *) settingsresult="apply" ;; esac
-				if [ "$settingsresult" = "success" ]; then
-					Queue_Action success rules remove "$webuiruleaction" import "$webuiruleentries" "$webuirulesavedcomment" \
-						|| Log error -s "Failed To Queue Rule Action"
-				fi
-			fi
-		;;
 		*) settingsresult="validation" ;;
 	esac
 
-	if { [ "$settingsresult" = "success" ] || [ "$settingsresult" = "warning:whitelist" ]; } \
-		&& [ "$webuirulepersisted" != "1" ]; then
-		blacklist1count="$(IPSet_Entry_Count Skynet-Blacklist)"
-		blacklist2count="$(IPSet_Entry_Count Skynet-BlockedRanges)"
-		if Save_IPSets && Write_Config; then
-			nocfg="1"
-		else
-			Discard_Actions
-			if [ -n "$webuirulesnapshot" ]; then
-				Restore_WebUI_Rules || Log error -s "Failed To Restore WebUI Rule Changes"
-				blacklist1count="$(IPSet_Entry_Count Skynet-Blacklist)"
-				blacklist2count="$(IPSet_Entry_Count Skynet-BlockedRanges)"
-				if ! Save_IPSets || ! Write_Config; then
-					Log error -s "Failed To Restore WebUI Rule Data"
-				fi
-				nocfg="1"
-			fi
-			settingsresult="save"
-		fi
-	fi
-	case "$settingsresult" in success|warning:whitelist) ;; *) Discard_Actions ;; esac
+	case "$settingsresult" in success|warning:whitelist|warning:permanent|warning:covered) ;; *) Discard_Actions ;; esac
 	if [ "$settingsresult" = "success" ] && [ "$webuirulepersisted" = "1" ]; then
 		Load_Config || settingsresult="error"
 		nocfg="1"
 	fi
-	for webuiruletemp in "$webuirulesnapshot" "$webuiruleoutput"; do
-		[ -n "$webuiruletemp" ] && rm -f "$webuiruletemp"
-	done
+	[ -z "$webuiruleoutput" ] || rm -f "$webuiruleoutput"
 	nocfg="1"
 	Load_Config || settingsresult="error"
 	Queue_WebUI_Rule_Failure
 	case "$settingsresult" in
-		success|warning:whitelist|degraded) Publish_Actions || Log error -s "Failed To Record Committed Rule Action" ;;
+		success|warning:whitelist|warning:permanent|warning:covered|degraded) Publish_Actions || Log error -s "Failed To Record Committed Rule Action" ;;
 		apply|save|resolve|source|error) Publish_Failed_Actions || Log error -s "Failed To Record Rule Failure" ;;
 	esac
 	Generate_WebUI_Settings
@@ -7692,7 +8946,7 @@ Restore_WebUI_IOT() {
 	Unload_LogIPTables
 	Unload_IOT_Rules 2>/dev/null || { rm -f "$iotwebrestore"; return 1; }
 	if ! ipset flush Skynet-IOT 2>/dev/null \
-		|| { [ ! -s "$iotwebrestore" ] || ! ipset restore < "$iotwebrestore" 2>/dev/null; }; then
+		|| { [ -s "$iotwebrestore" ] && ! ipset restore < "$iotwebrestore" 2>/dev/null; }; then
 		rm -f "$iotwebrestore"
 		return 1
 	fi
@@ -7703,7 +8957,7 @@ Restore_WebUI_IOT() {
 	iotlogging="$iotweboldlogging"
 	Load_IOT_Rules || return 1
 	Load_LogIPTables || return 1
-	Save_IPSets && Write_Config
+	return 0
 }
 
 Apply_WebUI_IOT() {
@@ -7749,10 +9003,12 @@ Apply_WebUI_IOT() {
 	iotweboldproto="$iotproto"
 	iotweboldblocked="$iotblocked"
 	iotweboldlogging="$iotlogging"
+	Acquire_Firewall_Lock || { rm -f "$iotwebsnapshot"; Generate_WebUI_Settings; return 1; }
 	Unload_LogIPTables
 	if ! Unload_IOT_Rules || ! Replace_IOT_Entries "$webuiiotentries"; then
 		Load_IOT_Rules || Log error -s "Failed To Restore IoT Firewall Rules"
 		Load_LogIPTables || Log error -s "Failed To Restore IoT Logging Rules"
+		Release_Firewall_Lock
 		rm -f "$iotwebsnapshot"
 		settingsresult="apply"
 		Generate_WebUI_Settings
@@ -7764,19 +9020,28 @@ Apply_WebUI_IOT() {
 	iotlogging="$webuiiotlogging"
 	if ! Load_IOT_Rules; then
 		Restore_WebUI_IOT || Log error -s "Failed To Fully Restore IoT Configuration"
+		Release_Firewall_Lock
 		rm -f "$iotwebsnapshot"
 		Generate_WebUI_Settings
 		return 1
 	fi
 	if ! Load_LogIPTables; then
 		Restore_WebUI_IOT || Log error -s "Failed To Fully Restore IoT Configuration"
+		Release_Firewall_Lock
 		rm -f "$iotwebsnapshot"
 		settingsresult="apply"
 		Generate_WebUI_Settings
 		return 1
 	fi
+	Release_Firewall_Lock
 	if ! Save_IPSets || ! Write_Config; then
-		Restore_WebUI_IOT || Log error -s "Failed To Fully Restore IoT Configuration"
+		if Acquire_Firewall_Lock; then
+			Restore_WebUI_IOT || Log error -s "Failed To Fully Restore IoT Configuration"
+			Release_Firewall_Lock
+		else
+			Log error -s "Failed To Lock Firewall For IoT Rollback"
+		fi
+		if ! Save_IPSets || ! Write_Config; then Log error -s "Failed To Persist Restored IoT Configuration"; fi
 		rm -f "$iotwebsnapshot"
 		settingsresult="apply"
 		Generate_WebUI_Settings
@@ -7805,10 +9070,10 @@ Apply_WebUI_IOT() {
 Print_Rule_Status() {
 	Validate_Rule_Registry "$skynetrules" || { echo "[*] Rule Registry Is Unavailable Or Invalid"; return 1; }
 	rulestatuscounts="$(awk -F '\t' '
-		$1 == "R1" && $6 == "enabled" {
+		$1 == "R2" && $7 == "enabled" {
 			total++
-			if ($3 == "domain") domains++
-			else if ($3 == "asn") asns++
+			if ($4 == "domain") domains++
+			else if ($4 == "asn") asns++
 			else addresses++
 		}
 		END {print total + 0, addresses + 0, domains + 0, asns + 0}
@@ -7853,7 +9118,7 @@ Build_Domain_Rule_Action_Detail() {
 		}
 		END {
 			for (key in old_state) if (!(key in seen)) changed++
-			printf "%d changed; %d current, %d cached, %d empty, %d expired, %d failed; %d addresses", \
+			printf "%d domains changed; %d current, %d cached, %d empty, %d expired, %d failed; %d addresses", \
 				changed + 0, state["current"] + 0, state["cached"] + 0, state["empty"] + 0, \
 				state["expired"] + 0, state["failed"] + 0, entries + 0
 		}
@@ -7869,11 +9134,28 @@ Dispatch_Rules() {
 			nolog="2"
 			nocfg="1"
 		;;
+		remove)
+			if [ "$#" -ne "3" ] || ! printf '%s\n' "$3" | grep -qE '^r[0-9]+(-[0-9]+)?$'; then
+				echo "[*] Usage: firewall rules remove <rule-id>"; echo; return 2
+			fi
+			Check_Lock "$@"
+			Require_Running
+			Require_Rule_Registry
+			Purge_Logs
+			Remove_Registered_Rule_ID "$3"
+			ruleremovestatus="$?"
+			if [ "$ruleremovestatus" = "2" ]; then echo "[*] Rule ID Not Found"; echo; return 2; fi
+			[ "$ruleremovestatus" = "0" ] || { echo "[*] Failed To Remove Rule - Existing Rules Retained"; echo; return 1; }
+			Queue_Action success rules remove "$ruleremovetarget" "$ruleremovetype" "$ruleremovevalue" "${ruleremovecomment#C}" \
+				|| Log error -s "Failed To Queue Rule Action"
+			return 0
+		;;
 		refresh)
 			[ "$#" -eq "2" ] || { echo "[*] Usage: firewall rules refresh"; echo; return 2; }
 			Check_Lock "$@"
 			Require_Running
 			Require_Rule_Registry
+			Require_Time
 			Purge_Logs
 			echo "[i] Refreshing Domain Rules"
 			if ! Update_Domain_Rules "$skynetrules" refresh; then
@@ -7883,6 +9165,7 @@ Dispatch_Rules() {
 				return 1
 			fi
 			rulerefreshasn="1"
+			asnrefreshchanged="0"
 			if [ "${SKYNET_ACTION_ORIGIN:-}" = "cron" ] && [ "$(date +%H)" != "00" ]; then
 				rulerefreshasn="0"
 			fi
@@ -7902,12 +9185,17 @@ Dispatch_Rules() {
 			else
 				rulerefreshresult="success"
 			fi
-			rulerefreshentries="$(awk -F '\t' '$1 == "R1" && ($3 == "domain" || $3 == "asn") && $6 == "enabled" {count++} END {print count + 0}' "$skynetrules") logical rules"
+			rulerefreshentries="$(awk -F '\t' '$1 == "R2" && ($4 == "domain" || $4 == "asn") && $7 == "enabled" {count++} END {print count + 0}' "$skynetrules") logical rules"
 			rulerefreshdetail="$(Build_Domain_Rule_Action_Detail)"
+			if [ "$asnrefreshchanged" = "1" ]; then rulerefreshdetail="$rulerefreshdetail; ASN ranges updated"; fi
 			[ "$rulerefreshasn" = "1" ] || rulerefreshdetail="$rulerefreshdetail; ASN refresh not due"
-			rulerefreshduration="$(($(date +%s) - stime))"
+			rulerefreshduration="$(($(Uptime_Seconds) - stime))"
 			rulerefreshdetail="$rulerefreshdetail; ${rulerefreshduration}s"
-			Queue_Action "$rulerefreshresult" rules refresh all logical "$rulerefreshentries" "$rulerefreshdetail" || Log error -s "Failed To Queue Rule Refresh"
+			# Check times change on every refresh; journal only changed content or
+			# health, while keeping degraded and failed results visible.
+			if [ "${rulerefreshdetail%% *}" -gt "0" ] || [ "$asnrefreshchanged" = "1" ] || [ "$rulerefreshresult" != "success" ]; then
+				Queue_Action "$rulerefreshresult" rules refresh all logical "$rulerefreshentries" "$rulerefreshdetail" || Log error -s "Failed To Queue Rule Refresh"
+			fi
 			[ "${SKYNET_ACTION_ORIGIN:-}" = "webui" ] || Generate_WebUI_Settings || Log error -s "Failed To Refresh WebUI Rule Data"
 			return 0
 		;;
@@ -7935,6 +9223,9 @@ Dispatch_Unban() {
 			for unbanentry in $unbanlist; do
 				sed -i "\\~BLOCKED.*=$unbanentry ~d" "$skynetlog"
 			done
+			for unbanentry in $unbanlist; do
+				if Ban_Value_Is_Covered ip "$unbanentry"; then echo "[!] $unbanentry Remains Covered By Another Rule"; fi
+			done
 			return 0
 		;;
 		range)
@@ -7950,6 +9241,9 @@ Dispatch_Unban() {
 			Queue_Action success rules remove ban range "$unbanlist" "" || Log error -s "Failed To Queue Rule Action"
 			for unbanentry in $unbanlist; do
 				sed -i "\\~BLOCKED.*=$unbanentry ~d" "$skynetlog"
+			done
+			for unbanentry in $unbanlist; do
+				if Ban_Value_Is_Covered range "$unbanentry"; then echo "[!] $unbanentry Remains Covered By Another Rule"; fi
 			done
 			return 0
 		;;
@@ -7974,7 +9268,7 @@ Dispatch_Unban() {
 		comment)
 			[ "$#" -eq "3" ] && [ -n "$3" ] || { echo "[*] Syntax: firewall unban comment \"text\""; echo; exit 2; }
 			echo "[i] Removing Bans With Comment Containing ($3)"
-			unbancommentlist="$(awk -F '\t' -v text="$3" '$1 == "R1" && $2 == "ban" && ($3 == "ip" || $3 == "range") && index(substr($5, 2), text) {print $4}' "$skynetrules" | awk 'NF {output = output (output == "" ? "" : " ") $1} END {print output}')"
+			unbancommentlist="$(awk -F '\t' -v text="$3" '$1 == "R2" && $3 == "ban" && ($4 == "ip" || $4 == "range") && index(substr($6, 2), text) {print $5}' "$skynetrules" | awk 'NF {output = output (output == "" ? "" : " ") $1} END {print output}')"
 			[ -n "$unbancommentlist" ] || { echo "[*] No Manual Ban Comments Matched"; echo; exit 2; }
 			Apply_Registered_Address_Rules remove ban "$unbancommentlist" "" || { echo; exit 1; }
 			Queue_Action success rules remove ban comment "$unbancommentlist" "$3" || Log error -s "Failed To Queue Rule Action"
@@ -7988,7 +9282,7 @@ Dispatch_Unban() {
 			echo "[i] Removing Previous Country Bans (${countrylist})"
 			Remove_IPSet_Entries Skynet-BlockedRanges "Country: " || { rm -f "$countryclearsnapshot"; echo; exit 1; }
 			countrylist=""
-			blacklist2count="$(IPSet_Entry_Count Skynet-BlockedRanges)"
+			Update_Block_Counts
 			echo "[i] Saving Changes"
 			countrycachedir="${skynetloc}/lists/countries"
 			countrycachemanifest="${countrycachedir}/.manifest"
@@ -8002,7 +9296,7 @@ Dispatch_Unban() {
 				Log error -s "Failed To Restore Country Bans After Save Failure"
 			fi
 			countrylist="$countryclearoldlist"
-			blacklist2count="$(IPSet_Entry_Count Skynet-BlockedRanges)"
+			Update_Block_Counts
 			if ! Save_IPSets || ! Write_Config; then
 				Log error -s "Failed To Restore Country Configuration"
 			fi
@@ -8025,25 +9319,15 @@ Dispatch_Unban() {
 		;;
 		malware)
 			echo "[i] Removing Previous Malware Blacklist Entries"
-			Remove_IPSet_Entries Skynet-Blacklist "BanMalware" || { echo; exit 1; }
-			Remove_IPSet_Entries Skynet-BlockedRanges "BanMalware" || { echo; exit 1; }
+			Remove_Automatic_Bans comment "BanMalware" \
+				|| { echo "[*] Failed To Remove Malware Entries - Existing Bans Retained"; echo; exit 1; }
 			Queue_Action success feeds remove malware blacklist "all malware entries" "" || Log error -s "Failed To Queue Malware Action"
+			return 0
 		;;
 		nomanual)
 			echo "[i] Removing All Non-Manual Bans"
-			Snapshot_Registered_Rule_State || { echo "[*] Failed To Snapshot Existing Rules"; echo; exit 1; }
-			nomanualrestore="$TMP_DIR/non-manual-remove.$$"
-			awk '
-				$1 == "add" && ($2 == "Skynet-Blacklist" || $2 == "Skynet-BlockedRanges") {
-					if ($0 ~ /comment "ManualBan: / || $0 ~ /comment "ManualRBan: / || $0 ~ /comment "ASN: AS[0-9]+ "/) next
-					print "del " $2 " " $3
-				}
-			' "$registeredsetsnapshot" > "$nomanualrestore" || { echo "[*] Failed To Prepare Rule Removal"; echo; exit 1; }
-			if [ -s "$nomanualrestore" ]; then
-				Apply_IPSet_File "$nomanualrestore" "$registeredsetsnapshot" \
-					|| { echo "[*] Failed To Remove Non-Manual Bans - Existing Rules Retained"; echo; exit 1; }
-			fi
-			Save_IPSets || { Restore_Registered_Rule_State; echo "[*] Failed To Save Changes - Existing Rules Restored"; echo; exit 1; }
+			Remove_Automatic_Bans all "" \
+				|| { echo "[*] Failed To Remove Non-Manual Bans - Existing Bans Retained"; echo; exit 1; }
 			sed -i '\~Manual ~!d' "$skynetlog"
 			iptables -Z PREROUTING -t raw
 			Queue_Action success rules remove ban automatic "non-manual bans" "" || Log error -s "Failed To Queue Rule Action"
@@ -8052,7 +9336,7 @@ Dispatch_Unban() {
 		;;
 		all)
 			echo "[i] Removing All $((blacklist1count + blacklist2count)) Entries From Blacklist"
-			Clear_Registered_Rules ban || { echo "[*] Failed To Clear Blacklist - Existing Rules Retained"; echo; exit 1; }
+			Clear_All_Bans || { echo "[*] Failed To Clear Blacklist - Existing Rules Retained"; echo; exit 1; }
 			iptables -Z PREROUTING -t raw
 			true > "$skynetlog"
 			Queue_Action success rules remove ban all "all blacklist entries" "" || Log error -s "Failed To Queue Rule Action"
@@ -8302,39 +9586,56 @@ Dispatch_Ban() {
 	Check_Lock "$@"
 	Require_Running
 	Require_Rule_Registry
+	Require_Time
 	Purge_Logs
 	case "$2" in
 		ip)
 			shift 2
-			Parse_IPSet_Entry_Arguments ip 244 "$@" || { echo "[*] $parsederror"; echo; exit 2; }
+			Parse_Ban_Arguments ip 242 "$@" || { echo "[*] $parsederror"; echo; exit 2; }
+			Require_Time
 			banlist="$parsedentries"
 			desc="$parsedcomment"
-			[ -n "$desc" ] || desc="$(date +"%b %e %T")"
 			echo "[i] Banning $banlist"
-			Apply_Registered_Manual_Rules add ban ip "$desc" "$banlist" || { echo; exit 1; }
+			Apply_Registered_Manual_Rules add ban ip "$desc" "$banlist" "$parsedexpires" || { echo; exit 1; }
 			banresult="success"
-			for banentry in $banlist; do ipset -q test Skynet-Whitelist "$banentry" && banresult="degraded"; done
+			if [ "$parsedexpires" -gt "0" ] && [ "$rulestagepermanent" -gt "0" ]; then
+				banresult="degraded"
+				echo "[!] Existing Permanent Rule Retained"
+			fi
+			for banentry in $banlist; do IP_Is_Whitelisted "$banentry" && banresult="degraded"; done
 			[ "$banresult" = "success" ] || echo "[!] Whitelist Precedence Prevents One Or More Bans From Being Enforced"
-			Queue_Action "$banresult" rules add ban ip "$banlist" "$desc" || Log error -s "Failed To Queue Rule Action"
+			if [ "$parsedexpires" -gt "0" ]; then bandetail="${desc}${desc:+; }Expires $(Format_Threat_Feed_Time "$parsedexpires")"; else bandetail="$desc"; fi
+			if [ "$rulestagechanged" -gt "0" ]; then
+				Queue_Action "$banresult" rules add ban ip "$banlist" "$bandetail" || Log error -s "Failed To Queue Rule Action"
+			fi
 			return 0
 		;;
 		range)
 			shift 2
-			Parse_IPSet_Entry_Arguments range 243 "$@" || { echo "[*] $parsederror"; echo; exit 2; }
+			Parse_Ban_Arguments range 242 "$@" || { echo "[*] $parsederror"; echo; exit 2; }
+			Require_Time
 			banlist="$parsedentries"
 			desc="$parsedcomment"
-			[ -n "$desc" ] || desc="$(date +"%b %e %T")"
 			echo "[i] Banning $banlist"
-			Apply_Registered_Manual_Rules add ban range "$desc" "$banlist" || { echo; exit 1; }
+			Apply_Registered_Manual_Rules add ban range "$desc" "$banlist" "$parsedexpires" || { echo; exit 1; }
 			banresult="success"
-			for banentry in $banlist; do ipset -q test Skynet-Whitelist "${banentry%%/*}" && banresult="degraded"; done
+			if [ "$parsedexpires" -gt "0" ] && [ "$rulestagepermanent" -gt "0" ]; then
+				banresult="degraded"
+				echo "[!] Existing Permanent Rule Retained"
+			fi
+			for banentry in $banlist; do IP_Is_Whitelisted "${banentry%%/*}" && banresult="degraded"; done
 			[ "$banresult" = "success" ] || echo "[!] Whitelist Precedence Prevents One Or More Bans From Being Enforced"
-			Queue_Action "$banresult" rules add ban range "$banlist" "$desc" || Log error -s "Failed To Queue Rule Action"
+			if [ "$parsedexpires" -gt "0" ]; then bandetail="${desc}${desc:+; }Expires $(Format_Threat_Feed_Time "$parsedexpires")"; else bandetail="$desc"; fi
+			if [ "$rulestagechanged" -gt "0" ]; then
+				Queue_Action "$banresult" rules add ban range "$banlist" "$bandetail" || Log error -s "Failed To Queue Rule Action"
+			fi
 			return 0
 		;;
 		domain)
+			Require_Time
 			Require_Connection
 			shift 2
+			[ "$#" -gt "0" ] || { echo "[*] Domain Field Can't Be Empty"; echo; exit 2; }
 			domainbatchlist=""
 			for domaininput in "$@"; do
 				domain="$(Normalize_Domain "$domaininput")" || { echo "[*] $domaininput Is Not A Valid Domain"; echo; exit 2; }
@@ -8430,13 +9731,13 @@ Dispatch_Ban() {
 			fi
 
 			countrylist="$countrylinklist"
-			blacklist2count="$(IPSet_Entry_Count Skynet-BlockedRanges)"
+			Update_Block_Counts
 			echo "[i] Saving Changes"
 			if ! Save_IPSets || ! Write_Config; then
 				Restore_IPSet_Snapshot Skynet-BlockedRanges "$countryrangesnapshot" \
 					|| Log error -s "Failed To Restore Country Bans After Save Failure"
 				countrylist="$countryoldlist"
-				blacklist2count="$(IPSet_Entry_Count Skynet-BlockedRanges)"
+				Update_Block_Counts
 				if ! Save_IPSets || ! Write_Config; then
 					Log error -s "Failed To Restore Country Configuration"
 				fi
@@ -8450,7 +9751,7 @@ Dispatch_Ban() {
 				Restore_IPSet_Snapshot Skynet-BlockedRanges "$countryrangesnapshot" \
 					|| Log error -s "Failed To Restore Country Bans After Cache Publish Failure"
 				countrylist="$countryoldlist"
-				blacklist2count="$(IPSet_Entry_Count Skynet-BlockedRanges)"
+				Update_Block_Counts
 				if ! Save_IPSets || ! Write_Config; then
 					Log error -s "Failed To Restore Country Configuration"
 				fi
@@ -8482,6 +9783,7 @@ Dispatch_Ban() {
 			return 0
 		;;
 		asn)
+			Require_Time
 			Require_Connection
 			shift 2
 			asnlist="$(Normalize_ASN_Arguments "$@")" || { echo "[*] ASN Values Must Use AS Followed By Up To Six Digits"; echo; exit 2; }
@@ -8874,8 +10176,7 @@ fi
 Display_Message "[i] Saving Changes"
 forcebanmalwareupdate="disabled"
 banmalwarelastupdated="$(date +%s)"
-blacklist1count="$(IPSet_Entry_Count Skynet-Blacklist)"
-blacklist2count="$(IPSet_Entry_Count Skynet-BlockedRanges)"
+Update_Block_Counts
 if Save_IPSets && Write_Config; then
 	nocfg="1"
 	Display_Result
@@ -8920,21 +10221,23 @@ Dispatch_BanMalware() {
 	Check_Lock "$@"
 	Require_Running
 	Require_Rule_Registry
+	Require_Time
 	Prepare_Malware_Update "$@"
 	malwarestatus="$?"
 	[ "$malwarestatus" = "0" ] || exit "$malwarestatus"
 	Require_Connection
 	Purge_Logs
 	if ! Build_Malware_Update; then
-		Queue_Action failed feeds update malware sources "enabled sources" "Source preparation failed" || true
+		Queue_Action failed feeds update malware sources "Malware blacklist" "Source preparation failed" || true
 		exit 1
 	fi
 	if ! Apply_Malware_Update; then
-		Queue_Action failed feeds update malware sources "enabled sources" "Blacklist apply failed" || true
+		Queue_Action failed feeds update malware sources "Malware blacklist" "Blacklist apply failed" || true
 		exit 1
 	fi
 	if [ "$feeddegraded" = "1" ]; then malwareactionresult="degraded"; else malwareactionresult="success"; fi
-	Queue_Action "$malwareactionresult" feeds update malware sources "enabled sources" "${feedcachedsources:-}" \
+	malwareactionsummary="$(Build_Threat_Feed_Action_Summary)" || malwareactionsummary="Malware blacklist"
+	Queue_Action "$malwareactionresult" feeds update malware sources "$malwareactionsummary" "${feedcachedsources:+Cached: $feedcachedsources}" \
 		|| Log error -s "Failed To Queue Malware Update"
 }
 
@@ -8942,18 +10245,21 @@ Dispatch_Whitelist() {
 	Check_Lock "$@"
 	Require_Running
 	Require_Rule_Registry
+	case "$2" in ip|range|domain|asn|refresh) Require_Time ;; esac
 	Purge_Logs
 	case "$2" in
 		ip|range)
 			whitelistentrytype="$2"
 			shift 2
 			Parse_IPSet_Entry_Arguments "$whitelistentrytype" 242 "$@" || { echo "[*] $parsederror"; echo; exit 2; }
+			Require_Time
 			whitelistlist="$parsedentries"
 			desc="$parsedcomment"
-			[ -n "$desc" ] || desc="$(date +"%b %e %T")"
 			echo "[i] Whitelisting $whitelistlist"
 			Apply_Registered_Manual_Rules add whitelist "$whitelistentrytype" "$desc" "$whitelistlist" || { echo; exit 1; }
-			Queue_Action success rules add whitelist "$whitelistentrytype" "$whitelistlist" "$desc" || Log error -s "Failed To Queue Rule Action"
+			if [ "$rulestagechanged" -gt "0" ]; then
+				Queue_Action success rules add whitelist "$whitelistentrytype" "$whitelistlist" "$desc" || Log error -s "Failed To Queue Rule Action"
+			fi
 			for whitelistentry in $whitelistlist; do
 				sed -i "\\~=$whitelistentry ~d" "$skynetlog" \
 					|| Log error -s "Failed To Remove Old Logs For $whitelistentry"
@@ -8961,6 +10267,8 @@ Dispatch_Whitelist() {
 			return 0
 		;;
 		domain)
+			Require_Time
+			Require_Connection
 			shift 2
 			[ "$#" -gt "0" ] || { echo "[*] Domain Field Can't Be Empty"; echo; exit 2; }
 			domainbatchlist=""
@@ -8979,6 +10287,7 @@ Dispatch_Whitelist() {
 			Whitelist_VPN || { echo "[*] Failed To Update VPN Whitelist"; echo; exit 1; }
 		;;
 		asn)
+			Require_Time
 			Require_Connection
 			shift 2
 			asnlist="$(Normalize_ASN_Arguments "$@")" || { echo "[*] ASN Values Must Use AS Followed By Up To Six Digits"; echo; exit 2; }
@@ -9039,7 +10348,7 @@ Dispatch_Whitelist() {
 				comment)
 					[ "$#" -eq "4" ] && [ -n "$4" ] || { echo "[*] Syntax: firewall whitelist remove comment \"text\""; echo; exit 2; }
 					echo "[i] Removing All Entries With Comment Matching \"$4\" From Whitelist"
-					whitelistcommentlist="$(awk -F '\t' -v text="$4" '$1 == "R1" && $2 == "whitelist" && ($3 == "ip" || $3 == "range") && index(substr($5, 2), text) {print $4}' "$skynetrules" | awk 'NF {output = output (output == "" ? "" : " ") $1} END {print output}')"
+					whitelistcommentlist="$(awk -F '\t' -v text="$4" '$1 == "R2" && $3 == "whitelist" && ($4 == "ip" || $4 == "range") && index(substr($6, 2), text) {print $5}' "$skynetrules" | awk 'NF {output = output (output == "" ? "" : " ") $1} END {print output}')"
 					[ -n "$whitelistcommentlist" ] || { echo "[*] No Manual Whitelist Comments Matched"; echo; exit 2; }
 					Apply_Registered_Address_Rules remove whitelist "$whitelistcommentlist" "" || { echo; exit 1; }
 					Queue_Action success rules remove whitelist comment "$whitelistcommentlist" "$4" || Log error -s "Failed To Queue Rule Action"
@@ -9065,19 +10374,23 @@ Dispatch_Whitelist() {
 			Whitelist_VPN || { echo "[*] Failed To Refresh VPN Whitelist"; echo; exit 1; }
 			Whitelist_Shared || { echo "[*] Failed To Refresh Shared Whitelist"; echo; exit 1; }
 			Update_Domain_Rules "$skynetrules" refresh || { echo "[*] Failed To Refresh Domain Rules - Existing Rules Retained"; echo; exit 1; }
+			Require_Save_IPSets
 			Queue_Action success rules refresh all whitelist "whitelist sources" "" || Log error -s "Failed To Queue Rule Action"
 			return 0
 		;;
 		view)
 			case "$3" in
 				ips)
-					awk -F '\t' '$1 == "R1" && $2 == "whitelist" && ($3 == "ip" || $3 == "range") {print $4 " " substr($5, 2)}' "$skynetrules"
+					awk -F '\t' '$1 == "R2" && $3 == "whitelist" && ($4 == "ip" || $4 == "range") {print $5 " " substr($6, 2)}' "$skynetrules"
 				;;
 				domains)
-					awk -F '\t' '$1 == "R1" && $2 == "whitelist" && $3 == "domain" {print $4}' "$skynetrules"
+					awk -F '\t' '$1 == "R2" && $3 == "whitelist" && $4 == "domain" {print $5}' "$skynetrules"
+				;;
+				asns)
+					awk -F '\t' '$1 == "R2" && $3 == "whitelist" && $4 == "asn" {print $2 " " $5 " " substr($6, 2)}' "$skynetrules"
 				;;
 				imported)
-					sed '\~add Skynet-Whitelist ~!d;\~Imported:~!d;s~add Skynet-Whitelist ~~' "$skynetipset"
+					awk -F '\t' '$1 == "R2" && $3 == "whitelist" && $4 == "import" {print $2 " " $5 " " substr($6, 2)}' "$skynetrules"
 				;;
 				*)
 					sed '\~add Skynet-Whitelist ~!d;s~add Skynet-Whitelist ~~' "$skynetipset"
@@ -9117,19 +10430,18 @@ Dispatch_Import() {
 			if ! Is_IPRange < "$TMP_DIR/iplist-unfiltered.txt"; then echo "[*] No Content Detected - Stopping Import"; echo; exit 1; fi
 			echo "[i] Processing List"
 			if [ -n "$4" ]; then
-				if ! Validate_IPSet_Comment "$4" 245; then echo "[*] Comment Contains Invalid Characters Or Is Too Long"; echo; exit 2; fi
-				importdesc="Imported: $4"
+				if ! Validate_IPSet_Comment "$4" 242; then echo "[*] Comment Contains Invalid Characters Or Is Too Long"; echo; exit 2; fi
+				importdesc="$4"
 			else
-				importdesc="Imported: $(date +"%b %e %T")"
+				importdesc="Imported List"
 			fi
-			Build_IPList_Restore add blacklist "$importdesc" "$TMP_DIR/iplist-unfiltered.txt" "$TMP_DIR/iplist-filtered.txt"
+			Build_IPList_Restore add blacklist "" "$TMP_DIR/iplist-unfiltered.txt" "$TMP_DIR/iplist-filtered.txt"
 			if [ ! -s "$TMP_DIR/iplist-filtered.txt" ]; then echo "[*] No Public IPs Detected - Stopping Import"; echo; exit 1; fi
 			echo "[i] Adding IPs To Blacklist"
-			Apply_IPSet_File "$TMP_DIR/iplist-filtered.txt" || { echo "[*] Failed To Apply Import - Previous Entries Restored"; echo; exit 1; }
+			Apply_Registered_Import ban "$3" "$importdesc" "$TMP_DIR/iplist-filtered.txt" \
+				|| { echo "[*] Failed To Apply Import - Previous Entries Retained"; echo; exit 1; }
 			importcount="$(wc -l < "$TMP_DIR/iplist-filtered.txt" | tr -d ' ')"
 			rm -f "$TMP_DIR/iplist-unfiltered.txt" "$TMP_DIR/iplist-filtered.txt"
-			echo "[i] Saving Changes"
-			Require_Save_IPSets
 			nocfg="1"
 			Queue_Action success rules add ban import "$3" "$importdesc ($importcount entries)" || Log error -s "Failed To Queue Import Action"
 		;;
@@ -9152,87 +10464,20 @@ Dispatch_Import() {
 			if ! Is_IPRange < "$TMP_DIR/iplist-unfiltered.txt"; then echo "[*] No Content Detected - Stopping Import"; echo; exit 1; fi
 			echo "[i] Processing List"
 			if [ -n "$4" ]; then
-				if ! Validate_IPSet_Comment "$4" 245; then echo "[*] Comment Contains Invalid Characters Or Is Too Long"; echo; exit 2; fi
-				importdesc="Imported: $4"
+				if ! Validate_IPSet_Comment "$4" 242; then echo "[*] Comment Contains Invalid Characters Or Is Too Long"; echo; exit 2; fi
+				importdesc="$4"
 			else
-				importdesc="Imported: $(date +"%b %e %T")"
+				importdesc="Imported List"
 			fi
-			Build_IPList_Restore add whitelist "$importdesc" "$TMP_DIR/iplist-unfiltered.txt" "$TMP_DIR/iplist-filtered.txt"
+			Build_IPList_Restore add whitelist "" "$TMP_DIR/iplist-unfiltered.txt" "$TMP_DIR/iplist-filtered.txt"
 			if [ ! -s "$TMP_DIR/iplist-filtered.txt" ]; then echo "[*] No Public IPs Detected - Stopping Import"; echo; exit 1; fi
 			echo "[i] Adding IPs To Whitelist"
-			Apply_IPSet_File "$TMP_DIR/iplist-filtered.txt" || { echo "[*] Failed To Apply Import - Previous Entries Restored"; echo; exit 1; }
+			Apply_Registered_Import whitelist "$3" "$importdesc" "$TMP_DIR/iplist-filtered.txt" \
+				|| { echo "[*] Failed To Apply Import - Previous Entries Retained"; echo; exit 1; }
 			importcount="$(wc -l < "$TMP_DIR/iplist-filtered.txt" | tr -d ' ')"
 			rm -f "$TMP_DIR/iplist-unfiltered.txt" "$TMP_DIR/iplist-filtered.txt"
-			echo "[i] Saving Changes"
-			Require_Save_IPSets
 			nocfg="1"
 			Queue_Action success rules add whitelist import "$3" "$importdesc ($importcount entries)" || Log error -s "Failed To Queue Import Action"
-		;;
-		*)
-			Command_Not_Recognized
-		;;
-	esac
-}
-
-Dispatch_Deport() {
-	case "$2" in
-		blacklist)
-			Check_Lock "$@"
-			Require_Running
-			Purge_Logs
-			echo "[i] This Function Extracts All IPs And Removes Them ALL From Blacklist"
-			if [ -f "$3" ]; then
-				echo "[i] Local Custom List Detected: $3"
-				Extract_IPList "$3" "$TMP_DIR/iplist-unfiltered.txt"
-			elif [ -n "$3" ]; then
-				echo "[i] Remote Custom List Detected: $3"
-				Require_Connection
-				Download_IPList "$3" || { echo "[*] Download Error Detected - Stopping Deport"; echo; exit 1; }
-			else
-				echo "[*] URL/File Field Can't Be Empty - Please Try Again"
-				echo; exit 2
-			fi
-			if ! Is_IPRange < "$TMP_DIR/iplist-unfiltered.txt"; then echo "[*] No Content Detected - Stopping Deport"; echo; exit 1; fi
-			echo "[i] Processing List"
-			Build_IPList_Restore del blacklist "" "$TMP_DIR/iplist-unfiltered.txt" "$TMP_DIR/iplist-filtered.txt"
-			if [ ! -s "$TMP_DIR/iplist-filtered.txt" ]; then echo "[*] No Public IPs Detected - Stopping Deport"; echo; exit 1; fi
-			echo "[i] Removing IPs From Blacklist"
-			Apply_IPSet_File "$TMP_DIR/iplist-filtered.txt" || { echo "[*] Failed To Apply Deport - Previous Entries Restored"; echo; exit 1; }
-			deportcount="$(wc -l < "$TMP_DIR/iplist-filtered.txt" | tr -d ' ')"
-			rm -f "$TMP_DIR/iplist-unfiltered.txt" "$TMP_DIR/iplist-filtered.txt"
-			echo "[i] Saving Changes"
-			Require_Save_IPSets
-			nocfg="1"
-			Queue_Action success rules remove ban import "$3" "$deportcount requested entries" || Log error -s "Failed To Queue Deport Action"
-		;;
-		whitelist)
-			Check_Lock "$@"
-			Require_Running
-			Purge_Logs
-			echo "[i] This Function Extracts All IPs And Removes Them ALL From Whitelist"
-			if [ -f "$3" ]; then
-				echo "[i] Local Custom List Detected: $3"
-				Extract_IPList "$3" "$TMP_DIR/iplist-unfiltered.txt"
-			elif [ -n "$3" ]; then
-				echo "[i] Remote Custom List Detected: $3"
-				Require_Connection
-				Download_IPList "$3" || { echo "[*] Download Error Detected - Stopping Deport"; echo; exit 1; }
-			else
-				echo "[*] URL/File Field Can't Be Empty - Please Try Again"
-				echo; exit 2
-			fi
-			if ! Is_IPRange < "$TMP_DIR/iplist-unfiltered.txt"; then echo "[*] No Content Detected - Stopping Deport"; echo; exit 1; fi
-			echo "[i] Processing List"
-			Build_IPList_Restore del whitelist "" "$TMP_DIR/iplist-unfiltered.txt" "$TMP_DIR/iplist-filtered.txt"
-			if [ ! -s "$TMP_DIR/iplist-filtered.txt" ]; then echo "[*] No Public IPs Detected - Stopping Deport"; echo; exit 1; fi
-			echo "[i] Removing IPs From Whitelist"
-			Apply_IPSet_File "$TMP_DIR/iplist-filtered.txt" || { echo "[*] Failed To Apply Deport - Previous Entries Restored"; echo; exit 1; }
-			deportcount="$(wc -l < "$TMP_DIR/iplist-filtered.txt" | tr -d ' ')"
-			rm -f "$TMP_DIR/iplist-unfiltered.txt" "$TMP_DIR/iplist-filtered.txt"
-			echo "[i] Saving Changes"
-			Require_Save_IPSets
-			nocfg="1"
-			Queue_Action success rules remove whitelist import "$3" "$deportcount requested entries" || Log error -s "Failed To Queue Deport Action"
 		;;
 		*)
 			Command_Not_Recognized
@@ -9256,101 +10501,211 @@ Dispatch_Save() {
 	fi
 }
 
-Dispatch_Start() {
-	Check_Lock "$@"
-	Require_Rule_Registry
-	startarguments=""
-	startskipfirst="1"
-	for startargument in "$@"; do
-		if [ "$startskipfirst" = "1" ]; then
-			startskipfirst="0"
-			continue
+Prune_Expired_Rules() {
+	Time_Is_Ready || return 0
+	ruleprunenow="$(date +%s)"
+	# Read-only probe avoids creating a USB staging file when no deadline is due.
+	[ -r "$skynetrules" ] || return 1
+	awk -F '\t' -v now="$ruleprunenow" '
+		$1 == "R2" && $9 > 0 && $9 <= now { expired = 1; exit }
+		END { exit expired ? 0 : 3 }' "$skynetrules"
+	ruleprunestatus="$?"
+	[ "$ruleprunestatus" != "3" ] || return 0
+	[ "$ruleprunestatus" = "0" ] || return 1
+	ruleprunefile="${skynetrules}.tmp.$$"
+	rulestagefile="$ruleprunefile"
+	rulepruneexpired="$TMP_DIR/expired-rules.$$"
+	: > "$rulepruneexpired" || return 1
+	# Kernel timeouts enforce deadlines independently. Record detected expiry
+	# only after pruning commits, with the original deadline in the details.
+	awk -F '\t' -v now="$ruleprunenow" -v expired="$rulepruneexpired" '
+		$1 == "R2" && $9 > 0 && $9 <= now {
+			if ($3 == "ban" && $7 == "enabled") print $4 "\t" $5 "\t" $9 > expired
+			changed = 1; next
+		}
+		{print}
+		END {exit changed ? 0 : 3}' "$skynetrules" > "$ruleprunefile"
+	ruleprunestatus="$?"
+	if [ "$ruleprunestatus" = "3" ]; then rm -f "$ruleprunefile" "$rulepruneexpired"; return 0; fi
+	if [ "$ruleprunestatus" != "0" ] || ! Validate_Rule_Registry "$ruleprunefile" \
+		|| ! Apply_Rule_Registry_Candidate "$ruleprunefile"; then
+		rm -f "$ruleprunefile" "$rulepruneexpired"
+		return 1
+	fi
+	maintenancechanged="1"
+	while IFS="$(printf '\t')" read -r ruleprunetype ruleprunevalue ruleprunedeadline; do
+		Queue_Action success rules expire ban "$ruleprunetype" "$ruleprunevalue" \
+			"Expired $(Format_Threat_Feed_Time "$ruleprunedeadline"); detected during maintenance" \
+			|| Log error -s "Failed To Queue Temporary Ban Expiry ($ruleprunevalue)"
+	done < "$rulepruneexpired"
+	rm -f "$rulepruneexpired"
+	# Keep committed expiry records even if a later maintenance check fails.
+	Publish_Actions
+}
+
+Dispatch_Persist() {
+	nolog="2"
+	nocfg="1"
+	Wait_For_Lock "$@" || return 1
+	if Time_Is_Ready; then Archive_Block_Logs || return 1; fi
+	Save_IPSets || return 1
+}
+
+Dispatch_Maintenance() {
+	nolog="2"
+	nocfg="1"
+	Wait_For_Lock "$@" || return 1
+	# A command that held the lock may have changed settings while we waited.
+	Load_Config || { Record_Maintenance_Status failed configuration; return 1; }
+	maintenancechanged="0"
+	if Time_Is_Ready; then
+		if Time_Dependent_State_Pending; then
+			Activate_Time_Dependent_State || { Record_Maintenance_Status failed activation; return 1; }
+			maintenancechanged="1"
 		fi
-		startarguments="${startarguments}${startarguments:+ }$startargument"
-	done
-	Log info "Startup Initiated... ( $startarguments )"
-	unset "startarguments" "startskipfirst" "startargument"
-	Unload_Cron "all"
-	Check_Settings || { echo; exit 1; }
-	Migrate_Installation || { echo "[*] Failed To Migrate Existing Skynet Data"; echo; exit 1; }
-	Maintain_Script_Hooks firewall-start services-stop service-event post-mount unmount || { echo "[*] Failed To Maintain Script Hooks"; echo; exit 1; }
-	Clean_Legacy_WebUI_Files || { echo "[*] Failed To Remove Legacy WebUI Files"; echo; exit 1; }
-	Require_Connection 10 5
-	Load_Cron "save" "rules"
+		Archive_Block_Logs || { Record_Maintenance_Status failed archival; return 1; }
+		Enforce_Log_Limit || { Record_Maintenance_Status failed log-limit; return 1; }
+		Prune_Expired_Rules || { Record_Maintenance_Status failed rule-prune; return 1; }
+	fi
+	Check_Security || { Record_Maintenance_Status failed security; return 1; }
+	if ! Check_IPSets; then
+		echo "[*] IPSet Integrity Check Failed ($fail)"
+		Record_Maintenance_Status failed ipset
+		return 1
+	fi
+	Reconcile_Firewall_Rules || { Record_Maintenance_Status failed firewall; return 1; }
+	if [ -f "$DURABLE_PENDING" ]; then Save_IPSets || { Record_Maintenance_Status failed persistence; return 1; }; fi
+	if [ "$maintenancechanged" = "1" ]; then Generate_WebUI_Settings || { Record_Maintenance_Status failed webui; return 1; }; fi
+	if Time_Is_Ready; then Record_Maintenance_Status success complete; else Record_Maintenance_Status degraded time-pending; fi
+}
+
+Ensure_Startup_Runtime() {
+	# Volatile completion state is published only after all per-boot integration
+	# succeeds. Retrying this phase must not reload an already active policy.
+	[ -f "$STARTUP_READY" ] && return 0
+	Wait_For_Lock start || return 1
+	[ -f "$STARTUP_READY" ] && return 0
+	Maintain_Script_Hooks firewall-start services-stop service-event post-mount unmount \
+		|| { Log error -s "Failed To Maintain Script Hooks"; return 1; }
+	Clean_Legacy_WebUI_Files || return 1
+	Unload_Cron save || return 1
+	Load_Cron maintenance rules || return 1
+	if Is_Enabled "$displaywebui"; then
+		Install_WebUI_Page || { Log error -s "Failed To Install WebUI"; return 1; }
+	fi
+	Generate_WebUI_Settings || return 1
+	Publish_Rule_Migration_Complete || return 1
+	: > "$STARTUP_READY" && chmod 600 "$STARTUP_READY"
+}
+
+Dispatch_Start() {
+	# Most firewall-start events need only restore Skynet rules after Merlin has
+	# rebuilt its base firewall. The complete initialization path is entered only
+	# when persistent sets or the R2 registry are unavailable.
+	if [ ! -f "$STARTUP_PENDING" ] && Check_IPSets && Validate_Rule_Registry "$skynetrules" && Rule_Migration_Complete; then
+		if Time_Is_Ready && Time_Dependent_State_Pending; then
+			Wait_For_Lock "$@" || return 1
+			if Time_Dependent_State_Pending; then
+				Activate_Time_Dependent_State || { echo "[*] Failed To Activate Time-Dependent Rules"; echo; return 1; }
+			else
+				Reconcile_Firewall_Rules || { echo "[*] Failed To Reconcile Firewall Rules"; echo; return 1; }
+			fi
+		else
+			Reconcile_Firewall_Rules || { echo "[*] Failed To Reconcile Firewall Rules"; echo; return 1; }
+		fi
+		if ! Time_Is_Ready; then
+			Mark_Time_Dependent_State_Pending || return 1
+			if Wait_For_Time; then
+				Wait_For_Lock "$@" || return 1
+				if Time_Dependent_State_Pending; then
+					Activate_Time_Dependent_State || { echo "[*] Failed To Activate Time-Dependent Rules"; echo; return 1; }
+					Generate_WebUI_Settings || true
+				else
+					Reconcile_Firewall_Rules || { echo "[*] Failed To Reconcile Firewall Rules"; echo; return 1; }
+				fi
+			else
+				echo "[!] Router Time Is Not Synchronized - Logging And Temporary Rules Remain Pending"
+			fi
+		fi
+		Ensure_Startup_Runtime || return 1
+		nocfg="1"
+		nolog="2"
+		return 0
+	fi
+
+	Wait_For_Lock "$@" || return 1
+	# Another queued firewall event may have completed cold initialization while
+	# this process waited. Re-check before touching persistent state.
+	if [ ! -f "$STARTUP_PENDING" ] && Check_IPSets && Validate_Rule_Registry "$skynetrules" && Rule_Migration_Complete; then
+		if Time_Is_Ready && Time_Dependent_State_Pending; then
+			Activate_Time_Dependent_State || return 1
+		else
+			Reconcile_Firewall_Rules || return 1
+			Time_Is_Ready || Mark_Time_Dependent_State_Pending || return 1
+		fi
+		Ensure_Startup_Runtime || return 1
+		nocfg="1"
+		nolog="2"
+		return 0
+	fi
+	echo "[i] Initializing Skynet"
+	# A complete set topology alone does not prove restore/compilation succeeded.
+	# Keep failed cold initialization eligible for retry until policy is verified.
+	: > "$STARTUP_PENDING" && chmod 600 "$STARTUP_PENDING" || return 1
+	rm -f "$STARTUP_READY" || return 1
+	Check_Settings || { echo; return 1; }
+	Migrate_Installation || { echo "[*] Failed To Migrate Existing Skynet Data"; echo; return 1; }
 	modprobe xt_set
+	Ensure_IPSet_Topology || { echo "[*] Failed To Create IPSet Topology"; echo; return 1; }
 	if [ -f "$skynetipset" ]; then
-		ipset restore -! -f "$skynetipset" || { Log error -s "Failed To Restore Saved IPSet Data"; echo; exit 1; }
+		ipset restore -! -f "$skynetipset" || { echo "[*] Failed To Restore Saved IPSet Data"; echo; return 1; }
 	else
-		Log info -s "Setting Up Skynet"
-		touch "$skynetipset" || { Log error -s "Failed To Create IPSet Data File"; echo; exit 1; }
+		: > "$skynetipset" || { echo "[*] Failed To Create IPSet Data File"; echo; return 1; }
+		chmod 600 "$skynetipset"
 	fi
-	Ensure_IPSet Skynet-Whitelist hash:net hashsize 64 maxelem "$((65536 * 6))" comment || { echo; exit 1; }
-	Ensure_IPSet Skynet-WhitelistDomains hash:ip hashsize 64 maxelem "$((65536 * 8))" comment timeout 86400 || { echo; exit 1; }
-	Ensure_IPSet Skynet-Blacklist hash:ip hashsize 64 maxelem "$((65536 * 16))" comment || { echo; exit 1; }
-	Ensure_IPSet Skynet-BlacklistDomains hash:ip hashsize 64 maxelem "$((65536 * 8))" comment timeout 86400 || { echo; exit 1; }
-	Ensure_IPSet Skynet-BlockedRanges hash:net hashsize 64 maxelem "$((65536 * 6))" comment || { echo; exit 1; }
-	Ensure_IPSet Skynet-Master list:set || { echo; exit 1; }
-	Ensure_IPSet Skynet-MasterWL list:set || { echo; exit 1; }
-	Ensure_IPSet Skynet-IOT hash:net hashsize 64 maxelem "$((65536 * 6))" comment || { echo; exit 1; }
-	Update_IPSet add Skynet-Master Skynet-Blacklist || { echo; exit 1; }
-	Update_IPSet add Skynet-Master Skynet-BlacklistDomains || { echo; exit 1; }
-	Update_IPSet add Skynet-Master Skynet-BlockedRanges || { echo; exit 1; }
-	Update_IPSet add Skynet-MasterWL Skynet-Whitelist || { echo; exit 1; }
-	Update_IPSet add Skynet-MasterWL Skynet-WhitelistDomains || { echo; exit 1; }
-	Whitelist_Blocked_Private_IPs || { echo "[*] Failed To Whitelist Private Networks"; echo; exit 1; }
+	Initialize_Rule_Registry || { echo "[*] Failed To Migrate Rule Registry"; echo; return 1; }
+	if ! Time_Is_Ready; then Mark_Time_Dependent_State_Pending || return 1; fi
+	Apply_Rule_Registry_Candidate "$skynetrules" startup || { echo "[*] Failed To Compile User Rules"; echo; return 1; }
+	Update_Domain_Rules "$skynetrules" startup || { echo "[*] Failed To Restore Cached Domain Rules"; echo; return 1; }
+	Migrate_Legacy_IPSet_Ownership || { echo "[*] Failed To Complete Rule Migration"; echo; return 1; }
+	Whitelist_Blocked_Private_IPs || { echo "[*] Failed To Whitelist Private Networks"; echo; return 1; }
+	Whitelist_VPN || { echo "[*] Failed To Restore VPN Whitelist"; echo; return 1; }
+	Whitelist_Shared || { echo "[*] Failed To Restore Shared Whitelist"; echo; return 1; }
+	Save_IPSets || { echo "[*] Failed To Persist Restored Base State"; echo; return 1; }
+	Reconcile_Firewall_Rules || { echo "[*] Failed To Load Permanent Firewall Rules"; echo; return 1; }
+	rm -f "$STARTUP_PENDING" || return 1
+	Ensure_Startup_Runtime || return 1
+	Release_Lock
+
+	if ! Wait_For_Time; then
+		echo "[!] Permanent Protection Active - Logging And Temporary Rules Await Time Synchronization"
+		nocfg="1"
+		nolog="2"
+		return 0
+	fi
+	Wait_For_Lock "$@" || return 1
+	Activate_Time_Dependent_State || { echo "[*] Failed To Activate Time-Dependent Rules"; echo; return 1; }
 	Purge_Logs "all"
-	Whitelist_Extra || { echo "[*] Failed To Refresh Extra Whitelist"; echo; exit 1; }
-	Whitelist_CDN || { echo "[*] Failed To Refresh CDN Whitelist"; echo; exit 1; }
-	Remove_IPSet_Entries Skynet-Whitelist "nvram: " || { echo; exit 1; }
-	Whitelist_VPN || { echo "[*] Failed To Refresh VPN Whitelist"; echo; exit 1; }
-	Whitelist_Shared || { echo "[*] Failed To Refresh Shared Whitelist"; echo; exit 1; }
-	Update_Domain_Rules "$skynetrules" startup || { echo "[*] Failed To Restore Domain Rules"; echo; exit 1; }
-	Refresh_AiProtect || { echo "[*] Failed To Refresh AiProtection Bans"; echo; exit 1; }
-	Check_Security || { echo "[*] Security Check Failed"; echo; exit 1; }
-	echo "[i] Saving Changes"
-	Require_Save_IPSets
-	Generate_Stats
-	Install_WebUI_Page || { echo "[*] Failed To Install WebUI"; echo; exit 1; }
-	while [ "$(($(date +%s) - stime))" -lt "20" ]; do
-		sleep 1
-	done
-	Unload_IPTables
-	Unload_IOT_Rules
-	Unload_LogIPTables
-	if ! Load_IPTables || ! Load_IOT_Rules || ! Load_LogIPTables; then
-		echo "[*] Failed To Load Firewall Rules"
-		echo
-		exit 1
-	fi
-	unset "nolog"
-	sed -i '\~DROP IN=~d' "$syslog1loc" "$syslogloc" 2>/dev/null
+	[ -f "${skynetloc}/webui/stats.js" ] || Generate_Stats
+	Generate_WebUI_Settings || { echo "[*] Failed To Generate WebUI Settings"; echo; return 1; }
+	Queue_Action success system restore startup lifecycle "Skynet" "Protection and time-dependent services active" \
+		|| Log error -s "Failed To Queue Startup Action"
 	if Is_Enabled "$forcebanmalwareupdate"; then
-		Write_Config || { echo "[*] Failed To Save Configuration"; echo; exit 1; }
+		Write_Config || { echo "[*] Failed To Save Configuration"; echo; return 1; }
 		Release_Lock
-		# Print the startup summary before the child malware update begins.
-		Print_Command_Summary "$@"
-		# Run banmalware as a child so its status is returned to the caller.
 		"$0" banmalware
-		exit "$?"
+		return "$?"
 	fi
 }
 
 Dispatch_Restart() {
 	Check_Lock "$@"
-	Purge_Logs
-	echo "[i] Saving Changes"
-	Require_Save_IPSets
-	echo "[i] Unloading Skynet Components"
-	Unload_Cron "all"
-	Unload_IPTables
-	Unload_IOT_Rules
-	Unload_LogIPTables
-	Unload_IPSets
-	Uninstall_WebUI_Page
-	iptables -t raw -F
-	Log info "Restarting Firewall Service"
+	if Time_Is_Ready; then Purge_Logs || return 1; fi
+	echo "[i] Restarting Firewall Service"
+	Release_Lock
 	restartfirewall="1"
 	nolog="2"
+	nocfg="1"
 }
 
 Dispatch_Disable() {
@@ -9359,9 +10714,7 @@ Dispatch_Disable() {
 	Require_Save_IPSets
 	echo "[i] Unloading Skynet Components"
 	Unload_Cron "all"
-	Unload_IPTables
-	Unload_IOT_Rules
-	Unload_LogIPTables
+	Unload_Skynet_Firewall_Rules || { echo "[*] Failed To Unload Skynet Firewall Rules"; echo; exit 1; }
 	Unload_IPSets
 	Uninstall_WebUI_Page
 	Log info "Skynet Disabled"
@@ -9450,11 +10803,8 @@ Dispatch_Update() {
 		Require_Save_IPSets
 		echo "[i] Unloading Skynet Components"
 		Unload_Cron "all"
-		Unload_IPTables
-		Unload_IOT_Rules
-		Unload_LogIPTables
+		Unload_Skynet_Firewall_Rules || { echo "[*] Failed To Unload Skynet Firewall Rules"; echo; exit 1; }
 		Unload_IPSets
-		iptables -t raw -F
 		Uninstall_WebUI_Page
 		updatefailed="0"
 		if [ "$updatewebuichanged" = "1" ] \
@@ -9590,6 +10940,7 @@ Settings_LogMode() {
 			Require_Running
 			Purge_Logs
 			logmodeold="$logmode"
+			Acquire_Firewall_Lock || exit 1
 			Unload_LogIPTables
 			logmode="enabled"
 			if ! Load_LogIPTables; then
@@ -9598,6 +10949,9 @@ Settings_LogMode() {
 				Load_LogIPTables || Log error -s "Failed To Restore Logging Rules"
 				echo "[*] Failed To Enable Logging"; echo; exit 1
 			fi
+			Release_Firewall_Lock
+			if Is_Enabled "$displaywebui"; then Load_Cron genstats || return 1; fi
+			Generate_WebUI_Settings || return 1
 			echo "[i] Logging Enabled"
 		;;
 		disable)
@@ -9605,6 +10959,7 @@ Settings_LogMode() {
 			Require_Running
 			Purge_Logs
 			logmodeold="$logmode"
+			Acquire_Firewall_Lock || exit 1
 			Unload_LogIPTables
 			logmode="disabled"
 			if ! Load_LogIPTables; then
@@ -9612,6 +10967,9 @@ Settings_LogMode() {
 				Load_LogIPTables || Log error -s "Failed To Restore Logging Rules"
 				echo "[*] Failed To Disable Logging"; echo; exit 1
 			fi
+			Release_Firewall_Lock
+			Unload_Cron genstats || return 1
+			Generate_WebUI_Settings || return 1
 			echo "[i] Logging Disabled"
 		;;
 		*)
@@ -9627,6 +10985,7 @@ Settings_InvalidLogging() {
 			Require_Running
 			Purge_Logs
 			loginvalidold="$loginvalid"
+			Acquire_Firewall_Lock || exit 1
 			Unload_LogIPTables
 			loginvalid="enabled"
 			if ! Load_LogIPTables; then
@@ -9635,6 +10994,7 @@ Settings_InvalidLogging() {
 				Load_LogIPTables || Log error -s "Failed To Restore Logging Rules"
 				echo "[*] Failed To Enable Invalid Packet Logging"; echo; exit 1
 			fi
+			Release_Firewall_Lock
 			echo "[i] Invalid IP Logging Enabled"
 		;;
 		disable)
@@ -9642,6 +11002,7 @@ Settings_InvalidLogging() {
 			Require_Running
 			Purge_Logs
 			loginvalidold="$loginvalid"
+			Acquire_Firewall_Lock || exit 1
 			Unload_LogIPTables
 			loginvalid="disabled"
 			if ! Load_LogIPTables; then
@@ -9650,6 +11011,7 @@ Settings_InvalidLogging() {
 				Load_LogIPTables || Log error -s "Failed To Restore Logging Rules"
 				echo "[*] Failed To Disable Invalid Packet Logging"; echo; exit 1
 			fi
+			Release_Firewall_Lock
 			echo "[i] Invalid IP Logging Disabled"
 		;;
 		*)
@@ -9698,6 +11060,7 @@ Settings_TrafficFilter() {
 	Require_Running
 	Purge_Logs
 	trafficfilterold="$filtertraffic"
+	Acquire_Firewall_Lock || exit 1
 	Unload_LogIPTables
 	if ! Unload_IOT_Rules; then
 		Load_LogIPTables || Log error -s "Failed To Restore Logging Rules"
@@ -9706,6 +11069,7 @@ Settings_TrafficFilter() {
 	Unload_IPTables
 	filtertraffic="$3"
 	if Load_IPTables && Load_IOT_Rules && Load_LogIPTables; then
+		Release_Firewall_Lock
 		echo "[i] $trafficfiltermessage"
 		return 0
 	fi
@@ -9824,31 +11188,29 @@ Settings_ExtendedStats() {
 Settings_Syslog() {
 	Check_Lock "$@"
 	Require_Running
-	if [ -z "$3" ]; then echo "[*] Syslog Location Not Specified - Exiting"; echo; exit 2; fi
+	if [ "$#" -lt 3 ] || [ "$#" -gt 4 ] || { [ "$2" = "syslog1" ] && [ "$#" -ne 3 ]; }; then
+		echo "[*] Use settings syslog auto Or settings syslog <file> [rotated-file]"; echo; exit 2
+	fi
 	case "$3" in
-		default)
-			syslogloc="/tmp/syslog.log"
+		auto|default)
+			[ "$#" -eq 3 ] || { echo "[*] Automatic Syslog Does Not Accept File Paths"; echo; exit 2; }
+			syslogmode="auto"
+			Resolve_Syslog_Sources
 		;;
 		*)
-			syslogloc="$3"
+			syslognew="$syslogloc"; syslognewarchive="$syslog1loc"
+			if [ "$2" = "syslog1" ]; then syslognewarchive="$3"
+			else syslognew="$3"; [ "$#" -ne 4 ] || syslognewarchive="$4"; fi
+			if ! Validate_Syslog_Path "$syslognew" || ! Validate_Syslog_Path "$syslognewarchive" || [ "$syslognew" = "$syslognewarchive" ]; then
+				echo "[*] Invalid Syslog Paths - Use Different Absolute Files In Existing Directories"; echo; exit 2
+			fi
+			syslogmode="custom"
+			syslogloc="$syslognew"; syslog1loc="$syslognewarchive"
+			unset "syslognew" "syslognewarchive"
 		;;
 	esac
-	echo "[i] Syslog Location Set To $syslogloc"
-}
-
-Settings_SyslogArchive() {
-	Check_Lock "$@"
-	Require_Running
-	if [ -z "$3" ]; then echo "[*] Syslog-1 Location Not Specified - Exiting"; echo; exit 2; fi
-	case "$3" in
-		default)
-			syslog1loc="/tmp/syslog.log-1"
-		;;
-		*)
-			syslog1loc="$3"
-		;;
-	esac
-	echo "[i] Syslog-1 Location Set To $syslog1loc"
+	echo "[i] Syslog Source ($syslogmode): $syslogloc"
+	echo "[i] Rotated Syslog: $syslog1loc"
 }
 
 Settings_IOT() {
@@ -9983,10 +11345,11 @@ Settings_IOTLogging() {
 	case "$3" in
 		enable)
 			Check_Lock "$@"
-			Require_Running
-			Purge_Logs
-			iotloggingold="$iotlogging"
-			Unload_LogIPTables
+	Require_Running
+	Purge_Logs
+	iotloggingold="$iotlogging"
+	Acquire_Firewall_Lock || exit 1
+	Unload_LogIPTables
 			iotlogging="enabled"
 			if ! Load_LogIPTables; then
 				Unload_LogIPTables
@@ -9994,6 +11357,7 @@ Settings_IOTLogging() {
 				Load_LogIPTables || Log error -s "Failed To Restore IoT Logging Rules"
 				echo "[*] Failed To Enable IoT Block Logging"; echo; exit 1
 			fi
+			Release_Firewall_Lock
 			echo "[i] IoT Block Logging Enabled"
 		;;
 		disable)
@@ -10001,6 +11365,7 @@ Settings_IOTLogging() {
 			Require_Running
 			Purge_Logs
 			iotloggingold="$iotlogging"
+			Acquire_Firewall_Lock || exit 1
 			Unload_LogIPTables
 			iotlogging="disabled"
 			if ! Load_LogIPTables; then
@@ -10009,6 +11374,7 @@ Settings_IOTLogging() {
 				Load_LogIPTables || Log error -s "Failed To Restore IoT Logging Rules"
 				echo "[*] Failed To Disable IoT Block Logging"; echo; exit 1
 			fi
+			Release_Firewall_Lock
 			echo "[i] IoT Block Logging Disabled"
 		;;
 		*)
@@ -10051,6 +11417,7 @@ Settings_CDNWhitelist() {
 				cdnwhitelist="$cdnwhitelistold"
 				echo "[*] Failed To Enable CDN Whitelisting - Existing Entries Retained"; echo; exit 1
 			fi
+			Require_Save_IPSets
 			echo "[i] CDN Whitelisting Enabled"
 		;;
 		disable)
@@ -10063,6 +11430,7 @@ Settings_CDNWhitelist() {
 				cdnwhitelist="$cdnwhitelistold"
 				echo "[*] Failed To Disable CDN Whitelisting"; echo; exit 1
 			fi
+			Require_Save_IPSets
 			echo "[i] CDN Whitelisting Disabled"
 		;;
 		*)
@@ -10118,8 +11486,7 @@ Dispatch_Settings() {
 		banaiprotect) Settings_AiProtect "$@" ;;
 		securemode) Settings_SecureMode "$@" ;;
 		extendedstats) Settings_ExtendedStats "$@" ;;
-		syslog) Settings_Syslog "$@" ;;
-		syslog1) Settings_SyslogArchive "$@" ;;
+		syslog|syslog1) Settings_Syslog "$@" ;;
 		iot) Settings_IOT "$@" ;;
 		iotlogging) Settings_IOTLogging "$@" ;;
 		lookupcountry) Settings_CountryLookup "$@" ;;
@@ -10132,6 +11499,7 @@ Dispatch_Settings() {
 	settingsactiontype="value"
 	settingsactionoperation="update"
 	settingsactionentries="$3"
+	settingsactiondetail=""
 	case "$2:$3" in
 		iot:view) return 0 ;;
 		iot:enable|iotlogging:enable) settingsactionarea="iot"; settingsactionoperation="enable" ;;
@@ -10144,10 +11512,15 @@ Dispatch_Settings() {
 		banmalware:*) settingsactiontype="schedule" ;;
 		logsize:*) settingsactiontype="megabytes" ;;
 		filter:*) settingsactiontype="direction" ;;
-		syslog:*|syslog1:*) settingsactiontype="path" ;;
-	 esac
+		syslog:*|syslog1:*)
+			settingsactiontype="path"
+			settingsactionentries="$syslogloc"
+			if [ "$syslogmode" = "auto" ]; then settingsactiondetail="Automatic"; else settingsactiondetail="Custom"; fi
+			settingsactiondetail="$settingsactiondetail; Rotated syslog: $syslog1loc"
+		;;
+	esac
 	[ -n "$settingsactionentries" ] || settingsactionentries="$settingsactiontarget"
-	Queue_Action success "$settingsactionarea" "$settingsactionoperation" "$settingsactiontarget" "$settingsactiontype" "$settingsactionentries" "" \
+	Queue_Action success "$settingsactionarea" "$settingsactionoperation" "$settingsactiontarget" "$settingsactiontype" "$settingsactionentries" "$settingsactiondetail" \
 		|| Log error -s "Failed To Queue Setting Action"
 }
 
@@ -10158,7 +11531,7 @@ Dispatch_WebUI() {
 	nolog="2"
 	case "$2" in
 		SkynetStats)
-			Run_WebUI_Command debug genstats
+			Apply_WebUI_Stats
 		;;
 		SkynetSettings|apply)
 			Apply_WebUI_Settings
@@ -10292,6 +11665,39 @@ Debug_Info() {
 	totalmem="${debugmemory#* }"
 	printf '║ %-20s │ %-82s ║\n' "RAM Available/Total" "(${memavailable}M / ${totalmem}M)"
 	printf '╚══════════════════════╧════════════════════════════════════════════════════════════════════════════════════╝\n\n\n'
+	printf '╔═════════════════════ Lifecycle ═══════════════════════════════════════════════════════════════════════════╗\n'
+	if Time_Is_Ready; then debugtimestatus="Ready"; else debugtimestatus="Pending"; fi
+	printf '║ %-20s │ %-82s ║\n' "Router Time" "$debugtimestatus"
+	if ! Is_Enabled "$logmode"; then
+		debugloggingstatus="Disabled"
+	elif iptables-save 2>/dev/null | grep -qF '[BLOCKED -'; then
+		debugloggingstatus="Active"
+	else
+		debugloggingstatus="Pending"
+	fi
+	printf '║ %-20s │ %-82s ║\n' "Packet Logging" "$debugloggingstatus"
+	debugtemporarycount="$(ipset list Skynet-TemporaryBans 2>/dev/null | awk -F ': ' '/^Number of entries:/ {print $2; exit}')"
+	case "$debugtemporarycount" in ""|*[!0-9]*) debugtemporarycount="0" ;; esac
+	if Time_Dependent_State_Pending; then debugtemporarystatus="$debugtemporarycount active; restoration pending"
+	else debugtemporarystatus="$debugtemporarycount active"; fi
+	printf '║ %-20s │ %-82s ║\n' "Temporary Rules" "$debugtemporarystatus"
+	debugnextexpiry="$(awk -F '\t' -v now="$(date +%s)" '$1 == "R2" && $9 > now && (!expiry || $9 < expiry) {expiry=$9} END {print expiry + 0}' "$skynetrules" 2>/dev/null)"
+	if [ "$debugnextexpiry" -gt "0" ] 2>/dev/null; then debugnextexpirydisplay="$(Format_Threat_Feed_Time "$debugnextexpiry")"
+	else debugnextexpirydisplay="None"; fi
+	printf '║ %-20s │ %-82s ║\n' "Next Expiry" "$debugnextexpirydisplay"
+	if Validate_Rule_Registry "$skynetrules"; then debugregistrystatus="R2 valid"
+	else debugregistrystatus="Invalid"; fi
+	Rule_Migration_Complete || debugregistrystatus="$debugregistrystatus; migration pending"
+	printf '║ %-20s │ %-82s ║\n' "Rule Registry" "$debugregistrystatus"
+	debugmaintenancestatus="Not run since startup"
+	if IFS="$(printf '\t')" read -r debugmaintenanceversion debugmaintenanceepoch debugmaintenanceresult debugmaintenancedetail 2>/dev/null < "$MAINTENANCE_STATUS" \
+		&& [ "$debugmaintenanceversion" = "M1" ]; then
+		if [ "$debugmaintenanceepoch" -gt "0" ] 2>/dev/null; then debugmaintenancetime="$(Format_Threat_Feed_Time "$debugmaintenanceepoch")"
+		else debugmaintenancetime="time pending"; fi
+		debugmaintenancestatus="$debugmaintenanceresult ($debugmaintenancedetail; $debugmaintenancetime)"
+	fi
+	printf '║ %-20s │ %-82s ║\n' "Maintenance" "$debugmaintenancestatus"
+	printf '╚══════════════════════╧════════════════════════════════════════════════════════════════════════════════════╝\n\n\n'
 	printf '╔═════════════════════ Logging ═════════════════════════════════════════════════════════════════════════════╗\n'
 	printf '║ %-20s │ %-82s ║\n' "Syslog Locations" "$syslogloc $syslog1loc"
 	printf '║ %-20s │ %-82s ║\n' "Skynet Log"       "${skynetlog}"
@@ -10353,7 +11759,7 @@ Debug_Info() {
 	if [ -f "${skynetcfg}" ]; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
 	printf '%-80s ║\n' "$result"
 	debugfirewallstarthook="sh /jffs/scripts/firewall start skynetloc=${skynetloc} # Skynet"
-	debugservicesstophook='sh /jffs/scripts/firewall save # Skynet'
+	debugservicesstophook='sh /jffs/scripts/firewall persist # Skynet'
 	debugserviceeventhook="case \"\$1:\$2\" in start:Skynet*) sh /jffs/scripts/firewall webui \"\$2\" ;; esac # Skynet"
 	printf "║ %-33s ║ " "Firewall-Start Entry"
 	if Check_Skynet_Hook /jffs/scripts/firewall-start "$debugfirewallstarthook"; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
@@ -10458,7 +11864,7 @@ Debug_Info() {
 	printf '║ %-33s ║ %-80s ║\n' "Invalid Packet Logging" "$(if Is_Enabled "$loginvalid"; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
 	printf '║ %-33s ║ %-80s ║\n' "Log Size" "$(Grn "[${logsize}MB]")"
 	printf '║ %-33s ║ %-80s ║\n' "Extended Statistics" "$(if Is_Enabled "$extendedstats"; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
-	printf '║ %-33s ║ %-80s ║\n' "Syslog Location" "$(if { [ "$syslogloc" = "/tmp/syslog.log" ] && [ "$syslog1loc" = "/tmp/syslog.log-1" ]; } || { [ "$syslogloc" = "/jffs/syslog.log" ] && [ "$syslog1loc" = "/jffs/syslog.log-1" ]; } then Grn "[Default]"; else Ylow "[Custom]"; fi)"
+	printf '║ %-33s ║ %-80s ║\n' "Log Source" "$(if [ "$syslogmode" = "auto" ]; then Grn "[Automatic]"; else Ylow "[Custom]"; fi)"
 	printf '║ %-33s ║ %-80s ║\n' "Country Lookup" "$(if Is_Enabled "$lookupcountry"; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
 	Display_Settings_Category "Integration & Advanced"
 	printf '║ %-33s ║ %-80s ║\n' "WebUI" "$(if Is_Enabled "$displaywebui"; then Grn "[Enabled]"; else Ylow "[Disabled]"; fi)"
@@ -10472,15 +11878,22 @@ Debug_Info() {
 }
 
 Debug_Generate_Stats() {
-	Check_Lock "$@"
-	Purge_Logs "all"
+	if ! Is_Enabled "$logmode"; then
+		echo "[*] Statistics Require Logging - To Enable Use ( sh $0 settings logmode enable )"
+		return 2
+	fi
+	Check_Lock "$@" || return 1
+	Purge_Logs "all" || return 1
 	if Addon_API_Supported; then
 		if Is_Enabled "$displaywebui"; then
 			echo "[i] Generating Stats For WebUI"
 			Generate_Stats
 		else
 			echo "[*] WebUI Is Currently Disabled - To Enable Use ( sh $0 settings webui enable )"
+			return 1
 		fi
+	else
+		return 1
 	fi
 }
 
@@ -10508,9 +11921,7 @@ Debug_Swap() {
 				Require_Save_IPSets
 				echo "[i] Unloading Skynet Components"
 				Unload_Cron "all"
-				Unload_IPTables
-				Unload_IOT_Rules
-				Unload_LogIPTables
+				Unload_Skynet_Firewall_Rules || { echo "[*] Failed To Unload Skynet Firewall Rules"; echo; exit 1; }
 				Unload_IPSets
 				Log info "Restarting Firewall Service"
 				restartfirewall="1"
@@ -10540,9 +11951,7 @@ Debug_Swap() {
 			Require_Save_IPSets
 			echo "[i] Unloading Skynet Components"
 			Unload_Cron "all"
-			Unload_IPTables
-			Unload_IOT_Rules
-			Unload_LogIPTables
+			Unload_Skynet_Firewall_Rules || { echo "[*] Failed To Unload Skynet Firewall Rules"; echo; exit 1; }
 			Unload_IPSets
 			echo "[i] Removing SWAP File ($swaplocation)"
 			if [ -f "$swaplocation" ]; then
@@ -10573,7 +11982,6 @@ Debug_Backup() {
 	set -- skynet.ipset skynet.log skynet.cfg
 	[ ! -f "$skynetevents" ] || set -- "$@" events.log
 	[ ! -f "$skynetrules" ] || set -- "$@" skynet.rules
-	[ ! -f "$rulestatusmanifest" ] || set -- "$@" lists/.rules
 	[ ! -d "${skynetloc}/lists/rules" ] || set -- "$@" lists/rules
 	tar -czvf "${skynetloc}/Skynet-Backup.tar.gz" -C "${skynetloc}" "$@" \
 		|| { echo "[*] Failed To Create Backup"; echo; exit 1; }
@@ -10602,9 +12010,7 @@ Debug_Restore() {
 	[ ! -f "$skynetevents" ] || cp -f "$skynetevents" "$backupactions" \
 		|| { echo "[*] Unable To Preserve Action History"; echo; exit 1; }
 	Purge_Logs
-	Unload_IPTables
-	Unload_IOT_Rules
-	Unload_LogIPTables
+	Unload_Skynet_Firewall_Rules || { echo "[*] Failed To Unload Skynet Firewall Rules"; echo; return 1; }
 	Unload_IPSets
 	if ! tar -xzvf "$backuplocation" -C "${skynetloc}"; then
 		echo "[*] Backup Restore Failed - Restarting Existing Firewall State"
@@ -10851,10 +12257,6 @@ Dispatch_Install() {
 	if [ -f "$skynetevents" ]; then mv "$skynetevents" "${device}/skynet/events.log"; fi
 	if [ -f "$skynetipset" ]; then mv "$skynetipset" "${device}/skynet/skynet.ipset"; fi
 	if [ -f "$skynetrules" ]; then mv "$skynetrules" "${device}/skynet/skynet.rules"; fi
-	if [ -f "$rulestatusmanifest" ]; then
-		mkdir -p "${device}/skynet/lists"
-		mv "$rulestatusmanifest" "${device}/skynet/lists/.rules"
-	fi
 	if [ "${skynetloc}" != "${device}/skynet" ] && [ -d "${skynetloc}/lists/rules" ]; then
 		mkdir -p "${device}/skynet/lists"
 		rm -rf "${device}/skynet/lists/rules"
@@ -10899,11 +12301,8 @@ Dispatch_Install() {
 		exit 0
 	fi
 	Unload_Cron "all"
-	Unload_IPTables
-	Unload_IOT_Rules
-	Unload_LogIPTables
+	Unload_Skynet_Firewall_Rules || { echo "[*] Failed To Unload Skynet Firewall Rules"; echo; exit 1; }
 	Unload_IPSets
-	iptables -t raw -F
 	echo "[i] Restarting Firewall Service To Complete Installation"
 	restartfirewall="1"
 	nolog="2"
@@ -10954,9 +12353,7 @@ Dispatch_Uninstall() {
 				echo "[i] Unloading Skynet Components"
 				Purge_Logs "all"
 				Unload_Cron "all"
-				Unload_IPTables
-				Unload_IOT_Rules
-				Unload_LogIPTables
+				Unload_Skynet_Firewall_Rules || { echo "[*] Failed To Unload Skynet Firewall Rules"; echo; exit 1; }
 				Unload_IPSets
 				Uninstall_WebUI_Page
 				nvram set fw_log_x=none
@@ -10965,13 +12362,7 @@ Dispatch_Uninstall() {
 				sed -i '\~# Skynet~d' /jffs/scripts/firewall-start /jffs/scripts/services-stop /jffs/scripts/service-event /jffs/configs/profile.add /jffs/configs/dnsmasq.conf.add
 				service restart_dnsmasq >/dev/null 2>&1
 				rm -rf "/jffs/addons/shared-whitelists/shared-Skynet-whitelist" "/jffs/addons/shared-whitelists/shared-Skynet2-whitelist" "${skynetloc}" "/jffs/scripts/firewall" "/opt/bin/firewall" "/tmp/skynet.lock" "/tmp/skynet"
-				if [ -f "/opt/etc/syslog-ng.d/skynet" ]; then
-					rm -rf "/opt/etc/syslog-ng.d/skynet"
-					cp -p "/opt/share/syslog-ng/examples/firewall" "/opt/etc/syslog-ng.d"
-					cp -p "/opt/share/logrotate/examples/firewall" "/opt/etc/logrotate"
-					killall -HUP syslog-ng
-				fi
-				iptables -t raw -F
+				[ ! -f "/opt/etc/syslog-ng.d/skynet" ] || echo "[i] Reconfigure Scribe To Restore Its Standard Firewall Log Handler"
 				echo "[i] Restarting Firewall Service"
 				service restart_firewall
 				exit 0
@@ -10999,8 +12390,9 @@ Dispatch_Command() {
 		rules) Dispatch_Rules "$@" ;;
 		whitelist) Dispatch_Whitelist "$@" ;;
 		import) Dispatch_Import "$@" ;;
-		deport) Dispatch_Deport "$@" ;;
 		save) Dispatch_Save "$@" ;;
+		persist) Dispatch_Persist "$@" ;;
+		maintenance) Dispatch_Maintenance "$@" ;;
 		start) Dispatch_Start "$@" ;;
 		restart) Dispatch_Restart "$@" ;;
 		disable) Dispatch_Disable "$@" ;;
@@ -11159,7 +12551,7 @@ Menu_Ban() {
 					if ! Menu_Validate_Entry_List ip "$option3"; then echo "[*] One Or More Entries Are Not Valid IPs"; echo; unset "option2" "option3"; continue; fi
 					option3="$menuentrylist"; option3list="1"
 					Prompt_Typed "option5" "Comment" "Input Comment For Ban:"
-					if [ "${#option5}" -gt "244" ]; then echo "[*] $option5 Is Not A Valid Comment. 244 Chars Max"; echo; unset "option2" "option3" "option5"; continue; fi
+					if [ "${#option5}" -gt "242" ]; then echo "[*] $option5 Is Not A Valid Comment. 242 Chars Max"; echo; unset "option2" "option3" "option5"; continue; fi
 					[ -z "$option5" ] || option4="comment"
 					break
 				;;
@@ -11169,7 +12561,7 @@ Menu_Ban() {
 					if ! Menu_Validate_Entry_List range "$option3"; then echo "[*] One Or More Entries Are Not Valid Ranges"; echo; unset "option2" "option3"; continue; fi
 					option3="$menuentrylist"; option3list="1"
 					Prompt_Typed "option5" "Comment" "Input Comment For Ban:"
-					if [ "${#option5}" -gt "243" ]; then echo "[*] $option5 Is Not A Valid Comment. 243 Chars Max"; echo; unset "option2" "option3" "option5"; continue; fi
+					if [ "${#option5}" -gt "242" ]; then echo "[*] $option5 Is Not A Valid Comment. 242 Chars Max"; echo; unset "option2" "option3" "option5"; continue; fi
 					[ -z "$option5" ] || option4="comment"
 					break
 				;;
@@ -11479,40 +12871,6 @@ Menu_Import() {
 	done
 }
 
-Menu_Deport() {
-	while :; do
-		if ! Menu_Require_Running; then break; fi
-		option1="deport"
-		while true; do
-			Show_Menu "Select Where To Deport List From:" \
-				"Blacklist" \
-				"Whitelist" \
-				"Exit"
-			Prompt_Input "1-2" menu3
-			case "$menu3" in
-				1)
-					option2="blacklist"
-					break
-				;;
-				2)
-					option2="whitelist"
-					break
-				;;
-				e|exit|back|menu)
-					Return_To_Menu
-					break
-				;;
-				*)
-					Invalid_Option "$menu3"
-				;;
-			esac
-		done
-		Prompt_Typed "option3" "File" "Input URL/Local File To Deport"
-		if [ -z "$option3" ]; then echo "[*] File Field Can't Be Empty - Please Try Again"; echo; unset "option1" "option2" "option3"; continue; fi
-		break
-	done
-}
-
 Menu_Update() {
 	while :; do
 		option1="update"
@@ -11638,19 +12996,19 @@ Menu_Settings_Syslog() {
 			"Exit"
 		Prompt_Input "1-2" menu3
 		case "$menu3" in
-			1) option2="syslog"; syslogdefault="/tmp/syslog.log"; sysloglabel="Syslog" ;;
-			2) option2="syslog1"; syslogdefault="/tmp/syslog.log-1"; sysloglabel="Syslog-1" ;;
+			1) option2="syslog"; sysloglabel="Syslog" ;;
+			2) option2="syslog1"; sysloglabel="Syslog-1" ;;
 			e|exit|back|menu) Return_To_Menu; break ;;
 			*) Invalid_Option "$menu3"; continue ;;
 		esac
 		while true; do
 			Show_Menu "Select Syslog Location:" \
-				"Default" \
+				"Automatic (Both Log Paths)" \
 				"Custom" \
 				"Exit"
 			Prompt_Input "1-2" menu3
 			case "$menu3" in
-				1) option3="$syslogdefault"; break ;;
+				1) option3="auto"; break ;;
 				2)
 					Prompt_Typed "option3" "File" "Input Custom $sysloglabel Location:"
 					if [ -z "$option3" ]; then echo "[*] File Field Can't Be Empty - Please Try Again"; echo; unset "option3"; continue; fi
@@ -11662,7 +13020,7 @@ Menu_Settings_Syslog() {
 		done
 		break
 	done
-	unset "syslogdefault" "sysloglabel"
+	unset "sysloglabel"
 }
 
 Menu_Settings_IOT() {
@@ -12169,7 +13527,6 @@ Load_Menu() {
 			"Whitelist" \
 			"Dynamic Rules" \
 			"Import IP List" \
-			"Deport IP List" \
 			"Save" \
 			"Restart Skynet" \
 			"Temporarily Disable Skynet" \
@@ -12180,7 +13537,7 @@ Load_Menu() {
 			"Install Skynet" \
 			"Uninstall" \
 			"Exit"
-		Prompt_Input "1-16" menu
+		Prompt_Input "1-15" menu
 		case "$menu" in
 			1)
 				Menu_Unban
@@ -12207,43 +13564,39 @@ Load_Menu() {
 				break
 			;;
 			7)
-				Menu_Deport
-				break
-			;;
-			8)
 				Menu_Require_Running
 				option1="save"
 				break
 			;;
-			9)
+			8)
 				option1="restart"
 				break
 			;;
-			10)
+			9)
 				option1="disable"
 				break
 			;;
-			11)
+			10)
 				Menu_Update
 				break
 			;;
-			12)
+			11)
 				Menu_Settings
 				break
 			;;
-			13)
+			12)
 				Menu_Debug
 				break
 			;;
-			14)
+			13)
 				Menu_Stats
 				break
 			;;
-			15)
+			14)
 				option1="install"
 				break
 			;;
-			16)
+			15)
 				option1="uninstall"
 				break
 			;;
@@ -12294,8 +13647,21 @@ skynetlog="${skynetloc}/skynet.log"
 skynetevents="${skynetloc}/events.log"
 skynetrules="${skynetloc}/skynet.rules"
 rulestatusmanifest="${skynetloc}/lists/rules/.manifest"
+rulesdatadir="${skynetloc}/lists/rules/data"
+RULE_REASON_INDEX="${skynetloc}/lists/rules/.reasons"
+RULE_MIGRATION_STATE="${skynetloc}/lists/rules/.migration"
 skynetipset="${skynetloc}/skynet.ipset"
-LOCK_FILE="/tmp/skynet.lock"
+LOCK_FILE="/tmp/skynet/state.lock"
+FIREWALL_LOCK="/tmp/skynet/firewall.lock"
+LOG_LOCK="/tmp/skynet/log.lock"
+TIME_PENDING="/tmp/skynet/time.pending"
+STARTUP_PENDING="/tmp/skynet/startup.pending"
+STARTUP_READY="/tmp/skynet/startup.ready"
+DURABLE_PENDING="/tmp/skynet/snapshot.pending"
+MAINTENANCE_STATUS="/tmp/skynet/maintenance.status"
+state_lock_held="0"
+firewall_lock_held="0"
+log_lock_held="0"
 domaincachegrace="86400"
 domainemptythreshold="2"
 
@@ -12310,18 +13676,13 @@ if [ -z "$skynetloc" ] && tty >/dev/null 2>&1; then
 	set -- "install"
 fi
 
-Check_NTP "$1"
-stime="$(date +%s)"
-Find_Install_Dir "$@"
+stime="$(Uptime_Seconds)"
+Find_Install_Dir "$@" || exit 1
 
 # Load saved defaults from the config file if it exists
 if [ -f "$skynetcfg" ]; then
 	Load_Config
 fi
-if [ -n "$skynetloc" ] && [ -f "$skynetipset" ]; then
-	Initialize_Rule_Registry || Log error -s "Unable To Initialize Rule Registry"
-fi
-
 # Display the interactive menu when no command argument is provided
 if [ -z "$1" ]; then
 	Load_Menu
@@ -12347,7 +13708,7 @@ if [ -n "$option1" ]; then
 		set -- "$@" "$option4"
 	fi
 	[ -z "$option5" ] || set -- "$@" "$option5"
-	stime="$(date +%s)"
+	stime="$(Uptime_Seconds)"
 	echo "[$] $0 $*"
 fi
 
@@ -12365,7 +13726,7 @@ dispatchstatus="$?"
 Display_Header "9"
 if [ "$nolog" != "2" ]; then Print_Command_Summary "$@"; echo; fi
 commandstatus="${commandfailed:-$dispatchstatus}"
-if [ "$nocfg" != "1" ]; then Write_Config || commandstatus="1"; fi
+if [ "$commandstatus" = "0" ] && [ "$nocfg" != "1" ]; then Write_Config || commandstatus="1"; fi
 if [ "$restartfirewall" = "1" ]; then
 	if ! service restart_firewall; then
 		Log error -s "Firewall Restart Failed - Run ( service restart_firewall )"

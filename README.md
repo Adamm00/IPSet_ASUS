@@ -14,9 +14,9 @@ Skynet is free and open source. Development can be supported through [PayPal](ht
 
 - Blocks configured sources before inbound traffic reaches the router or forwarded services.
 - Blocks configured destinations for LAN clients, the router itself, and supported VPN server traffic.
-- Maintains separate IPSet collections for individual IPv4 addresses, network ranges, whitelisted entries, and IoT devices.
+- Maintains separate IPSet collections for automatic, domain, user, temporary, whitelist, and IoT policy.
 - Downloads, validates, caches, consolidates, and reports IPv4 threat feeds from a configurable filter list, including source state and content age.
-- Supports manual bans and whitelists by IPv4 address, CIDR range, domain, ASN, country, or comment.
+- Supports permanent and temporary IPv4/CIDR bans, plus manual rules for domains, ASNs, countries, imports, and whitelists.
 - Imports AiProtection detections and automatically whitelists required router, DNS, VPN, and optional CDN ranges.
 - Restricts selected IoT devices while retaining access to configured services and supported VPN server networks.
 - Records blocked traffic and provides searchable CLI reports, connection details, associated domains, and country information when enabled.
@@ -55,7 +55,7 @@ Run `firewall` to open the interactive menu:
 firewall
 ```
 
-The same command accepts the arguments documented below. The WebUI is mounted under **Firewall > Skynet** when logging, WebUI integration, and the Asuswrt-Merlin Addons API are available.
+The same command accepts the arguments documented below. The WebUI is mounted under **Firewall > Skynet** when WebUI integration is enabled and the Asuswrt-Merlin Addons API is available. Packet logging is required only for traffic statistics; settings, rules and source management remain available with logging disabled.
 
 Commands return `0` on success, `1` for a runtime failure, and `2` for an invalid command or input.
 
@@ -71,22 +71,29 @@ Commands return `0` on success, `1` for a runtime failure, and `2` for an invali
 
 - `firewall ban ip 8.8.8.8 1.1.1.1` - Ban one or more IPv4 addresses.
 - `firewall ban ip 8.8.8.8 1.1.1.1 comment "Apples"` - Ban multiple IPv4 addresses with one optional quoted comment.
+- `firewall ban ip 8.8.8.8 1.1.1.1 timeout 1h` - Ban multiple IPv4 addresses for one hour.
+- `firewall ban ip 8.8.8.8 timeout 24h comment "Persistent scanner"` - Add a temporary ban with an optional quoted comment.
 - `firewall ban range 8.8.8.0/24 1.1.1.0/24` - Ban one or more IPv4 CIDR ranges.
 - `firewall ban range 8.8.8.0/24 1.1.1.0/24 comment "Apples"` - Ban multiple ranges with one optional quoted comment.
+- `firewall ban range 8.8.8.0/24 timeout 7d comment "Persistent scanner"` - Temporarily ban an IPv4 range.
 - `firewall ban domain example.com example.net` - Resolve one or more domains and ban their current public IPv4 addresses.
 - `firewall ban country pk cn sa` - Replace the current country bans with the known IPv4 ranges assigned to the supplied two-letter country codes.
 - `firewall ban country status` - Display the selected countries and their source health.
 - `firewall ban country refresh` - Refresh every selected country without changing the selection.
 - `firewall ban asn AS123456 AS654321` - Download and ban the IPv4 ranges announced by one or more ASNs.
-- `firewall unban ip 8.8.8.8 1.1.1.1` - Remove one or more IPv4 addresses from the blacklist.
-- `firewall unban range 8.8.8.0/24 1.1.1.0/24` - Remove one or more exact CIDR ranges from the range blacklist.
+- `firewall unban ip 8.8.8.8 1.1.1.1` - Remove one or more direct permanent or temporary IPv4 rules.
+- `firewall unban range 8.8.8.0/24 1.1.1.0/24` - Remove one or more direct permanent or temporary CIDR rules.
 - `firewall unban domain example.com example.net` - Remove one or more stored manual domain bans without another DNS lookup.
-- `firewall unban comment "Apples"` - Remove blacklist entries whose comments contain the supplied text.
+- `firewall unban comment "Apples"` - Remove direct IP and CIDR ban rules whose comments contain the supplied text.
 - `firewall unban country` - Remove all entries created by country blocking.
-- `firewall unban asn AS123456 AS654321` - Remove entries labelled with one or more supplied ASNs.
+- `firewall unban asn AS123456 AS654321` - Remove one or more registered ASN ban rules.
 - `firewall unban malware` - Remove entries created from malware feeds.
-- `firewall unban nomanual` - Remove all non-manual bans while retaining manual IP and range bans.
+- `firewall unban nomanual` - Remove automatic blacklist entries while retaining every registered user rule.
 - `firewall unban all` - Flush both blacklists and clear the stored block log.
+
+Temporary bans accept `15m`, `1h`, `6h`, `24h`, or `7d`. Arguments must be supplied as entries, an optional `timeout`, then an optional `comment`. Re-adding a temporary rule resets its expiry. Adding the same entry permanently promotes it, while a temporary request for an existing permanent rule leaves the permanent rule unchanged. Unbanning an exact address or range removes its direct permanent or temporary rule; another overlapping rule may continue to cover it.
+
+Temporary rules expire in the kernel without requiring a scheduled Skynet process. Their absolute deadlines are stored separately and recalculated at startup, so restarting or powering off the router cannot extend a ban.
 
 Country blocking downloads the selected IPdeny lists concurrently over verified HTTPS and accepts only complete public IPv4 CIDRs. A URL-bound validated cache is used with a warning when a selected list is temporarily unavailable. If no matching cache exists, the complete previous country selection is retained. Applying a new country selection replaces the previous selection rather than appending to it.
 
@@ -119,25 +126,32 @@ Each source is reported as `current`, `cached`, `failed`, or `excluded`. A valid
 - `firewall whitelist domain example.com example.net` - Resolve one or more domains and whitelist their current IPv4 addresses.
 - `firewall whitelist asn AS123456 AS654321` - Download and whitelist the IPv4 ranges announced by one or more ASNs.
 - `firewall whitelist vpn` - Refresh VPN whitelist entries from Merlin's configured NVRAM values.
-- `firewall whitelist remove entry 8.8.8.8` - Remove an exact IPv4 address or CIDR range from the whitelist.
+- `firewall whitelist remove entry 8.8.8.8` - Remove an exact direct IPv4 or CIDR whitelist rule.
 - `firewall whitelist remove domain example.com example.net` - Remove one or more stored manual domain whitelists without another DNS lookup.
-- `firewall whitelist remove asn AS123456 AS654321` - Remove entries labelled with one or more supplied ASNs.
-- `firewall whitelist remove comment "Apples"` - Remove whitelist entries whose comments contain the supplied text.
-- `firewall whitelist remove all` - Flush the whitelist and rebuild only the automatic and shared entries.
+- `firewall whitelist remove asn AS123456 AS654321` - Remove one or more registered ASN whitelist rules.
+- `firewall whitelist remove comment "Apples"` - Remove direct IP and CIDR whitelist rules whose comments contain the supplied text.
+- `firewall whitelist remove all` - Remove every registered user whitelist rule while retaining automatic and shared policy.
 - `firewall whitelist refresh` - Refresh automatic, shared, VPN, CDN, and persistent domain whitelist entries.
-- `firewall whitelist view` - Display all whitelist entries.
-- `firewall whitelist view ips|domains|imported` - Display only the selected class of manual whitelist entry.
+- `firewall whitelist view` - Display automatic whitelist entries.
+- `firewall whitelist view ips|domains|asns|imported` - Display only the selected class of user whitelist rule.
 
 VPN whitelisting uses Merlin's configured NVRAM values without scanning active routes or interfaces. Each enabled OpenVPN server pool uses its configured subnet and netmask. Configured OpenVPN and WireGuard client endpoints are whitelisted as `/24` networks. Server firewall rules are installed only while the corresponding OpenVPN or WireGuard server is enabled.
 
 ### Importing and Removing Lists
 
-Import and deport accept either a local file path or an HTTP/HTTPS URL. Input files must contain one IPv4 address or CIDR range per line. Private and reserved ranges are ignored. Bare addresses and `/32` entries are handled as IPs; all other valid CIDRs are handled as ranges.
+Import accepts either a local file path or an HTTP/HTTPS URL. Input files must contain one IPv4 address or CIDR range per line. Private and reserved ranges are ignored. Bare addresses and `/32` entries are handled as IPs; all other valid CIDRs are handled as ranges.
 
 - `firewall import blacklist /path/to/list.txt "Apples"` - Add valid entries to the blacklist with an optional comment.
 - `firewall import whitelist https://example.com/list.txt "Apples"` - Add valid entries to the whitelist with an optional comment.
-- `firewall deport blacklist /path/to/list.txt` - Remove exact entries in the file from the blacklists.
-- `firewall deport whitelist https://example.com/list.txt` - Remove exact entries in the file from the whitelist.
+- `firewall rules remove <rule-id>` - Remove one direct, domain, ASN or imported rule by its stable ID.
+
+### Rule Storage
+
+Skynet records user rules in an atomic rule registry and assigns each rule a stable ID. Comments are descriptive labels and are not used to determine ownership. Direct IP, CIDR and domain rules remain individually manageable, while ASN and imported lists are stored as logical groups backed by validated data.
+
+Automatic feeds, resolved domains, permanent user rules and temporary bans are compiled into separate IPSet components. The firewall continues to use one blocking master and one whitelist master, keeping packet matching short while allowing each policy source to be refreshed or removed independently. Removing one rule does not remove an address still owned or covered by another rule.
+
+Automatic addresses and ranges remain in `Skynet-Blacklist` and `Skynet-BlockedRanges`. Resolved domain bans use `Skynet-BlacklistDomains`, permanent user rules use `Skynet-UserBans`, and expiring rules use `Skynet-TemporaryBans`. Automatic, domain, and user whitelist entries are separated in the same way. `Skynet-IOT` remains independent.
 
 ### Updates
 
@@ -186,13 +200,16 @@ Changing the IoT device list does not enable or disable enforcement. Use the mas
 
 #### Logging & Statistics
 
-- `firewall settings logmode enable|disable` - Enable or disable logging of Skynet blocks. Statistics depend on this data.
+- `firewall settings logmode enable|disable` - Enable or disable logging of Skynet blocks. Disabling logging hides traffic statistics and pauses scheduled chart generation without removing the WebUI or changing protection. Enabling logging restores the statistics schedule.
 - `firewall settings loginvalid enable|disable` - Enable or disable logging of new invalid-state packets handled by the router's drop chain.
 - `firewall settings logsize 10` - Set the block-log limit in MB. The minimum value is 10MB.
 - `firewall settings extendedstats enable|disable` - Add associated domain names to statistics when dnsmasq logs are available.
-- `firewall settings syslog /path/to/syslog|default` - Set the active syslog path or restore `/tmp/syslog.log`.
-- `firewall settings syslog1 /path/to/syslog-1|default` - Set the rotated syslog path or restore `/tmp/syslog.log-1`.
 - `firewall settings lookupcountry enable|disable` - Enable or disable online country lookups for statistics.
+- `firewall settings syslog auto` - Follow the running logger automatically. Uses Scribe's installed Skynet destination while syslog-ng runs, otherwise the system logger's `-O` output or `/tmp/syslog.log`. Symlinks are resolved and the rotated path defaults to the current path plus `-1`.
+- `firewall settings syslog /path/to/syslog [/path/to/rotated-log]` - Select Custom mode and set one or both source paths. Both paths are validated before either changes.
+- `firewall settings syslog1 /path/to/rotated-log` - Select Custom mode and change only the rotated source path. Custom paths remain unchanged across startup and logger detection.
+
+Log sources can also be selected under WebUI Statistics. Configurations without a saved log-source mode default to Automatic, including those with existing custom paths. Select Custom to pin specific paths; an explicitly saved Custom mode is preserved. Skynet does not install, remove or reconfigure Scribe's filters. Install or reconfigure Scribe through its own installer; its existing Skynet CLI callback remains supported.
 
 #### Integration & Advanced
 
@@ -208,7 +225,7 @@ Changing the IoT device list does not enable or disable enforcement. Use the mas
 - `firewall stats search ip 8.8.8.8 [count]` - Show ban status, reasons, associated domains, location, and logged activity for an IPv4 address.
 - `firewall stats search domain example.com` - Resolve a domain and report the available data for each resulting IPv4 address.
 - `firewall stats search malware 8.8.8.8` - Search downloaded malware feeds for an IPv4 address or CIDR range.
-- `firewall stats search reason "spamhaus" [count]` - Search live IPSet comments for a ban reason without performing network lookups.
+- `firewall stats search reason "spamhaus" [count]` - Search active automatic and registered rule reasons without performing network lookups.
 - `firewall stats search manualbans [count]` - Show recorded manual bans.
 - `firewall stats search actions [count]` - Show recent CLI, WebUI, scheduled and startup actions, including degraded and failed outcomes.
 - `firewall stats search device 192.168.1.50 [count]` - Show outbound blocks generated by a LAN device.
@@ -224,6 +241,8 @@ Country fields are omitted when country lookup is disabled. Associated domains a
 
 Generated WebUI statistics resolve country codes in batches of up to 32 addresses and reuse results for seven days. Stale values remain available during a provider outage, unused entries expire after 30 days, and a country lookup failure never prevents statistics generation.
 
+Temporary chart indexes are built in RAM and removed after generation. Only a complete statistics payload is published to USB; a failed generation retains the previous charts. Ban-reason lookups retain metadata only for requested addresses, including matches from imported ranges. Associated-domain scans are skipped when no chart addresses need enrichment.
+
 ### Diagnostics and Maintenance
 
 - `firewall debug watch` - Follow Skynet block entries in real time.
@@ -236,28 +255,52 @@ Generated WebUI statistics resolve country codes in batches of up to 32 addresse
 - `firewall debug swap install|uninstall` - Create or remove the Skynet-managed swap file.
 - `firewall debug backup` - Save the current configuration, logical rule registry, rule cache, IPSet data, and logs to `Skynet-Backup.tar.gz` in the install directory.
 - `firewall debug restore` - Restore `Skynet-Backup.tar.gz` and restart the firewall service.
+- `firewall save` - Archive pending logs, verify integrity, and persist durable state only when it changed.
+- `firewall restart` - Restart Merlin's firewall once and reconcile Skynet rules without unloading its IPSet data, WebUI, or schedules.
+
+Skynet separates firewall reconciliation from scheduled maintenance. A normal Merlin firewall reload verifies the IPSet topology and Skynet rules, exits immediately when they are correct, or repairs only missing or stale rules. It does not download sources, rebuild statistics, rewrite configuration, or save unchanged IPSet data. A cold start restores validated local data and enables permanent protection without requiring internet access. Failed policy initialization is retried on the next start; unfinished WebUI and schedule setup resumes without reloading a successfully restored policy. Completion markers are kept in RAM and reset on reboot.
+
+Packet logging, temporary-rule restoration, rule additions and refreshes, and persistent action timestamps wait for a trustworthy system clock. Permanent blocking, whitelisting, rule removal and IoT enforcement remain available while time synchronization is pending. If time is not ready within five minutes, startup completes in a degraded state and the next firewall reconciliation or hourly maintenance enables the pending time-dependent features.
+
+Hourly maintenance runs at a randomized minute and replaces the previous unconditional full save. It archives new block records, enforces the log limit, prunes expired rules, checks firewall integrity, and writes durable state or WebUI settings only when something changed. Log archival retains Skynet block records and discards Merlin's native `DROP` packet messages, including those recorded before Skynet starts. Unrelated system messages are preserved. The shutdown persistence hook performs a narrow conditional commit without running statistics, security remediation, or a firewall restart.
+
+If another command is active, maintenance waits up to 60 seconds for the state lock. If it remains busy, the run returns a failure status and records `deferred (state-lock)` in debug information without interrupting the active command. Saved settings are reloaded after acquiring the lock. The rule registry is staged for expiry pruning only when a deadline is due; unchanged registries are read without a staging write. Hourly collection cannot recover syslog records already overwritten by rotation during sustained traffic bursts.
 
 ## WebUI
 
 The WebUI provides:
 
+- Packet logging and syslog source paths under Statistics, alongside the existing protection, update, IoT and country settings. Changes use the same commands as the CLI. Disabling WebUI integration remains CLI-only because it removes the management page.
+
 - The latest generated blacklist totals and inbound/outbound packet counters.
 - Daily block activity and the main CLI top-10 statistics as charts or tables.
 - IP details including ban reason, country, associated domains, AlienVault OTX, and SpeedGuide links where applicable.
-- Background statistics refresh without navigating away from the page.
+- Background statistics refresh without navigating away from the page. Busy or failed requests report an error and retain the existing charts.
 - Common Skynet settings with descriptions and documented defaults.
 - Threat-feed status, usable entry counts, last successful checks, content age, source toggles, manual refresh, and primary filter-list configuration.
 - Country blocking with country selection and removal.
 - Manual IP, range, domain and ASN ban, unban and whitelist management, including grouped imported lists.
+- Add Entries stages IPv4/CIDR entries with the comment currently entered. Staged tags show their saved comments; Apply Rules submits the complete batch together. Changing the comment field does not change previously staged entries. Re-adding a staged address updates its comment.
+- Permanent or preset temporary IPv4/CIDR bans, remaining lifetime, stable rule removal, and a dedicated Temporary filter.
 - Recent rule, source, country, IoT and settings activity is shown with its origin and outcome. Country changes identify the countries added or removed, while source refreshes are recorded only when validated content changes.
 - IoT isolation with detected client, hostname, IPv4, MAC, online state, device list, port and protocol controls.
 - Copyable MAC addresses in blocked-device details when neighbour data is available.
 
 Empty or disabled data sections are collapsed or omitted where appropriate. Charts are generated from Skynet's stored logs, while blacklist totals and packet counters are captured during statistics generation. The page does not query the live firewall for every chart.
 
+Temporary-rule controls are disabled until the router clock is synchronized. Expired rows are hidden immediately, while counters and settings refresh without rebuilding chart statistics.
+
 ## Action History
 
 Skynet records completed changes and operational failures as a structured, bounded action journal in `events.log`. Each entry identifies its origin, result, subsystem, operation and affected values. Normal writes append one small record; the file is compacted only when it exceeds 1MB or 2,000 entries. Existing text summaries remain available until normal retention compaction, invalid or incomplete records are discarded during compaction, and the current history is retained when restoring an older Skynet backup.
+
+Action records are written only after the router clock is synchronized, preventing persistent entries with incorrect startup timestamps.
+
+The WebUI groups each activity by category and shows the operation and affected values in Details, such as `Setting Change` with `Enabled Packet Logging`.
+
+Successful dynamic-rule refreshes that leave content and health unchanged do not create an action entry. Changes, degraded sources and failures remain visible. Temporary-ban actions include a readable expiry time in the router's timezone.
+
+Temporary bans expire in the kernel without waiting for maintenance. Hourly maintenance records detected expiries when removing their saved rules; the entry time is the detection time and its details include the original deadline. Malware refresh entries report current, cached and excluded source counts rather than implying that every source changed.
 
 ## Help
 
