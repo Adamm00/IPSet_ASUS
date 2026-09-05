@@ -15,7 +15,7 @@ Skynet is free and open source. Development can be supported through [PayPal](ht
 - Blocks configured sources before inbound traffic reaches the router or forwarded services.
 - Blocks configured destinations for LAN clients, the router itself, and supported VPN server traffic.
 - Maintains separate IPSet collections for automatic, domain, user, temporary, whitelist, and IoT policy.
-- Downloads, validates, caches, consolidates, and reports IPv4 threat feeds from a configurable filter list, including source state and content age.
+- Downloads, validates, caches, consolidates, and reports a managed selection of IPv4 threat feeds, including source state and content age. A default or custom filter list supplies the initial selection.
 - Supports permanent and temporary IPv4/CIDR bans, plus manual rules for domains, ASNs, countries, imports, and whitelists.
 - Imports AiProtection detections and automatically whitelists required router, DNS, VPN, and optional CDN ranges.
 - Restricts selected IoT devices while retaining access to configured services and supported VPN server networks.
@@ -26,10 +26,10 @@ Skynet is free and open source. Development can be supported through [PayPal](ht
 
 - A supported ASUS router running Asuswrt-Merlin with IPSet version 6 or 7.
 - A writable USB partition recognised by the installer.
-- Enough free USB space for a swap file and Skynet data. A 1GB swap file is the minimum supported size; 2GB is recommended.
+- Enough free USB space for Skynet data and swap when required. A 1GB swap file is the minimum supported size; 2GB is recommended.
 - SSH access to the router for manual installation. The installer enables custom JFFS scripts if required and may request a reboot.
 
-Skynet requires a swap file rather than a swap partition. The installer can create and maintain the swap file automatically.
+Swap is optional on 2GB-class routers with at least 1.5GiB of usable RAM. Smaller routers require a swap file rather than a swap partition. The installer can create and maintain the swap file automatically; existing optional swap is left in place.
 
 ## Installation
 
@@ -106,16 +106,20 @@ Domain health is reported as `current`, `cached`, `empty`, `expired`, or `failed
 
 ### Malware Lists
 
-A Skynet filter list contains one HTTP or HTTPS threat-feed URL per line. Skynet resolves the complete source list before exclusions, refreshes required whitelists, conditionally downloads enabled feeds, validates their IPv4 entries, removes private and reserved ranges, and rebuilds the malware portion of the blacklist. Cached files are bound to their complete source URL so changed URLs cannot inherit stale content with the same filename.
+A Skynet filter list contains one HTTP or HTTPS threat-feed URL per line. It supplies the initial selection or replaces it when explicitly imported. Normal updates use the saved selection, so added, removed and disabled sources remain as configured. Existing source details and exclusions are carried into the saved selection; when no source details exist, the configured custom or default filter list is imported on the first malware update.
 
-Each source is reported as `current`, `cached`, `failed`, or `excluded`. A validated cache may be used when its source cannot be refreshed. If any enabled source has no valid matching cache, the update fails and the complete existing blacklist and saved source selection are retained.
+Skynet refreshes required whitelists, conditionally downloads enabled feeds, validates their IPv4 entries, removes private and reserved ranges, and rebuilds the malware portion of the blacklist. CIDRs are normalized to their network address, `/32` entries become individual IPs, and source counts include only unique usable entries. Ranges overlapping private or reserved space are excluded. Cached files are bound to their complete source URL so changed URLs cannot inherit stale content with the same filename. Source names remain stable when other sources are removed.
 
-- `firewall banmalware` - Refresh the malware blacklist using the configured filter list.
-- `firewall banmalware https://example.com/filter.list` - Save the supplied filter-list URL as the primary source and refresh the malware blacklist.
-- `firewall banmalware reset` - Restore the default Skynet filter-list URL and refresh the malware blacklist.
+Each source is reported as `current`, `cached`, `failed`, or `excluded`; `pending` means no matching check is available yet. A validated cache may be used when its source cannot be refreshed. If any enabled source has no valid matching cache, the update fails and the complete existing blacklist and saved source selection are retained.
+
+- `firewall banmalware` - Refresh the malware blacklist using the saved sources.
+- `firewall banmalware https://example.com/filter.list` - Replace the saved selection with the supplied filter-list template and refresh the malware blacklist.
+- `firewall banmalware reset` - Replace the saved selection with Skynet's default filter list and refresh the malware blacklist.
+- `firewall banmalware add https://example.com/addresses.ipset` - Add a feed URL to the saved selection and refresh the blacklist. Multiple URLs may be supplied as separate arguments.
+- `firewall banmalware remove list1.ipset list2.ipset` - Remove the named sources and rebuild the blacklist without them.
 - `firewall banmalware status` - Display the update schedule, filter list, last update, and source-state totals.
 - `firewall banmalware sources` - Display every source, its usable entry count, state, last successful check, content-change time, and URL.
-- `firewall banmalware exclude list1.ipset list2.ipset` - Exclude filter-list URLs with the supplied filenames, then refresh the malware blacklist.
+- `firewall banmalware exclude list1.ipset list2.ipset` - Replace the disabled-source selection with the supplied filenames, then refresh the malware blacklist. Other sources are enabled.
 - `firewall banmalware include list1.ipset list2.ipset` - Re-enable one or more excluded source filenames, then refresh the malware blacklist.
 - `firewall banmalware exclude reset` - Clear the excluded filenames and refresh the malware blacklist.
 
@@ -184,24 +188,26 @@ CDN source data is downloaded concurrently and validated before the dynamic whit
 
 #### IoT Isolation
 
-IoT WAN blocking applies to devices in the Skynet IoT IPSet. When enabled, their forwarded WAN traffic is blocked except for ICMP, the configured TCP/UDP ports, and traffic routed through active OpenVPN or WireGuard server interfaces. By default, UDP port 123 remains available for NTP time synchronization; accurate device time is required by certificates, secure connections and scheduled activity. The default can be replaced with up to 15 custom ports or disabled entirely. The saved device list and the blocking switch are managed independently.
+IoT WAN blocking applies to devices in the Skynet IoT IPSet. When enabled, their forwarded WAN traffic is blocked except for the configured TCP/UDP ports and traffic routed through OpenVPN or WireGuard server interfaces. Traffic between local bridges remains subject to Merlin's access controls; Skynet does not override LAN isolation. By default, UDP port 123 remains available for NTP time synchronization; accurate device time is required by certificates, secure connections and scheduled activity. The default can be replaced with up to 15 custom ports or disabled entirely. The saved device list and the blocking switch are managed independently.
 
 - `firewall settings iot ban 192.168.1.50 192.168.1.60` - Add one or more IPv4 addresses or CIDR ranges to the IoT list.
-- `firewall settings iot unban 192.168.1.50 192.168.1.60` - Remove one or more IPv4 addresses or CIDR ranges from the IoT list.
+- `firewall settings iot unban 192.168.1.50 192.168.1.60` - Remove one or more IPv4 addresses or CIDR ranges from the IoT list and clear their recorded IoT blocks. Other traffic records are retained.
 - `firewall settings iot enable|disable` - Start or pause IoT WAN blocking without clearing the saved device list.
 - `firewall settings iot view` - Display detected clients, their IoT state, and the current allowed protocol and ports.
 - `firewall settings iot ports 123 124 125` - Replace the allowed WAN port list. Ports must be between 1 and 65535, with a maximum of 15 entries.
 - `firewall settings iot ports default` - Allow only UDP port 123 for NTP time synchronization.
-- `firewall settings iot ports none` - Allow no TCP or UDP WAN ports. ICMP and active VPN server-interface exceptions remain available.
+- `firewall settings iot ports none` - Allow no TCP or UDP WAN ports. Local bridge traffic and VPN server-interface exceptions remain subject to Merlin's access controls.
 - `firewall settings iot proto udp|tcp|all` - Select the protocol used by a custom allowed-port list.
 - `firewall settings iotlogging enable|disable` - Enable or disable logging for blocked IoT traffic.
 
 Changing the IoT device list does not enable or disable enforcement. Use the master IoT setting in the CLI or WebUI to control blocking.
 
+Enabling isolation, adding devices while it is enabled, or changing allowed ports/protocol resets the affected devices' existing source-NAT connections so accelerated WAN sessions cannot retain the previous policy. Allowed WAN services reconnect normally; other clients and ordinary LAN connections are unaffected.
+
 #### Logging & Statistics
 
 - `firewall settings logmode enable|disable` - Enable or disable logging of Skynet blocks. Disabling logging hides traffic statistics and pauses scheduled chart generation without removing the WebUI or changing protection. Enabling logging restores the statistics schedule.
-- `firewall settings loginvalid enable|disable` - Enable or disable logging of new invalid-state packets handled by the router's drop chain.
+- `firewall settings loginvalid enable|disable` - Enable or disable logging of conntrack INVALID packets handled by the router's drop chain. Other rejected new connections are not classified as invalid.
 - `firewall settings logsize 10` - Set the block-log limit in MB. The minimum value is 10MB.
 - `firewall settings extendedstats enable|disable` - Add associated domain names to statistics when dnsmasq logs are available.
 - `firewall settings lookupcountry enable|disable` - Enable or disable online country lookups for statistics.
@@ -253,8 +259,8 @@ Temporary chart indexes are built in RAM and removed after generation. Only a co
 - `firewall debug genstats` - Regenerate WebUI statistics.
 - `firewall debug clean` - Archive and clean handled Skynet syslog entries.
 - `firewall debug swap install|uninstall` - Create or remove the Skynet-managed swap file.
-- `firewall debug backup` - Save the current configuration, logical rule registry, rule cache, IPSet data, and logs to `Skynet-Backup.tar.gz` in the install directory.
-- `firewall debug restore` - Restore `Skynet-Backup.tar.gz` and restart the firewall service.
+- `firewall debug backup` - Save the current configuration, logical rule registry, source caches, IPSet data, and logs to `Skynet-Backup.tar.gz` in the install directory. A failed backup retains the previous archive.
+- `firewall debug restore` - Validate and restore `Skynet-Backup.tar.gz`, retaining current action history. Rebuilds Skynet policy from local data without restarting Merlin's firewall. Cached manual domain rules are restored; transient DNS-learned addresses repopulate through normal DNS queries. Previous files are retained until policy and integration checks pass, and restored if the operation fails. Invalid archives are rejected before changing installed data.
 - `firewall save` - Archive pending logs, verify integrity, and persist durable state only when it changed.
 - `firewall restart` - Restart Merlin's firewall once and reconcile Skynet rules without unloading its IPSet data, WebUI, or schedules.
 
@@ -275,9 +281,9 @@ The WebUI provides:
 - The latest generated blacklist totals and inbound/outbound packet counters.
 - Daily block activity and the main CLI top-10 statistics as charts or tables.
 - IP details including ban reason, country, associated domains, AlienVault OTX, and SpeedGuide links where applicable.
-- Background statistics refresh without navigating away from the page. Busy or failed requests report an error and retain the existing charts.
+- Background statistics refresh without navigating away from the page. Every action waits for its matching worker result, and statistics also verify the chart payload belongs to that request. Busy or failed requests report an error and retain the existing charts.
 - Common Skynet settings with descriptions and documented defaults.
-- Threat-feed status, usable entry counts, last successful checks, content age, source toggles, manual refresh, and primary filter-list configuration.
+- Threat-feed status, usable entry counts, last successful checks, content age, source toggles, manual refresh, and feed URL additions/removals. Use Template replaces the saved selection with the default or custom filter list after confirmation.
 - Country blocking with country selection and removal.
 - Manual IP, range, domain and ASN ban, unban and whitelist management, including grouped imported lists.
 - Add Entries stages IPv4/CIDR entries with the comment currently entered. Staged tags show their saved comments; Apply Rules submits the complete batch together. Changing the comment field does not change previously staged entries. Re-adding a staged address updates its comment.

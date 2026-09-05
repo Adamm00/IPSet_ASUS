@@ -707,7 +707,7 @@
         .skynet-feed-header,
         .skynet-feed-row {
             display: grid;
-            grid-template-columns: minmax(0, 1fr) 76px 140px 68px 54px;
+            grid-template-columns: minmax(0, 1fr) 64px 140px 68px 112px;
             align-items: center;
             gap: 10px;
         }
@@ -722,6 +722,22 @@
             line-height: var(--skynet-line-caption);
             text-transform: uppercase;
         }
+
+        .skynet-feed-controls,
+        .skynet-template-controls,
+        .skynet-feed-add {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .skynet-feed-controls { justify-content: flex-end; }
+        .skynet-feed-add { padding: 10px; }
+        .skynet-feed-add .skynet-update-button { flex-shrink: 0; width: auto; }
+        #FormTitle .skynet-feed-add input[type="text"],
+        #FormTitle .skynet-template-controls input[type="url"] { flex: 1; min-width: 0; width: auto; max-width: none; }
+        .skynet-template-controls { flex-wrap: wrap; }
+        .skynet-feed-controls .skynet-feed-toggle { flex-shrink: 0; }
 
         .skynet-feed-header > span {
             display: block;
@@ -2571,7 +2587,7 @@
                 align-self: center;
             }
 
-            .skynet-feed-toggle {
+            .skynet-feed-controls {
                 grid-column: 2;
                 grid-row: 1;
                 justify-self: end;
@@ -2770,6 +2786,7 @@
                 display: block !important;
                 box-sizing: border-box;
                 width: 100% !important;
+                height: auto !important;
             }
 
             .skynet-settings-table tr:not(.skynet-settings-group) > th {
@@ -3017,7 +3034,8 @@
                     success: "Current data reloaded.",
                     timeout: "Data reload did not complete.",
                     loadError: "Unable to load current settings.",
-                    source: "settings"
+                    source: "settings",
+                    requireSuccess: true
                 },
                 malware: {
                     button: "malwareButton",
@@ -5133,6 +5151,13 @@
                 }
             });
 
+            ["blcount1", "blcount2", "hits1", "hits2"].forEach(function(id) {
+                const counter = SkynetUI.getElement(id);
+                if (counter && /^\d+$/.test(counter.textContent)) {
+                    counter.textContent = SkynetUI.formatNumber(counter.textContent);
+                }
+            });
+
             /* Accept both the legacy labeled payload and the compact format. */
             const statsDate = this.getElement("statsdate");
             const statsSize = this.getElement("statssize");
@@ -5228,11 +5253,11 @@
                 return "excluded";
             }
             if (feed.state === "excluded") {
-                return Number(feed.entries) > 0 ? "cached" : "failed";
+                return Number(feed.entries) > 0 ? "cached" : "pending";
             }
-            return /^(current|cached|failed)$/.test(feed.state)
+            return /^(current|cached|failed|pending)$/.test(feed.state)
                 ? feed.state
-                : "failed";
+                : "pending";
         };
 
         SkynetUI.formatRelativeTime = function(epoch) {
@@ -5274,7 +5299,7 @@
 
             if (header) header.hidden = false;
             let enabledCount = 0;
-            const stateCounts = {current: 0, cached: 0, failed: 0, excluded: 0};
+            const stateCounts = {current: 0, cached: 0, failed: 0, excluded: 0, pending: 0};
             feeds.forEach(function(feed) {
                 const enabled = !SkynetUI.isFeedExcluded(feed.name);
                 const state = SkynetUI.getFeedState(feed);
@@ -5289,6 +5314,8 @@
                 const toggleCell = document.createElement("label");
                 const toggle = document.createElement("input");
                 const toggleSwitch = document.createElement("span");
+                const controls = document.createElement("div");
+                const remove = document.createElement("button");
 
                 if (enabled) enabledCount += 1;
                 stateCounts[state] += 1;
@@ -5325,11 +5352,27 @@
                 });
                 toggleCell.appendChild(toggle);
                 toggleCell.appendChild(toggleSwitch);
+                controls.className = "skynet-feed-controls";
+                remove.type = "button";
+                remove.className = "button_gen skynet-update-button skynet-settings-reload skynet-rule-remove";
+                remove.textContent = SkynetUI.feedConfirm === feed.name ? "Confirm" : "Remove";
+                remove.disabled = SkynetUI.refreshInProgress || SkynetUI.isFeedDirty();
+                remove.setAttribute("aria-label", "Remove " + feed.name);
+                remove.addEventListener("click", function() {
+                    if (SkynetUI.feedConfirm !== feed.name) {
+                        SkynetUI.feedConfirm = feed.name;
+                        SkynetUI.renderFeeds();
+                        return;
+                    }
+                    SkynetUI.updateFeedMembership("remove", feed.name);
+                });
+                controls.appendChild(toggleCell);
+                controls.appendChild(remove);
                 row.appendChild(source);
                 row.appendChild(entries);
                 row.appendChild(success);
                 row.appendChild(pillCell);
-                row.appendChild(toggleCell);
+                row.appendChild(controls);
                 list.appendChild(row);
             });
 
@@ -5345,7 +5388,9 @@
 
         SkynetUI.populateFeeds = function() {
             const settings = window.SkynetSettings || {};
-
+            const template = this.getElement("skynetUseTemplate");
+            if (template) template.textContent = "Use Template";
+            this.feedConfirm = "";
             this.feedExclusions = this.normaliseFeedExclusions(settings.excludelists);
             this.feedOriginal = this.getFeedSignature(this.feedExclusions);
             this.renderFeeds();
@@ -5381,6 +5426,16 @@
 
         SkynetUI.updateFeedControls = function() {
             const apply = this.getElement(this.selectors.feedButton);
+            const add = this.getElement("skynetAddFeed");
+            const input = this.getElement("skynetFeedURL");
+            const template = this.getElement("skynetUseTemplate");
+            if (template) template.disabled = this.refreshInProgress || !this.canUpdateMalware() || this.isFeedDirty();
+            if (input) input.disabled = this.refreshInProgress;
+            if (add) add.disabled = this.refreshInProgress || !this.canManageFeeds() ||
+                this.isFeedDirty() || !input || !input.value.trim();
+            document.querySelectorAll("#skynetFeedList button").forEach(function(button) {
+                button.disabled = SkynetUI.refreshInProgress || SkynetUI.isFeedDirty();
+            });
 
             if (apply) {
                 apply.disabled = this.refreshInProgress || !this.canManageFeeds() ||
@@ -5395,7 +5450,7 @@
 
         SkynetUI.getSettingsOptions = function() {
             return [
-                "skynetAutoUpdate", "skynetMalwareUpdates", "skynetMalwareUrl",
+                "skynetAutoUpdate", "skynetMalwareUpdates",
                 "skynetFilterTraffic", "skynetUnbanPrivate", "skynetAiProtect",
                 "skynetSecureMode", "skynetLogMode", "skynetSyslogMode", "skynetSyslog", "skynetSyslogArchive", "skynetLogInvalid", "skynetLogSize",
                 "skynetExtendedStats", "skynetCountryLookup", "skynetCdnWhitelist"
@@ -5775,55 +5830,6 @@
             }
         };
 
-        SkynetUI.isRuleRequestApplied = function() {
-            const rules = Array.isArray(window.SkynetRules) ? window.SkynetRules : [];
-            const operation = custom_settings.skynet_ruleoperation;
-            const action = custom_settings.skynet_ruleaction;
-            const targetAction = action === "unban" ? "ban" : action;
-            const mode = custom_settings.skynet_rulemode;
-            const target = custom_settings.skynet_ruletarget;
-            const savedComment = custom_settings.skynet_rulesavedcomment;
-            const requestID = String(custom_settings.skynet_ruleid || "");
-            const temporary = Boolean(custom_settings.skynet_ruletimeout);
-            const entries = String(custom_settings.skynet_ruleentries || "")
-                .split(/\s+/).filter(Boolean);
-            // Address presence alone cannot confirm a per-entry comment update.
-            if (operation === "add" && custom_settings.skynet_rulecomments) return false;
-
-            if (operation === "remove" && requestID) {
-                return !rules.some(function(rule) {
-                    return String(rule.id || "") === requestID;
-                });
-            }
-            if (!entries.length) return false;
-            const ruleExists = function(entry) {
-                return rules.some(function(rule) {
-                    const ruleEntry = SkynetUI.getRuleValue(rule);
-                    if (mode === "manual") {
-                        return SkynetUI.isDirectRule(rule) && rule.action === targetAction &&
-                            rule.target === target && ruleEntry === entry &&
-                            rule.comment === savedComment;
-                    }
-                    if (mode === "import") {
-                        return rule.kind === "import" && rule.action === targetAction &&
-                            rule.target === target && rule.comment === savedComment;
-                    }
-                    if (mode === "domain" || mode === "asn") {
-                        return rule.kind === "group" && rule.action === targetAction &&
-                            rule.type === mode &&
-                            ruleEntry.toLowerCase() === entry.toLowerCase();
-                    }
-                    return SkynetUI.isDirectRule(rule) && rule.action === targetAction &&
-                        ruleEntry === entry &&
-                        (operation !== "add" || action !== "ban" ||
-                            SkynetUI.isTemporaryRule(rule) === temporary);
-                });
-            };
-            return operation === "add" && action !== "unban"
-                ? entries.every(ruleExists)
-                : entries.every(function(entry) { return !ruleExists(entry); });
-        };
-
         SkynetUI.normaliseRuleEntries = function(value, mode) {
             const entries = [];
             const seen = Object.create(null);
@@ -6162,7 +6168,10 @@
                 return ({enable: "Enabled", disable: "Disabled", add: "Added", remove: "Removed"}[operation] || "Updated") + " " + name;
             }
 			if (area === "iot") return "Updated IoT configuration";
-			if (area === "system" && operation === "restore") return "Restored Skynet backup";
+			if (area === "system" && operation === "restore") {
+				if (target === "startup") return "Started Skynet";
+				if (target === "backup") return "Restored Skynet backup";
+			}
 			return [operation, target, type].filter(Boolean).join(" ");
 		};
 
@@ -6342,7 +6351,6 @@
             custom_settings.skynet_ruleid = rule ? String(rule.id || "") : "";
             custom_settings.skynet_ruletarget = rule ? rule.target : "";
             custom_settings.skynet_rulesavedcomment = rule ? rule.comment : "";
-            custom_settings.skynet_rulerequest = String(new Date().getTime());
             this.refreshInProgress = true;
             const removing = operation === "remove" || action === "unban";
             this.setUpdateResult(removing ? (rule ? "Removing rule..." : "Removing rules...") : "Applying rules...", false, this.selectors.ruleResult);
@@ -6381,7 +6389,6 @@
             custom_settings.skynet_ruleid = "";
             custom_settings.skynet_ruletarget = "";
             custom_settings.skynet_rulesavedcomment = "";
-            custom_settings.skynet_rulerequest = String(new Date().getTime());
             this.refreshInProgress = true;
             this.setUpdateResult("Refreshing dynamic rules...", false, this.selectors.ruleResult);
             this.setActionState(true, this.selectors.ruleRefresh, "Refreshing...");
@@ -6850,8 +6857,8 @@
 
         /*
          * Background actions use Merlin's native service-event form target.
-         * The page remains interactive while generated payload timestamps are
-         * polled to detect completion.
+             * The page remains interactive while matching worker results are
+             * polled to detect completion.
          */
         SkynetUI.setUpdateResult = function(message, isError, resultSelector, isWarning) {
             const result = this.getElement(resultSelector || this.selectors.updateResult);
@@ -6975,21 +6982,18 @@
         };
 
         SkynetUI.loadScript = function(file, error) {
-            /* Cache-busting is required because Merlin serves generated files aggressively. */
+            /* Merlin's jQuery transport aborts stalled payload requests before polling again. */
             return new Promise(function(resolve, reject) {
-                const script = document.createElement("script");
-
-                script.src = "/ext/skynet/" + file + "?_=" + new Date().getTime();
-                script.async = true;
-                script.onload = function() {
-                    script.parentNode.removeChild(script);
+                jQuery.ajax({
+                    url: "/ext/skynet/" + file,
+                    dataType: "script",
+                    cache: false,
+                    timeout: 15000
+                }).done(function() {
                     resolve();
-                };
-                script.onerror = function() {
-                    script.parentNode.removeChild(script);
+                }).fail(function() {
                     reject(new Error(error));
-                };
-                document.head.appendChild(script);
+                });
             });
         };
 
@@ -7024,6 +7028,9 @@
 
         SkynetUI.getMalwareUpdateError = function() {
             const result = String(window.SkynetSettingsResult || "error");
+            if (result === "validation") {
+                return "Invalid source selection. Check the feed URLs and names; at least one source must stay enabled.";
+            }
 
             if (result.indexOf("failed:") === 0) {
                 return "No valid cached copy is available for " +
@@ -7047,7 +7054,7 @@
 			if (result === "source") return "Unable to download or validate one or more ASN ranges.";
 			if (result === "conflict") return "A resolved address or range is already owned by another rule.";
 			if (result === "stale") return "The selected rule no longer exists. Reloaded rule data is shown.";
-			if (result === "save") return "Unable to save the rule. Existing rules were restored.";
+			if (result === "save") return "Unable to finish saving or recording the rule change. Reload data to check its current state.";
 			if (result === "apply") return "Unable to apply the rule. Existing rules were retained.";
 			return "Unable to update rules.";
 		};
@@ -7101,6 +7108,9 @@
             const action = this.actionDefinitions[requestType] ||
                 this.actionDefinitions.stats;
             const button = this.selectors[action.button];
+            const retryLabel = requestType === "feeds" ||
+                (requestType === "rules" && custom_settings.skynet_ruleoperation === "remove")
+                ? action.label : "Try Again";
             const result = requestType === "reload" && this.reloadResult
                 ? this.reloadResult
                 : this.selectors[action.result];
@@ -7111,8 +7121,7 @@
 
             request.then(function() {
                 if (requestType === "stats" &&
-                    String(window.SkynetSettingsRequest || "") ===
-                        String(custom_settings.skynet_statsrequest || "") &&
+                    String(window.SkynetSettingsRequest || "") === self.activeRequest &&
                     window.SkynetSettingsResult === "success") {
                     return self.loadStatsScript();
                 }
@@ -7122,14 +7131,13 @@
                     : window.SkynetStatsGenerated;
 
                 if (String(currentStamp || "") !== String(previousStamp || "")) {
-                    const expectedRequest = String((requestType === "stats"
-                        ? custom_settings.skynet_statsrequest
-                        : custom_settings.skynet_rulerequest) || "");
+                    const expectedRequest = self.activeRequest;
                     const currentRequest = String(window.SkynetSettingsRequest || "");
                     const ruleRequestType = requestType === "rules" ||
                         requestType === "ruleRefresh";
-                    if ((ruleRequestType || requestType === "stats") && expectedRequest &&
-                        currentRequest !== expectedRequest) {
+                    if (!expectedRequest || currentRequest !== expectedRequest ||
+                        (requestType === "stats" && window.SkynetSettingsResult === "success" &&
+                            String(window.SkynetStatsRequest || "") !== expectedRequest)) {
                         if (attempts > 0) {
                             window.setTimeout(function() {
                                 self.waitForUpdate(previousStamp, attempts - 1, requestType);
@@ -7141,12 +7149,7 @@
                         self.setActionState(false, button, "Try Again");
                         return;
                     }
-                    let response = String(window.SkynetSettingsResult || "error");
-                    if (requestType === "rules" && response === "ready" &&
-                        custom_settings.skynet_ruleaction !== "unban" &&
-                        self.isRuleRequestApplied()) {
-                        response = "success";
-                    }
+                    const response = String(window.SkynetSettingsResult || "error");
                     const accepted = action.accepted || ["success"];
                     const acceptedResponse = accepted.some(function(value) {
                         return response === value || response.indexOf(value + ":") === 0;
@@ -7158,6 +7161,7 @@
                     const warning = response === "warning" ||
                         response.indexOf("warning:") === 0;
 
+                    self.refreshInProgress = false;
                     if (requestType === "stats") {
                         if (!failed) self.refreshRenderedStats();
                     } else if (loadSettings) {
@@ -7169,7 +7173,6 @@
                     } else {
                         self.refreshRenderedStats();
                     }
-                    self.refreshInProgress = false;
                     if (failed) {
                         self.setUpdateResult(
 							response === "busy"
@@ -7186,9 +7189,7 @@
                             true,
                             result
                         );
-						self.setActionState(false, button,
-							requestType === "rules" && custom_settings.skynet_ruleoperation === "remove"
-								? action.label : "Try Again");
+						self.setActionState(false, button, retryLabel);
                     } else if (degraded) {
                         let degradedMessage =
                             "Blacklist updated using one or more validated cached sources.";
@@ -7227,6 +7228,10 @@
                         );
                         self.setActionState(false, button, action.label);
                     } else {
+                        if (requestType === "feeds" && custom_settings.skynet_feed_action === "add") {
+                            const feedURL = self.getElement("skynetFeedURL");
+                            if (feedURL) feedURL.value = "";
+                        }
                         self.setUpdateResult(action.success, false, result);
                         self.setActionState(false, button, action.label);
                     }
@@ -7242,9 +7247,7 @@
 
                 self.refreshInProgress = false;
                 self.setUpdateResult(action.timeout, true, result);
-				self.setActionState(false, button,
-					requestType === "rules" && custom_settings.skynet_ruleoperation === "remove"
-						? action.label : "Try Again");
+				self.setActionState(false, button, retryLabel);
             }).catch(function() {
                 if (attempts > 0) {
                     window.setTimeout(function() {
@@ -7255,9 +7258,7 @@
 
                 self.refreshInProgress = false;
                 self.setUpdateResult(action.loadError, true, result);
-				self.setActionState(false, button,
-					requestType === "rules" && custom_settings.skynet_ruleoperation === "remove"
-						? action.label : "Try Again");
+				self.setActionState(false, button, retryLabel);
             });
         };
 
@@ -7269,7 +7270,6 @@
             this.refreshInProgress = true;
             this.setUpdateResult("Generating statistics...", false);
             this.setActionState(true, this.selectors.updateButton, "Refreshing...");
-            custom_settings.skynet_statsrequest = String(new Date().getTime());
             document.form.amng_custom.value = JSON.stringify(custom_settings);
             this.submitBackgroundAction("start_SkynetStats");
             this.waitForUpdate(window.SkynetSettingsGenerated, 600, "stats");
@@ -7280,6 +7280,7 @@
                 return;
             }
 
+            this.setUpdateResult("", false, this.selectors.feedStatus);
             this.refreshInProgress = true;
             this.setUpdateResult(
                 "Updating malware lists...",
@@ -7287,6 +7288,7 @@
                 this.selectors.settingsResult
             );
             this.setActionState(true, this.selectors.malwareButton, "Updating...");
+            document.form.amng_custom.value = JSON.stringify({skynet_feed_action: "refresh", skynet_feed_values: ""});
             this.submitBackgroundAction("start_SkynetBanMalware");
             this.waitForUpdate(window.SkynetSettingsGenerated, 600, "malware");
         };
@@ -7297,7 +7299,9 @@
                 return;
             }
 
-            custom_settings.skynet_feedchange = "1";
+            this.setUpdateResult("", false, this.selectors.settingsResult);
+            custom_settings.skynet_feed_action = "selection";
+            custom_settings.skynet_feed_values = "";
             custom_settings.skynet_excludelists = this.feedExclusions.join(" ");
             this.refreshInProgress = true;
             this.setUpdateResult(
@@ -7306,6 +7310,27 @@
                 this.selectors.feedStatus
             );
             this.setActionState(true, this.selectors.feedButton, "Applying...");
+            document.form.amng_custom.value = JSON.stringify(custom_settings);
+            this.submitBackgroundAction("start_SkynetBanMalware");
+            this.waitForUpdate(window.SkynetSettingsGenerated, 600, "feeds");
+        };
+
+        SkynetUI.updateFeedMembership = function(operation, value) {
+            if (this.refreshInProgress || this.isFeedDirty() ||
+                !(operation === "template" ? this.canUpdateMalware() : this.canManageFeeds())) return;
+            this.setUpdateResult("", false, this.selectors.settingsResult);
+            value = String(value || "").trim();
+            if ((operation !== "template" && !value) || ((operation === "add" || (operation === "template" && value)) &&
+                !/^https?:\/\/[A-Za-z0-9._~:/?&=#%@+,-]+$/.test(value))) {
+                this.setUpdateResult("Enter a valid HTTP or HTTPS feed URL.", true, this.selectors.feedStatus);
+                return;
+            }
+            custom_settings.skynet_feed_action = operation;
+            custom_settings.skynet_feed_values = value;
+            this.refreshInProgress = true;
+            this.setUpdateResult(operation === "add" ? "Adding source..." : operation === "template" ? "Importing template..." : "Removing source...", false, this.selectors.feedStatus);
+            this.setActionState(true, this.selectors.feedButton, "Applying...");
+            this.updateFeedControls();
             document.form.amng_custom.value = JSON.stringify(custom_settings);
             this.submitBackgroundAction("start_SkynetBanMalware");
             this.waitForUpdate(window.SkynetSettingsGenerated, 600, "feeds");
@@ -7355,8 +7380,11 @@
              * from being included in a later, unrelated request.
              */
             const settings = this.getElement("amng_custom");
-
-            document.form.action_script.value = action;
+            const payload = settings && settings.value ? JSON.parse(settings.value) : {};
+            this.activeRequest = String(Date.now()) + String(Math.floor(Math.random() * 1000000000)).padStart(9, "0");
+            payload.skynet_request = this.activeRequest;
+            document.form.amng_custom.value = JSON.stringify(payload);
+            document.form.action_script.value = action + "_" + this.activeRequest;
             document.form.submit();
 
             if (settings) {
@@ -7411,7 +7439,7 @@
             }
 
             const logsize = this.getElement("skynetLogSize").value;
-            const customlisturl = this.getElement("skynetMalwareUrl").value.trim();
+            const customlisturl = String((window.SkynetSettings || {}).customlisturl || "");
 
             if (!/^\d+$/.test(logsize) || Number(logsize) < 10) {
                 this.showView("statistics");
@@ -7638,6 +7666,22 @@
                     SkynetUI.updateFeeds();
                 });
             }
+            const feedURL = this.getElement("skynetFeedURL");
+            const feedAdd = this.getElement("skynetAddFeed");
+            if (feedURL) feedURL.addEventListener("input", function() { SkynetUI.updateFeedControls(); });
+            if (feedAdd) feedAdd.addEventListener("click", function() {
+                SkynetUI.updateFeedMembership("add", feedURL.value);
+            });
+            const feedTemplate = this.getElement("skynetUseTemplate");
+            if (feedTemplate) feedTemplate.addEventListener("click", function() {
+                if (this.textContent !== "Replace Sources") {
+                    this.textContent = "Replace Sources";
+                    SkynetUI.setUpdateResult("This replaces your saved feed selection with the template. Click Replace Sources to confirm.", false, SkynetUI.selectors.feedStatus);
+                    return;
+                }
+                this.textContent = "Use Template";
+                SkynetUI.updateFeedMembership("template", SkynetUI.getElement("skynetMalwareUrl").value);
+            });
             const countryPicker = this.getElement(this.selectors.countryPicker);
 
             if (countryPicker) {
@@ -8126,10 +8170,11 @@
                                                             </tr>
                                                             <tr>
                                                                 <th>
-                                                                    <span class="skynet-setting-name">Malware Filter List</span>
-                                                                    <span class="skynet-setting-help">Leave blank to use Skynet's default filter list. Applying a change rebuilds the malware blacklist.</span>
+                                                                    <span class="skynet-setting-name">Filter List Template</span>
+                                                                    <span class="skynet-setting-help">Starting feed selection. Leave blank for Skynet defaults. Importing replaces your saved sources; normal updates keep your changes.</span>
                                                                 </th>
                                                                 <td>
+                                                                    <div class="skynet-template-controls">
                                                                     <input type="url"
                                                                         id="skynetMalwareUrl"
                                                                         maxlength="512"
@@ -8138,6 +8183,8 @@
                                                                         autocorrect="off"
                                                                         autocapitalize="off"
                                                                         spellcheck="false" />
+                                                                    <button type="button" id="skynetUseTemplate" class="button_gen skynet-update-button skynet-settings-reload">Use Template</button>
+                                                                    </div>
                                                                 </td>
                                                             </tr>
                                                             <tr class="skynet-feed-container">
@@ -8152,10 +8199,14 @@
                                                                             <span>Entries</span>
                                                                             <span>Last Success / Change</span>
                                                                             <span>State</span>
-                                                                            <span>Enabled</span>
+                                                                            <span>Controls</span>
                                                                         </div>
                                                                         <div id="skynetFeedList">
                                                                             <div class="skynet-feed-empty">Loading threat feed details...</div>
+                                                                        </div>
+                                                                        <div class="skynet-feed-add">
+                                                                            <input type="text" id="skynetFeedURL" class="input_32_table" maxlength="512" placeholder="https://example.com/ipv4-list.txt" aria-label="Threat feed URL" />
+                                                                            <button type="button" id="skynetAddFeed" class="button_gen skynet-update-button skynet-settings-reload" disabled="disabled">Add Source</button>
                                                                         </div>
                                                                         <div class="skynet-feed-actions">
                                                                             <span class="skynet-feed-status" id="skynetFeedStatus" aria-live="polite"></span>
@@ -8332,7 +8383,7 @@
                                                                             <span>Entry / Group</span>
 																											<span>Details</span>
                                                                             <span>Count</span>
-                                                                            <span>Activity</span>
+                                                                            <span>Action</span>
                                                                         </div>
                                                                         <div id="skynetRuleList">
                                                                             <div class="skynet-feed-empty">Loading firewall rules...</div>
@@ -8353,7 +8404,7 @@
                                                                         <div class="skynet-action-header">
                                                                             <span>Time</span>
                                                                             <span>Result</span>
-                                                                            <span>Action</span>
+                                                                            <span>Activity</span>
                                                                             <span>Details</span>
                                                                         </div>
                                                                         <div class="skynet-action-list" id="skynetRuleActivity">
