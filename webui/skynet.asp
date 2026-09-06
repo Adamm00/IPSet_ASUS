@@ -2159,6 +2159,10 @@
             word-break: break-word;
         }
 
+        .skynet-rule-matches {
+            white-space: pre-line;
+        }
+
         .skynet-detail-copy,
         .skynet-detail-domain-toggle {
             flex: 0 0 auto;
@@ -3850,6 +3854,48 @@
             helper.remove();
         };
 
+        SkynetUI.getRuleDetailFields = function(ip) {
+            if (typeof window.SkynetRuleDetails !== "string") {
+                return [];
+            }
+
+            const matches = { ban: [], whitelist: [] };
+            window.SkynetRuleDetails.split("\n").forEach(function(line) {
+                const row = line.split("\t");
+                if ((row.length === 3 || row.length === 4) && row[0] === ip &&
+                    (row[1] === "ban" || row[1] === "whitelist")) {
+                    const expires = /^\d+$/.test(row[3] || "") ? Number(row[3]) : 0;
+                    const expiry = expires > 0 && Number.isFinite(expires)
+                        ? "\nExpires " + new Date(expires * 1000).toLocaleString(undefined, {hour12: true}) : "";
+                    matches[row[1]].push(row[2] + expiry);
+                }
+            });
+
+            const fields = [];
+            const generated = Number(String(window.SkynetStatsGenerated || "").split(".")[0]);
+            fields.push({
+                label: "Rule Snapshot",
+                value: "Saved rule metadata at " + (generated
+                    ? new Date(generated * 1000).toLocaleString(undefined, {hour12: true})
+                    : "the last statistics refresh") + ". Not the policy at the time of each logged event."
+            });
+            if (matches.whitelist.length) {
+                fields.push({ label: "Whitelist Matches", value: matches.whitelist.join("\n") });
+            }
+            if (matches.ban.length) {
+                fields.push({ label: "Ban Matches", value: matches.ban.join("\n") });
+            }
+            fields.push({
+                label: "Rule Precedence",
+                value: matches.whitelist.length
+                    ? "Whitelist matches take precedence over bans."
+                    : matches.ban.length
+                        ? "Ban matches found with no saved whitelist match."
+                        : "No matching saved rule."
+            });
+            return fields;
+        };
+
         SkynetUI.openDetails = function(details) {
             const panel = this.getElement("skynetDetail");
             const title = this.getElement("skynetDetailTitle");
@@ -3871,7 +3917,16 @@
                 "Associated Domains": true
             };
 
-            details.fields.forEach(function(field) {
+            let detailFields = details.fields.slice();
+            if (details.title === "IP Details" && details.primary) {
+                const ruleFields = this.getRuleDetailFields(String(details.primary.value));
+                if (ruleFields.length) {
+                    detailFields = detailFields.filter(function(field) {
+                        return field.label !== "Ban Reason" && field.label !== "Match Type";
+                    }).concat(ruleFields);
+                }
+            }
+            detailFields.forEach(function(field) {
                 if (field.value === undefined ||
                     field.value === null ||
                     field.value === "") {
@@ -3889,6 +3944,7 @@
                 seenFields[fieldKey] = true;
 
                 const isDomains = field.label === "Associated Domains";
+                const isRules = field.label === "Ban Matches" || field.label === "Whitelist Matches";
                 const domainItems = isDomains
                     ? String(field.value).trim().split(/\s+/).filter(Boolean)
                     : [];
@@ -3922,6 +3978,7 @@
                             '<div class="skynet-detail-value-wrap">' +
                                 '<span class="skynet-detail-value' +
                                     (isDomains ? ' skynet-domain-list' : '') +
+                                    (isRules ? ' skynet-rule-matches' : '') +
                                     (collapseDomains ? ' collapsed' : '') +
                                     '">' + value + '</span>' +
                                 valueActions +
