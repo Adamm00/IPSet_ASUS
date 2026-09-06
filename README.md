@@ -89,7 +89,7 @@ Commands return `0` on success, `1` for a runtime failure, and `2` for an invali
 - `firewall unban asn AS123456 AS654321` - Remove one or more registered ASN ban rules.
 - `firewall unban malware` - Remove entries created from malware feeds.
 - `firewall unban nomanual` - Remove automatic blacklist entries while retaining every registered user rule.
-- `firewall unban all` - Flush both blacklists and clear the stored block log.
+- `firewall unban all` - Remove bans. Recorded traffic history is retained.
 
 Temporary bans accept `15m`, `1h`, `6h`, `24h`, or `7d`. Arguments must be supplied as entries, an optional `timeout`, then an optional `comment`. Re-adding a temporary rule resets its expiry. Adding the same entry permanently promotes it, while a temporary request for an existing permanent rule leaves the permanent rule unchanged. Unbanning an exact address or range removes its direct permanent or temporary rule; another overlapping rule may continue to cover it.
 
@@ -167,7 +167,7 @@ Updates stage and validate both the firewall script and WebUI before Skynet is u
 
 ### Settings
 
-The interactive Settings menu groups options under Updates & Lists, Protection, IoT Isolation, Logging & Statistics, and Integration & Advanced. Commands remain available directly as documented below.
+The interactive Settings menu groups options under Updates & Lists, Protection, IoT WAN Blocking, Logging & Statistics, and Integration & Advanced. Commands remain available directly as documented below.
 
 #### Updates & Lists
 
@@ -206,9 +206,9 @@ Enabling isolation, adding devices while it is enabled, or changing allowed port
 
 #### Logging & Statistics
 
-- `firewall settings logmode enable|disable` - Enable or disable logging of Skynet blocks. Disabling logging hides traffic statistics and pauses scheduled chart generation without removing the WebUI or changing protection. Enabling logging restores the statistics schedule.
+- `firewall settings logmode enable|disable` - Enable or disable logging of Skynet blocks. Disabling logging pauses scheduled chart generation without removing the WebUI, retained block history or protection. Enabling logging restores the statistics schedule.
 - `firewall settings loginvalid enable|disable` - Enable or disable logging of conntrack INVALID packets handled by the router's drop chain. Other rejected new connections are not classified as invalid.
-- `firewall settings logsize 10` - Set the block-log limit in MB. The minimum value is 10MB.
+- `firewall settings logsize 10` - Set the collected traffic storage budget in MB. The minimum value is 10MB. Older detailed events expire first when the budget is reached.
 - `firewall settings extendedstats enable|disable` - Add associated domain names to statistics when dnsmasq logs are available.
 - `firewall settings lookupcountry enable|disable` - Enable or disable online country lookups for statistics.
 - `firewall settings syslog auto` - Follow the running logger automatically. Uses Scribe's installed Skynet destination while syslog-ng runs, otherwise the system logger's `-O` output or `/tmp/syslog.log`. Symlinks are resolved and the rotated path defaults to the current path plus `-1`.
@@ -239,15 +239,27 @@ Log sources can also be selected under WebUI Statistics. Configurations without 
 - `firewall stats search invalid [count]` - Show logged invalid-state packets.
 - `firewall stats search iot [count]` - Show logged IoT blocks.
 - `firewall stats search connections [ip|port|proto|id] [value]` - Show or filter active connection data when the required AiProtection data is available.
-- `firewall stats remove ip 8.8.8.8` - Remove logged entries containing an IPv4 address.
-- `firewall stats remove port 23` - Remove logged entries containing a port.
-- `firewall stats reset` - Generate the current WebUI statistics and clear collected block data.
+- `firewall stats remove ip 8.8.8.8` - Remove retained events containing an IPv4 address and subtract their contribution from hourly totals.
+- `firewall stats remove port 23` - Remove retained events containing a port and subtract their contribution from hourly totals.
+- `firewall stats reset` - Generate the current WebUI statistics and clear collected events and trend totals. Collection checkpoints are retained so cleared events are not imported again.
 
 Country fields are omitted when country lookup is disabled. Associated domains are included only when Extended Statistics is enabled and dnsmasq logging data is available.
 
 Generated WebUI statistics resolve country codes in batches of up to 32 addresses and reuse results for seven days. Stale values remain available during a provider outage, unused entries expire after 30 days, and a country lookup failure never prevents statistics generation.
 
 Temporary chart indexes are built in RAM and removed after generation. Only a complete statistics payload is published to USB; a failed generation retains the previous charts. Ban-reason lookups retain metadata only for requested addresses, including matches from imported ranges. Associated-domain scans are skipped when no chart addresses need enrichment.
+
+### Block History
+
+On firmware with compatible built-in SQLite support, Skynet stores collected packet events in `history.db`. No additional package or database server is required. Existing text logs are imported before statistics switch to the database; unsupported firmware retains text logging.
+
+Detailed events are retained for up to seven days within the configured storage budget. Hourly category totals remain available for 90 days. Capacity may shorten detailed retention; the WebUI shows the oldest available event and whether storage limits have applied. Older trend totals cannot be searched by individual IP address, protocol or port after their detailed events expire.
+
+Each event retains its timestamp, category, source and destination IPv4 addresses, protocol, ports, packet length, interfaces, TCP flags, available ICMP details and logged MAC/link-layer data. The logged link-layer header may identify a gateway rather than the remote IP's device. Normal packet logging omits optional TCP sequence numbers and TCP/IP option dumps. This changes diagnostic detail, not packet blocking or the number of collected events.
+
+Hourly maintenance and explicit refreshes collect newly completed syslog records. Ingestion checkpoints advance only with committed events. Records already lost to system-log rotation cannot be recovered. Counts represent recorded packet events, not unique connections or every packet the firewall may have dropped.
+
+Changing rules or removing IoT entries does not erase historical traffic. Use the explicit statistics removal or reset commands to delete collected records. Domain names and ban reasons shown by current lookups describe current metadata, not necessarily the policy that applied when an older packet was logged.
 
 ### Diagnostics and Maintenance
 
@@ -259,8 +271,8 @@ Temporary chart indexes are built in RAM and removed after generation. Only a co
 - `firewall debug genstats` - Regenerate WebUI statistics.
 - `firewall debug clean` - Archive and clean handled Skynet syslog entries.
 - `firewall debug swap install|uninstall` - Create or remove the Skynet-managed swap file.
-- `firewall debug backup` - Save the current configuration, logical rule registry, source caches, IPSet data, and logs to `Skynet-Backup.tar.gz` in the install directory. A failed backup retains the previous archive.
-- `firewall debug restore` - Validate and restore `Skynet-Backup.tar.gz`, retaining current action history. Rebuilds Skynet policy from local data without restarting Merlin's firewall. Cached manual domain rules are restored; transient DNS-learned addresses repopulate through normal DNS queries. Previous files are retained until policy and integration checks pass, and restored if the operation fails. Invalid archives are rejected before changing installed data.
+- `firewall debug backup` - Save configuration, logical rules, source caches, IPSet data and logs. Keep the latest three dated restore points in `backups/`, with `Skynet-Backup.tar.gz` also pointing to the latest archive's data where hard links are supported. The existing archive is retained as the first point when upgrading. A failed archive build retains the previous backup. Creating dated points requires synchronized router time.
+- `firewall debug restore [point-id]` - Validate and restore the latest backup or a specific point, retaining current action history. The point ID is the timestamp and digest in its filename, without `Skynet-Backup-` or `.tar.gz`. Rebuilds Skynet policy from local data without restarting Merlin's firewall. Cached manual domain rules are restored; transient DNS-learned addresses repopulate through normal DNS queries. Previous files are retained until policy and integration checks pass, and restored if the operation fails. Invalid archives are rejected before changing installed data.
 - `firewall save` - Archive pending logs, verify integrity, and persist durable state only when it changed.
 - `firewall restart` - Restart Merlin's firewall once and reconcile Skynet rules without unloading its IPSet data, WebUI, or schedules.
 
@@ -280,19 +292,23 @@ The WebUI provides:
 
 - The latest generated blacklist totals and inbound/outbound packet counters.
 - Daily block activity and the main CLI top-10 statistics as charts or tables.
+- Block History queries retained events in pages of 100, with period, category, IPv4/CIDR, protocol and port filters. Each event expands to show packet details. Export CSV includes up to the newest 1,000 matching events, with a notice when more matches exist.
+- History trends show category totals for Today, seven days or 90 days. IP, protocol and port filters apply to detailed events only. Gaps indicate no recorded bucket, not confirmed zero traffic. Pagination keeps the original query window; Refresh History collects pending records and starts a new view.
 - IP details including ban reason, country, associated domains, AlienVault OTX, and SpeedGuide links where applicable.
 - Background statistics refresh without navigating away from the page. Every action waits for its matching worker result, and statistics also verify the chart payload belongs to that request. Busy or failed requests report an error and retain the existing charts.
 - Common Skynet settings with descriptions and documented defaults.
 - Threat-feed status, usable entry counts, last successful checks, content age, source toggles, manual refresh, and feed URL additions/removals. Use Template replaces the saved selection with the default or custom filter list after confirmation.
 - Country blocking with country selection and removal.
 - Manual IP, range, domain and ASN ban, unban and whitelist management, including grouped imported lists.
+- Domain rules expand to show their retained resolved IPv4 addresses and whether the result is current or cached. Up to 64 addresses are displayed per rule, with copying and an explicit limit when more are retained. Opening these details performs no DNS lookup; Refresh Dynamic Rules updates the cached results.
 - Add Entries stages IPv4/CIDR entries with the comment currently entered. Staged tags show their saved comments; Apply Rules submits the complete batch together. Changing the comment field does not change previously staged entries. Re-adding a staged address updates its comment.
 - Permanent or preset temporary IPv4/CIDR bans, remaining lifetime, stable rule removal, and a dedicated Temporary filter.
-- Recent rule, source, country, IoT and settings activity is shown with its origin and outcome. Country changes identify the countries added or removed, while source refreshes are recorded only when validated content changes.
+- Activity History shows the latest 200 valid journal entries, ten per page, with category, result and text filters. Export CSV downloads all matching entries within that window, not just the visible page. Older retained entries remain in `events.log`. Country changes identify the countries added or removed, while source refreshes are recorded only when validated content changes.
+- Create Backup under Updates runs the same archive operation as `firewall debug backup`. Select a dated restore point to see its local creation time and size. Download Backup saves that point through an authenticated WebUI route. Restore Backup requires confirmation and restores the selected archive using the same validation and rollback as the CLI. Settings, rules, source caches and block history are replaced; current activity history is retained. Traffic may be interrupted briefly while rules are rebuilt. Backups that disable the WebUI must be restored through SSH. Only the latest three points are retained; download older points before creating more backups if you want to keep them. Archives contain private network data; keep downloaded copies somewhere safe.
 - IoT isolation with detected client, hostname, IPv4, MAC, online state, device list, port and protocol controls.
 - Copyable MAC addresses in blocked-device details when neighbour data is available.
 
-Empty or disabled data sections are collapsed or omitted where appropriate. Charts are generated from Skynet's stored logs, while blacklist totals and packet counters are captured during statistics generation. The page does not query the live firewall for every chart.
+Empty or disabled data sections are collapsed or omitted where appropriate. Retained Block History remains accessible with packet logging disabled. Charts are generated from collected events, while blacklist totals and packet counters are captured during statistics generation. The page does not query the live firewall for every chart or download the complete history database.
 
 Temporary-rule controls are disabled until the router clock is synchronized. Expired rows are hidden immediately, while counters and settings refresh without rebuilding chart statistics.
 

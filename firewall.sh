@@ -67,6 +67,7 @@ Cleanup_Runtime() {
 		;;
 	esac
 	[ -z "$backuptmp" ] || rm -f "$backuptmp"
+	[ -z "$backuppointtmp" ] || rm -f "$backuppointtmp"
 	[ -z "$iotlogtmp" ] || rm -f "$iotlogtmp"
 	for tempfile in "$settingstmp" "$statstmp" "$downloadtmp" "$configtmp" "$saveipsettmp" "$malwareipsettmp" "$hooktmp" "$listmanifesttmp" "$feedstatustmp" "$countrymanifesttmp" "$countryfailedtmp" "$filterpublishtmp" "$dnsmasqtmp" "$dnsmasqrestore" "$sharedwhitelisttmp" "$clientouifile" "$debugneighbors" "$iotviewneighbors" "$updatetmp" "$updatewebuitmp" "$updatefirewallbackup" "$updatewebuibackup" "$actionqueue" "$actionpublishtmp" "$actioncompacttmp" "$actiontrimtmp" "$actionfailedtmp" "$ruleregistrytmp" "$ruleregistryrestore" "$rulestagefile" "$rulerecords" "$rulerecordssorted" "$ruleindexstage" "$ruleindextmp" "$rulemigrationstatetmp" "$maintenancestatustmp" "$domainmanifeststage" "$domaincachetmp"; do
 		[ -n "$tempfile" ] && rm -f "$tempfile"
@@ -557,6 +558,7 @@ Check_Settings() {
 #- Network Transfers -#
 #######################
 
+# shellcheck disable=SC2120 # Retry arguments are available through debug run.
 Check_Connection() {
 	# Usage:
 	#   Check_Connection              # 1 attempt
@@ -2739,15 +2741,15 @@ Load_IPTables() {
 }
 
 Unload_LogIPTables() {
-	Delete_All_IPTables_Rules iptables -t raw -D PREROUTING -i wgs+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options
-	Delete_All_IPTables_Rules iptables -t raw -D PREROUTING -i tun2+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options
-	Delete_All_IPTables_Rules iptables -t raw -D PREROUTING -i "$iface" -m set ! --match-set Skynet-MasterWL src -m set --match-set Skynet-Master src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options
-	Delete_All_IPTables_Rules iptables -t raw -D PREROUTING -i br+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options
-	Delete_All_IPTables_Rules iptables -t raw -D OUTPUT -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options
-	Delete_All_IPTables_Rules iptables -D logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - INVALID] " --log-tcp-sequence --log-tcp-options --log-ip-options
-	Delete_All_IPTables_Rules iptables -D logdrop -m state --state INVALID -j LOG --log-prefix "[BLOCKED - INVALID] " --log-tcp-sequence --log-tcp-options --log-ip-options
-	Delete_All_IPTables_Rules iptables -D FORWARD -i br+ -m set --match-set Skynet-IOT src -j LOG --log-prefix "[BLOCKED - IOT] " --log-tcp-sequence --log-tcp-options --log-ip-options
-	Delete_All_IPTables_Rules iptables -D FORWARD -i br+ ! -o br+ -m set --match-set Skynet-IOT src -j LOG --log-prefix "[BLOCKED - IOT] " --log-tcp-sequence --log-tcp-options --log-ip-options
+	Delete_All_IPTables_Rules iptables -t raw -D PREROUTING -i wgs+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] "
+	Delete_All_IPTables_Rules iptables -t raw -D PREROUTING -i tun2+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] "
+	Delete_All_IPTables_Rules iptables -t raw -D PREROUTING -i "$iface" -m set ! --match-set Skynet-MasterWL src -m set --match-set Skynet-Master src -j LOG --log-prefix "[BLOCKED - INBOUND] "
+	Delete_All_IPTables_Rules iptables -t raw -D PREROUTING -i br+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] "
+	Delete_All_IPTables_Rules iptables -t raw -D OUTPUT -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] "
+	Delete_All_IPTables_Rules iptables -D logdrop -m state --state NEW -j LOG --log-prefix "[BLOCKED - INVALID] "
+	Delete_All_IPTables_Rules iptables -D logdrop -m state --state INVALID -j LOG --log-prefix "[BLOCKED - INVALID] "
+	Delete_All_IPTables_Rules iptables -D FORWARD -i br+ -m set --match-set Skynet-IOT src -j LOG --log-prefix "[BLOCKED - IOT] "
+	Delete_All_IPTables_Rules iptables -D FORWARD -i br+ ! -o br+ -m set --match-set Skynet-IOT src -j LOG --log-prefix "[BLOCKED - IOT] "
 	return 0
 }
 
@@ -2757,30 +2759,30 @@ Load_LogIPTables() {
 	if Is_Enabled "$logmode" && Time_Is_Ready; then
 		if [ "$(nvram get wgs_enable)" = "1" ]; then
 			pos1="$(iptables --line -vnL PREROUTING -t raw | grep -F "Skynet-Master dst" | grep -F "DROP" | grep -F "wgs" | awk '{print $1}')"
-			iptables -t raw -I PREROUTING "$pos1" -i wgs+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || loadlogstatus="1"
+			iptables -t raw -I PREROUTING "$pos1" -i wgs+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " 2>/dev/null || loadlogstatus="1"
 		fi
 		if [ "$(nvram get vpn_server1_state)" != "0" ] || [ "$(nvram get vpn_server2_state)" != "0" ]; then
 			pos2="$(iptables --line -vnL PREROUTING -t raw | grep -F "Skynet-Master dst" | grep -F "DROP" | grep -F "tun" | awk '{print $1}')"
-			iptables -t raw -I PREROUTING "$pos2" -i tun2+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || loadlogstatus="1"
+			iptables -t raw -I PREROUTING "$pos2" -i tun2+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " 2>/dev/null || loadlogstatus="1"
 		fi
 		if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "inbound" ]; then
 			pos3="$(iptables --line -nL PREROUTING -t raw | grep -F "Skynet-Master src" | grep -F "DROP" | awk '{print $1}')"
-			iptables -t raw -I PREROUTING "$pos3" -i "$iface" -m set ! --match-set Skynet-MasterWL src -m set --match-set Skynet-Master src -j LOG --log-prefix "[BLOCKED - INBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || loadlogstatus="1"
+			iptables -t raw -I PREROUTING "$pos3" -i "$iface" -m set ! --match-set Skynet-MasterWL src -m set --match-set Skynet-Master src -j LOG --log-prefix "[BLOCKED - INBOUND] " 2>/dev/null || loadlogstatus="1"
 		fi
 		if [ "$filtertraffic" = "all" ] || [ "$filtertraffic" = "outbound" ]; then
 			pos4="$(iptables --line -vnL PREROUTING -t raw | grep -F "Skynet-Master dst" | grep -F "DROP" | grep -vF "tun" | grep -vF "wgs" | awk '{print $1}')"
-			iptables -t raw -I PREROUTING "$pos4" -i br+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || loadlogstatus="1"
+			iptables -t raw -I PREROUTING "$pos4" -i br+ -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " 2>/dev/null || loadlogstatus="1"
 			pos5="$(iptables --line -nL OUTPUT -t raw | grep -F "Skynet-Master dst" | grep -F "DROP" | awk '{print $1}')"
-			iptables -t raw -I OUTPUT "$pos5" -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || loadlogstatus="1"
+			iptables -t raw -I OUTPUT "$pos5" -m set ! --match-set Skynet-MasterWL dst -m set --match-set Skynet-Master dst -j LOG --log-prefix "[BLOCKED - OUTBOUND] " 2>/dev/null || loadlogstatus="1"
 		fi
 		if { [ "$(nvram get fw_log_x)" = "drop" ] || [ "$(nvram get fw_log_x)" = "both" ]; } && Is_Enabled "$loginvalid"; then
 			# Match the target column, not Merlin's preceding LOG prefix "DROP".
 			pos6="$(iptables --line -nL logdrop | awk '$2 == "DROP" {print $1; exit}')"
-			iptables -I logdrop "$pos6" -m state --state INVALID -j LOG --log-prefix "[BLOCKED - INVALID] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || loadlogstatus="1"
+			iptables -I logdrop "$pos6" -m state --state INVALID -j LOG --log-prefix "[BLOCKED - INVALID] " 2>/dev/null || loadlogstatus="1"
 		fi
 		if Is_Enabled "$iotblocked" && Is_Enabled "$iotlogging"; then
 			pos7="$(iptables --line -nL FORWARD | grep -F "Skynet-IOT" | grep -F "DROP" | awk '{print $1}')"
-			iptables -I FORWARD "$pos7" -i br+ ! -o br+ -m set --match-set Skynet-IOT src -j LOG --log-prefix "[BLOCKED - IOT] " --log-tcp-sequence --log-tcp-options --log-ip-options 2>/dev/null || loadlogstatus="1"
+			iptables -I FORWARD "$pos7" -i br+ ! -o br+ -m set --match-set Skynet-IOT src -j LOG --log-prefix "[BLOCKED - IOT] " 2>/dev/null || loadlogstatus="1"
 		fi
 	fi
 	if [ "$loadlogstatus" = "0" ]; then return 0; fi
@@ -3040,10 +3042,6 @@ Check_IPSets() {
 
 Check_Expected_IPTables_Rule() {
 	# Stage exact serialized rules for one comparison against both table dumps.
-	# LOG extensions are emitted in this order by Merlin's iptables-save.
-	case "$4" in
-		*' -j LOG '*) set -- "$1" "$2" "$3" "$4 --log-tcp-sequence --log-tcp-options --log-ip-options" ;;
-	esac
 	checkexpectedrules="${checkexpectedrules}${checkexpectedrules:+
 }$1	$2	$3	$4"
 }
@@ -5618,6 +5616,58 @@ Write_Data_ToJS() {
 	unset "jsvars" "jsvar"
 }
 
+History_Stats_Summary() {
+	# Keep the compact renderer contract: events~unique remote IPs~first~last.
+	History_Read "SELECT count(*) || '~' || count(DISTINCT CASE WHEN kind IN (1,3) THEN src WHEN kind=2 THEN dst END) || '~' || coalesce(min(ts),'') || '~' || coalesce(max(ts),'') FROM events;" > "$TMP_DIR/history-summary.$$" || return 1
+	IFS='~' read -r historystatscount historystatsunique historystatsfirst historystatslast < "$TMP_DIR/history-summary.$$"
+	if [ -n "$historystatsfirst" ]; then
+		historystatsfirst="$(date -d "@$historystatsfirst" '+%b %e %H:%M:%S')" || return 1
+		historystatslast="$(date -d "@$historystatslast" '+%b %e %H:%M:%S')" || return 1
+	fi
+	printf '%s~%s~%s~%s\n' "$historystatscount" "$historystatsunique" "$historystatsfirst" "$historystatslast"
+	rm -f "$TMP_DIR/history-summary.$$"
+}
+
+History_Stats_Index() {
+	# Aggregate in SQLite; indexes contain one value/hits/first/last row per key,
+	# never an expanded copy of the event history. Existing renderers stay shared.
+	historystatsprotocol=""
+	case "$statsindexproto" in
+		"") ;;
+		TCP) historystatsprotocol=" AND proto=6" ;;
+		UDP) historystatsprotocol=" AND proto=17" ;;
+		ICMP) historystatsprotocol=" AND proto=1" ;;
+		*) return 2 ;;
+	esac
+	historystatsquery="BEGIN;"
+	for historystatsdataset in inbound-src inbound-dpt inbound-spt outbound-src outbound-dst outbound-all-dst outbound-http-dst invalid-src iot-dst; do
+		case "$historystatsdataset" in
+			inbound-src) historystatscolumn="src"; historystatswhere="kind=1" ;;
+			inbound-dpt) historystatscolumn="dport"; historystatswhere="kind=1 AND dport IS NOT NULL" ;;
+			inbound-spt) historystatscolumn="sport"; historystatswhere="kind=1 AND sport IS NOT NULL" ;;
+			outbound-src) historystatscolumn="src"; historystatswhere="kind=2" ;;
+			outbound-dst) historystatscolumn="dst"; historystatswhere="kind=2 AND (dport IS NULL OR dport NOT IN (80,443))" ;;
+			outbound-all-dst) historystatscolumn="dst"; historystatswhere="kind=2" ;;
+			outbound-http-dst) historystatscolumn="dst"; historystatswhere="kind=2 AND dport IN (80,443)" ;;
+			invalid-src) historystatscolumn="src"; historystatswhere="kind=3" ;;
+			iot-dst) historystatscolumn="dst"; historystatswhere="kind=4" ;;
+		esac
+		historystatsquery="$historystatsquery SELECT '$historystatsdataset',$historystatscolumn,count(*),min(id),max(id) FROM events WHERE $historystatswhere$historystatsprotocol GROUP BY $historystatscolumn;"
+	done
+	History_Read "$historystatsquery COMMIT;" > "$TMP_DIR/history-index.$$" || return 1
+	awk -F '\t' -v path="$statsindexpath" '
+		function ip(n) { return int(n/16777216) "." int(n/65536)%256 "." int(n/256)%256 "." n%256 }
+		NF==5 { value=($1 ~ /-(dpt|spt)$/ ? $2 : ip($2)); print value "\t" $3 "\t" $4 "\t" $5 > path "/" $1 ".txt" }
+	' "$TMP_DIR/history-index.$$" || return 1
+	History_Stats_Summary > "${statsindexpath}/summary.txt" || return 1
+	awk -F '~' '$3 != "" {print $3 " To " $4}' "${statsindexpath}/summary.txt" > "${statsindexpath}/span.txt" || return 1
+	# Detailed retention covers today; using events also preserves protocol filters.
+	History_Read "SELECT strftime('%H',ts,'unixepoch','localtime'),kind,count(*) FROM events WHERE ts>=strftime('%s','now','localtime','start of day','utc')$historystatsprotocol GROUP BY 1,2;" > "$TMP_DIR/history-activity.$$" || return 1
+	awk -F '\t' -v hour="$(date +%H)" '{ hits[$1+0,$2]=$3 } END { for(i=0;i<=hour+0;i++) printf "%02d:00~%d~%d~%d~%d\n",i,hits[i,1],hits[i,2],hits[i,3],hits[i,4] }' "$TMP_DIR/history-activity.$$" > "${statsindexpath}/activity.txt" || return 1
+	true > "${statsindexpath}/.history-index" || return 1
+	rm -f "$TMP_DIR/history-index.$$" "$TMP_DIR/history-activity.$$"
+}
+
 Build_Stats_Log_Index() {
 	# Parse the block log once into small purpose-specific indexes. This avoids
 	# rescanning the full router log for every CLI table and WebUI chart.
@@ -5627,6 +5677,9 @@ Build_Stats_Log_Index() {
 	for statsindexfile in inbound-src inbound-dpt inbound-spt outbound-src outbound-dst outbound-all-dst outbound-http-dst invalid-src iot-dst activity span summary; do
 		true > "${statsindexpath}/${statsindexfile}.txt" || return 1
 	done
+	rm -f "${statsindexpath}/.history-index"
+	if History_Ready; then History_Stats_Index; return "$?"; fi
+	[ ! -e "${skynetloc}/history.db" ] || return 1
 
 	awk -v path="$statsindexpath" -v proto="$statsindexproto" -v today="$(date '+%b %e')" -v hour="$(date '+%H')" '
 		# Values in kernel logs end at the next space or comma.
@@ -5699,6 +5752,17 @@ Extract_Stats_Values() {
 	statsextractlimit="$6"
 	statsextracttmp="$TMP_DIR/stats-extract.$$"
 	statsextractstatus="0"
+	if [ -f "${statsextractsource%/*}/.history-index" ] && [ -z "$statsextractfield" ]; then
+		case "$statsextractmode" in
+			top) awk -F '\t' '{printf "%7d %s\n",$2,$1}' "$statsextractsource" > "$statsextracttmp" && sort -nr "$statsextracttmp" > "$statsextracttmp.sorted" || statsextractstatus="1" ;;
+			oldest) sort -t "$(printf '\t')" -k3,3n "$statsextractsource" > "$statsextracttmp" && cut -f1 "$statsextracttmp" > "$statsextracttmp.sorted" || statsextractstatus="1" ;;
+			recent) sort -t "$(printf '\t')" -k4,4nr "$statsextractsource" > "$statsextracttmp" && cut -f1 "$statsextracttmp" > "$statsextracttmp.sorted" || statsextractstatus="1" ;;
+			*) statsextractstatus="1" ;;
+		esac
+		if [ "$statsextractstatus" = "0" ]; then head -n "$statsextractlimit" "$statsextracttmp.sorted" || statsextractstatus="1"; fi
+		rm -f "$statsextracttmp" "$statsextracttmp.sorted"
+		return "$statsextractstatus"
+	fi
 	if [ -n "$statsextractfield" ]; then
 		statsextractfield="${statsextractfield}="
 	fi
@@ -6389,6 +6453,67 @@ Prepare_CLI_Stats_Data() {
 	Build_Stats_Domain_Cache "$statslookupips" "$statsdomaincache"
 }
 
+History_Stats_Search() {
+	# Fixed query templates return aggregates plus the first and requested recent
+	# events. Packet history is never reconstructed wholesale for a CLI search.
+	historysearchnumber="$(printf '%s\n' "$statssearchvalue" | awk -F '.' 'NF==4 {printf "%.0f", (($1*256+$2)*256+$3)*256+$4}')"
+	case "$statssearchmode" in
+		ip) printf '%s\n' "$statssearchvalue" | Is_IP || return 2; historysearchwhere="(src=$historysearchnumber OR dst=$historysearchnumber)" ;;
+		device) printf '%s\n' "$statssearchvalue" | Is_IP || return 2; historysearchwhere="kind=2 AND src=$historysearchnumber" ;;
+		port) printf '%s\n' "$statssearchvalue" | Is_Port || return 2; historysearchwhere="(sport=$statssearchvalue OR dport=$statssearchvalue)" ;;
+		invalid) historysearchwhere="kind=3" ;;
+		iot) historysearchwhere="kind=4" ;;
+		*) return 2 ;;
+	esac
+	case "$statssearchproto" in
+		"") ;;
+		TCP) historysearchwhere="$historysearchwhere AND proto=6" ;;
+		UDP) historysearchwhere="$historysearchwhere AND proto=17" ;;
+		ICMP) historysearchwhere="$historysearchwhere AND proto=1" ;;
+		*) return 2 ;;
+	esac
+	historysearchlimit="${counter:-10}"
+	case "$historysearchlimit" in ""|*[!0-9]*) return 2 ;; esac
+	historysearchquery="BEGIN;
+SELECT 'summary',coalesce(strftime('%m %d %H:%M:%S',min(ts),'unixepoch','localtime'),''),coalesce(strftime('%m %d %H:%M:%S',max(ts),'unixepoch','localtime'),''),count(*),count(DISTINCT src) FROM events WHERE $historysearchwhere;
+SELECT 'matches',strftime('%m %d %H:%M:%S',ts,'unixepoch','localtime'),kind,src,dst,proto,sport,dport,len,inif,outif,hex(mac),flags,icmp_type,icmp_code FROM events WHERE id IN (SELECT id FROM (SELECT id FROM events WHERE $historysearchwhere ORDER BY id DESC LIMIT $historysearchlimit) UNION SELECT min(id) FROM events WHERE $historysearchwhere) ORDER BY id;"
+	if [ "$statssearchmode" = "ip" ]; then
+		historysearchquery="$historysearchquery
+SELECT 'dpt',count(*),dport FROM events WHERE kind=1 AND src=$historysearchnumber AND dport IS NOT NULL GROUP BY dport;
+SELECT 'spt',count(*),sport FROM events WHERE kind=1 AND src=$historysearchnumber AND sport IS NOT NULL GROUP BY sport;"
+	elif [ "$statssearchmode" = "device" ]; then
+		historysearchquery="$historysearchquery
+SELECT CASE WHEN dport IN (80,443) THEN 'http' ELSE 'other' END,count(*),dst FROM events WHERE $historysearchwhere GROUP BY 1,dst;"
+	elif [ "$statssearchmode" = "iot" ]; then
+		historysearchquery="$historysearchquery SELECT 'other',count(*),dst FROM events WHERE $historysearchwhere GROUP BY dst;"
+	fi
+	History_Read "$historysearchquery COMMIT;" > "$TMP_DIR/history-search.$$" || return 1
+	for historysearchfile in matches summary dpt spt http other; do true > "${statssearchprefix}.${historysearchfile}" || return 1; done
+	awk -F '\t' -v path="$statssearchprefix" -v mode="$statssearchmode" '
+		function ip(n) { return int(n/16777216) "." int(n/65536)%256 "." int(n/256)%256 "." n%256 }
+		function stamp(s, parts) { if(s=="") return ""; split(s,parts," "); return substr("JanFebMarAprMayJunJulAugSepOctNovDec",(parts[1]-1)*3+1,3) " " (parts[2]+0) " " parts[3] }
+		$1=="summary" { print stamp($2) "~" stamp($3) "~" $4 "~" (mode=="port" ? $5 : 0) > path ".summary" }
+		$1=="dpt" || $1=="spt" { print $2 " " $3 > path "." $1 }
+		$1=="http" || $1=="other" { print $2 " " ip($3) > path "." $1 }
+		$1=="matches" {
+			kind=($3==1 ? "INBOUND" : ($3==2 ? "OUTBOUND" : ($3==3 ? "INVALID" : "IOT")))
+			protocol=($6==6 ? "TCP" : ($6==17 ? "UDP" : ($6==1 ? "ICMP" : $6)))
+			line=stamp($2) " kernel: [BLOCKED - " kind "] IN=" $10 " OUT=" $11
+			if($12!="") { mac=""; for(i=1;i<=length($12);i+=2) mac=mac (i==1 ? "" : ":") tolower(substr($12,i,2)); line=line " MAC=" mac }
+			line=line " SRC=" ip($4) " DST=" ip($5) " LEN=" $9 " PROTO=" protocol
+			if($7!="") line=line " SPT=" $7
+			if($8!="") line=line " DPT=" $8
+			split("FIN SYN RST PSH ACK URG ECE CWR",names," "); bits=$13+0
+			for(i=1;i<=8;i++) { if(bits%2) line=line " " names[i]; bits=int(bits/2) }
+			if($14!="") line=line " TYPE=" $14
+			if($15!="") line=line " CODE=" $15
+			print line > path ".matches"
+		}
+	' "$TMP_DIR/history-search.$$" || return 1
+	if [ "$statssearchsummarymode" != "skip" ]; then History_Stats_Summary > "$statssearchlogsummary" || return 1; fi
+	rm -f "$TMP_DIR/history-search.$$"
+}
+
 Build_Stats_Search_Log() {
 	# Scan the block log once for a search request. The generated files contain
 	# only matching rows and small aggregate tables used by the CLI renderer.
@@ -6396,6 +6521,7 @@ Build_Stats_Search_Log() {
 	statssearchvalue="$2"
 	statssearchproto="$3"
 	statssearchprefix="$4"
+	statssearchsummarymode="$5"
 	statssearchmatches="${statssearchprefix}.matches"
 	statssearchsummary="${statssearchprefix}.summary"
 	statssearchdpt="${statssearchprefix}.dpt"
@@ -6404,6 +6530,8 @@ Build_Stats_Search_Log() {
 	statssearchother="${statssearchprefix}.other"
 	statssearchlogsummary="${statssearchprefix}.logsummary"
 	rm -f "$statssearchmatches" "$statssearchsummary" "$statssearchdpt" "$statssearchspt" "$statssearchhttp" "$statssearchother" "$statssearchlogsummary"
+	if History_Ready; then History_Stats_Search; return "$?"; fi
+	[ ! -e "${skynetloc}/history.db" ] || return 1
 	awk -v mode="$statssearchmode" -v value="$statssearchvalue" -v protocol="$statssearchproto" \
 		-v matches="$statssearchmatches" -v summary="$statssearchsummary" \
 		-v dptfile="$statssearchdpt" -v sptfile="$statssearchspt" \
@@ -6496,6 +6624,21 @@ Build_Stats_Domain_Search_Log() {
 	statsdomainspt="${statsdomainprefix}.spt"
 	statsdomainlogsummary="${statsdomainprefix}.logsummary"
 	rm -f "$statsdomainmatches" "$statsdomainsummary" "$statsdomaindpt" "$statsdomainspt" "$statsdomainlogsummary"
+	if History_Ready; then
+		for historydomainfile in matches summary dpt spt; do true > "${statsdomainprefix}.${historydomainfile}" || return 1; done
+		# Each resolved address uses the source/destination indexes. Only bounded
+		# display rows and aggregate tables are materialised for the domain renderer.
+		for historydomainaddress in $statsdomainvalues; do
+			Build_Stats_Search_Log ip "$historydomainaddress" "" "$TMP_DIR/history-domain.$$" skip || return 1
+			for historydomainfile in matches summary dpt spt; do
+				awk -v address="$historydomainaddress" '{print address "~" $0}' "$TMP_DIR/history-domain.$$.${historydomainfile}" >> "${statsdomainprefix}.${historydomainfile}" || return 1
+			done
+		done
+		History_Stats_Summary > "$statsdomainlogsummary" || return 1
+		Remove_Stats_Search_Files "$TMP_DIR/history-domain.$$"
+		return 0
+	fi
+	[ ! -e "${skynetloc}/history.db" ] || return 1
 	awk -v values="$statsdomainvalues" -v matches="$statsdomainmatches" \
 		-v summary="$statsdomainsummary" -v dptfile="$statsdomaindpt" -v sptfile="$statsdomainspt" \
 		-v logsummary="$statsdomainlogsummary" '
@@ -6576,10 +6719,12 @@ Remove_Stats_Domain_Search_Files() {
 }
 
 Print_Stats_Logging_Header() {
+	statslogdisplay="$skynetlog"
+	if History_Ready; then statslogdisplay="${skynetloc}/history.db"; fi
 	printf '╔═════════════════════ Logging ═════════════════════════════════════════════════════════════════════════════╗\n'
 	printf '║ %-20s │ %-82s ║\n' "Syslog Locations" "$syslogloc $syslog1loc"
-	printf '║ %-20s │ %-82s ║\n' "Skynet Log"       "${skynetlog}"
-	SZ="$(du -h "${skynetlog}" | awk '{print $1}')"
+	printf '║ %-20s │ %-82s ║\n' "Skynet Log"       "$statslogdisplay"
+	SZ="$(du -h "$statslogdisplay" | awk '{print $1}')"
 	printf '║ └── %-16s │ %-82s ║\n' "Used/Total" "$SZ / ${logsize}MB"
 	if [ -s "$statslogsummary" ]; then
 		IFS='~' read -r statseventcount statsuniquecount monitorfirst monitorlast < "$statslogsummary"
@@ -6602,8 +6747,40 @@ Set_Stats_Search_Count() {
 	counter="$1"
 }
 
+History_Stats_Remove() {
+	case "$1" in
+		ip)
+			printf '%s\n' "$2" | Is_IP || return 2
+			historyremovenumber="$(printf '%s\n' "$2" | awk -F '.' '{printf "%.0f", (($1*256+$2)*256+$3)*256+$4}')"
+			historyremovewhere="src=$historyremovenumber OR dst=$historyremovenumber"
+		;;
+		port) printf '%s\n' "$2" | Is_Port || return 2; historyremovewhere="sport=$2 OR dport=$2" ;;
+		*) return 2 ;;
+	esac
+	# Subtract only explicitly erased events from retained totals. Time-based
+	# pruning intentionally keeps those totals and uses a different operation.
+	historyremovelock="${log_lock_held:-0}"
+	Acquire_Log_Lock || return 1
+	historyremovestatus="0"
+	if ! History_Ready; then historyremovestatus="1"
+	elif ! logcount="$(History_Write "BEGIN IMMEDIATE;
+CREATE TEMP TABLE erased AS SELECT cast(ts/3600 AS INTEGER)*3600 AS hour,kind,count(*) AS hits,sum(coalesce(len,0)) AS bytes FROM events WHERE $historyremovewhere GROUP BY 1,2;
+UPDATE hours SET hits=max(0,hits-coalesce((SELECT hits FROM erased WHERE erased.hour=hours.hour AND erased.kind=hours.kind),0)),bytes=max(0,bytes-coalesce((SELECT bytes FROM erased WHERE erased.hour=hours.hour AND erased.kind=hours.kind),0)) WHERE EXISTS (SELECT 1 FROM erased WHERE erased.hour=hours.hour AND erased.kind=hours.kind);
+DELETE FROM hours WHERE hits=0;
+DELETE FROM events WHERE $historyremovewhere;
+SELECT changes();
+COMMIT;")"; then historyremovestatus="1"
+	fi
+	[ "$historyremovelock" = "1" ] || Release_Log_Lock
+	return "$historyremovestatus"
+}
+
 Run_Stats() {
-		Purge_Logs
+		Purge_Logs || return 1
+		if [ -e "${skynetloc}/history.db" ] && ! History_Ready; then
+			Log error "Firewall History Is Unavailable - Existing Data Retained"
+			return 1
+		fi
 		nocfg="1"
 		if [ "$logmode" = "disabled" ]; then
 			echo
@@ -6611,7 +6788,7 @@ Run_Stats() {
 			Red "[*] To Enable Use ( sh $0 settings logmode enable )"
 			echo
 		fi
-		if [ ! -s "$skynetlog" ] && [ ! -s "$skynetevents" ] && [ "$2:$3" != "search:reason" ]; then
+		if ! History_Ready && [ ! -s "$skynetlog" ] && [ ! -s "$skynetevents" ] && [ "$2:$3" != "search:reason" ]; then
 			echo "[*] No Logging Data Detected - Give This Time To Generate"
 			echo; exit 0
 		fi
@@ -6620,23 +6797,59 @@ Run_Stats() {
 			reset:*|remove:*|search:*) Print_Stats_Logging_Header ;;
 		esac
 		counter="10"
+		if History_Ready && { [ "$2:$3" = "search:invalid" ] || [ "$2:$3" = "search:iot" ]; }; then
+			case "$#" in 3) ;; 4) Set_Stats_Search_Count "$4" || return 2 ;; *) return 2 ;; esac
+			if [ "$3" = "iot" ]; then statscategorylabel="IoT"; else statscategorylabel="Invalid"; fi
+			Build_Stats_Search_Log "$3" "" "" "$TMP_DIR/stats-category.$$" || return 1
+			IFS='~' read -r statssearchfirst statssearchlast statssearchtotal statssearchunique < "$TMP_DIR/stats-category.$$.summary"
+			printf '[i] First %s Block Tracked On %s\n[i] Last %s Block Tracked On %s\n[i] %s Blocks Total\n\n' "$statscategorylabel" "$statssearchfirst" "$statscategorylabel" "$statssearchlast" "$statssearchtotal"
+			Red "First $statscategorylabel Block Tracked;"
+			sed -n '1p' "$TMP_DIR/stats-category.$$.matches"
+			echo
+			Red "$counter Most Recent $statscategorylabel Blocks;"
+			tail -n "$counter" "$TMP_DIR/stats-category.$$.matches"
+			if [ "$3" = "iot" ]; then
+				echo
+				Red "Top $counter IoT Blocks (Outbound);"
+				Display_Header "2"
+				sort -nr "$TMP_DIR/stats-category.$$.other" > "$TMP_DIR/stats-iot-sorted.$$" \
+					&& head -n "$counter" "$TMP_DIR/stats-iot-sorted.$$" > "$TMP_DIR/stats-iot.txt" || return 1
+				awk 'NF >= 2 {print $NF}' "$TMP_DIR/stats-iot.txt" > "$TMP_DIR/stats-lookup-ips.txt" || return 1
+				statsreasoncache="$TMP_DIR/stats-reasons.txt"
+				statscountrycache="$TMP_DIR/stats-countries.txt"
+				statsdomaincache="$TMP_DIR/stats-domains.txt"
+				true > "$statscountrycache" || return 1
+				Build_Stats_Ban_Reason_Cache "$TMP_DIR/stats-lookup-ips.txt" "$skynetipset" "$statsreasoncache" || return 1
+				Build_Stats_Domain_Cache "$TMP_DIR/stats-lookup-ips.txt" "$statsdomaincache" || return 1
+				Print_Stats_Rows "$TMP_DIR/stats-iot.txt" "2" || return 1
+				rm -f "$TMP_DIR/stats-iot-sorted.$$"
+			fi
+			Remove_Stats_Search_Files "$TMP_DIR/stats-category.$$"
+			return 0
+		fi
 		case "$2" in
 			reset)
-				Purge_Logs "force"
+				if History_Ready; then History_Clear || exit 1; else Purge_Logs "force" || exit 1; fi
 				echo "[i] Stat Data Reset"
 			;;
 			remove)
 				case "$3" in
 					ip)
 						if ! echo "$4" | Is_IP; then echo "[*] $4 Is Not A Valid IP"; echo; exit 2; fi
-						logcount="$(grep -c "=$4 " "$skynetlog")"
-						sed -i "\\~=$4 ~d" "$skynetlog"
+						if History_Ready; then History_Stats_Remove ip "$4" || exit 1
+						else
+							logcount="$(grep -c "=$4 " "$skynetlog")"
+							sed -i "\\~=$4 ~d" "$skynetlog" || exit 1
+						fi
 						echo "[i] $logcount Log Entries Removed Containing IP $4"
 					;;
 					port)
 						if ! echo "$4" | Is_Port; then echo "[*] $4 Is Not A Valid Port"; echo; exit 2; fi
-						logcount="$(grep -c "PT=$4 " "$skynetlog")"
-						sed -i "\\~=$4 ~d" "$skynetlog"
+						if History_Ready; then History_Stats_Remove port "$4" || exit 1
+						else
+							logcount="$(grep -c "PT=$4 " "$skynetlog")"
+							sed -i "\\~PT=$4 ~d" "$skynetlog" || exit 1
+						fi
 						echo "[i] $logcount Log Entries Removed Containing Port $4"
 					;;
 					*)
@@ -7226,7 +7439,7 @@ Generate_WebUI_Rule_Data() {
 	if Time_Is_Ready; then rulewebnow="$(date +%s)"; rulewebtimeready="true"; else rulewebnow="0"; rulewebtimeready="false"; fi
 	rulewebstatusfile="$rulestatusmanifest"
 	if [ ! -e "$rulewebstatusfile" ] && [ ! -L "$rulewebstatusfile" ]; then rulewebstatusfile="/dev/null"; fi
-	awk -F '\t' -v OFS='\t' -v status="$rulewebstatusfile" -v datadir="$rulesdatadir" -v now="$rulewebnow" '
+	awk -F '\t' -v OFS='\t' -v status="$rulewebstatusfile" -v datadir="$rulesdatadir" -v cachedir="${skynetloc}/lists/rules" -v now="$rulewebnow" '
 		BEGIN {
 			while ((readstatus = getline line < status) > 0) {
 				split(line, field, "\t")
@@ -7234,6 +7447,7 @@ Generate_WebUI_Rule_Data() {
 					key = field[2] SUBSEP field[3]
 					domain_state[key] = field[4]; domain_count[key] = field[5]
 					domain_checked[key] = field[6]; domain_success[key] = field[7]
+					domain_file[key] = field[1] == "D2" ? field[11] : field[10]
 				}
 			}
 			close(status)
@@ -7243,7 +7457,7 @@ Generate_WebUI_Rule_Data() {
 			id = $2; action = $3; type = $4; value = $5; detail = substr($6, 2)
 			created = $8 + 0; expires = $9 + 0; data = $10; count = 1
 			if (expires > 0 && now > 0 && expires <= now) next
-			state = "-"; checked = 0; success = 0
+			state = "-"; checked = 0; success = 0; resolved = ""
 			if (action == "ban" && (type == "ip" || type == "range")) {
 				kind = expires > 0 ? "temporary" : "manual"
 				setname = expires > 0 ? "Skynet-TemporaryBans" : "Skynet-UserBans"
@@ -7255,6 +7469,19 @@ Generate_WebUI_Rule_Data() {
 				display = value; key = action SUBSEP value
 				count = domain_count[key] + 0; state = domain_state[key] == "" ? "pending" : domain_state[key]
 				checked = domain_checked[key] + 0; success = domain_success[key] + 0
+				# Display only retained cache data, bounded to 64 addresses per rule.
+				# Never resolve names during settings generation or accept cache paths.
+				if ((state == "current" || state == "cached") && domain_file[key] ~ /^domain\.[0-9a-f]+\.[0-9a-f-]+\.list$/) {
+					if (!(key in domain_addresses)) {
+						cachefile = cachedir "/" domain_file[key]; addresscount = 0
+						while (addresscount < 64 && (getline address < cachefile) > 0) {
+							if (address !~ /^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/) continue
+							domain_addresses[key] = domain_addresses[key] (addresscount++ ? " " : "") address
+						}
+						close(cachefile)
+					}
+					resolved = domain_addresses[key]
+				}
 			}
 			else if (type == "asn" || type == "import") {
 				kind = type == "import" ? "import" : "group"
@@ -7271,7 +7498,7 @@ Generate_WebUI_Rule_Data() {
 			else next
 			# Prefix empty-capable fields because BusyBox ash collapses adjacent tab
 			# delimiters when the generated records are read below.
-			print id, kind, action, type, setname, value, "@" detail, "@" display, count, state, checked, success, created, expires
+			print id, kind, action, type, setname, value, "@" detail, "@" display, count, state, checked, success, created, expires, "@" resolved
 		}
 	' "$skynetrules" > "$rulerecords" || { rm -f "$rulerecords"; return 1; }
 	if ! sort -t "$(printf '\t')" -k3,3 -k4,4 -k6,6 "$rulerecords" > "$rulerecordssorted" \
@@ -7293,10 +7520,10 @@ Generate_WebUI_Rule_Data() {
 			}
 			return quote output quote
 		}
-		NF == 14 {
+		NF == 15 {
 			if (total++) printf ","
-			printf "\n\t{id:%s,kind:%s,action:%s,type:%s,target:%s,entry:%s,comment:%s,display:%s,count:%s,state:%s,checked:%s,success:%s,created:%s,expires:%s}", \
-				js($1), js($2), js($3), js($4), js($5), js($6), js(substr($7, 2)), js(substr($8, 2)), $9 + 0, js($10), $11 + 0, $12 + 0, $13 + 0, $14 + 0
+			printf "\n\t{id:%s,kind:%s,action:%s,type:%s,target:%s,entry:%s,comment:%s,display:%s,count:%s,state:%s,checked:%s,success:%s,created:%s,expires:%s,resolved:%s}", \
+				js($1), js($2), js($3), js($4), js($5), js($6), js(substr($7, 2)), js(substr($8, 2)), $9 + 0, js($10), $11 + 0, $12 + 0, $13 + 0, $14 + 0, js(substr($15, 2))
 			if ($4 == "domain") {
 				domains++
 				if ($10 ~ /^(current|cached|empty|expired|failed)$/) health[$10]++
@@ -7321,7 +7548,7 @@ Generate_WebUI_Rule_Data() {
 }
 
 Generate_WebUI_Action_Data() {
-	# Keep only the last twenty valid records, including this request's pending
+	# Keep only the last 200 valid records, including this request's pending
 	# actions. Serialization is bounded and does not fork once per field.
 	set -- /dev/null
 	if [ -e "$skynetevents" ] || [ -L "$skynetevents" ]; then set -- "$@" "$skynetevents"; fi
@@ -7340,19 +7567,172 @@ Generate_WebUI_Action_Data() {
 		}
 		$1 == "A1" && NF == 12 && $2 ~ /^[0-9]+$/ &&
 		$4 ~ /^(cli|menu|webui|cron|startup)$/ && $5 ~ /^(success|degraded|failed)$/ &&
-		$6 ~ /^(rules|iot|countries|feeds|settings|system)$/ { rows[count++ % 20] = $0 }
+		$6 ~ /^(rules|iot|countries|feeds|settings|system)$/ { rows[count++ % 200] = $0 }
 		END {
 			printf "var SkynetActions = ["
-			for (i = (count > 20 ? count - 20 : 0); i < count; i++) {
-				split(rows[i % 20], field, "\t")
+			for (i = (count > 200 ? count - 200 : 0); i < count; i++) {
+				split(rows[i % 200], field, "\t")
 				if (first++) printf ","
 				printf "\n\t{epoch:%s,time:%s,origin:%s,result:%s,area:%s,operation:%s,target:%s,type:%s,entries:%s,detail:%s,transaction:%s}", \
 					field[2], js(field[3]), js(field[4]), js(field[5]), js(field[6]), js(field[7]), \
 					js(field[8]), js(field[9]), js(field[10]), js(field[11]), js(field[12])
 			}
 			print "\n];"
+			printf "var SkynetActionSummary = {total:%d,limit:200};\n", count
 		}
 	' "$@" >> "$settingstmp"
+}
+
+Generate_WebUI_Backup_Data() {
+	# The .cab route uses Merlin authentication and its binary-safe file handler.
+	# Each immutable point has its own URL; selecting a backup never changes a
+	# shared download link belonging to another browser session.
+	List_Backup_Points > "$TMP_DIR/backup-points" || return 1
+	if [ ! -s "$TMP_DIR/backup-points" ] && Resolve_Backup_Point latest; then printf 'latest\n' > "$TMP_DIR/backup-points"; fi
+	printf 'var SkynetBackups = [' >> "$settingstmp"
+	webuibackupseparator=""
+	while IFS= read -r webuibackupid; do
+		Resolve_Backup_Point "$webuibackupid" || continue
+		webuibackupcreated="$(date -r "$backuplocation" +%s)" || return 1
+		webuibackupsize="$(ls -ln "$backuplocation" | awk '{print $5}')" || return 1
+		case "$webuibackupsize" in ""|*[!0-9]*) return 1 ;; esac
+		case "$webuibackupid" in latest) webuibackuproute="backup.cab" ;; *) webuibackuproute="backup-$webuibackupid.cab" ;; esac
+		if [ "$(readlink "/www/user/skynet/$webuibackuproute")" != "$backuplocation" ]; then
+			ln -sf "$backuplocation" "/www/user/skynet/$webuibackuproute" || return 1
+		fi
+		printf '%s{id:"%s",created:%s,size:%s}' "$webuibackupseparator" "$webuibackupid" "$webuibackupcreated" "$webuibackupsize" >> "$settingstmp"
+		webuibackupseparator=,
+	done < "$TMP_DIR/backup-points"
+	printf '];\n' >> "$settingstmp"
+}
+
+Build_History_Request() {
+	# Only validated numeric values and fixed SQL fragments enter a query.
+	historyqueryrange="${1:-today}"
+	historyquerykind="${2:-all}"
+	historyqueryip="$3"
+	historyqueryproto="${4:-all}"
+	historyqueryport="$5"
+	historyquerycursor="${6:-0}"
+	historyquerysnapshot="${7:-0}"
+	historyqueryuntil="${9:-0}"
+	historyquerylimit="100"
+	case "$8" in ""|0) ;; 1) historyquerylimit="1000" ;; *) return 2 ;; esac
+	case "$historyqueryrange" in today|7d|90d) ;; *) return 2 ;; esac
+	case "$historyquerykind" in all) historykindwhere="" ;; inbound) historykindwhere=" AND kind=1" ;; outbound) historykindwhere=" AND kind=2" ;; invalid) historykindwhere=" AND kind=3" ;; iot) historykindwhere=" AND kind=4" ;; *) return 2 ;; esac
+	case "$historyqueryproto" in all) historyprotowhere="" ;; TCP|tcp) historyprotowhere=" AND proto=6" ;; UDP|udp) historyprotowhere=" AND proto=17" ;; ICMP|icmp) historyprotowhere=" AND proto=1" ;; *) return 2 ;; esac
+	for historyquerynumber in "$historyquerycursor" "$historyquerysnapshot" "$historyqueryuntil"; do
+		case "$historyquerynumber" in ""|*[!0-9]*) return 2 ;; esac
+		[ "${#historyquerynumber}" -le 15 ] || return 2
+	done
+	# Normalise decimal input before shell arithmetic, which treats leading zeroes as octal.
+	historyquerynumbers="$(awk -v cursor="$historyquerycursor" -v snapshot="$historyquerysnapshot" -v until="$historyqueryuntil" 'BEGIN {printf "%.0f %.0f %.0f",cursor,snapshot,until}')" || return 1
+	IFS=' ' read -r historyquerycursor historyquerysnapshot historyqueryuntil <<EOF
+$historyquerynumbers
+EOF
+	[ "$historyqueryuntil" -le 253402300799 ] || return 2
+	historyipwhere=""
+	case "$historyqueryip$historyqueryport" in *[!0-9./]*) return 2 ;; esac
+	if [ -n "$historyqueryip" ]; then
+		printf '%s\n' "$historyqueryip" | Is_IPRange || return 2
+		historyipbounds="$(printf '%s\n' "$historyqueryip" | awk '{split($0,c,"/"); split(c[1],a,"."); n=a[1]*16777216+a[2]*65536+a[3]*256+a[4]; w=2^(32-(c[2]==""?32:c[2])); lo=int(n/w)*w; printf "%.0f %.0f",lo,lo+w-1}')" || return 1
+		historyipwhere=" AND (src BETWEEN ${historyipbounds% *} AND ${historyipbounds#* } OR dst BETWEEN ${historyipbounds% *} AND ${historyipbounds#* })"
+	fi
+	historyportwhere=""
+	if [ -n "$historyqueryport" ]; then
+		printf '%s\n' "$historyqueryport" | Is_Port || return 2
+		historyqueryport="$(printf '%s\n' "$historyqueryport" | awk '{print $0+0}')"
+		historyportwhere=" AND (sport=$historyqueryport OR dport=$historyqueryport)"
+	fi
+	historyquerybounds="$(History_Read "SELECT coalesce((SELECT id FROM events ORDER BY id LIMIT 1),0)||' '||coalesce((SELECT id FROM events ORDER BY id DESC LIMIT 1),0);")" || return 1
+	if [ "$historyquerysnapshot" = "0" ]; then historyquerysnapshot="${historyquerybounds#* }"
+	elif [ "$historyquerysnapshot" -lt "${historyquerybounds%% *}" ] || [ "$historyquerysnapshot" -gt "${historyquerybounds#* }" ]; then return 3; fi
+	[ "$historyquerycursor" -le "$historyquerysnapshot" ] || return 2
+	if Time_Is_Ready && [ "$historyqueryuntil" -gt "$(date +%s)" ]; then return 2; fi
+	if [ "$historyqueryuntil" = "0" ]; then
+		if Time_Is_Ready; then historyqueryuntil="$(date +%s)"
+		else historyqueryuntil="$(History_Read "SELECT coalesce((SELECT ts FROM events WHERE id<=$historyquerysnapshot ORDER BY ts DESC LIMIT 1),0);")" || return 1; fi
+	fi
+	historyquerynow="$historyqueryuntil"
+	# The high-water ID excludes newer arrivals while the user pages results.
+	case "$historyqueryrange" in
+		today)
+			historyqueryfrom="$(History_Read "SELECT strftime('%s',$historyqueryuntil,'unixepoch','localtime','start of day','utc');")" || return 1
+			case "$historyqueryfrom" in ""|*[!0-9-]*) return 2 ;; esac
+		;;
+		7d) historyqueryfrom="$((historyquerynow - 604800))" ;;
+		90d) historyqueryfrom="$((historyquerynow - 7776000))" ;;
+	esac
+	historyquerywhere="ts>=$historyqueryfrom AND ts<=$historyqueryuntil AND id<=$historyquerysnapshot$historykindwhere$historyipwhere$historyprotowhere$historyportwhere"
+	[ "$historyquerycursor" = "0" ] || historyquerywhere="$historyquerywhere AND id<$historyquerycursor"
+	historyqueryrows="$TMP_DIR/history-rows.$$"
+	historyquerypoints="$TMP_DIR/history-points.$$"
+	History_Read "SELECT id,ts,kind,printf('%d.%d.%d.%d',src>>24,(src>>16)&255,(src>>8)&255,src&255),printf('%d.%d.%d.%d',dst>>24,(dst>>16)&255,(dst>>8)&255,dst&255),proto,coalesce(sport,''),coalesce(dport,''),len,inif,outif,flags,coalesce(icmp_type,''),coalesce(icmp_code,''),hex(mac) FROM events WHERE $historyquerywhere ORDER BY id DESC LIMIT $((historyquerylimit + 1));" > "$historyqueryrows" || return 1
+	# Long-term totals deliberately have no address, protocol or port dimension.
+	case "$historyqueryrange" in 90d) historyquerybucket="86400" ;; *) historyquerybucket="3600" ;; esac
+	if [ "$historyquerycursor" != "0" ] || [ "$historyquerylimit" = "1000" ]; then
+		: > "$historyquerypoints"
+	else
+		History_Read "SELECT (hour/$historyquerybucket)*$historyquerybucket,sum(CASE kind WHEN 1 THEN hits ELSE 0 END),sum(CASE kind WHEN 2 THEN hits ELSE 0 END),sum(CASE kind WHEN 3 THEN hits ELSE 0 END),sum(CASE kind WHEN 4 THEN hits ELSE 0 END) FROM hours WHERE hour>=$((historyqueryfrom / 3600 * 3600)) AND hour<=$historyqueryuntil$historykindwhere GROUP BY 1 ORDER BY 1;" > "$historyquerypoints" || return 1
+	fi
+}
+
+Generate_WebUI_History_Data() {
+	if ! History_Ready; then
+		printf 'var SkynetHistory = {available:false,rows:[],points:[]};\n' >> "$settingstmp"
+		return
+	fi
+	if ! historywebsummary="$(History_Read "SELECT coalesce((SELECT ts FROM events ORDER BY ts,id LIMIT 1),0),coalesce((SELECT ts FROM events ORDER BY ts DESC,id DESC LIMIT 1),0),coalesce((SELECT value FROM meta WHERE key='collected'),0),coalesce((SELECT value FROM meta WHERE key='limited'),0);")"; then
+		printf 'var SkynetHistory = {available:false,error:"History is unavailable",rows:[],points:[]};\n' >> "$settingstmp"
+		return
+	fi
+	historywebrows="/dev/null"
+	historywebpoints="/dev/null"
+	if [ "$webuihistoryrequest" = "1" ]; then
+		historywebrows="$historyqueryrows"
+		historywebpoints="$historyquerypoints"
+	fi
+	awk -F '\t' -v summary="$historywebsummary" -v logging="$logmode" -v rows="$historywebrows" -v points="$historywebpoints" \
+		-v limit="${historyquerylimit:-100}" -v snapshot="${historyquerysnapshot:-0}" -v until="${historyqueryuntil:-0}" -v range="${historyqueryrange:-today}" '
+		function js(value,i,c,out) {
+			out=""; for(i=1;i<=length(value);i++) {c=substr(value,i,1); if(c=="\\" || c=="\"")out=out "\\" c; else if(c=="<")out=out "\\u003c"; else if(c !~ /[[:cntrl:]]/)out=out c}
+			return "\"" out "\""
+		}
+		function nullable(value) {return value==""?"null":value+0}
+		function macaddress(value,i,out) {out="";for(i=1;i<=length(value);i+=2)out=out (i==1?"":":") substr(value,i,2);return out}
+		function flagtext(value,i,out) {out="";for(i=0;i<8;i++)if(int(value/(2^i))%2)out=out (out==""?"":" ") flag[i];return out}
+		BEGIN {
+			split(summary,s,"\t"); kind[1]="inbound";kind[2]="outbound";kind[3]="invalid";kind[4]="iot"
+			flag[0]="FIN";flag[1]="SYN";flag[2]="RST";flag[3]="PSH";flag[4]="ACK";flag[5]="URG";flag[6]="ECE";flag[7]="CWR"
+			printf "var SkynetHistory = {available:true,logging:%s,earliest:%.0f,latest:%.0f,collected:%.0f,limited:%s,detailDays:7,trendDays:90,range:%s,snapshot:%.0f,rows:[",logging=="enabled"?"true":"false",s[1]+0,s[2]+0,s[3]+0,s[4]+0?"true":"false",js(range),snapshot+0
+			while((rowstatus=(getline line < rows))>0) {
+				if(++count>limit){more=1;break}
+				split(line,f,"\t"); protocol=f[6]==6?"TCP":f[6]==17?"UDP":f[6]==1?"ICMP":f[6]
+				printf "%s{id:%.0f,epoch:%.0f,kind:%s,src:%s,dst:%s,protocol:%s,sport:%s,dport:%s,length:%d,inif:%s,outif:%s,flags:%s,icmpType:%s,icmpCode:%s,mac:%s}",(count>1?",":""),f[1],f[2],js(kind[f[3]]),js(f[4]),js(f[5]),js(protocol),nullable(f[7]),nullable(f[8]),f[9],js(f[10]),js(f[11]),js(flagtext(f[12])),nullable(f[13]),nullable(f[14]),js(macaddress(f[15]))
+				cursor=f[1]
+			}
+			close(rows);if(rowstatus<0)exit 1
+			printf "],hasMore:%s,nextCursor:%.0f,until:%.0f,points:[",more?"true":"false",cursor+0,until+0
+			while((pointstatus=(getline line < points))>0) {split(line,f,"\t");printf "%s[%.0f,%d,%d,%d,%d]",pointcount++?",":"",f[1],f[2],f[3],f[4],f[5]}
+			if(pointstatus<0)exit 1
+			close(points);print "]};"
+		}
+	' >> "$settingstmp"
+}
+
+Apply_WebUI_History() {
+	settingsresult="error"
+	if ! Check_Lock webui history; then settingsresult="busy"; Publish_WebUI_Result; return 1; fi
+	# Only refresh collection for the first page. Subsequent pages retain their ID boundary.
+	if [ "$(am_settings_get skynet_historysnapshot)" = "0" ] || [ -z "$(am_settings_get skynet_historysnapshot)" ]; then
+		if ! Archive_Block_Logs || ! Enforce_Log_Limit; then Publish_WebUI_Result; return 1; fi
+	fi
+	if ! History_Ready; then settingsresult="unavailable"; Publish_WebUI_Result; return 1; fi
+	Build_History_Request "$(am_settings_get skynet_historyrange)" "$(am_settings_get skynet_historykind)" \
+		"$(am_settings_get skynet_historyip)" "$(am_settings_get skynet_historyproto)" "$(am_settings_get skynet_historyport)" \
+		"$(am_settings_get skynet_historycursor)" "$(am_settings_get skynet_historysnapshot)" "$(am_settings_get skynet_historyexport)" "$(am_settings_get skynet_historyuntil)"
+	case "$?" in 0) settingsresult="success"; webuihistoryrequest="1" ;; 2) settingsresult="validation" ;; 3) settingsresult="stale" ;; *) settingsresult="error" ;; esac
+	Publish_WebUI_Result
 }
 
 Generate_WebUI_Settings() {
@@ -7391,6 +7771,8 @@ Generate_WebUI_Settings() {
 		&& Generate_WebUI_Country_Data \
 		&& Generate_WebUI_Rule_Data \
 		&& Generate_WebUI_Action_Data \
+		&& Generate_WebUI_Backup_Data \
+		&& Generate_WebUI_History_Data \
 		&& printf 'var SkynetSettingsGenerated = "%s.%s";\n' "$(date +%s)" "$$" >> "$settingstmp" \
 		&& printf 'var SkynetSettingsResult = "%s";\n' "${settingsresult:-ready}" >> "$settingstmp" \
 		&& printf 'var SkynetSettingsRequest = "%s";\n' "${webuirequestid:-}" >> "$settingstmp" \
@@ -7409,6 +7791,10 @@ Generate_Stats() {
 	Addon_API_Supported || return 0
 	Is_Enabled "$displaywebui" || return 0
 	Is_Enabled "$logmode" || return 0
+	if [ -e "${skynetloc}/history.db" ] && ! History_Ready; then
+		Log error "Firewall History Is Unavailable - Existing Statistics Retained"
+		return 1
+	fi
 	Update_Block_Counts strict || { Log error "Failed To Read IPSet Counters - Existing Statistics Retained"; return 1; }
 
 	# Intermediate chart indexes stay in RAM; only the complete payload is
@@ -7450,7 +7836,9 @@ Generate_Stats() {
 	Write_Stats_ToJS "$blacklist2count" "$statstmp" "SetBLCount2" "blcount2" || statsstatus="1"
 	Write_Stats_ToJS "$hits1" "$statstmp" "SetHits1" "hits1" || statsstatus="1"
 	Write_Stats_ToJS "$hits2" "$statstmp" "SetHits2" "hits2" || statsstatus="1"
-	statslogsize="$(du -h "$skynetlog")" || statsstatus="1"
+	statslogdisplay="$skynetlog"
+	if History_Ready; then statslogdisplay="${skynetloc}/history.db"; fi
+	statslogsize="$(du -h "$statslogdisplay")" || statsstatus="1"
 	Write_Stats_ToJS "${statslogsize%%[[:space:]]*}B" "$statstmp" "SetStatsSize" "statssize" || statsstatus="1"
 	printf 'var SkynetStatsGenerated = "%s.%s";\n' "$(date +%s)" "$$" >> "$statstmp" || statsstatus="1"
 	case "${SKYNET_WEBUI_REQUEST:-}" in *[!0-9]*) statsstatus="1" ;; esac
@@ -7567,6 +7955,22 @@ Generate_Stats() {
 	return 1
 }
 Generate_Blocked_Events() {
+	if [ -e "${skynetloc}/history.db" ] && ! History_Ready; then
+		blockedevents="Unavailable"; monitorspan="Unavailable"
+		printf '║ %-20s │ %-82s ║\n' "Block Events" "$blockedevents"
+		return 1
+	fi
+	if History_Ready; then
+		if History_Stats_Summary > "$TMP_DIR/history-summary-display.$$"; then
+			IFS='~' read -r statseventcount statsuniquecount monitorfirst monitorlast < "$TMP_DIR/history-summary-display.$$"
+			blockedevents="$statseventcount ($statsuniquecount Unique IPs)"
+			if [ -n "$monitorfirst" ]; then monitorspan="$monitorfirst → $monitorlast"; else monitorspan="No Data"; fi
+		else blockedevents="Unavailable"; monitorspan="Unavailable"
+		fi
+		rm -f "$TMP_DIR/history-summary-display.$$"
+		printf '║ %-20s │ %-82s ║\n' "Block Events" "$blockedevents"
+		return 0
+	fi
 	# Count events, unique remote IPs and the monitor span in one log pass. A
 	# manual counter is used because POSIX awk does not define length(array).
 	if blockedeventsummary="$(awk '
@@ -7666,6 +8070,7 @@ Install_WebUI_Page() {
 	mkdir -p "/www/user/skynet" \
 		&& ln -sf "${skynetloc}/webui/stats.js" "/www/user/skynet/stats.js" \
 		&& ln -sf "${skynetloc}/webui/settings.js" "/www/user/skynet/settings.js" \
+		&& ln -sf "${skynetloc}/Skynet-Backup.tar.gz" /www/user/skynet/backup.cab \
 		|| return 1
 	Unload_Cron "genstats" || return 1
 	Load_Cron "genstats"
@@ -8426,11 +8831,305 @@ Publish_Failed_Actions() {
 	fi
 }
 
+History_SQLite() {
+	if [ -x /usr/sbin/sqlite3 ]; then /usr/sbin/sqlite3 "$@"
+	elif [ -x /usr/bin/sqlite3 ]; then /usr/bin/sqlite3 "$@"
+	else return 3; fi
+}
+
+History_Read() {
+	[ -f "${skynetloc}/history.db" ] && [ ! -L "${skynetloc}/history.db" ] || return 1
+	History_SQLite -readonly -batch -noheader -cmd '.timeout 5000' -cmd 'PRAGMA trusted_schema=OFF;' \
+		-separator "$(printf '\t')" "${skynetloc}/history.db" "$1"
+}
+
+History_Write() {
+	# SQL is generated internally; callers must never interpolate user text here.
+	[ ! -L "${skynetloc}/history.db" ] || return 1
+	printf '.bail on\n.timeout 5000\nPRAGMA trusted_schema=OFF;\nPRAGMA cache_size=-2048;\nPRAGMA synchronous=FULL;\n%s\n' "$1" \
+		| History_SQLite -batch "${skynetloc}/history.db"
+}
+
+History_Ready() {
+	[ -f "${skynetloc}/history.db" ] || return 1
+	[ "$(History_Read "SELECT value FROM meta,pragma_user_version WHERE key='active' AND user_version=1;" 2>/dev/null)" = "1" ]
+}
+
+History_Initialize() (
+	umask 077
+	# Only the firmware SQLite is used. Existing databases are never silently
+	# replaced when damaged or from an unsupported schema version.
+	if [ ! -x /usr/sbin/sqlite3 ] && [ ! -x /usr/bin/sqlite3 ]; then
+		[ ! -e "${skynetloc}/history.db" ] && [ ! -L "${skynetloc}/history.db" ] || return 1
+		return 3
+	fi
+	[ ! -L "${skynetloc}/history.db" ] || return 1
+	[ ! -e "${skynetloc}/history.db" ] || [ -f "${skynetloc}/history.db" ] || return 1
+	if [ -f "${skynetloc}/history.db" ]; then
+		historyversion="$(History_Read 'PRAGMA user_version;' 2>/dev/null)" || return 1
+		[ "$historyversion" != "1" ] || return 0
+		# An interrupted first CREATE may leave an empty SQLite file. Retry only
+		# that state; an unknown schema or damaged database is never reset.
+		[ "$historyversion" = "0" ] \
+			&& [ "$(History_Read 'SELECT COUNT(*) FROM sqlite_master;' 2>/dev/null)" = "0" ] \
+			&& [ "$(History_Read 'PRAGMA quick_check;' 2>/dev/null)" = "ok" ] || return 1
+		chmod 600 "${skynetloc}/history.db" || return 1
+	fi
+	if ! History_SQLite -readonly :memory: 'CREATE TEMP TABLE test(a INTEGER PRIMARY KEY) WITHOUT ROWID; SELECT hex(unhex("AA"));' >/dev/null 2>&1; then
+		[ ! -e "${skynetloc}/history.db" ] && [ ! -L "${skynetloc}/history.db" ] || return 1
+		return 3
+	fi
+	History_Write "PRAGMA journal_mode=DELETE;
+PRAGMA auto_vacuum=INCREMENTAL;
+BEGIN IMMEDIATE;
+CREATE TABLE events(id INTEGER PRIMARY KEY AUTOINCREMENT,ts INTEGER NOT NULL,kind INTEGER NOT NULL,src INTEGER NOT NULL,dst INTEGER NOT NULL,proto INTEGER NOT NULL,sport INTEGER,dport INTEGER,len INTEGER NOT NULL,inif TEXT,outif TEXT,mac BLOB,flags INTEGER NOT NULL,icmp_type INTEGER,icmp_code INTEGER);
+CREATE INDEX events_time ON events(ts,id);
+CREATE INDEX events_source ON events(src,ts);
+CREATE INDEX events_destination ON events(dst,ts);
+CREATE TABLE hours(hour INTEGER NOT NULL,kind INTEGER NOT NULL,hits INTEGER NOT NULL,bytes INTEGER NOT NULL,PRIMARY KEY(hour,kind)) WITHOUT ROWID;
+CREATE TABLE meta(key TEXT PRIMARY KEY,value TEXT NOT NULL) WITHOUT ROWID;
+CREATE TABLE cursors(identity TEXT PRIMARY KEY,position INTEGER NOT NULL,anchor_size INTEGER NOT NULL,anchor TEXT NOT NULL,checked INTEGER NOT NULL) WITHOUT ROWID;
+INSERT INTO meta VALUES('active','0');
+PRAGMA user_version=1;
+COMMIT;" >/dev/null || return 1
+	chmod 600 "${skynetloc}/history.db"
+)
+
+History_Parse_Batch() {
+	# RFC3164 omits its year and zone. Infer the most recent calendar year using
+	# the router's trusted local date. Retain epochs; display formatting is separate.
+	# Civil-date arithmetic avoids non-POSIX awk mktime() and per-record date forks.
+	# SQLite converts local civil seconds with the router timezone rules before
+	# storing UTC epochs, including the applicable historical daylight-saving offset.
+	awk -v now="$historynow" -v year="$historyyear" -v zone="$historyzone" '
+		function leap(y) { return y%4==0 && (y%100!=0 || y%400==0) }
+		function epoch(y,m,d,h,n,s, days,i) {
+			days=365*(y-1970)+int((y-1)/4)-int(1969/4)-int((y-1)/100)+int(1969/100)+int((y-1)/400)-int(1969/400)
+			for(i=1;i<m;i++) days+=mdays[i]+(i==2 && leap(y))
+			return (days+d-1)*86400+h*3600+n*60+s
+		}
+		function address(v,slot, a,i,n) {
+			if(v!="" && v==last_address[slot]) return last_number[slot]
+			if(v !~ /^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/ || split(v,a,".")!=4) return -1
+			n=0; for(i=1;i<=4;i++) { if(a[i]>255) return -1; n=n*256+a[i] }
+			last_address[slot]=v; last_number[slot]=n
+			return n
+		}
+		function number(v,max) { return v ~ /^[0-9]+$/ && (v+0)<=max ? v+0 : "NULL" }
+		function field(name, start,value,stop) {
+			start=index($0," " name "="); if(!start) return ""
+			value=substr($0,start+length(name)+2); stop=index(value," ")
+			return stop ? substr(value,1,stop-1) : value
+		}
+		BEGIN {
+			split("Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec",months," ")
+			split("31 28 31 30 31 30 31 31 30 31 30 31",mdays," ")
+			for(i=1;i<=12;i++) month[months[i]]=i
+			protocol["ICMP"]=1; protocol["IGMP"]=2; protocol["TCP"]=6; protocol["UDP"]=17; protocol["GRE"]=47; protocol["ESP"]=50; protocol["AH"]=51
+			split("FIN SYN RST PSH ACK URG ECE CWR",flagname," ")
+			for(i=1;i<=8;i++) flagvalue[flagname[i]]=2^(i-1)
+		}
+		/BLOCKED -/ {
+			kind=index($0,"[BLOCKED - INBOUND]") ? 1 : index($0,"[BLOCKED - OUTBOUND]") ? 2 : index($0,"[BLOCKED - INVALID]") ? 3 : index($0,"[BLOCKED - IOT]") ? 4 : 0
+			m=month[$1]; d=$2; split($3,clock,":")
+			if(!kind || !m || d !~ /^[0-9]+$/ || d<1 || d>mdays[m]+(m==2 && leap(year)) || $3 !~ /^[0-9][0-9]:[0-9][0-9]:[0-9][0-9]$/ || clock[1]>23 || clock[2]>59 || clock[3]>59) { invalid=1; next }
+			daykey=m SUBSEP d
+			if(!(daykey in midnight)) { midnight[daykey]=epoch(year,m,d,0,0,0); if(midnight[daykey]>now+zone+86400) midnight[daykey]=epoch(year-1,m,d,0,0,0) }
+			ts=midnight[daykey]+clock[1]*3600+clock[2]*60+clock[3]
+			src=address(field("SRC"),1); dst=address(field("DST"),2); p=field("PROTO")
+			proto=p in protocol ? protocol[p] : number(p,255)
+			input=field("IN"); output=field("OUT"); mac=field("MAC"); len=number(field("LEN"),65535)
+			if(src<0 || dst<0 || proto=="NULL" || len=="NULL" || input ~ /[^A-Za-z0-9_.:@-]/ || output ~ /[^A-Za-z0-9_.:@-]/ || mac ~ /[^0-9a-fA-F:]/) { invalid=1; next }
+			gsub(":","",mac); if(length(mac)%2) { invalid=1; next }
+			flags=0; flagstart=index($0," RES=")
+			if(proto==6 && flagstart) {
+				flagtext=substr($0,flagstart+1); flagstop=index(flagtext," URGP=")
+				if(flagstop) flagtext=substr(flagtext,1,flagstop-1)
+				flagcount=split(flagtext,flagparts," ")
+				for(i=1;i<=flagcount;i++) if(flagparts[i] in flagvalue) flags+=flagvalue[flagparts[i]]
+			}
+			# ICMP errors may quote a transport header; its ports and flags are not outer-packet fields.
+			sport=(proto==6 || proto==17) ? number(field("SPT"),65535) : "NULL"
+			dport=(proto==6 || proto==17) ? number(field("DPT"),65535) : "NULL"
+			printf "%.0f\t%d\t%.0f\t%.0f\t%d\t%s\t%s\t%d\t%s\t%s\t%s\t%d\t%s\t%s\n",ts,kind,src,dst,proto,sport,dport,len,input,output,mac,flags,number(field("TYPE"),255),number(field("CODE"),255)
+		}
+		END { if(invalid) { print "Invalid Firewall History Record - Batch Retained" > "/dev/stderr"; exit 1 } }
+	' "$1" > "$2"
+}
+
+History_Import_File() {
+	[ -f "$1" ] || return 0
+	# The open descriptor survives rotation. The anchor detects truncate/rewrite
+	# even when the source has already grown beyond the previously committed size.
+	exec 6< "$1" || return 1
+	# shellcheck disable=SC2012 # Fixed descriptor path; only numeric inode/size fields are read.
+	historyfileinfo="$(ls -linL /proc/self/fd/6 2>/dev/null | awk '{print $1 " " $6}')"
+	historyidentity="$(df -P /proc/self/fd/6 | awk 'NR==2 {print $1}'):${historyfileinfo%% *}"
+	case "$historyidentity" in ""|*[!A-Za-z0-9_/:.-]*) exec 6<&-; return 1 ;; esac
+	if [ -n "${2:-}" ] && [ "$historyidentity" != "$2" ]; then exec 6<&-; return 1; fi
+	historyfilesize="${historyfileinfo#* }"
+	case "$historyfilesize" in ""|*[!0-9]*) exec 6<&-; return 1 ;; esac
+	historycursor="$(History_Read "SELECT position||' '||anchor_size||' '||anchor FROM cursors WHERE identity='$historyidentity';")" || { exec 6<&-; return 1; }
+	if [ -n "${2:-}" ] && [ -z "$historycursor" ]; then exec 6<&-; return 1; fi
+	historyposition="${historycursor%% *}"
+	historyanchorinfo="${historycursor#* }"
+	historyanchorsize="${historyanchorinfo%% *}"
+	historyanchor="${historyanchorinfo#* }"
+	if [ -z "$historycursor" ]; then historyposition="0"; historyanchorsize="0"; historyanchor=""; fi
+	case "$historyposition:$historyanchorsize" in *[!0-9:]*) exec 6<&-; return 1 ;; esac
+	[ "$historyanchorsize" -le 256 ] || { exec 6<&-; return 1; }
+	case "$historyanchor" in *[!0-9a-f]*) exec 6<&-; return 1 ;; esac
+	if [ "$historyposition" -gt "$historyfilesize" ] || { [ "$historyanchorsize" -gt 0 ] \
+		&& [ "$(tail -c "+$((historyposition-historyanchorsize+1))" /proc/self/fd/6 | head -c "$historyanchorsize" | md5sum | cut -d ' ' -f1)" != "$historyanchor" ]; }; then
+		[ -z "${2:-}" ] || { exec 6<&-; return 1; }
+		historyposition="0"
+	fi
+	historychecksize="$historyfilesize"; [ "$historychecksize" -le 256 ] || historychecksize="256"
+	historycheckanchor="$(head -c "$historychecksize" /proc/self/fd/6 | md5sum | cut -d ' ' -f1)"
+	historychunk="$TMP_DIR/history-chunk.$$"
+	historysql="$TMP_DIR/history-batch.$$"
+	historyparsed="$TMP_DIR/history-parsed.$$"
+	historyimportstatus="0"
+	while [ "$historyposition" -lt "$historyfilesize" ]; do
+		historyremaining="$((historyfilesize-historyposition))"
+		[ "$historyremaining" -le 524288 ] || historyremaining="524288"
+		# BusyBox head/tail byte ranges preserve a partial final record until the
+		# next collection, rather than committing a checkpoint through half a line.
+		tail -c "+$((historyposition+1))" /proc/self/fd/6 | head -c "$historyremaining" > "$historychunk"
+		if [ "$(tail -c 1 "$historychunk" | wc -l)" != "1" ]; then
+			if ! sed '$d' "$historychunk" > "$historyparsed" || ! mv -f "$historyparsed" "$historychunk"; then historyimportstatus="1"; break; fi
+		fi
+		historybytes="$(wc -c < "$historychunk")"
+		[ "$historybytes" -gt 0 ] || break
+		History_Parse_Batch "$historychunk" "$historyparsed" || { historyimportstatus="1"; break; }
+		historynext="$((historyposition+historybytes))"
+		if [ "$(head -c "$historychecksize" /proc/self/fd/6 | md5sum | cut -d ' ' -f1)" != "$historycheckanchor" ]; then historyimportstatus="1"; break; fi
+		historyanchorsize="$historynext"; [ "$historyanchorsize" -le 256 ] || historyanchorsize="256"
+		historyanchor="$(tail -c "+$((historynext-historyanchorsize+1))" /proc/self/fd/6 | head -c "$historyanchorsize" | md5sum | cut -d ' ' -f1)"
+		{
+			printf '.bail on\n.timeout 5000\nPRAGMA trusted_schema=OFF;\nPRAGMA cache_size=-2048;\nPRAGMA synchronous=FULL;\nBEGIN IMMEDIATE;\n'
+			printf 'CREATE TEMP TABLE incoming AS SELECT ts,kind,src,dst,proto,sport,dport,len,inif,outif,mac,flags,icmp_type,icmp_code FROM events WHERE 0;\n'
+			printf '.mode tabs\n.import "%s" incoming\n' "$historyparsed"
+			printf '%s\n' "UPDATE incoming SET ts=CAST(strftime('%s',ts,'unixepoch','utc') AS INTEGER);"
+			printf '%s\n' 'INSERT OR REPLACE INTO hours SELECT CAST(ts/3600 AS INTEGER)*3600,kind,COUNT(*)+COALESCE((SELECT hits FROM hours h WHERE h.hour=CAST(i.ts/3600 AS INTEGER)*3600 AND h.kind=i.kind),0),SUM(len)+COALESCE((SELECT bytes FROM hours h WHERE h.hour=CAST(i.ts/3600 AS INTEGER)*3600 AND h.kind=i.kind),0) FROM incoming i GROUP BY CAST(ts/3600 AS INTEGER),kind;'
+			printf '%s\n' "INSERT INTO events(ts,kind,src,dst,proto,sport,dport,len,inif,outif,mac,flags,icmp_type,icmp_code) SELECT ts,kind,src,dst,proto,NULLIF(sport,'NULL'),NULLIF(dport,'NULL'),len,inif,outif,unhex(mac),flags,NULLIF(icmp_type,'NULL'),NULLIF(icmp_code,'NULL') FROM incoming;"
+			printf "INSERT OR REPLACE INTO cursors VALUES('%s',%s,%s,'%s',%s);\n" "$historyidentity" "$historynext" "$historyanchorsize" "$historyanchor" "$historynow"
+			printf "INSERT OR REPLACE INTO meta VALUES('collected','%s');\nCOMMIT;\n" "$historynow"
+		} > "$historysql" || { historyimportstatus="1"; break; }
+		History_SQLite -batch "${skynetloc}/history.db" < "$historysql" >/dev/null || { historyimportstatus="1"; break; }
+		historyposition="$historynext"
+		# Private-address discovery shares the input batch; history itself is never
+		# rewritten when a policy changes.
+		Whitelist_Blocked_Private_IPs "$historychunk" || { historyimportstatus="1"; break; }
+	done
+	exec 6<&-
+	rm -f "$historychunk" "$historysql" "$historyparsed"
+	return "$historyimportstatus"
+}
+
+History_Collect() {
+	Time_Is_Ready || return 0
+	History_Initialize
+	historyinitstatus="$?"
+	[ "$historyinitstatus" = "0" ] || return "$historyinitstatus"
+	historynow="$(date +%s)"; historyyear="$(date +%Y)"; historyzone="$(date +%z)"
+	historyzone="$(printf '%s\n' "$historyzone" | awk '{ sign=substr($0,1,1)=="-" ? -1 : 1; print sign*(substr($0,2,2)*3600+substr($0,4,2)*60) }')"
+	if ! History_Ready; then
+		[ ! -L "$skynetlog" ] || return 1
+		History_Import_File "$skynetlog" || { Log error "Failed To Migrate Firewall History - Original Log Retained"; return 1; }
+		# Activation and source ownership are one transaction. The pending marker
+		# permits safe retirement after interruption, but cannot select another file.
+		[ ! -s "$skynetlog" ] || [ "$(tail -c 1 "$skynetlog" | wc -l)" = "1" ] || return 1
+		historyactivation="INSERT OR REPLACE INTO meta VALUES('active','1');"
+		if [ -s "$skynetlog" ]; then
+			historyactivation="$historyactivation INSERT OR REPLACE INTO meta VALUES('legacy_pending','$historyidentity'); INSERT OR REPLACE INTO meta VALUES('legacy_time_inferred','1');"
+		fi
+		History_Write "BEGIN IMMEDIATE; $historyactivation COMMIT;" || return 1
+		if [ -s "$skynetlog" ]; then Log info "Legacy Firewall History Imported - Missing Years Inferred From Router Date"; fi
+	fi
+	historypending="$(History_Read "SELECT value FROM meta WHERE key='legacy_pending';")" || return 1
+	if [ -n "$historypending" ]; then
+		case "$skynetlog" in "${skynetloc}/skynet.log") ;; *) return 1 ;; esac
+		if [ -e "$skynetlog" ] || [ -L "$skynetlog" ]; then
+			if [ ! -f "$skynetlog" ] || [ -L "$skynetlog" ] || ! History_Import_File "$skynetlog" "$historypending" \
+				|| [ "$historyposition" != "$historyfilesize" ] || [ "$(History_Read 'PRAGMA quick_check;')" != "ok" ]; then
+				Log error "Unable To Retire Migrated Firewall Log - Original File Retained"
+				return 1
+			fi
+			rm -f "$skynetlog" || return 1
+		fi
+		History_Write "DELETE FROM meta WHERE key='legacy_pending';" || return 1
+	fi
+	for historysource in "$syslog1loc" "$syslogloc"; do
+		History_Import_File "$historysource" || { Log error "Failed To Collect Firewall History - Source Log Retained"; return 1; }
+	done
+	return 0
+}
+
+History_Prune() {
+	History_Ready || return 1
+	Time_Is_Ready || return 0
+	historyprunenow="$(date +%s)"
+	# Hourly totals were committed alongside each event. Pruning details never
+	# adds them again. Empty runs touch no database pages.
+	History_Write "BEGIN IMMEDIATE;
+DELETE FROM events WHERE ts<$((historyprunenow-604800));
+DELETE FROM hours WHERE hour<$((historyprunenow-7776000));
+COMMIT;" || return 1
+	historybudget="$((logsize*1024*1024))"
+	historyprunepasses="0"
+	while [ "$historyprunepasses" -lt 8 ]; do
+		historypages="$(History_Read 'PRAGMA page_count; PRAGMA freelist_count; PRAGMA page_size; SELECT COUNT(*) FROM events;')" || return 1
+		historycapacity="$(printf '%s\n' "$historypages" | awk -v budget="$historybudget" '
+			NR==1 { pages=$1 } NR==2 { free=$1 } NR==3 { size=$1 }
+			NR==4 { used=(pages-free)*size; drop=used>budget ? int($1*(used-budget)/used)+256 : 0; if(drop>$1) drop=$1; print used " " drop }
+		')"
+		historyused="${historycapacity%% *}"
+		historydeletecount="${historycapacity#* }"
+		[ "$historyused" -gt "$historybudget" ] || break
+		[ "$historydeletecount" -gt 0 ] || { Log error "Firewall History Metadata Exceeds Storage Budget"; return 1; }
+		# Delete an estimated excess in one transaction, then recheck actual page
+		# use. The small margin avoids one SQLite process for every few old rows.
+		History_Write "BEGIN IMMEDIATE;
+CREATE TEMP TABLE expired AS SELECT id,ts FROM events ORDER BY ts,id LIMIT $historydeletecount;
+INSERT OR REPLACE INTO meta SELECT 'limited_until',CAST(MAX(ts)+604800 AS TEXT) FROM expired;
+DELETE FROM events WHERE id IN (SELECT id FROM expired);
+COMMIT;" || return 1
+		historyprunepasses="$((historyprunepasses+1))"
+	done
+	[ "$historyused" -le "$historybudget" ] || { Log error "Firewall History Retention Pending - Storage Budget Not Yet Reached"; return 1; }
+	# Incremental vacuum releases only free pages; it does not rebuild the DB.
+	# Do this only after the file exceeds its budget, not on every collection.
+	# shellcheck disable=SC2012 # One fixed filename; only its numeric size field is read.
+	historyphysical="$(ls -ln "${skynetloc}/history.db" | awk '{print $5}')"
+	if [ "$historyphysical" -gt "$historybudget" ]; then History_Write 'PRAGMA incremental_vacuum;' || return 1; fi
+	History_Write "INSERT OR IGNORE INTO meta VALUES('limited','0');
+UPDATE meta SET value=CASE WHEN CAST(COALESCE((SELECT value FROM meta WHERE key='limited_until'),'0') AS INTEGER)>$historyprunenow THEN '1' ELSE '0' END
+WHERE key='limited' AND value<>CASE WHEN CAST(COALESCE((SELECT value FROM meta WHERE key='limited_until'),'0') AS INTEGER)>$historyprunenow THEN '1' ELSE '0' END;" || return 1
+	return 0
+}
+
+History_Clear() {
+	# Keep source checkpoints so an explicit clear cannot re-import old syslog.
+	historyclearlock="${log_lock_held:-0}"
+	Acquire_Log_Lock || return 1
+	historyclearstatus="0"
+	if ! History_Ready || ! History_Write 'BEGIN IMMEDIATE; DELETE FROM events; DELETE FROM hours; COMMIT;'; then historyclearstatus="1"; fi
+	[ "$historyclearlock" = "1" ] || Release_Log_Lock
+	return "$historyclearstatus"
+}
+
 Archive_Block_Logs() {
 	# Pre-NTP records are deliberately left in the source log and are never copied
 	# into persistent Skynet history with an untrusted timestamp.
 	Time_Is_Ready || return 0
 	Acquire_Log_Lock || return 1
+	History_Collect
+	archivehistorystatus="$?"
+	if [ "$archivehistorystatus" != "3" ]; then
+		Release_Log_Lock
+		return "$archivehistorystatus"
+	fi
 	archivefailed="0"
 	archiverewritten="0"
 	archiverecords="$TMP_DIR/archive-records.$$"
@@ -8468,6 +9167,8 @@ Archive_Block_Logs() {
 }
 
 Enforce_Log_Limit_Locked() {
+	if History_Ready; then History_Prune; return "$?"; fi
+	[ ! -e "${skynetloc}/history.db" ] && [ ! -L "${skynetloc}/history.db" ] || return 1
 	log_kb="$(du -k "$skynetlog" 2>/dev/null | cut -f1)" || log_kb="0"
 	log_kb="${log_kb:-0}"
 	log_kb_limit="$((logsize * 1024))"
@@ -8494,6 +9195,8 @@ Enforce_Log_Limit() {
 }
 
 Housekeep_Syslog() {
+	# Cursor-based collection leaves source rotation and retention to the logger.
+	[ ! -f "${skynetloc}/history.db" ] || return 0
 	logcounts="$(awk '
 		/Skynet: \[i\] Startup Initiated/ { starts++ }
 		/Skynet: \[i\] Restarting Firewall Service/ { restarts++ }
@@ -8524,54 +9227,6 @@ Housekeep_Syslog() {
 	fi
 }
 
-Prune_IOT_Device_Logs() {
-	# Match source addresses against the removed IPv4/CIDR batch in one log scan.
-	# Prefix-indexed networks avoid scanning every removed device for each packet.
-	[ -n "$1" ] && [ -e "$skynetlog" ] || return 0
-	[ -f "$skynetlog" ] || return 1
-	Acquire_Log_Lock || return 1
-	iotlogwork="$TMP_DIR/iot-prune.$$"
-	iotlogtmp="${skynetlog}.tmp.$$"
-	iotlogstatus="0"
-	if ! awk -v entries="$1" '
-		function address(value, octets, count, i, number) {
-			if (value !~ /^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/) return -1
-			count=split(value,octets,"."); number=0
-			for(i=1;i<=count;i++) {
-				if(octets[i]>255) return -1
-				number=number*256+octets[i]
-			}
-			return number
-		}
-		BEGIN {
-			count=split(entries,items,/[[:space:]]+/)
-			for(i=1;i<=count;i++) {
-				if(items[i]=="") continue
-				parts=split(items[i],cidr,"/"); prefix=parts==1 ? 32 : cidr[2]
-				number=address(cidr[1])
-				if(parts>2 || number<0 || prefix !~ /^[0-9]+$/ || prefix>32) exit 1
-				width=2^(32-prefix); widths[prefix]=width
-				networks[prefix,int(number/width)]=1
-			}
-		}
-		{
-			if(index($0,"[BLOCKED - IOT]") && match($0,/[[:space:]]SRC=[^[:space:]]+/)) {
-				number=address(substr($0,RSTART+5,RLENGTH-5))
-				if(number>=0) for(prefix in widths)
-					if((prefix SUBSEP int(number/widths[prefix])) in networks) next
-			}
-			print
-		}
-	' "$skynetlog" > "$iotlogwork"; then
-		iotlogstatus="1"
-	elif ! cmp -s "$iotlogwork" "$skynetlog"; then
-		cp -f "$iotlogwork" "$iotlogtmp" && chmod 600 "$iotlogtmp" \
-			&& mv -f "$iotlogtmp" "$skynetlog" || iotlogstatus="1"
-	fi
-	rm -f "$iotlogwork" "$iotlogtmp"
-	Release_Log_Lock
-	return "$iotlogstatus"
-}
 
 Purge_Logs() {
 	Archive_Block_Logs || return 1
@@ -9232,8 +9887,6 @@ Apply_WebUI_Rules() {
 					webuirulepersisted="1"
 					webuirulecovered="0"
 					for webuiruleentry in $webuiruleentries; do
-						webuirulepattern="$(printf '%s\n' "$webuiruleentry" | sed 's/\./\\./g')"
-						sed -i "\\~BLOCKED.*=$webuirulepattern ~d" "$skynetlog"
 						if printf '%s\n' "$webuiruleentry" | Is_IP; then webuiruleentrytype="ip"; else webuiruleentrytype="range"; fi
 						Ban_Value_Is_Covered "$webuiruleentrytype" "$webuiruleentry" && webuirulecovered="1"
 					done
@@ -9533,22 +10186,8 @@ Apply_WebUI_IOT() {
 		return 1
 	fi
 	nocfg="1"
-	iotweblogstatus="0"
-	iotremovedentries=""
-	while read -r iotoldaction _iotoldset iotoldentry _iotoldtail; do
-		[ "$iotoldaction" = "add" ] || continue
-		case " $webuiiotentries " in
-			*" $iotoldentry "*) ;;
-			*) iotremovedentries="${iotremovedentries}${iotremovedentries:+ }$iotoldentry" ;;
-		esac
-	done < "$iotwebsnapshot" || iotweblogstatus="1"
-	Prune_IOT_Device_Logs "$iotremovedentries" || iotweblogstatus="1"
 	rm -f "$iotwebsnapshot"
 	settingsresult="success"
-	if [ "$iotweblogstatus" != "0" ]; then
-		Log error -s "Failed To Prune Removed IoT Device Logs"
-		settingsresult="save"
-	fi
 	Queue_Action success iot update isolation "configuration" \
 		"${webuiiotentries:-no devices}" "Blocking $webuiiotblocked; logging $webuiiotlogging; ports ${webuiiotports:-UDP/123}; protocol $webuiiotproto" \
 		|| { Log error -s "Failed To Queue IoT Action"; settingsresult="save"; }
@@ -9714,9 +10353,6 @@ Dispatch_Unban() {
 			[ "$unbanstatus" = "0" ] || { echo; exit 1; }
 			Queue_Action success rules remove ban ip "$unbanlist" "" || Log error -s "Failed To Queue Rule Action"
 			for unbanentry in $unbanlist; do
-				sed -i "\\~BLOCKED.*=$unbanentry ~d" "$skynetlog"
-			done
-			for unbanentry in $unbanlist; do
 				if Ban_Value_Is_Covered ip "$unbanentry"; then echo "[!] $unbanentry Remains Covered By Another Rule"; fi
 			done
 			return 0
@@ -9732,9 +10368,6 @@ Dispatch_Unban() {
 			if [ "$unbanstatus" = "2" ]; then echo "[*] Manual Range Rule Not Found"; echo; exit 2; fi
 			[ "$unbanstatus" = "0" ] || { echo; exit 1; }
 			Queue_Action success rules remove ban range "$unbanlist" "" || Log error -s "Failed To Queue Rule Action"
-			for unbanentry in $unbanlist; do
-				sed -i "\\~BLOCKED.*=$unbanentry ~d" "$skynetlog"
-			done
 			for unbanentry in $unbanlist; do
 				if Ban_Value_Is_Covered range "$unbanentry"; then echo "[!] $unbanentry Remains Covered By Another Rule"; fi
 			done
@@ -9821,7 +10454,6 @@ Dispatch_Unban() {
 			echo "[i] Removing All Non-Manual Bans"
 			Remove_Automatic_Bans all "" \
 				|| { echo "[*] Failed To Remove Non-Manual Bans - Existing Bans Retained"; echo; exit 1; }
-			sed -i '\~Manual ~!d' "$skynetlog"
 			iptables -Z PREROUTING -t raw
 			Queue_Action success rules remove ban automatic "non-manual bans" "" || Log error -s "Failed To Queue Rule Action"
 			nocfg="1"
@@ -9831,7 +10463,6 @@ Dispatch_Unban() {
 			echo "[i] Removing All $((blacklist1count + blacklist2count)) Entries From Blacklist"
 			Clear_All_Bans || { echo "[*] Failed To Clear Blacklist - Existing Rules Retained"; echo; exit 1; }
 			iptables -Z PREROUTING -t raw
-			true > "$skynetlog"
 			Queue_Action success rules remove ban all "all blacklist entries" "" || Log error -s "Failed To Queue Rule Action"
 			return 0
 		;;
@@ -10829,10 +11460,6 @@ Dispatch_Whitelist() {
 			if [ "$rulestagechanged" -gt "0" ]; then
 				Queue_Action success rules add whitelist "$whitelistentrytype" "$whitelistlist" "$desc" || Log error -s "Failed To Queue Rule Action"
 			fi
-			for whitelistentry in $whitelistlist; do
-				sed -i "\\~=$whitelistentry ~d" "$skynetlog" \
-					|| Log error -s "Failed To Remove Old Logs For $whitelistentry"
-			done
 			return 0
 		;;
 		domain)
@@ -10909,7 +11536,6 @@ Dispatch_Whitelist() {
 					whiteliststatus="$?"
 					if [ "$whiteliststatus" = "2" ]; then echo "[*] Manual Whitelist Rule Not Found"; echo; exit 2; fi
 					[ "$whiteliststatus" = "0" ] || { echo; exit 1; }
-					sed -i "\\~=$4 ~d" "$skynetlog"
 					if printf '%s\n' "$4" | Is_Range; then whitelisttype="range"; else whitelisttype="ip"; fi
 					Queue_Action success rules remove whitelist "$whitelisttype" "$4" "" || Log error -s "Failed To Queue Rule Action"
 					return 0
@@ -11808,11 +12434,6 @@ Settings_IOT() {
 				if ! printf '%s\n' "$iotentry" | Is_IPRange; then echo "[*] $iotentry Is Not A Valid IP/Range"; echo; exit 2; fi
 			done
 			Update_IPSet_Batch del Skynet-IOT "" "$iotlist" || { echo; exit 1; }
-			if ! Prune_IOT_Device_Logs "$iotlist"; then
-				Save_IPSets || Log error -s "Failed To Save Removed IoT Devices"
-				Log error -s "IoT Devices Removed - Failed To Prune Device Logs"
-				return 1
-			fi
 			echo "[i] IoT Device List Updated"
 		;;
 		ban)
@@ -12111,6 +12732,45 @@ Dispatch_Settings() {
 		}
 }
 
+Apply_WebUI_Backup() {
+	# Reuse the CLI archive and its state lock. Never add a raw .tar.gz web link.
+	settingsresult="error"
+	if Run_WebUI_Command debug backup; then
+		if ln -sf "${skynetloc}/Skynet-Backup.tar.gz" /www/user/skynet/backup.cab; then
+			settingsresult="success"
+		else
+			Log error "Backup Created But WebUI Download Could Not Be Mounted"
+		fi
+	fi
+	Publish_WebUI_Result
+}
+
+Apply_WebUI_Restore() {
+	settingsresult="validation"
+	webuirestorecreated="$(am_settings_get skynet_backup_created)"
+	webuirestoreid="$(am_settings_get skynet_backup_id)"
+	Resolve_Backup_Point "$webuirestoreid" || { Publish_WebUI_Result; return 2; }
+	case "$webuirestorecreated" in ""|0|*[!0-9]*) Publish_WebUI_Result; return 2 ;; esac
+	[ "${#webuirestorecreated}" -le 12 ] || { Publish_WebUI_Result; return 2; }
+	webuirestoreoutput="$TMP_DIR/webui-restore-output"
+	if (export SKYNET_BACKUP_CREATED="$webuirestorecreated" SKYNET_BACKUP_ID="$webuirestoreid"; Run_WebUI_Command debug restore) > "$webuirestoreoutput" 2>&1; then
+		settingsresult="success"
+	else
+		webuirestorestatus="$?"
+		settingsresult="error"
+		if grep -qE 'Lock File Detected|Lock file busy' "$webuirestoreoutput"; then settingsresult="busy"
+		elif [ "$webuirestorestatus" = "2" ]; then settingsresult="validation"
+		fi
+		grep '^\[\*\]' "$webuirestoreoutput" | while IFS= read -r webuirestoreline; do Log error "${webuirestoreline#"[*] "}"; done
+		Log error "WebUI Backup Restore Failed (exit $webuirestorestatus)"
+	fi
+	rm -f "$webuirestoreoutput"
+	# The worker may have replaced configuration or rolled it back. Publish the
+	# installed values, not the parent process's pre-restore settings.
+	Load_Config fresh || return 1
+	Publish_WebUI_Result
+}
+
 Dispatch_WebUI() {
 	SKYNET_ACTION_ORIGIN="webui"
 	# Only this dispatcher publishes completion for the submitted request.
@@ -12152,6 +12812,15 @@ Dispatch_WebUI() {
 			nocfg="1"
 			settingsresult="success"
 			Generate_WebUI_Settings
+		;;
+		SkynetBackup)
+			Apply_WebUI_Backup
+		;;
+		SkynetRestore)
+			Apply_WebUI_Restore
+		;;
+		SkynetHistory)
+			Apply_WebUI_History
 		;;
 		SkynetBanMalware|banmalware)
 			Apply_WebUI_Threat_Feeds
@@ -12313,8 +12982,10 @@ Debug_Info() {
 	printf '╚══════════════════════╧════════════════════════════════════════════════════════════════════════════════════╝\n\n\n'
 	printf '╔═════════════════════ Logging ═════════════════════════════════════════════════════════════════════════════╗\n'
 	printf '║ %-20s │ %-82s ║\n' "Syslog Locations" "$syslogloc $syslog1loc"
-	printf '║ %-20s │ %-82s ║\n' "Skynet Log"       "${skynetlog}"
-	SZ="$(du -h "${skynetlog}" | awk '{print $1}')"
+	debuglogdisplay="$skynetlog"
+	[ ! -f "${skynetloc}/history.db" ] || debuglogdisplay="${skynetloc}/history.db"
+	printf '║ %-20s │ %-82s ║\n' "Skynet Log"       "$debuglogdisplay"
+	SZ="$(du -h "$debuglogdisplay" | awk '{print $1}')"
 	printf '║ └── %-16s │ %-82s ║\n' "Used/Total" "$SZ / ${logsize}MB"
 	if [ -n "$countrylist" ]; then
 		countries="$countrylist"
@@ -12513,6 +13184,11 @@ Debug_Generate_Stats() {
 }
 
 Debug_Clean() {
+	if [ -f "${skynetloc}/history.db" ]; then
+		Archive_Block_Logs || return 1
+		echo "[i] History Collected - Syslog Retention Is Managed By The Logger"
+		return 0
+	fi
 	echo "[i] Cleaning Syslog Entries"
 	Purge_Logs "all"
 	sed -i '\~Skynet: \[%\] ~d' "$syslog1loc" "$syslogloc" 2>/dev/null
@@ -12548,29 +13224,138 @@ Debug_Swap() {
 	esac
 }
 
+Backup_History_Database() {
+	# SQLite creates a consistent snapshot even if another reader is active.
+	# The short log lock prevents collection while the backup is being captured.
+	backuphistorylock="${log_lock_held:-0}"
+	[ ! -L "${skynetloc}/history.db" ] && [ ! -L "$1" ] || return 1
+	Acquire_Log_Lock || return 1
+	backuphistorystatus="0"
+	printf '.bail on\n.timeout 5000\n.backup "%s"\n' "$1" \
+		| History_SQLite -batch "${skynetloc}/history.db" >/dev/null || backuphistorystatus="1"
+	[ "$backuphistorylock" = "1" ] || Release_Log_Lock
+	return "$backuphistorystatus"
+}
+
+Validate_History_Backup() {
+	# Treat uploaded SQLite schemas as untrusted data. Views, triggers and virtual
+	# tables are not part of the history contract and must never execute on restore.
+	[ -f "$1" ] && [ ! -L "$1" ] || return 1
+	backuphistorycheck="$(History_SQLite -readonly -batch "$1" "PRAGMA trusted_schema=OFF; PRAGMA user_version; PRAGMA integrity_check;
+SELECT count(*) FROM sqlite_master WHERE (type='table' AND name IN ('events','hours','meta','cursors','sqlite_sequence') AND upper(sql) NOT LIKE '%VIRTUAL%') OR (type='index' AND tbl_name IN ('events','hours','meta','cursors'));
+SELECT count(*) FROM sqlite_master;
+SELECT value FROM meta WHERE key='active';")" || return 1
+	printf '%s\n' "$backuphistorycheck" | awk 'NR==1 && $0!="1" {bad=1} NR==2 && $0!="ok" {bad=1} NR==3 {allowed=$1} NR==4 && $1!=allowed {bad=1} NR==5 && $0!="1" {bad=1} END {exit bad || NR!=5}' || return 1
+	History_SQLite -readonly -batch "$1" "PRAGMA trusted_schema=OFF;
+SELECT id,ts,kind,src,dst,proto,sport,dport,len,inif,outif,mac,flags,icmp_type,icmp_code FROM events LIMIT 0;
+SELECT hour,kind,hits,bytes FROM hours LIMIT 0;
+SELECT identity,position,anchor_size,anchor,checked FROM cursors LIMIT 0;" >/dev/null || return 1
+	backuphistoryinvalid="$(History_SQLite -readonly -batch "$1" "PRAGMA trusted_schema=OFF;
+SELECT 'invalid' FROM events WHERE typeof(id)!='integer' OR typeof(ts)!='integer' OR ts<0 OR typeof(kind)!='integer' OR kind NOT IN (1,2,3,4) OR typeof(src)!='integer' OR src<0 OR src>4294967295 OR typeof(dst)!='integer' OR dst<0 OR dst>4294967295 OR typeof(proto)!='integer' OR proto<0 OR proto>255 OR (sport IS NOT NULL AND (typeof(sport)!='integer' OR sport<0 OR sport>65535)) OR (dport IS NOT NULL AND (typeof(dport)!='integer' OR dport<0 OR dport>65535)) OR typeof(len)!='integer' OR len<0 OR typeof(flags)!='integer' OR flags<0 OR flags>255 LIMIT 1;
+SELECT 'invalid' FROM hours WHERE typeof(hour)!='integer' OR hour<0 OR typeof(kind)!='integer' OR kind NOT IN (1,2,3,4) OR typeof(hits)!='integer' OR hits<0 OR typeof(bytes)!='integer' OR bytes<0 LIMIT 1;
+SELECT 'invalid' FROM sqlite_sequence WHERE name!='events' OR typeof(seq)!='integer' OR seq<0 LIMIT 1;
+SELECT 'invalid' FROM cursors WHERE typeof(position)!='integer' OR position<0 OR typeof(anchor_size)!='integer' OR anchor_size<0 OR anchor_size>256 OR typeof(checked)!='integer' OR checked<0 LIMIT 1;")" || return 1
+	[ -z "$backuphistoryinvalid" ]
+}
+
+Resolve_Backup_Point() {
+	# Only generated IDs are accepted, never browser-supplied paths. The digest
+	# distinguishes archives created in the same second and binds an ID to content.
+	if [ "$1" = latest ]; then backuplocation="${skynetloc}/Skynet-Backup.tar.gz"
+	else
+		backupidepoch="${1%%-*}"; backupidhash="${1#*-}"
+		case "$backupidepoch" in ""|*[!0-9]*) return 2 ;; esac
+		case "$backupidhash" in ""|*[!0-9a-f]*) return 2 ;; esac
+		[ "${#backupidepoch}" -le 12 ] && [ "${#backupidhash}" = 32 ] || return 2
+		[ ! -L "${skynetloc}/backups" ] || return 2
+		backuplocation="${skynetloc}/backups/Skynet-Backup-$1.tar.gz"
+	fi
+	[ -s "$backuplocation" ] && [ ! -L "$backuplocation" ] || return 2
+}
+
+List_Backup_Points() {
+	[ ! -L "${skynetloc}/backups" ] || return 1
+	for backuplistfile in "${skynetloc}/backups/Skynet-Backup-"*.tar.gz; do
+		backuplistid="${backuplistfile##*/Skynet-Backup-}"; backuplistid="${backuplistid%.tar.gz}"
+		if Resolve_Backup_Point "$backuplistid"; then printf '%s\n' "$backuplistid"; fi
+	done | sort -t- -k1,1nr
+}
+
+Preserve_Backup_Point() {
+	[ -s "$1" ] && [ ! -L "$1" ] && [ ! -L "${skynetloc}/backups" ] || return 1
+	mkdir -p "${skynetloc}/backups" && chmod 700 "${skynetloc}/backups" || return 1
+	backuppointepoch="$(date -r "$1" +%s)" || return 1
+	backuppointhash="$(md5sum "$1")" || return 1
+	backuppointid="$backuppointepoch-${backuppointhash%% *}"
+	backuppointfile="${skynetloc}/backups/Skynet-Backup-$backuppointid.tar.gz"
+	if [ -e "$backuppointfile" ] || [ -L "$backuppointfile" ]; then
+		[ ! -L "$backuppointfile" ] && cmp -s "$1" "$backuppointfile"
+		return "$?"
+	fi
+	# Hard links retain a point without copying the latest archive's data blocks.
+	# Filesystems without hard links use a checked, same-directory atomic copy.
+	if ! ln "$1" "$backuppointfile" 2>/dev/null; then
+		backuppointtmp="$backuppointfile.tmp.$$"
+		cp -p "$1" "$backuppointtmp" && mv -f "$backuppointtmp" "$backuppointfile" || return 1
+	fi
+}
+
+Prune_Backup_Points() {
+	List_Backup_Points > "$TMP_DIR/backup-points" || return 1
+	backuppointcount=0
+	while IFS= read -r backuppruneid; do
+		backuppointcount=$((backuppointcount + 1))
+		[ "$backuppointcount" -gt 3 ] || continue
+		Resolve_Backup_Point "$backuppruneid" || return 1
+		rm -f "$backuplocation" || return 1
+		if [ "$(readlink "/www/user/skynet/backup-$backuppruneid.cab")" = "$backuplocation" ]; then
+			rm -f "/www/user/skynet/backup-$backuppruneid.cab" || return 1
+		fi
+	done < "$TMP_DIR/backup-points"
+}
+
 Debug_Backup() {
 	Check_Lock "$@"
 	Require_Running
+	Require_Time
 	Purge_Logs || return 1
 	echo "[i] Saving Changes"
 	Require_Save_IPSets
 	echo "[i] Backing Up Skynet Related Files"
 	echo
-	set -- skynet.ipset skynet.log skynet.cfg
+	set -- skynet.ipset skynet.cfg
+	if [ ! -f "${skynetloc}/history.db" ] && [ -f "$skynetlog" ]; then set -- "$@" skynet.log; fi
 	[ ! -f "$skynetevents" ] || set -- "$@" events.log
 	[ ! -f "$skynetrules" ] || set -- "$@" skynet.rules
 	[ ! -d "${skynetloc}/lists" ] || set -- "$@" lists
+	# BusyBox tar has one working directory for the entire archive. Stage the
+	# selected files beside the consistent SQLite snapshot in private RAM storage.
+	mkdir -m 700 "$TMP_DIR/backup" || return 1
+	for backupfile in "$@"; do
+		cp -a "${skynetloc}/$backupfile" "$TMP_DIR/backup/" || { Log error "Unable To Stage Backup Files"; return 1; }
+	done
+	if [ -f "${skynetloc}/history.db" ]; then
+		Backup_History_Database "$TMP_DIR/backup/history.db" && Validate_History_Backup "$TMP_DIR/backup/history.db" \
+			|| { Log error "Unable To Prepare History Backup"; return 1; }
+		set -- "$@" history.db
+	fi
 	backuptmp="${skynetloc}/Skynet-Backup.tar.gz.tmp.$$"
+	if [ -e "${skynetloc}/Skynet-Backup.tar.gz" ]; then
+		Preserve_Backup_Point "${skynetloc}/Skynet-Backup.tar.gz" || { Log error "Unable To Retain Previous Backup"; return 1; }
+	fi
 	# Publish only a complete archive; failed writes never replace a good backup.
-	if ! tar -czf "$backuptmp" -C "${skynetloc}" "$@" \
-		|| ! tar -tzf "$backuptmp" >/dev/null || ! chmod 600 "$backuptmp" \
+	if ! tar -czf "$backuptmp" -C "$TMP_DIR/backup" "$@" \
+		|| ! Validate_Backup_Archive "$backuptmp" || ! chmod 600 "$backuptmp" \
+		|| ! Preserve_Backup_Point "$backuptmp" \
 		|| ! mv -f "$backuptmp" "${skynetloc}/Skynet-Backup.tar.gz"; then
 		rm -f "$backuptmp"
-		echo "[*] Failed To Create Backup"; echo; return 1
+		Log error "Failed To Create Backup"; echo; return 1
 	fi
+	Prune_Backup_Points || { Log error "Backup Saved But Old Restore Points Could Not Be Removed"; return 1; }
 	echo
 	echo "[i] Backup Saved To ${skynetloc}/Skynet-Backup.tar.gz"
 	echo "[i] Copy This File To A Safe Location"
+	Queue_Action success system update backup archive "Skynet-Backup-$backuppointid.tar.gz" "" || return 1
 }
 
 Validate_Backup_Archive() {
@@ -12579,7 +13364,7 @@ Validate_Backup_Archive() {
 	tar -tzf "$1" > "$TMP_DIR/backup-names.$$" 2>/dev/null \
 		&& tar -tvzf "$1" > "$TMP_DIR/backup-types.$$" 2>/dev/null || return 1
 	awk '
-		/^skynet\.(cfg|ipset|log|rules)$/ || /^events\.log$/ {next}
+		/^skynet\.(cfg|ipset|log|rules)$/ || /^events\.log$/ || /^history\.db$/ {next}
 		/^lists\/$/ || /^lists\/[A-Za-z0-9_.\/-]+$/ {
 			if ($0 ~ /(^|\/)\.\.?(\/|$)/ || $0 ~ /\/\//) exit 1
 			next
@@ -12593,6 +13378,7 @@ Validate_Backup_Archive() {
 
 Validate_Backup_Data() {
 	backupvalidate="$1"
+	if [ -f "$backupvalidate/history.db" ]; then Validate_History_Backup "$backupvalidate/history.db" || return 1; fi
 	# Config is sourced on startup. Accept only generated quoted assignments;
 	# dollars, backticks, quotes and backslashes must be escaped within values.
 	awk '
@@ -12717,6 +13503,11 @@ Rollback_Backup_Restore() {
 	trap '' INT TERM
 	backuprestoreactive="0"
 	backuprestorestatus="0"
+	if ! Acquire_Log_Lock; then
+		backuprestorepreserve="1"
+		Log error -s "Unable To Lock Firewall History - Recovery Files Retained ($backuprestoredir/old)"
+		return 1
+	fi
 	# Copy rather than move the originals: a later kernel or filesystem failure
 	# must leave a complete recovery copy, not only the components still pending.
 	for backupitem in $backupreplaced; do
@@ -12725,6 +13516,7 @@ Rollback_Backup_Restore() {
 			cp -a "$backuprestoredir/old/$backupitem" "${skynetloc}/$backupitem" || backuprestorestatus="1"
 		fi
 	done
+	Release_Log_Lock
 	if [ "$backuprestorestatus" = "0" ] && [ "$backuprestoretouched" = "1" ]; then
 		if ! Unload_Skynet_Firewall_Rules || ! Unload_IPSets; then backuprestorestatus="1"
 		elif [ "$backuprestorewasactive" = "1" ]; then
@@ -12747,6 +13539,25 @@ Debug_Restore() {
 	nocfg="1"
 	nolog="2"
 	backuplocation="${skynetloc}/Skynet-Backup.tar.gz"
+	if [ -n "$3" ]; then Resolve_Backup_Point "$3" || { echo "[*] Backup Point Not Found"; return 2; }; fi
+	# A WebUI confirmation applies only to the archive displayed to that user.
+	# Check under the state lock so another backup cannot replace it mid-restore.
+	if [ "${SKYNET_ACTION_ORIGIN:-}" = "webui" ]; then
+		Resolve_Backup_Point "$SKYNET_BACKUP_ID" || { echo "[*] Backup Point Not Found - Reload Backup Details"; return 2; }
+		case "$SKYNET_BACKUP_CREATED" in ""|0|*[!0-9]*) echo "[*] Backup Confirmation Is Missing"; return 2 ;; esac
+		if [ ! -s "$backuplocation" ] || [ -L "$backuplocation" ] \
+			|| [ "$(date -r "$backuplocation" +%s)" != "$SKYNET_BACKUP_CREATED" ]; then
+			echo "[*] Backup Has Changed Or Is Unavailable - Reload Backup Details"; return 2
+		fi
+	fi
+	backuprestoreid="${3:-latest}"
+	[ "${SKYNET_ACTION_ORIGIN:-}" != "webui" ] || backuprestoreid="$SKYNET_BACKUP_ID"
+	if [ "$backuprestoreid" != latest ]; then
+		backuprestorehash="$(md5sum "$backuplocation")" || return 1
+		if [ "${backuprestorehash%% *}" != "${backuprestoreid#*-}" ]; then
+			echo "[*] Backup Point Content Has Changed - Restore Rejected"; return 2
+		fi
+	fi
 	if [ ! -f "$backuplocation" ]; then
 		Prompt_Typed "backuplocation" "Location" "[*] Skynet Backup Doesn't Exist In Expected Path, Please Provide Location"
 		if [ ! -f "$backuplocation" ]; then
@@ -12754,6 +13565,7 @@ Debug_Restore() {
 			echo; exit 2
 		fi
 	fi
+	backuprestorename="${backuplocation##*/}"
 	echo "[i] Restoring Skynet Backup"
 	echo
 	Validate_Backup_Archive "$backuplocation" || { echo "[*] Backup Archive Is Invalid Or Contains Unsupported Files"; return 2; }
@@ -12765,6 +13577,11 @@ Debug_Restore() {
 		rm -rf "$backuprestoredir"
 		echo "[*] Backup Data Is Invalid - Existing Installation Retained"
 		return 2
+	fi
+	if [ "${SKYNET_ACTION_ORIGIN:-}" = "webui" ] \
+		&& ! grep -qxF 'displaywebui="enabled"' "$backuprestoredir/new/skynet.cfg"; then
+		rm -rf "$backuprestoredir"
+		echo "[*] This Backup Disables The WebUI - Restore It Through SSH"; return 2
 	fi
 	Purge_Logs || { rm -rf "$backuprestoredir"; return 1; }
 	backuprestorewasactive="0"
@@ -12786,12 +13603,14 @@ Debug_Restore() {
 	backuprestoreactive="1"
 	backupreplaced=""
 	backupstatus="0"
+	if ! Acquire_Log_Lock; then backuprestoreactive="0"; rm -rf "$backuprestoredir"; return 1; fi
 	trap '' INT TERM
-	for backupitem in skynet.cfg skynet.ipset skynet.log skynet.rules lists; do
+	for backupitem in skynet.cfg skynet.ipset skynet.log skynet.rules lists history.db; do
 		if { [ -e "${skynetloc}/$backupitem" ] || [ -L "${skynetloc}/$backupitem" ]; } && ! mv "${skynetloc}/$backupitem" "$backuprestoredir/old/$backupitem"; then backupstatus="1"; break; fi
 		backupreplaced="$backupitem $backupreplaced"
 		if [ -e "$backuprestoredir/new/$backupitem" ] && ! mv "$backuprestoredir/new/$backupitem" "${skynetloc}/$backupitem"; then backupstatus="1"; break; fi
 	done
+	Release_Log_Lock
 	if [ "$backupstatus" = "0" ]; then
 		# Pending state forces concurrent firewall-start events through the state
 		# lock rather than accepting the topology during replacement.
@@ -12811,7 +13630,7 @@ Debug_Restore() {
 	rm -rf "$backuprestoredir" || return 1
 	echo
 	echo "[i] Backup Restored"
-	Queue_Action success system restore backup archive "Skynet-Backup.tar.gz" "Configuration and firewall data restored" \
+	Queue_Action success system restore backup archive "$backuprestorename" "Configuration and firewall data restored" \
 		|| { Log error -s "Failed To Queue Restore Action"; return 1; }
 }
 
@@ -13029,6 +13848,15 @@ Dispatch_Install() {
 	Maintain_Script_Hooks firewall-start services-stop service-event post-mount unmount || { echo "[*] Failed To Maintain Script Hooks"; echo; exit 1; }
 	Clean_Legacy_WebUI_Files || { echo "[*] Failed To Remove Legacy WebUI Files"; echo; exit 1; }
 	if Swap_Required && ! Check_Swap; then Create_Swap || return 1; fi
+	if [ "${skynetloc}" != "${device}/skynet" ] && [ -f "${skynetloc}/history.db" ]; then
+		installhistorytmp="${device}/skynet/history.db.tmp.$$"
+		if ! Backup_History_Database "$installhistorytmp" || ! Validate_History_Backup "$installhistorytmp" \
+			|| ! chmod 600 "$installhistorytmp" || ! mv -f "$installhistorytmp" "${device}/skynet/history.db"; then
+			rm -f "$installhistorytmp"
+			echo "[*] Unable To Move Firewall History - Original Data Retained"
+			return 1
+		fi
+	fi
 	if [ -f "$skynetlog" ]; then mv "$skynetlog" "${device}/skynet/skynet.log"; fi
 	if [ -f "$skynetevents" ]; then mv "$skynetevents" "${device}/skynet/events.log"; fi
 	if [ -f "$skynetipset" ]; then mv "$skynetipset" "${device}/skynet/skynet.ipset"; fi
@@ -13039,6 +13867,14 @@ Dispatch_Install() {
 		mv "${skynetloc}/lists/rules" "${device}/skynet/lists/rules"
 	fi
 	if [ -f "${skynetloc}/Skynet-Backup.tar.gz" ]; then mv "${skynetloc}/Skynet-Backup.tar.gz" "${device}/skynet/Skynet-Backup.tar.gz"; fi
+	if [ "${skynetloc}" != "${device}/skynet" ] && [ -d "${skynetloc}/backups" ]; then
+		mkdir -p "${device}/skynet/backups" && chmod 700 "${device}/skynet/backups" || return 1
+		List_Backup_Points > "$TMP_DIR/backup-points" || return 1
+		while IFS= read -r backupmoveid; do
+			Resolve_Backup_Point "$backupmoveid" || return 1
+			cp -p "$backuplocation" "${device}/skynet/backups/" || return 1
+		done < "$TMP_DIR/backup-points"
+	fi
 	if [ "${skynetloc}" != "${device}/skynet" ]; then rm -rf "${skynetloc}"; fi
 	skynetloc="${device}/skynet"
 	skynetcfg="${device}/skynet/skynet.cfg"
@@ -13805,7 +14641,7 @@ Menu_Settings_IOT() {
 			"Unban Devices" \
 			"Ban Devices" \
 			"View IoT Device List" \
-			"Add Custom Allowed Ports" \
+			"Set Custom Allowed Ports" \
 			"Allow NTP Time Sync Only (Default)" \
 			"Block All WAN Ports" \
 			"Select Allowed Protocols" \
@@ -13861,7 +14697,7 @@ Menu_Settings() {
 			Show_Menu "Select Settings Category:" \
 				"Updates & Lists" \
 				"Protection" \
-				"IoT Isolation" \
+				"IoT WAN Blocking" \
 				"Logging & Statistics" \
 				"Integration & Advanced" \
 				"Exit"
@@ -13880,12 +14716,12 @@ Menu_Settings() {
 					case "$settingsitem" in 1) menu2="6" ;; 2) menu2="7" ;; 3) menu2="8" ;; 4) menu2="9" ;; 5) menu2="16" ;; e|exit|back|menu) continue ;; *) Invalid_Option "$settingsitem"; continue ;; esac
 				;;
 				3)
-					Show_Menu "IoT Isolation:" "IoT Devices & Blocking" "IoT Logging" "Exit"
+					Show_Menu "IoT WAN Blocking:" "Devices & WAN Access" "IoT Block Logging" "Exit"
 					Prompt_Input "1-2" settingsitem
 					case "$settingsitem" in 1) menu2="13" ;; 2) menu2="14" ;; e|exit|back|menu) continue ;; *) Invalid_Option "$settingsitem"; continue ;; esac
 				;;
 				4)
-					Show_Menu "Logging & Statistics:" "Logging" "Invalid Packet Logging" "Log Size" "Extended Statistics" "Syslog Locations" "Country Lookup" "Exit"
+					Show_Menu "Logging & Statistics:" "Packet Logging" "Invalid Packet Logging" "Log Size" "Extended Statistics" "Log Source & Paths" "Country Lookup" "Exit"
 					Prompt_Input "1-6" settingsitem
 					case "$settingsitem" in 1) menu2="3" ;; 2) menu2="4" ;; 3) menu2="5" ;; 4) menu2="10" ;; 5) menu2="12" ;; 6) menu2="15" ;; e|exit|back|menu) continue ;; *) Invalid_Option "$settingsitem"; continue ;; esac
 				;;
@@ -13896,17 +14732,17 @@ Menu_Settings() {
 			case "$menu2" in
 				1) Menu_Settings_Toggle "autoupdate" "Select Skynet Auto-Update Option:" ;;
 				2) Menu_Settings_Malware_Schedule ;;
-				3) Menu_Settings_Toggle "logmode" "Select Logging Option" ;;
-				4) Menu_Settings_Toggle "loginvalid" "Select Invalid Packet Logging Option" ;;
+				3) Menu_Settings_Toggle "logmode" "Select Packet Logging Option:" ;;
+				4) Menu_Settings_Toggle "loginvalid" "Select Invalid Packet Logging Option:" ;;
 				5) Menu_Settings_Log_Size ;;
 				6) Menu_Settings_Traffic_Filter ;;
 				7) Menu_Settings_Toggle "unbanprivate" "Select Unban Private IPs Option:" ;;
 				8) Menu_Settings_Toggle "banaiprotect" "Select AiProtection Ban Import Option:" ;;
-				9) Menu_Settings_Toggle "securemode" "Select Secure Mode Option" ;;
-				10) Menu_Settings_Toggle "extendedstats" "Select Extended Statistics Option" ;;
+				9) Menu_Settings_Toggle "securemode" "Select Secure Mode Option:" ;;
+				10) Menu_Settings_Toggle "extendedstats" "Select Extended Statistics Option:" ;;
 				12) Menu_Settings_Syslog ;;
 				13) Menu_Settings_IOT ;;
-				14) Menu_Settings_Toggle "iotlogging" "Select IoT Logging Option" ;;
+				14) Menu_Settings_Toggle "iotlogging" "Select IoT Block Logging Option:" ;;
 				15) Menu_Settings_Toggle "lookupcountry" "Select Country Lookup Option:" ;;
 				16) Menu_Settings_Toggle "cdnwhitelist" "Select CDN Whitelisting Option:" ;;
 				17) Menu_Settings_Toggle "webui" "Select WebUI Option:" ;;
@@ -13924,12 +14760,12 @@ Menu_Debug() {
 		option1="debug"
 		while true; do
 			Show_Menu "Select Debug Option:" \
-				"Show Log Entries As They Appear" \
-				"Print Debug Info" \
-				"Cleanup Syslog Entries" \
-				"SWAP File Management" \
-				"Backup Skynet Files" \
-				"Restore Skynet Files" \
+				"Watch Blocked Traffic" \
+				"System Diagnostics" \
+				"Clean Syslog" \
+				"Swap File Management" \
+				"Create Backup" \
+				"Restore Latest Backup" \
 				"Exit"
 			Prompt_Input "1-6" menu2
 			case "$menu2" in
@@ -13981,7 +14817,7 @@ Menu_Debug() {
 				4)
 					option2="swap"
 					while true; do
-						Show_Menu "Select SWAP Option:" \
+						Show_Menu "Select Swap Option:" \
 							"Install" \
 							"Uninstall" \
 							"Exit"
@@ -14125,7 +14961,7 @@ Menu_Stats_Search() {
 			"Search Malware Lists For IP" \
 			"Search Ban Reasons" \
 			"Search Manual Bans" \
-			"Recent WebUI Rule Actions" \
+			"Recent Activity" \
 			"Outbound Entries From A Local Device" \
 			"Hourly Reports" \
 			"Invalid Packets" \

@@ -620,6 +620,8 @@
             border-radius: 4px;
             background-color: #536970;
             color: #ffffff;
+            font-family: Arial, sans-serif;
+            font-size: var(--skynet-font-body);
             text-align: center;
             text-align-last: center;
             box-shadow: inset 0 1px 2px rgba(0,0,0,0.22);
@@ -1573,6 +1575,11 @@
             font-variant-numeric: tabular-nums;
         }
 
+        #FormTitle .skynet-rule-health-label {
+            color: var(--skynet-accent-muted) !important;
+            font-weight: bold;
+        }
+
         .skynet-action-header,
         .skynet-action-row {
             display: grid;
@@ -1693,11 +1700,180 @@
             font-variant-numeric: tabular-nums;
         }
 
+        .skynet-history-tools,
+        .skynet-history-footer,
+        .skynet-backup-controls {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 10px;
+        }
+
+        .skynet-history-tools input[type="text"] {
+            flex: 1 1 160px;
+            min-width: 0;
+        }
+
+        .skynet-backup-controls[hidden],
+        .skynet-backup-controls [hidden] {
+            display: none !important;
+        }
+
+        #skynetBackupConfirmText {
+            flex-basis: 100%;
+            line-height: 1.5;
+        }
+
+        #skynetBackupConfirmation {
+            justify-content: flex-end;
+            border-top: 1px solid var(--skynet-border-soft);
+        }
+
+        .skynet-settings-table #skynetBackupSelect {
+            flex: 0 1 280px;
+            width: 280px;
+            max-width: 100%;
+            min-width: 0;
+            text-align: left;
+            text-align-last: left;
+        }
+
+        .skynet-backup-buttons {
+            justify-content: flex-end;
+            padding-top: 0;
+        }
+
+        #FormTitle #skynetBackupResult {
+            padding: 0 10px 10px !important;
+        }
+
+        #skynetBackupResult:empty {
+            display: none;
+        }
+
+        .skynet-settings-table .skynet-history-tools select {
+            width: 145px;
+            max-width: 100%;
+        }
+
+        .skynet-history-footer > span,
+        .skynet-backup-controls > span {
+            flex: 1 1 200px;
+        }
+
+        #FormTitle .skynet-history-footer > span,
+        #FormTitle .skynet-backup-controls > span,
+        #FormTitle .skynet-domain-note {
+            padding: 0 !important;
+            border: 0 !important;
+            background: transparent !important;
+            color: var(--skynet-muted) !important;
+        }
+
+        .skynet-domain-details {
+            margin-top: 6px;
+            font-weight: normal;
+            font-family: Arial, sans-serif;
+            white-space: normal;
+            overflow-wrap: anywhere;
+        }
+
+        .skynet-block-filters {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            gap: 10px;
+            padding: 12px;
+        }
+
+        .skynet-block-filters label {
+            display: grid;
+            gap: 6px;
+            min-width: 0;
+            color: var(--skynet-muted);
+        }
+
+        .skynet-settings-table .skynet-block-filters select,
+        .skynet-settings-table .skynet-block-filters input {
+            width: 100%;
+            min-width: 0;
+            box-sizing: border-box;
+        }
+
+        .skynet-block-chart {
+            position: relative;
+            height: 220px;
+            margin: 8px 12px;
+        }
+
+        .skynet-block-row {
+            padding: 10px 12px;
+            border-top: 1px solid var(--skynet-border);
+            overflow-wrap: anywhere;
+        }
+
+        .skynet-block-row:nth-child(even) {
+            background: rgba(255, 255, 255, 0.025);
+        }
+
+        .skynet-block-row > summary {
+            display: grid;
+            grid-template-columns: minmax(145px, 1.2fr) minmax(70px, .6fr) repeat(2, minmax(115px, 1fr));
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            list-style: none;
+        }
+
+        .skynet-block-row > summary::-webkit-details-marker { display: none; }
+
+        #FormTitle .skynet-block-row span,
+        #FormTitle .skynet-block-note {
+            padding: 0 !important;
+            border: 0 !important;
+            background: transparent !important;
+            color: inherit !important;
+        }
+
+        .skynet-block-row time,
+        .skynet-block-row small,
+        .skynet-block-note {
+            display: block;
+            color: var(--skynet-muted);
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .skynet-block-row > p { margin: 10px 0 0; line-height: 1.6; }
+
+        @media (max-width: 700px) {
+            .skynet-block-row > summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+
+        .skynet-domain-details > summary {
+            cursor: pointer;
+            color: var(--skynet-accent-muted);
+        }
+
+        .skynet-domain-addresses {
+            margin: 8px 0;
+            line-height: 1.6;
+            font-family: monospace;
+            white-space: pre-line;
+            overflow-wrap: anywhere;
+        }
+
+        .skynet-domain-note {
+            display: block;
+            margin: 6px 0;
+            color: var(--skynet-muted);
+        }
+
         .skynet-action-timestamp {
             display: block;
             margin-top: 2px;
+            white-space: pre-line;
             color: var(--skynet-muted);
-            white-space: normal;
         }
 
         .skynet-action-relative {
@@ -1757,11 +1933,6 @@
 
         #FormTitle .skynet-action-detail {
             color: var(--skynet-muted) !important;
-        }
-
-        .skynet-action-list {
-            max-height: 220px;
-            overflow-y: auto;
         }
 
         #skynetRuleList {
@@ -2985,6 +3156,10 @@
                 ruleList: "skynetRuleList",
                 ruleHealth: "skynetRuleHealth",
                 ruleActivity: "skynetRuleActivity",
+                backupButton: "skynetCreateBackup",
+                backupDownload: "skynetDownloadBackup",
+                backupRestore: "skynetRestoreBackup",
+                backupResult: "skynetBackupResult",
                 ruleRefresh: "skynetRefreshRules",
                 ruleButton: "skynetApplyRule",
                 ruleResult: "skynetRuleStatus",
@@ -3000,11 +3175,46 @@
                 iotClear: "skynetClearIot",
                 iotResult: "skynetIotStatus",
                 settingsResult: "skynetSettingsResult",
+                blockHistoryButton: "skynetBlockRefresh",
+                blockHistoryResult: "skynetBlockStatus",
                 overviewTab: "skynetOverviewTab",
                 overviewView: "skynetOverviewView",
                 settingsView: "skynetSettingsView"
             },
             actionDefinitions: {
+                history: {
+                    button: "blockHistoryButton",
+                    result: "blockHistoryResult",
+                    label: "Refresh History",
+                    success: "History loaded.",
+                    failure: "Unable to read block history. Existing results were retained.",
+                    timeout: "History request did not complete. Try again.",
+                    loadError: "Unable to load block history.",
+                    source: "settings",
+                    requireSuccess: true
+                },
+                backup: {
+                    button: "backupButton",
+                    result: "backupResult",
+                    label: "Create Backup",
+                    success: "Backup created. Download a copy and keep it somewhere safe.",
+                    failure: "Unable to prepare a downloadable backup. Check the router log.",
+                    timeout: "Backup creation did not complete. Reload data before trying again.",
+                    loadError: "Unable to load backup details.",
+                    source: "settings",
+                    requireSuccess: true
+                },
+                restore: {
+                    button: "backupRestore",
+                    result: "backupResult",
+                    label: "Restore Backup",
+                    success: "Backup restored. Settings and rules are updated. Refresh Stats to rebuild the charts.",
+                    failure: "Unable to complete the restore. Check the router log before trying again.",
+                    timeout: "Restore has not been confirmed. Reload data and check the router log before retrying.",
+                    loadError: "Unable to confirm the restore. Check your WebUI session and reload data.",
+                    source: "settings",
+                    requireSuccess: true
+                },
                 stats: {
                     button: "updateButton",
                     result: "updateResult",
@@ -5194,7 +5404,7 @@
 
             if (Number.isFinite(updated) && updated > 0) {
                 status.textContent = "Last updated " +
-                    new Date(updated * 1000).toLocaleString();
+                    new Date(updated * 1000).toLocaleString(undefined, {hour12: true});
             } else {
                 status.textContent = "Last update not recorded";
             }
@@ -5327,12 +5537,12 @@
                 entries.textContent = SkynetUI.formatNumber(Number(feed.entries) || 0);
                 success.className = "skynet-feed-success";
                 successTime.textContent = Number(feed.success) > 0
-                    ? new Date(Number(feed.success) * 1000).toLocaleString()
+                    ? new Date(Number(feed.success) * 1000).toLocaleString(undefined, {hour12: true})
                     : "Never";
                 contentChange.className = "skynet-feed-change";
                 contentChange.textContent = SkynetUI.formatAge(feed.changed);
                 if (Number(feed.changed) > 0) {
-                    contentChange.title = new Date(Number(feed.changed) * 1000).toLocaleString();
+                    contentChange.title = new Date(Number(feed.changed) * 1000).toLocaleString(undefined, {hour12: true});
                 }
                 success.appendChild(successTime);
                 success.appendChild(contentChange);
@@ -5702,7 +5912,7 @@
                 date.textContent = pending
                     ? "After apply"
                     : (Number(source.success)
-                    ? new Date(Number(source.success) * 1000).toLocaleString()
+                    ? new Date(Number(source.success) * 1000).toLocaleString(undefined, {hour12: true})
                     : "Not checked");
                 date.title = date.textContent;
                 state.className = "skynet-country-health-state";
@@ -6043,6 +6253,36 @@
                     ? ruleValue
                     : (rule.display || ruleValue);
                 entry.title = entry.textContent;
+                if (String(rule.type).toLowerCase() === "domain") {
+                    const addresses = String(rule.resolved || "").trim().split(/\s+/).filter(Boolean);
+                    const details = document.createElement("details");
+                    const heading = document.createElement("summary");
+                    const note = document.createElement("span");
+                    details.className = "skynet-domain-details";
+                    heading.textContent = "Resolved IPs (" + Number(rule.count || 0) + ")";
+                    details.appendChild(heading);
+                    note.className = "skynet-domain-note";
+                    note.textContent = addresses.length
+                        ? (rule.state === "cached" ? "Cached addresses retained after a failed lookup." : "Addresses from the last successful lookup.")
+                        : (/^(current|cached)$/.test(rule.state) ? "Address cache unavailable. Refresh dynamic rules to check again." : "No active resolved addresses.");
+                    if (Number(rule.count) > addresses.length && addresses.length) {
+                        note.textContent += " Showing the first " + addresses.length + " of " + Number(rule.count) + ".";
+                    }
+                    details.appendChild(note);
+                    if (addresses.length) {
+                        const values = document.createElement("div");
+                        const copy = document.createElement("button");
+                        values.className = "skynet-domain-addresses";
+                        values.textContent = addresses.join("\n");
+                        copy.type = "button";
+                        copy.className = "button_gen skynet-update-button skynet-settings-reload";
+                        copy.textContent = "Copy IPs";
+                        copy.addEventListener("click", function() { SkynetUI.copyText(addresses.join("\n"), copy); });
+                        details.appendChild(values);
+                        details.appendChild(copy);
+                    }
+                    entry.appendChild(details);
+                }
                 comment.className = "skynet-rule-comment";
 				if (String(rule.type).toLowerCase() === "domain") {
 					const state = /^(current|cached|empty|expired|failed)$/.test(rule.state)
@@ -6057,9 +6297,9 @@
 						? SkynetUI.formatRelativeTime(rule.success)
 						: "Never resolved";
 					comment.title = "Last success: " + (Number(rule.success)
-						? new Date(Number(rule.success) * 1000).toLocaleString() : "Never") +
+						? new Date(Number(rule.success) * 1000).toLocaleString(undefined, {hour12: true}) : "Never") +
 						" | Last checked: " + (Number(rule.checked)
-							? new Date(Number(rule.checked) * 1000).toLocaleString() : "Never");
+							? new Date(Number(rule.checked) * 1000).toLocaleString(undefined, {hour12: true}) : "Never");
 					comment.appendChild(pill);
 					comment.appendChild(age);
 				} else if (temporary) {
@@ -6074,7 +6314,7 @@
                     remaining.textContent = (SkynetUI.isRuleTimeReady()
                         ? "" : "Pending time sync · ") +
                         SkynetUI.formatRuleRemaining(expires);
-                    comment.title = "Expires " + new Date(expires * 1000).toLocaleString();
+                    comment.title = "Expires " + new Date(expires * 1000).toLocaleString(undefined, {hour12: true});
                     comment.appendChild(detail);
                     comment.appendChild(remaining);
 				} else {
@@ -6168,12 +6408,97 @@
                 return ({enable: "Enabled", disable: "Disabled", add: "Added", remove: "Removed"}[operation] || "Updated") + " " + name;
             }
 			if (area === "iot") return "Updated IoT configuration";
+			if (area === "system" && operation === "update" && target === "backup") return "Created Skynet backup";
 			if (area === "system" && operation === "restore") {
 				if (target === "startup") return "Started Skynet";
 				if (target === "backup") return "Restored Skynet backup";
 			}
 			return [operation, target, type].filter(Boolean).join(" ");
 		};
+
+        SkynetUI.formatActionValues = function(action) {
+            let entries = String(action.entries || "");
+            if (action.area === "settings") {
+                if (action.operation === "enable" || action.operation === "disable") {
+                    entries = "";
+                } else if (action.target === "logsize" && /^\d+$/.test(entries)) {
+                    entries += " MB";
+                } else if (action.target === "filter") {
+                    entries = {all: "Inbound & Outbound", inbound: "Inbound Only", outbound: "Outbound Only"}[entries] || entries;
+                } else if (action.target === "banmalware") {
+                    entries = {daily: "Daily", weekly: "Weekly", disable: "Disabled"}[entries] || entries;
+                }
+            }
+            if (action.area === "feeds" &&
+                (entries === "enabled sources" || entries === "Malware blacklist")) entries = "";
+            const extra = String(action.detail || "").replace(/(^|; )expires ([0-9]+)$/i,
+                function(match, separator, epoch) {
+                    const expiry = new Date(Number(epoch) * 1000);
+                    return isNaN(expiry.getTime()) ? match
+                        : separator + "Expires " + expiry.toLocaleString(undefined, {hour12: true});
+                }).replace(/(\bExpir(?:es|ed) \d{2}\/\d{2}\/\d{4} \d{2}:\d{2}:\d{2}) (?![AP]M(?=;|$))(?:[A-Z]{2,6}|[+-]\d{2}(?::?\d{2})?)(?=;|$)/g, "$1")
+                // Stored expiry text is router-local; preserve its date when formatting the clock.
+                .replace(/(\bExpir(?:es|ed) \d{2}\/\d{2}\/\d{4} )(\d{2}):(\d{2}:\d{2})(\s*[ap]m)?/gi,
+                    function(match, date, hour, time, period) {
+                        if (period) return match;
+                        hour = Number(hour);
+                        return date + (hour % 12 || 12) + ":" + time + (hour < 12 ? " AM" : " PM");
+                    });
+            const countryEntries = entries.split(/\s+/).filter(Boolean);
+            if (action.area === "countries" && countryEntries.length &&
+                countryEntries.every(function(code) { return /^[a-z]{2}$/i.test(code); })) {
+                entries = countryEntries.map(function(code) {
+                    return SkynetUI.getCountryName(code) + " (" + code.toUpperCase() + ")";
+                }).join(", ");
+            }
+            return [entries, extra].filter(Boolean).join("; ");
+        };
+
+        SkynetUI.getFilteredActions = function() {
+            const area = this.getElement("skynetHistoryArea");
+            const result = this.getElement("skynetHistoryResult");
+            const search = this.getElement("skynetHistorySearch");
+            const query = search ? search.value.trim().toLowerCase() : "";
+            const actions = Array.isArray(window.SkynetActions) ? window.SkynetActions.slice(-200).reverse() : [];
+            return actions.filter(function(action) {
+                const text = [action.area, action.origin, action.result, action.time,
+                    SkynetUI.formatActionDetail(action), SkynetUI.formatActionValues(action)].join(" ").toLowerCase();
+                return (!area || !area.value || area.value === action.area) &&
+                    (!result || !result.value || result.value === action.result) &&
+                    (!query || text.indexOf(query) !== -1);
+            });
+        };
+
+        SkynetUI.downloadBlob = function(blob, name) {
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = name;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.setTimeout(function() { URL.revokeObjectURL(url); }, 30000);
+        };
+
+        SkynetUI.exportActionHistory = function() {
+            const rows = [["Time", "Origin", "Result", "Activity", "Details"]];
+            this.getFilteredActions().forEach(function(action) {
+                rows.push([Number(action.epoch) ? new Date(Number(action.epoch) * 1000)
+                    .toLocaleString(undefined, {hour12: true}) : action.time,
+                    action.origin, action.result, SkynetUI.formatActionDetail(action),
+                    SkynetUI.formatActionValues(action)]);
+            });
+            if (rows.length === 1) return;
+            const csv = rows.map(function(row) {
+                return row.map(function(value) {
+                    let text = String(value || "");
+                    // Quoting alone does not prevent spreadsheet formula evaluation.
+                    if (/^[\s]*[=+@-]/.test(text)) text = "'" + text;
+                    return '"' + text.replace(/"/g, '""') + '"';
+                }).join(",");
+            }).join("\r\n");
+            this.downloadBlob(new Blob(["\ufeff", csv], {type: "text/csv;charset=utf-8"}), "Skynet-Activity.csv");
+        };
 
         SkynetUI.renderRuleOverview = function() {
             const health = this.getElement(this.selectors.ruleHealth);
@@ -6183,9 +6508,20 @@
 			const domainTotal = Number(summary.domains || 0);
 			const asnTotal = Number(summary.asns || 0);
 			const healthTotal = domainTotal + asnTotal;
-			const actions = Array.isArray(window.SkynetActions)
-				? window.SkynetActions.slice().reverse().slice(0, 8)
-                : [];
+            const filteredActions = this.getFilteredActions();
+            const pages = Math.max(1, Math.ceil(filteredActions.length / 10));
+            this.actionPage = Math.min(this.actionPage || 0, pages - 1);
+            const actions = filteredActions.slice(this.actionPage * 10, (this.actionPage + 1) * 10);
+            const historySummary = window.SkynetActionSummary || {};
+            const count = this.getElement("skynetHistoryCount");
+            if (count) count.textContent = filteredActions.length + " matching · Page " + (this.actionPage + 1) + " of " + pages +
+                (Number(historySummary.total) > 200 ? " · Latest 200 of " + Number(historySummary.total) + " retained actions" : "");
+            const previous = this.getElement("skynetHistoryPrevious");
+            const next = this.getElement("skynetHistoryNext");
+            const exportButton = this.getElement("skynetHistoryExport");
+            if (previous) previous.disabled = this.actionPage === 0;
+            if (next) next.disabled = this.actionPage >= pages - 1;
+            if (exportButton) exportButton.disabled = !filteredActions.length;
 
             if (overview) {
                 overview.hidden = !summary.available || !healthTotal;
@@ -6194,6 +6530,7 @@
                 health.textContent = "";
                 if (summary.available && healthTotal) {
                     const label = document.createElement("span");
+                    label.className = "skynet-rule-health-label";
                     label.textContent = domainTotal ? "Domain health" : "Dynamic rules";
                     health.appendChild(label);
 					["current", "cached", "pending", "empty", "expired", "failed"].forEach(function(state) {
@@ -6216,7 +6553,7 @@
 						? "Checked " + SkynetUI.formatRelativeTime(summary.lastCheck)
                         : "Not checked yet";
 					checked.title = Number(summary.lastCheck)
-						? new Date(Number(summary.lastCheck) * 1000).toLocaleString() : "";
+						? new Date(Number(summary.lastCheck) * 1000).toLocaleString(undefined, {hour12: true}) : "";
                     health.appendChild(checked);
                 }
             }
@@ -6226,7 +6563,7 @@
             if (!actions.length) {
                 const empty = document.createElement("div");
                 empty.className = "skynet-feed-empty";
-                empty.textContent = "No actions have been recorded yet.";
+                empty.textContent = "No actions match the current filters.";
                 activity.appendChild(empty);
                 return;
             }
@@ -6236,34 +6573,6 @@
                 const result = document.createElement("span");
                 const summaryText = document.createElement("span");
                 const detail = document.createElement("span");
-                let entries = String(action.entries || "");
-                if (action.area === "settings") {
-                    if (action.operation === "enable" || action.operation === "disable") {
-                        entries = "";
-                    } else if (action.target === "logsize" && /^\d+$/.test(entries)) {
-                        entries += " MB";
-                    } else if (action.target === "filter") {
-                        entries = {all: "Inbound & Outbound", inbound: "Inbound Only", outbound: "Outbound Only"}[entries] || entries;
-                    } else if (action.target === "banmalware") {
-                        entries = {daily: "Daily", weekly: "Weekly", disable: "Disabled"}[entries] || entries;
-                    }
-                }
-                if (action.area === "feeds" &&
-                    (entries === "enabled sources" || entries === "Malware blacklist")) entries = "";
-                const extra = String(action.detail || "").replace(/(^|; )expires ([0-9]+)$/i,
-                    function(match, separator, epoch) {
-                        const expiry = new Date(Number(epoch) * 1000);
-                        return isNaN(expiry.getTime()) ? match
-                            : separator + "Expires " + expiry.toLocaleString();
-                    }).replace(/(\bExpir(?:es|ed) \d{2}\/\d{2}\/\d{4} \d{2}:\d{2}:\d{2}) (?:[A-Z]{2,6}|[+-]\d{2}(?::?\d{2})?)(?=;|$)/g, "$1");
-				const countryEntries = entries.split(/\s+/).filter(Boolean);
-
-				if (String(action.area || "") === "countries" && countryEntries.length &&
-					countryEntries.every(function(code) { return /^[a-z]{2}$/i.test(code); })) {
-					entries = countryEntries.map(function(code) {
-						return SkynetUI.getCountryName(code) + " (" + code.toUpperCase() + ")";
-					}).join(", ");
-				}
 
                 row.className = "skynet-action-row";
                 time.className = "skynet-action-time";
@@ -6274,14 +6583,15 @@
                     : String(action.time || "Unknown");
                 time.appendChild(relative);
 				time.title = [String(action.origin || ""), Number(action.epoch)
-					? new Date(Number(action.epoch) * 1000).toLocaleString()
+					? new Date(Number(action.epoch) * 1000).toLocaleString(undefined, {hour12: true})
 					: String(action.time || "")].filter(Boolean).join(" | ");
                 if (Number(action.epoch)) {
                     const timestamp = document.createElement("time");
                     const date = new Date(Number(action.epoch) * 1000);
                     timestamp.className = "skynet-action-timestamp";
                     timestamp.dateTime = date.toISOString();
-                    timestamp.textContent = date.toLocaleString();
+                    timestamp.textContent = date.toLocaleDateString() + "\n" +
+                        date.toLocaleTimeString(undefined, {hour12: true});
                     time.appendChild(timestamp);
                 }
                 result.className = "skynet-action-result " + action.result;
@@ -6298,7 +6608,7 @@
                 }[action.area] || "Other";
                 summaryText.title = summaryText.textContent;
                 detail.className = "skynet-action-detail";
-                const values = [entries, extra].filter(Boolean).join("; ");
+                const values = SkynetUI.formatActionValues(action);
                 detail.textContent = SkynetUI.formatActionDetail(action) + (values ? ": " + values : "");
                 detail.title = detail.textContent;
                 row.appendChild(time);
@@ -6307,6 +6617,126 @@
                 row.appendChild(detail);
                 activity.appendChild(row);
             });
+        };
+
+        SkynetUI.getSelectedBackup = function() {
+            const picker = this.getElement("skynetBackupSelect");
+            return (window.SkynetBackups || []).find(function(backup) { return picker && backup.id === picker.value; });
+        };
+
+        SkynetUI.populateBackup = function() {
+            const picker = this.getElement("skynetBackupSelect");
+            const previous = picker.value;
+            const backups = window.SkynetBackups || [];
+            picker.textContent = "";
+            backups.forEach(function(backup, index) {
+                const option = document.createElement("option");
+                option.value = backup.id;
+                option.textContent = new Date(Number(backup.created) * 1000).toLocaleString(undefined,
+                    {day: "2-digit", month: "short", year: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit", hour12: true}) +
+                    (index === 0 ? " (Latest)" : "");
+                picker.appendChild(option);
+            });
+            if (backups.some(function(backup) { return backup.id === previous; })) picker.value = previous;
+            picker.hidden = !backups.length;
+            picker.disabled = this.refreshInProgress || !backups.length;
+            const backup = this.getSelectedBackup();
+            const download = this.getElement(this.selectors.backupDownload);
+            const restore = this.getElement(this.selectors.backupRestore);
+            const info = this.getElement("skynetBackupInfo");
+            if (download) {
+                download.hidden = !backup;
+                download.disabled = this.refreshInProgress || !backup;
+            }
+            if (restore) {
+                restore.hidden = !backup;
+                restore.disabled = this.refreshInProgress || !backup;
+            }
+            this.cancelBackupRestore();
+            if (info) info.textContent = backups.length
+                ? (backup ? (Number(backup.size) / 1048576).toFixed(1) + " MB · " : "") +
+                    backups.length + (backups.length === 1 ? " restore point" : " restore points")
+                : "No downloadable backup yet.";
+        };
+
+        SkynetUI.cancelBackupRestore = function() {
+            this.backupRestoreCreated = 0;
+            this.backupRestoreId = "";
+            const confirmation = this.getElement("skynetBackupConfirmation");
+            if (confirmation) confirmation.hidden = true;
+        };
+
+        SkynetUI.confirmBackupRestore = function() {
+            const backup = this.getSelectedBackup();
+            if (this.refreshInProgress || !backup || !window.SkynetSettingsGenerated) return;
+            this.backupRestoreCreated = Number(backup.created);
+            this.backupRestoreId = backup.id;
+            this.getElement("skynetBackupConfirmText").textContent = "Restore the backup created " +
+                new Date(this.backupRestoreCreated * 1000).toLocaleString(undefined, {hour12: true}) +
+                "? This replaces settings, rules, source caches and block history. Traffic may be interrupted briefly. Current activity history is retained.";
+            this.getElement("skynetBackupConfirmation").hidden = false;
+            this.getElement("skynetConfirmRestore").focus();
+        };
+
+        SkynetUI.restoreBackup = function() {
+            const created = this.backupRestoreCreated;
+            const backup = this.getSelectedBackup();
+            if (this.refreshInProgress || !created || !backup) return;
+            if (created !== Number(backup.created) || backup.id !== this.backupRestoreId) {
+                this.cancelBackupRestore();
+                this.setUpdateResult("The backup has changed. Review it before restoring.", true, this.selectors.backupResult);
+                return;
+            }
+            this.cancelBackupRestore();
+            document.form.amng_custom.value = JSON.stringify({skynet_backup_id: backup.id, skynet_backup_created: String(created)});
+            this.refreshInProgress = true;
+            this.setUpdateResult("Validating and restoring backup. Traffic may be interrupted briefly...", false, this.selectors.backupResult);
+            this.setActionState(true, this.selectors.backupRestore, "Restoring...");
+            this.submitBackgroundAction("start_SkynetRestore");
+            this.waitForUpdate(window.SkynetSettingsGenerated, 600, "restore");
+        };
+
+        SkynetUI.createBackup = function() {
+            if (this.refreshInProgress || !window.SkynetSettingsGenerated) return;
+            this.cancelBackupRestore();
+            this.refreshInProgress = true;
+            this.setUpdateResult("Creating backup...", false, this.selectors.backupResult);
+            this.setActionState(true, this.selectors.backupButton, "Creating...");
+            this.submitBackgroundAction("start_SkynetBackup");
+            this.waitForUpdate(window.SkynetSettingsGenerated, 600, "backup");
+        };
+
+        SkynetUI.downloadBackup = function() {
+            const backup = this.getSelectedBackup();
+            if (this.refreshInProgress || !backup) return;
+            this.refreshInProgress = true;
+            this.setActionState(true, this.selectors.backupDownload, "Downloading...");
+            this.setUpdateResult("Downloading backup...", false, this.selectors.backupResult);
+            const controller = new AbortController();
+            const deadline = window.setTimeout(function() { controller.abort(); }, 60000);
+            // Merlin's authenticated .cab handler preserves binary data without ASP processing.
+            // Its file handler requires the literal path; use fetch's cache policy, not a query string.
+            const route = backup.id === "latest" ? "backup.cab" : "backup-" + encodeURIComponent(backup.id) + ".cab";
+            fetch("/ext/skynet/" + route, {credentials: "same-origin", cache: "no-store", signal: controller.signal})
+                .then(function(response) {
+                    if (!response.ok) throw new Error("Download failed");
+                    return response.arrayBuffer();
+                }).then(function(data) {
+                    const bytes = new Uint8Array(data);
+                    if (bytes[0] !== 31 || bytes[1] !== 139) throw new Error("Archive unavailable or session expired");
+                    const stamp = new Date(Number(backup.created) * 1000);
+                    const date = stamp.getFullYear() + String(stamp.getMonth() + 1).padStart(2, "0") + String(stamp.getDate()).padStart(2, "0");
+                    const time = String(stamp.getHours()).padStart(2, "0") + String(stamp.getMinutes()).padStart(2, "0") + String(stamp.getSeconds()).padStart(2, "0");
+                    SkynetUI.downloadBlob(new Blob([data], {type: "application/gzip"}), "Skynet-Backup-" + date + "-" + time + ".tar.gz");
+                    SkynetUI.setUpdateResult("Backup download started. Keep this private archive somewhere safe.", false, SkynetUI.selectors.backupResult);
+                }).catch(function() {
+                    SkynetUI.setUpdateResult("Unable to download backup. Check your WebUI session and try again.", true, SkynetUI.selectors.backupResult);
+                }).finally(function() {
+                    window.clearTimeout(deadline);
+                    SkynetUI.refreshInProgress = false;
+                    SkynetUI.setActionState(false, SkynetUI.selectors.backupDownload, "Download Backup");
+                    SkynetUI.populateBackup();
+                });
         };
 
         SkynetUI.populateRules = function() {
@@ -6781,7 +7211,221 @@
             this.waitForUpdate(window.SkynetSettingsGenerated, 600, "iot");
         };
 
+        /* History pages are bounded queries; unrelated settings reloads never replace them. */
+        SkynetUI.getBlockHistoryError = function(response) {
+            if (response === "unavailable") return "Block history is unavailable on this router. Existing statistics remain available.";
+            if (response === "validation") return "Check the history period, IP address, protocol and port.";
+            if (response === "stale") return "This history view has expired. Refresh History to load retained events.";
+            if (response === "time") return "Refresh History requires synchronized router time. Existing results were retained.";
+            return "Unable to read block history. Existing results were retained.";
+        };
+
+        SkynetUI.updateBlockHistoryControls = function(active) {
+            const busy = active === undefined ? this.refreshInProgress : active;
+            const data = this.blockHistory || window.SkynetHistory || {};
+            const filters = this.blockHistoryFilters;
+            const dirty = filters && [["skynetBlockRange", "range"], ["skynetBlockKind", "kind"],
+                ["skynetBlockIP", "ip"], ["skynetBlockProtocol", "proto"], ["skynetBlockPort", "port"]].some(function(field) {
+                    return SkynetUI.getElement(field[0]).value.trim() !== filters[field[1]];
+                });
+            const panel = this.getElement("skynetBlockHistory");
+            if (panel) panel.setAttribute("aria-busy", String(Boolean(busy)));
+            document.querySelectorAll("#skynetBlockHistory input, #skynetBlockHistory select, #skynetBlockHistory button").forEach(function(control) {
+                control.disabled = Boolean(busy);
+            });
+            const previous = this.getElement("skynetBlockPrevious");
+            const next = this.getElement("skynetBlockNext");
+            const exportButton = this.getElement("skynetBlockExport");
+            if (previous) previous.disabled = busy || dirty || !(this.blockHistoryCursors || []).length;
+            if (next) next.disabled = busy || dirty || !data.hasMore;
+            if (exportButton) exportButton.disabled = busy || dirty || !this.blockHistory || !(data.rows || []).length;
+            const notice = this.getElement("skynetBlockNotice");
+            if (notice) {
+                const summary = window.SkynetHistory || {};
+                const messages = [];
+                if (dirty) messages.push("Refresh History to apply changed filters.");
+                if (!this.isLoggingEnabled()) messages.push("Packet logging is disabled. Retained history remains available.");
+                if (summary.available === false) messages.push(summary.error || "Block history is unavailable on this router.");
+                if (data.collected) messages.push("Collected through " + new Date(Number(data.collected) * 1000).toLocaleString(undefined, {hour12: true}) + ".");
+                if (data.earliest) messages.push("Detailed events from " + new Date(Number(data.earliest) * 1000).toLocaleString(undefined, {hour12: true}) + ".");
+                messages.push(data.limited ? "Storage capacity has shortened detailed retention." : "Up to 7 days of detailed events and 90 days of totals.");
+                notice.textContent = messages.join(" ");
+            }
+        };
+
+        SkynetUI.queryBlockHistory = function(direction) {
+            if (this.refreshInProgress) return;
+            const get = function(id) { return SkynetUI.getElement(id).value.trim(); };
+            let filters = this.blockHistoryFilters;
+            if (!direction || !filters) {
+                filters = {range: get("skynetBlockRange"), kind: get("skynetBlockKind"),
+                    ip: get("skynetBlockIP"), proto: get("skynetBlockProtocol"), port: get("skynetBlockPort")};
+            }
+            if (filters.ip) {
+                const parts = filters.ip.split("/");
+                const octets = parts[0].split(".");
+                if (parts.length > 2 || octets.length !== 4 || octets.some(function(part) {
+                    return !/^\d{1,3}$/.test(part) || Number(part) > 255;
+                }) || (parts.length === 2 && (!/^\d{1,2}$/.test(parts[1]) || Number(parts[1]) > 32))) {
+                    this.setUpdateResult("Enter a complete IPv4 address or CIDR range.", true, this.selectors.blockHistoryResult);
+                    return;
+                }
+            }
+            if (filters.port && (!/^\d{1,5}$/.test(filters.port) || Number(filters.port) < 1 || Number(filters.port) > 65535)) {
+                this.setUpdateResult("Enter a port from 1 to 65535.", true, this.selectors.blockHistoryResult);
+                return;
+            }
+            const cursors = (this.blockHistoryCursors || []).slice();
+            let cursor = 0;
+            let snapshot = Number((this.blockHistory || {}).snapshot) || 0;
+            if (direction === "next") {
+                cursors.push(this.blockHistoryCursor || 0);
+                cursor = Number((this.blockHistory || {}).nextCursor) || 0;
+                if (!cursor) return;
+            } else if (direction === "previous") {
+                if (!cursors.length) return;
+                cursor = cursors.pop();
+            } else if (direction !== "export") {
+                cursors.length = 0;
+                snapshot = 0;
+            }
+            this.blockHistoryPending = {filters: filters, cursor: cursor, cursors: cursors, export: direction === "export"};
+            const payload = Object.assign({}, custom_settings, {
+                skynet_historyrange: filters.range, skynet_historykind: filters.kind,
+                skynet_historyip: filters.ip, skynet_historyproto: filters.proto,
+                skynet_historyport: filters.port, skynet_historycursor: String(cursor),
+                skynet_historysnapshot: String(snapshot),
+                skynet_historyuntil: String(direction ? Number((this.blockHistory || {}).until) || 0 : 0),
+                skynet_historyexport: direction === "export" ? "1" : "0"
+            });
+            this.refreshInProgress = true;
+            this.setUpdateResult(direction === "export" ? "Preparing up to 1,000 matching events..." : "Loading history...", false, this.selectors.blockHistoryResult);
+            this.setActionState(true, this.selectors.blockHistoryButton, "Loading...");
+            document.form.amng_custom.value = JSON.stringify(payload);
+            this.submitBackgroundAction("start_SkynetHistory");
+            this.waitForUpdate(window.SkynetSettingsGenerated, 120, "history");
+        };
+
+        SkynetUI.populateBlockHistory = function() {
+            const data = window.SkynetHistory || {};
+            const pending = this.blockHistoryPending;
+            if (!pending || !data.available || window.SkynetSettingsResult !== "success") return;
+            this.blockHistoryPending = null;
+            if (pending.export) {
+                const rows = [["Time", "Category", "Source IP", "Destination IP", "Protocol", "Source port", "Destination port", "Packet bytes", "Input interface", "Output interface", "TCP flags", "ICMP type", "ICMP code", "Logged MAC / link-layer header"]];
+                (data.rows || []).forEach(function(row) {
+                    rows.push([new Date(row.epoch * 1000).toLocaleString(undefined, {hour12: true}), row.kind,
+                        row.src, row.dst, row.protocol, row.sport, row.dport, row.length, row.inif, row.outif,
+                        row.flags, row.icmpType, row.icmpCode, row.mac]);
+                });
+                const csv = rows.map(function(row) {
+                    return row.map(function(value) {
+                        let text = value === null || value === undefined ? "" : String(value);
+                        if (/^\s*[=+@-]/.test(text)) text = "'" + text;
+                        return '"' + text.replace(/"/g, '""') + '"';
+                    }).join(",");
+                }).join("\r\n");
+                this.downloadBlob(new Blob(["\ufeff", csv], {type: "text/csv;charset=utf-8"}), "Skynet-Block-History.csv");
+                this.blockHistoryExportMessage = (rows.length - 1).toLocaleString() + " events exported" +
+                    (data.hasMore ? ". Export limited to the latest 1,000 matches." : ".");
+                return;
+            }
+            // Pagination retains the original trend snapshot; only Refresh recollects it.
+            if (this.blockHistory && pending.filters === this.blockHistoryFilters) {
+                data.points = this.blockHistory.points || [];
+            }
+            this.blockHistory = data;
+            this.blockHistoryFilters = pending.filters;
+            this.blockHistoryCursor = pending.cursor;
+            this.blockHistoryCursors = pending.cursors;
+            const container = this.getElement("skynetBlockRows");
+            container.textContent = "";
+            (data.rows || []).forEach(function(row) {
+                const details = document.createElement("details");
+                details.className = "skynet-block-row";
+                const summary = document.createElement("summary");
+                const time = document.createElement("time");
+                time.dateTime = new Date(row.epoch * 1000).toISOString();
+                time.textContent = new Date(row.epoch * 1000).toLocaleString(undefined, {hour12: true});
+                summary.appendChild(time);
+                const kind = document.createElement("span");
+                kind.textContent = row.kind === "iot" ? "IoT" : String(row.kind).replace(/^./, function(c) { return c.toUpperCase(); });
+                summary.appendChild(kind);
+                [[row.src, row.sport, "Source"], [row.dst, row.dport, "Destination"]].forEach(function(address) {
+                    const cell = document.createElement("span");
+                    cell.textContent = address[0];
+                    const label = document.createElement("small");
+                    label.textContent = address[2] + (address[1] !== null && address[1] !== undefined ? " · Port " + address[1] : "");
+                    cell.appendChild(label);
+                    summary.appendChild(cell);
+                });
+                details.appendChild(summary);
+                const extra = document.createElement("p");
+                extra.textContent = [row.protocol, row.length + " packet bytes", row.inif ? "In: " + row.inif : "",
+                    row.outif ? "Out: " + row.outif : "", row.flags ? "Flags: " + row.flags : "",
+                    row.icmpType !== null && row.icmpType !== undefined ? "ICMP type/code: " + row.icmpType + "/" + row.icmpCode : "",
+                    row.mac ? "Logged MAC / link-layer header: " + row.mac : ""].filter(Boolean).join(" · ");
+                details.appendChild(extra);
+                container.appendChild(details);
+            });
+            if (!(data.rows || []).length) {
+                const empty = document.createElement("div");
+                empty.className = "skynet-feed-empty";
+                empty.textContent = "No retained events match these filters.";
+                container.appendChild(empty);
+            }
+            this.getElement("skynetBlockCount").textContent = (data.rows || []).length + " events · Page " + (pending.cursors.length + 1) + " · Newest first";
+            this.renderBlockHistoryChart();
+            this.updateBlockHistoryControls();
+        };
+
+        SkynetUI.renderBlockHistoryChart = function() {
+            if (this.blockHistoryChart) this.blockHistoryChart.destroy();
+            const data = this.blockHistory || {};
+            const recorded = data.points || [];
+            const canvas = this.getElement("skynetBlockChart");
+            canvas.parentElement.hidden = !recorded.length;
+            if (!recorded.length || typeof Chart === "undefined") return;
+            const bucket = data.range === "90d" ? 86400 : 3600;
+            const points = [];
+            const observed = Object.create(null);
+            recorded.forEach(function(point) { observed[Number(point[0])] = point; });
+            const first = Number(recorded[0][0]);
+            const last = Number(recorded[recorded.length - 1][0]);
+            // No event bucket does not prove zero traffic or continuous logging.
+            // Nulls preserve elapsed time and break the line across unknown intervals.
+            for (let epoch = first; epoch <= last && points.length < 2200; epoch += bucket) {
+                points.push(observed[epoch] || [epoch, null, null, null, null]);
+            }
+            const colors = ["#68bed4", "#8bbfab", "#c9a96f", "#a69dca"];
+            const selected = (this.blockHistoryFilters || {}).kind;
+            this.blockHistoryChart = new Chart(canvas, {
+                type: "line",
+                data: {
+                    labels: points.map(function(point) {
+                        return new Date(point[0] * 1000).toLocaleString(undefined, data.range === "90d"
+                            ? {month: "short", day: "numeric"} : {month: "short", day: "numeric", hour: "numeric", hour12: true});
+                    }),
+                    datasets: ["Inbound", "Outbound", "Invalid", "IoT"].map(function(label, index) {
+                        return {label: label, data: points.map(function(point) {
+                            return point[index + 1] === null ? null : Number(point[index + 1]) || 0;
+                        }),
+                            borderColor: colors[index], backgroundColor: colors[index], borderWidth: 1.5,
+                            pointRadius: 1.5, pointHitRadius: 6, tension: 0.15, spanGaps: false,
+                            hidden: Boolean(selected && selected !== "all" && selected !== label.toLowerCase())};
+                    })
+                },
+                options: {responsive: true, maintainAspectRatio: false, animation: false,
+                    interaction: {mode: "index", intersect: false},
+                    plugins: {legend: {labels: {color: "#c3d0d4", boxWidth: 10, usePointStyle: true}}},
+                    scales: {x: {ticks: {color: "#a6bac1", maxTicksLimit: 7, maxRotation: 0}, grid: {display: false}},
+                        y: {beginAtZero: true, ticks: {color: "#a6bac1", precision: 0}, grid: {color: "rgba(143,209,245,.08)"}}}}
+            });
+        };
+
         SkynetUI.populateSettings = function() {
+            this.populateBackup();
+            this.updateBlockHistoryControls();
             const settings = window.SkynetSettings || {};
             this.updateLoggingState();
             const apply = this.getElement(this.selectors.settingsButton);
@@ -6879,6 +7523,12 @@
              */
             [
                 this.selectors.updateButton,
+                this.selectors.backupButton,
+                this.selectors.backupDownload,
+                this.selectors.backupRestore,
+                "skynetConfirmRestore",
+                "skynetCancelRestore",
+                "skynetBackupSelect",
                 this.selectors.settingsButton,
                 this.selectors.settingsReloadButton,
                 this.selectors.settingsDefaultsButton,
@@ -6899,6 +7549,8 @@
 
                 if (button) {
                     button.disabled = active ||
+                        ((id === SkynetUI.selectors.backupDownload || id === SkynetUI.selectors.backupRestore || id === "skynetBackupSelect") && !SkynetUI.getSelectedBackup()) ||
+                        (id === SkynetUI.selectors.backupButton && !window.SkynetSettingsGenerated) ||
                         (id === SkynetUI.selectors.settingsButton &&
                             (!window.SkynetSettings || !window.SkynetSettingsGenerated ||
                                 !SkynetUI.isSettingsDirty())) ||
@@ -6966,6 +7618,7 @@
             }
             this.updateIOTControls();
             this.updateFeedControls();
+            this.updateBlockHistoryControls(active);
         };
 
         SkynetUI.destroyCharts = function() {
@@ -7071,6 +7724,8 @@
 			this.populateBlacklistCounts(settings);
 			if (preserveInput) return;
 			switch (requestType) {
+				case "history": this.populateBlockHistory(); return;
+				case "backup": this.getElement("skynetBackupSelect").value = ""; this.populateBackup(); break;
 				case "rules": this.populateRules(); break;
 				case "ruleRefresh": this.renderRules(); this.renderRuleOverview(); break;
 				case "countries":
@@ -7183,6 +7838,10 @@
 								? self.getCountryUpdateError()
 								: requestType === "iot"
 									? self.getIOTUpdateError()
+                                : requestType === "history"
+                                    ? self.getBlockHistoryError(response)
+                                : requestType === "restore" && response === "validation"
+                                    ? "Backup rejected. It may have changed, contain invalid data or disable the WebUI. Reload data and check the router log."
                                 : ((requestType === "malware" || requestType === "feeds")
                                     ? self.getMalwareUpdateError()
                                     : action.failure),
@@ -7232,7 +7891,10 @@
                             const feedURL = self.getElement("skynetFeedURL");
                             if (feedURL) feedURL.value = "";
                         }
-                        self.setUpdateResult(action.success, false, result);
+                        const successMessage = requestType === "history" && self.blockHistoryExportMessage
+                            ? self.blockHistoryExportMessage : action.success;
+                        self.blockHistoryExportMessage = "";
+                        self.setUpdateResult(successMessage, false, result);
                         self.setActionState(false, button, action.label);
                     }
                     return;
@@ -7532,7 +8194,7 @@
         };
 
         SkynetUI.showSettingsSection = function(section) {
-            const sections = ["updates", "protection", "rules", "iot", "countries", "statistics"];
+            const sections = ["updates", "protection", "rules", "iot", "countries", "statistics", "history"];
 
             if (sections.indexOf(section) === -1) {
                 section = "updates";
@@ -7615,6 +8277,10 @@
 
             if (!settings) {
                 this.scheduleChartResize();
+            } else if (this.settingsSection === "history") {
+                this.updateBlockHistoryControls();
+                if (!this.blockHistory && !this.refreshInProgress) this.queryBlockHistory();
+                if (this.blockHistoryChart) this.blockHistoryChart.resize();
             }
         };
 
@@ -7768,6 +8434,34 @@
                 SkynetUI.renderRules();
             });
             const ruleList = this.getElement(this.selectors.ruleList);
+            ["skynetHistoryArea", "skynetHistoryResult", "skynetHistorySearch"].forEach(function(id) {
+                const control = SkynetUI.getElement(id);
+                if (control) control.addEventListener(id === "skynetHistorySearch" ? "input" : "change", function() {
+                    SkynetUI.actionPage = 0;
+                    SkynetUI.renderRuleOverview();
+                });
+            });
+            const historyPrevious = this.getElement("skynetHistoryPrevious");
+            const historyNext = this.getElement("skynetHistoryNext");
+            const historyExport = this.getElement("skynetHistoryExport");
+            if (historyPrevious) historyPrevious.addEventListener("click", function() {
+                SkynetUI.actionPage = Math.max(0, (SkynetUI.actionPage || 0) - 1);
+                SkynetUI.renderRuleOverview();
+            });
+            if (historyNext) historyNext.addEventListener("click", function() {
+                SkynetUI.actionPage = (SkynetUI.actionPage || 0) + 1;
+                SkynetUI.renderRuleOverview();
+            });
+            if (historyExport) historyExport.addEventListener("click", function() { SkynetUI.exportActionHistory(); });
+            const createBackup = this.getElement(this.selectors.backupButton);
+            const downloadBackup = this.getElement(this.selectors.backupDownload);
+            if (createBackup) createBackup.addEventListener("click", function() { SkynetUI.createBackup(); });
+            if (downloadBackup) downloadBackup.addEventListener("click", function() { SkynetUI.downloadBackup(); });
+            const restoreBackup = this.getElement(this.selectors.backupRestore);
+            if (restoreBackup) restoreBackup.addEventListener("click", function() { SkynetUI.confirmBackupRestore(); });
+            this.getElement("skynetBackupSelect").addEventListener("change", function() { SkynetUI.populateBackup(); });
+            this.getElement("skynetConfirmRestore").addEventListener("click", function() { SkynetUI.restoreBackup(); });
+            this.getElement("skynetCancelRestore").addEventListener("click", function() { SkynetUI.cancelBackupRestore(); });
             if (ruleList) ruleList.addEventListener("click", function(event) {
                 if (event.target.classList.contains("skynet-rule-remove")) {
                     SkynetUI.removeRule(event.target.dataset.ruleId, event.target.dataset.ruleKey);
@@ -7904,6 +8598,23 @@
             document.querySelectorAll(".skynet-settings-tab").forEach(function(tab) {
                 tab.addEventListener("click", function() {
                     SkynetUI.showView(this.getAttribute("data-settings-target"));
+                });
+            });
+            [["skynetBlockRefresh", ""], ["skynetBlockPrevious", "previous"],
+                ["skynetBlockNext", "next"], ["skynetBlockExport", "export"]].forEach(function(control) {
+                SkynetUI.getElement(control[0]).addEventListener("click", function() {
+                    SkynetUI.queryBlockHistory(control[1]);
+                });
+            });
+            ["skynetBlockRange", "skynetBlockKind", "skynetBlockIP", "skynetBlockProtocol", "skynetBlockPort"].forEach(function(id) {
+                const field = SkynetUI.getElement(id);
+                field.addEventListener("input", function() { SkynetUI.updateBlockHistoryControls(); });
+                field.addEventListener("change", function() { SkynetUI.updateBlockHistoryControls(); });
+                if (field.tagName === "INPUT") field.addEventListener("keydown", function(event) {
+                    if (event.key === "Enter") {
+                        event.preventDefault();
+                        SkynetUI.queryBlockHistory();
+                    }
                 });
             });
         };
@@ -8127,6 +8838,14 @@
                                                         role="tab"
                                                         aria-controls="skynetSettingsView"
                                                         aria-selected="false" />
+                                                    <input type="button"
+                                                        id="skynetBlockHistoryTab"
+                                                        value="History"
+                                                        class="skynet-tab skynet-settings-tab"
+                                                        data-settings-target="history"
+                                                        role="tab"
+                                                        aria-controls="skynetSettingsView"
+                                                        aria-selected="false" />
                                                 </div>
 
                                                 <div id="skynetSettingsView" class="skynet-view-hidden" role="tabpanel">
@@ -8216,6 +8935,34 @@
                                                                                 class="button_gen skynet-update-button"
                                                                                 disabled="disabled" />
                                                                         </div>
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                            <tr class="skynet-settings-group" data-settings-section="updates">
+                                                                <th colspan="2">Backup</th>
+                                                            </tr>
+                                                            <tr>
+                                                                <td colspan="2">
+                                                                    <div class="skynet-feed-manager">
+                                                                        <div class="skynet-feed-intro">
+                                                                            <span class="skynet-feed-title">Skynet Backup</span>
+                                                                            <span class="skynet-feed-help">Save configuration, rules, source caches and logs. Select a dated point to download or restore. The latest three backups are kept.</span>
+                                                                        </div>
+                                                                        <div class="skynet-backup-controls">
+                                                                            <select id="skynetBackupSelect" class="input_option" aria-label="Backup restore point" hidden></select>
+                                                                            <span id="skynetBackupInfo">Loading backup details...</span>
+                                                                        </div>
+                                                                        <div class="skynet-backup-controls skynet-backup-buttons">
+                                                                            <button type="button" id="skynetCreateBackup" class="button_gen skynet-update-button">Create Backup</button>
+                                                                            <button type="button" id="skynetDownloadBackup" class="button_gen skynet-update-button skynet-settings-reload" hidden>Download Backup</button>
+                                                                            <button type="button" id="skynetRestoreBackup" class="button_gen skynet-update-button skynet-settings-reload" hidden>Restore Backup</button>
+                                                                        </div>
+                                                                        <div id="skynetBackupConfirmation" class="skynet-backup-controls" role="group" aria-label="Confirm backup restore" hidden>
+                                                                            <span id="skynetBackupConfirmText"></span>
+                                                                            <button type="button" id="skynetCancelRestore" class="button_gen skynet-update-button skynet-settings-reload">Cancel</button>
+                                                                            <button type="button" id="skynetConfirmRestore" class="button_gen skynet-update-button">Confirm Restore</button>
+                                                                        </div>
+                                                                        <div id="skynetBackupResult" class="skynet-feed-status" aria-live="polite"></div>
                                                                     </div>
                                                                 </td>
                                                             </tr>
@@ -8398,9 +9145,19 @@
                                                                 <td colspan="2">
                                                                     <details class="skynet-action-panel" open>
                                                                         <summary class="skynet-feed-intro skynet-action-intro">
-                                                                            <span class="skynet-feed-title">Recent Activity</span>
-                                                                            <span class="skynet-feed-help">Latest firewall, source and settings changes.</span>
+                                                                            <span class="skynet-feed-title">Activity History</span>
+                                                                            <span class="skynet-feed-help">Search the latest 200 actions. Export includes all matching entries, not just this page.</span>
                                                                         </summary>
+                                                                        <div class="skynet-history-tools">
+                                                                            <select id="skynetHistoryArea" class="input_option" aria-label="Activity category">
+                                                                                <option value="">All Activities</option><option value="rules">Rules</option><option value="settings">Settings</option><option value="feeds">Threat Feeds</option><option value="countries">Countries</option><option value="iot">IoT</option><option value="system">System</option>
+                                                                            </select>
+                                                                            <select id="skynetHistoryResult" class="input_option" aria-label="Activity result">
+                                                                                <option value="">All Results</option><option value="success">Success</option><option value="degraded">Degraded</option><option value="failed">Failed</option>
+                                                                            </select>
+                                                                            <input type="text" id="skynetHistorySearch" placeholder="Search activity" aria-label="Search activity history" maxlength="200" />
+                                                                            <button type="button" id="skynetHistoryExport" class="button_gen skynet-update-button skynet-settings-reload">Export CSV</button>
+                                                                        </div>
                                                                         <div class="skynet-action-header">
                                                                             <span>Time</span>
                                                                             <span>Result</span>
@@ -8409,6 +9166,11 @@
                                                                         </div>
                                                                         <div class="skynet-action-list" id="skynetRuleActivity">
                                                                             <div class="skynet-feed-empty">Loading recent actions...</div>
+                                                                        </div>
+                                                                        <div class="skynet-history-footer">
+                                                                            <span id="skynetHistoryCount" aria-live="polite"></span>
+                                                                            <button type="button" id="skynetHistoryPrevious" class="button_gen skynet-update-button skynet-settings-reload">Previous</button>
+                                                                            <button type="button" id="skynetHistoryNext" class="button_gen skynet-update-button skynet-settings-reload">Next</button>
                                                                         </div>
                                                                     </details>
                                                                 </td>
@@ -8558,7 +9320,7 @@
                                                             <tr>
                                                                 <th>
                                                                     <span class="skynet-setting-name">Packet Logging</span>
-                                                                    <span class="skynet-setting-help">Records blocked traffic for charts. Disabling it pauses statistics, not protection or WebUI management.</span>
+                                                                    <span class="skynet-setting-help">Records blocked traffic for statistics and history. Disabling it leaves protection and WebUI management active.</span>
                                                                 </th>
                                                                 <td>
                                                                     <select class="input_option" id="skynetLogMode">
@@ -8582,7 +9344,7 @@
                                                             <tr>
                                                                 <th>
                                                                     <span class="skynet-setting-name">Log Size</span>
-                                                                    <span class="skynet-setting-help">Sets the log limit before statistics are saved and old entries are cleared.</span>
+                                                                    <span class="skynet-setting-help">Limits retained block history. Older entries are removed when space is needed.</span>
                                                                 </th>
                                                                 <td>
                                                                     <div class="skynet-number-control">
@@ -8647,6 +9409,40 @@
                                                                 </th>
                                                                 <td>
                                                                     <input type="text" id="skynetSyslogArchive" maxlength="512" placeholder="/tmp/syslog.log-1" spellcheck="false" />
+                                                                </td>
+                                                            </tr>
+                                                            <tr class="skynet-settings-group" data-settings-section="history">
+                                                                <th colspan="2">Block History</th>
+                                                            </tr>
+                                                            <tr class="skynet-rules-container">
+                                                                <td colspan="2">
+                                                                    <div id="skynetBlockHistory" class="skynet-action-panel">
+                                                                        <div class="skynet-feed-intro">
+                                                                            <span class="skynet-feed-title">Recorded Traffic</span>
+                                                                            <span class="skynet-feed-help">Search retained packet events without loading the full log. Open an event for packet details.</span>
+                                                                        </div>
+                                                                        <div class="skynet-block-filters">
+                                                                            <label for="skynetBlockRange">Period<select id="skynetBlockRange" class="input_option"><option value="today">Today</option><option value="7d">Last 7 Days</option><option value="90d">Last 90 Days</option></select></label>
+                                                                            <label for="skynetBlockKind">Category<select id="skynetBlockKind" class="input_option"><option value="all">All Categories</option><option value="inbound">Inbound</option><option value="outbound">Outbound</option><option value="invalid">Invalid</option><option value="iot">IoT</option></select></label>
+                                                                            <label for="skynetBlockIP">IP Address / CIDR<input type="text" id="skynetBlockIP" maxlength="18" placeholder="Any IP address" spellcheck="false" /></label>
+                                                                            <label for="skynetBlockProtocol">Protocol<select id="skynetBlockProtocol" class="input_option"><option value="all">All Protocols</option><option value="TCP">TCP</option><option value="UDP">UDP</option><option value="ICMP">ICMP</option></select></label>
+                                                                            <label for="skynetBlockPort">Port<input type="text" id="skynetBlockPort" maxlength="5" inputmode="numeric" placeholder="Any port" /></label>
+                                                                        </div>
+                                                                        <div class="skynet-history-footer">
+                                                                            <span id="skynetBlockNotice" class="skynet-block-note"></span>
+                                                                            <input type="button" id="skynetBlockRefresh" class="button_gen skynet-update-button" value="Refresh History" />
+                                                                        </div>
+                                                                        <div class="skynet-block-chart" hidden><canvas id="skynetBlockChart" aria-label="Recorded events by time and category" role="img"></canvas></div>
+                                                                        <div class="skynet-history-footer"><span class="skynet-block-note">Trends show recorded category totals. Gaps have no recorded events, not a confirmed zero. IP, protocol and port filters apply to detailed events below.</span></div>
+                                                                        <div id="skynetBlockRows"><div class="skynet-feed-empty">Open History to load retained events.</div></div>
+                                                                        <div class="skynet-history-footer">
+                                                                            <span id="skynetBlockCount" aria-live="polite"></span>
+                                                                            <input type="button" id="skynetBlockExport" class="button_gen skynet-update-button skynet-settings-reload" value="Export CSV" disabled />
+                                                                            <input type="button" id="skynetBlockPrevious" class="button_gen skynet-update-button skynet-settings-reload" value="Previous" disabled />
+                                                                            <input type="button" id="skynetBlockNext" class="button_gen skynet-update-button skynet-settings-reload" value="Next" disabled />
+                                                                        </div>
+                                                                        <div id="skynetBlockStatus" class="skynet-history-footer skynet-settings-result" aria-live="polite"></div>
+                                                                    </div>
                                                                 </td>
                                                             </tr>
                                                         </table>
