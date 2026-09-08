@@ -162,6 +162,8 @@ Skynet records user rules in an atomic rule registry and assigns each rule a sta
 
 Automatic feeds, resolved domains, permanent user rules and temporary bans are compiled into separate IPSet components. The firewall continues to use one blocking master and one whitelist master, keeping packet matching short while allowing each policy source to be refreshed or removed independently. Removing one rule does not remove an address still owned or covered by another rule.
 
+Replacement sets size their entry capacity from the prepared list, retaining the standard limits as minimums and allowing 25% headroom for larger inputs. Capacity is a ceiling, not preallocated storage; hash tables start small and grow as entries are loaded. Overlapping rule owners may produce a conservative capacity estimate. Available router RAM still limits usable list size, especially while old and replacement sets coexist. A failed replacement leaves the previous policy active. Existing compatible sets retain their capacity until replaced, and startup restores saved entries without replaying obsolete set-creation limits.
+
 Automatic addresses and ranges remain in `Skynet-Blacklist` and `Skynet-BlockedRanges`. Resolved domain bans use `Skynet-BlacklistDomains`, permanent user rules use `Skynet-UserBans`, and expiring rules use `Skynet-TemporaryBans`. Automatic, domain, and user whitelist entries are separated in the same way. `Skynet-IOT` remains independent.
 
 ### Updates

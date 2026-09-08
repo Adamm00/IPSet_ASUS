@@ -1713,9 +1713,9 @@ Ensure_User_IPSets() {
 			fi
 		fi
 	done
-	Ensure_IPSet Skynet-UserBans hash:net hashsize 64 maxelem "$((65536 * 6))" || return 1
-	Ensure_IPSet Skynet-TemporaryBans hash:net hashsize 64 maxelem "$((65536 * 6))" timeout 0 || return 1
-	Ensure_IPSet Skynet-UserWhitelist hash:net hashsize 64 maxelem "$((65536 * 6))" || return 1
+	Ensure_IPSet Skynet-UserBans || return 1
+	Ensure_IPSet Skynet-TemporaryBans || return 1
+	Ensure_IPSet Skynet-UserWhitelist || return 1
 	Update_IPSet add Skynet-Master Skynet-UserBans || return 1
 	Update_IPSet add Skynet-Master Skynet-TemporaryBans || return 1
 	Update_IPSet add Skynet-MasterWL Skynet-UserWhitelist || return 1
@@ -1868,13 +1868,7 @@ Prepare_User_Rule_Sets() {
 	rulecompiledeadlines="$TMP_DIR/rules-deadlines.$$"
 	cleanupipsets="${cleanupipsets}${cleanupipsets:+ }$rulecompilebanset $rulecompiletempset $rulecompilewhitelistset"
 	Destroy_IPSets "$rulecompilebanset" "$rulecompiletempset" "$rulecompilewhitelistset"
-	if ! ipset -q create "$rulecompilebanset" hash:net hashsize 64 maxelem "$((65536 * 6))" \
-		|| ! ipset -q create "$rulecompiletempset" hash:net hashsize 64 maxelem "$((65536 * 6))" timeout 0 \
-		|| ! ipset -q create "$rulecompilewhitelistset" hash:net hashsize 64 maxelem "$((65536 * 6))" \
-		|| ! true > "$rulecompilerestore" || ! true > "$rulecompiledeadlines"; then
-		Destroy_IPSets "$rulecompilebanset" "$rulecompiletempset" "$rulecompilewhitelistset"
-		return 1
-	fi
+	true > "$rulecompilerestore" && true > "$rulecompiledeadlines" || return 1
 	while IFS="$(printf '\t')" read -r _ruleversion _ruleid ruletarget ruletype rulevalue _rulecomment rulestate _rulecreated ruleexpires ruledateref; do
 		[ "$rulestate" = "enabled" ] || continue
 		case "$ruletype" in
@@ -1902,12 +1896,18 @@ Prepare_User_Rule_Sets() {
 			;;
 		esac
 	done < "$rulecompilefile"
-	if ! ipset restore -! < "$rulecompilerestore" 2>/dev/null; then
+	rulecompilecounts="$(awk -v ban="$rulecompilebanset" -v whitelist="$rulecompilewhitelistset" \
+		'$1 == "add" {count[$2]++} END {print count[ban]+0, count[whitelist]+0}' "$rulecompilerestore")" || return 1
+	if ! Create_Sized_IPSet "$rulecompilebanset" Skynet-UserBans "${rulecompilecounts%% *}" \
+		|| ! Create_Sized_IPSet "$rulecompilewhitelistset" Skynet-UserWhitelist "${rulecompilecounts#* }" \
+		|| ! ipset restore -! < "$rulecompilerestore"; then
 		Destroy_IPSets "$rulecompilebanset" "$rulecompiletempset" "$rulecompilewhitelistset"
 		return 1
 	fi
 	# Calculate remaining lifetimes after large imports have finished compiling
 	# and restoring, so that work cannot extend an absolute expiry deadline.
+	rulecompilecount="$(wc -l < "$rulecompiledeadlines")" || return 1
+	Create_Sized_IPSet "$rulecompiletempset" Skynet-TemporaryBans "$rulecompilecount" || return 1
 	if [ -s "$rulecompiledeadlines" ]; then
 		# Several ASNs or direct rules may own the same network. Retain its latest
 		# deadline regardless of registry order; other permanent owners stay separate.
@@ -1915,9 +1915,11 @@ Prepare_User_Rule_Sets() {
 			{sub(/\/32$/, "", $1)}
 			$2 > now && $2 > deadline[$1] {deadline[$1] = $2}
 			END {for (ip in deadline) printf "add %s %s timeout %d\n", setname, ip, deadline[ip] - now}
-		' "$rulecompiledeadlines" > "$rulecompilerestore" \
-			&& ipset restore -! < "$rulecompilerestore" 2>/dev/null || return 1
+		' "$rulecompiledeadlines" > "$rulecompilerestore" || return 1
+	else
+		true > "$rulecompilerestore" || return 1
 	fi
+	ipset restore -! < "$rulecompilerestore" || return 1
 	return 0
 }
 
@@ -1954,12 +1956,6 @@ Migrate_Legacy_IPSet_Ownership() {
 	{ ipset save Skynet-Blacklist && ipset save Skynet-BlockedRanges && ipset save Skynet-Whitelist; } > "$legacysnapshot" 2>/dev/null || return 1
 	if ! grep -qE 'comment "(ManualBan|ManualRBan|ManualWlist|ManualBanD|ManualWlistD|ASN|Imported): ' "$legacysnapshot"; then return 0; fi
 	Destroy_IPSets "$legacyblacklist" "$legacyranges" "$legacywhitelist"
-	if ! ipset -q create "$legacyblacklist" hash:ip hashsize 64 maxelem "$((65536 * 16))" comment \
-		|| ! ipset -q create "$legacyranges" hash:net hashsize 64 maxelem "$((65536 * 6))" comment \
-		|| ! ipset -q create "$legacywhitelist" hash:net hashsize 64 maxelem "$((65536 * 6))" comment; then
-		Destroy_IPSets "$legacyblacklist" "$legacyranges" "$legacywhitelist"
-		return 1
-	fi
 	awk -v blacklist="$legacyblacklist" -v ranges="$legacyranges" -v whitelist="$legacywhitelist" -v registry="$skynetrules" '
 		BEGIN {
 			while ((getline line < registry) > 0) {
@@ -1991,6 +1987,15 @@ Migrate_Legacy_IPSet_Ownership() {
 			print
 		}
 	' "$legacysnapshot" > "$legacyrestore" || return 1
+	legacycounts="$(awk -v ban="$legacyblacklist" -v ranges="$legacyranges" -v whitelist="$legacywhitelist" \
+		'$1 == "add" {count[$2]++} END {print count[ban]+0, count[ranges]+0, count[whitelist]+0}' "$legacyrestore")" || return 1
+	legacyrangecount="${legacycounts#* }"
+	if ! Create_Sized_IPSet "$legacyblacklist" Skynet-Blacklist "${legacycounts%% *}" \
+		|| ! Create_Sized_IPSet "$legacyranges" Skynet-BlockedRanges "${legacyrangecount%% *}" \
+		|| ! Create_Sized_IPSet "$legacywhitelist" Skynet-Whitelist "${legacycounts##* }"; then
+		Destroy_IPSets "$legacyblacklist" "$legacyranges" "$legacywhitelist"
+		return 1
+	fi
 	if [ -s "$legacyrestore" ] && ! ipset restore -! < "$legacyrestore" 2>/dev/null; then
 		Destroy_IPSets "$legacyblacklist" "$legacyranges" "$legacywhitelist"
 		return 1
@@ -2490,8 +2495,59 @@ Clean_Stale_Temp() {
 ############################
 
 Ensure_IPSet() {
-	ipset -q -! create "$@" && return
+	# Capacity is a creation attribute, not a schema change. Retain compatible
+	# live sets; their next transactional replacement publishes the new capacity.
+	if Read_IPSet_Schema "$1" >/dev/null; then
+		Expected_IPSet_Schema_Is_Valid "$1" && return 0
+	else
+		case "$1" in
+			Skynet-Master|Skynet-MasterWL) ipset -q create "$1" list:set && return 0 ;;
+			*) Create_Sized_IPSet "$1" "$1" "${2:-0}" && return 0 ;;
+		esac
+	fi
 	Log error -s "Failed To Create IPSet ($1)"
+	return 1
+}
+
+IPSet_Capacity() {
+	# Counts are validated restore rows (an upper bound when owners overlap).
+	# Keep established capacity floors, or allow 25% growth above larger inputs.
+	case "$1" in
+		Skynet-Blacklist) ipsetsizefloor="1048576" ;;
+		Skynet-BlacklistDomains|Skynet-WhitelistDomains) ipsetsizefloor="524288" ;;
+		Skynet-BlockedRanges|Skynet-Whitelist|Skynet-IOT|Skynet-UserBans|Skynet-UserWhitelist|Skynet-TemporaryBans) ipsetsizefloor="393216" ;;
+		*) return 2 ;;
+	esac
+	printf '%s\n' "$2" | awk -v floor="$ipsetsizefloor" '
+		NR != 1 || $0 !~ /^[0-9]+$/ || $0+0 > 3435973836 {bad=1; exit}
+		{count=$0+0}
+		END {
+			if (bad || NR != 1) exit 1
+			capacity=count+int((count+3)/4)
+			if (capacity<floor) capacity=floor
+			printf "%.0f\n",capacity
+		}'
+}
+
+Create_Sized_IPSet() {
+	# Profile names keep live, staging and migration sets on the same schema.
+	# This only creates an offline/new set. Callers retain their existing swaps
+	# and rollback; no full or partially loaded set is silently accepted.
+	ipsetcreatename="$1"
+	ipsetcreateprofile="$2"
+	ipsetsizemax="$(IPSet_Capacity "$ipsetcreateprofile" "$3")" || return 2
+	case "$ipsetcreateprofile" in
+		Skynet-Blacklist) set -- hash:ip comment ;;
+		Skynet-BlacklistDomains|Skynet-WhitelistDomains) set -- hash:ip comment timeout 86400 ;;
+		Skynet-BlockedRanges|Skynet-Whitelist|Skynet-IOT) set -- hash:net comment ;;
+		Skynet-UserBans|Skynet-UserWhitelist) set -- hash:net ;;
+		Skynet-TemporaryBans) set -- hash:net timeout 0 ;;
+		*) return 2 ;;
+	esac
+	# Small initial tables grow naturally as entries arrive, avoiding large
+	# up-front allocations for sparse or heavily overlapping input lists.
+	if ipset -q create "$ipsetcreatename" "$@" hashsize 64 maxelem "$ipsetsizemax"; then return 0; fi
+	Log error -s "Failed To Create IPSet ($ipsetcreatename, Capacity $ipsetsizemax)"
 	return 1
 }
 
@@ -3233,14 +3289,18 @@ Existing_IPSet_Schemas_Are_Compatible() {
 }
 
 Create_IPSet_Topology() {
-	Ensure_IPSet Skynet-Whitelist hash:net hashsize 64 maxelem "$((65536 * 6))" comment || return 1
-	Ensure_IPSet Skynet-WhitelistDomains hash:ip hashsize 64 maxelem "$((65536 * 8))" comment timeout 86400 || return 1
-	Ensure_IPSet Skynet-Blacklist hash:ip hashsize 64 maxelem "$((65536 * 16))" comment || return 1
-	Ensure_IPSet Skynet-BlacklistDomains hash:ip hashsize 64 maxelem "$((65536 * 8))" comment timeout 86400 || return 1
-	Ensure_IPSet Skynet-BlockedRanges hash:net hashsize 64 maxelem "$((65536 * 6))" comment || return 1
-	Ensure_IPSet Skynet-Master list:set || return 1
-	Ensure_IPSet Skynet-MasterWL list:set || return 1
-	Ensure_IPSet Skynet-IOT hash:net hashsize 64 maxelem "$((65536 * 6))" comment || return 1
+	# Saved headers may contain older capacities. Size missing base sets from the
+	# saved members, then restore entries without replaying obsolete create lines.
+	topologycounts=""
+	if [ -f "$skynetipset" ]; then
+		topologycounts="$(awk '$1 == "add" {count[$2]++} END {for (name in count) print name, count[name]}' "$skynetipset")" || return 1
+	fi
+	for topologyset in Skynet-Whitelist Skynet-WhitelistDomains Skynet-Blacklist Skynet-BlacklistDomains \
+		Skynet-BlockedRanges Skynet-Master Skynet-MasterWL Skynet-IOT; do
+		topologycount="$(printf '%s\n' "$topologycounts" | awk -v name="$topologyset" '$1 == name {print $2; exit}')"
+		Ensure_IPSet "$topologyset" "${topologycount:-0}" || return 1
+	done
+	unset "topologycounts" "topologycount" "topologyset"
 	Ensure_User_IPSets || return 1
 	Update_IPSet add Skynet-Master Skynet-Blacklist || return 1
 	Update_IPSet add Skynet-Master Skynet-BlacklistDomains || return 1
@@ -3952,7 +4012,8 @@ Replace_Range_IPSet_Entries() {
 	fi
 
 	Destroy_IPSets "$rangereplacetmp"
-	if ! ipset -q create "$rangereplacetmp" hash:net hashsize 64 maxelem "$((65536 * 6))" comment \
+	rangereplacecount="$(wc -l < "$rangereplacerestore")" || return 1
+	if ! Create_Sized_IPSet "$rangereplacetmp" Skynet-BlockedRanges "$rangereplacecount" \
 		|| ! ipset restore -! < "$rangereplacerestore"; then
 		Destroy_IPSets "$rangereplacetmp"
 		rm -f "$rangereplacesnapshot" "$rangereplacerestore"
@@ -4786,8 +4847,9 @@ Apply_Domain_Rule_Update() {
 		domainwhitelisttmp="Skynet-WhitelistDomains-Tmp"
 		cleanupipsets="${cleanupipsets}${cleanupipsets:+ }$domainbantmp $domainwhitelisttmp"
 		Destroy_IPSets "$domainbantmp" "$domainwhitelisttmp"
-		ipset -q create "$domainbantmp" hash:ip hashsize 64 maxelem "$((65536 * 8))" comment timeout 86400 || return 1
-		ipset -q create "$domainwhitelisttmp" hash:ip hashsize 64 maxelem "$((65536 * 8))" comment timeout 86400 || return 1
+		domainbancount="$(wc -l < "$domainbanfile")" && domainwhitelistcount="$(wc -l < "$domainwhitelistfile")" || return 1
+		Create_Sized_IPSet "$domainbantmp" Skynet-BlacklistDomains "$domainbancount" || return 1
+		Create_Sized_IPSet "$domainwhitelisttmp" Skynet-WhitelistDomains "$domainwhitelistcount" || return 1
 		Build_Domain_Restore_Files "-Tmp" || return 1
 		[ ! -s "$domainbanrestore" ] || ipset restore -! < "$domainbanrestore" || return 1
 		[ ! -s "$domainwhitelistrestore" ] || ipset restore -! < "$domainwhitelistrestore" || return 1
@@ -4959,8 +5021,10 @@ Apply_Blacklist_File() {
 	if [ ! -s "$1" ] \
 		|| ! sed -n "s/^add Skynet-Blacklist /add $blacklisttempset /p" "$1" > "$blacklistrestore" \
 		|| ! sed -n "s/^add Skynet-BlockedRanges /add $rangestempset /p" "$1" > "$rangesrestore" \
-		|| ! ipset -q create "$blacklisttempset" hash:ip hashsize 64 maxelem "$((65536 * 16))" comment \
-		|| ! ipset -q create "$rangestempset" hash:net hashsize 64 maxelem "$((65536 * 6))" comment \
+		|| ! blacklistcount="$(wc -l < "$blacklistrestore")" \
+		|| ! rangescount="$(wc -l < "$rangesrestore")" \
+		|| ! Create_Sized_IPSet "$blacklisttempset" Skynet-Blacklist "$blacklistcount" \
+		|| ! Create_Sized_IPSet "$rangestempset" Skynet-BlockedRanges "$rangescount" \
 		|| ! ipset restore < "$blacklistrestore" \
 		|| ! ipset restore < "$rangesrestore"; then
 		Destroy_IPSets "$blacklisttempset" "$rangestempset"
@@ -10260,7 +10324,8 @@ Replace_IOT_Entries() {
 			|| { rm -f "$iotreplacefile"; return 1; }
 	done
 	Destroy_IPSets "$iotreplacetmp"
-	if ! ipset -q create "$iotreplacetmp" hash:net hashsize 64 maxelem "$((65536 * 6))" comment \
+	iotreplacecount="$(wc -l < "$iotreplacefile")" || return 1
+	if ! Create_Sized_IPSet "$iotreplacetmp" Skynet-IOT "$iotreplacecount" \
 		|| { [ -s "$iotreplacefile" ] && ! ipset restore < "$iotreplacefile"; }; then
 		Destroy_IPSets "$iotreplacetmp"
 		rm -f "$iotreplacefile"
@@ -12049,7 +12114,14 @@ Restore_Startup_Policy() {
 	grep -qxF set /proc/net/ip_tables_matches || modprobe xt_set || return 1
 	Ensure_IPSet_Topology || { echo "[*] Failed To Create IPSet Topology"; return 1; }
 	if [ -f "$skynetipset" ]; then
-		ipset restore -! -f "$skynetipset" || { echo "[*] Failed To Restore Saved IPSet Data"; return 1; }
+		startuprestore="$TMP_DIR/startup-entries.$$"
+		if ! awk '$1 == "add"' "$skynetipset" > "$startuprestore" \
+			|| ! ipset restore -! -f "$startuprestore"; then
+			rm -f "$startuprestore"
+			echo "[*] Failed To Restore Saved IPSet Data"
+			return 1
+		fi
+		rm -f "$startuprestore"
 	else
 		: > "$skynetipset" && chmod 600 "$skynetipset" || return 1
 	fi
