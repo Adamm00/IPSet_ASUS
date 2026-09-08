@@ -1212,14 +1212,16 @@ Build_IPList_Restore() {
 Refresh_Registered_ASN_Rules() {
 	# Refresh every registered ASN into one staged registry and publish the
 	# combined ban/whitelist policy only after all sources validate.
-	asnrefreshmap="$TMP_DIR/asn-refresh-map.$$"
+	asnrefreshmap="$TMP_DIR/rules-asn-refresh-map.$$"
 	asnrefreshchanged="0"
 	asnrefreshcandidate="${skynetrules}.tmp.$$"
 	true > "$asnrefreshmap" || return 1
 	mkdir -p "$rulesdatadir" || return 1
+	if Time_Is_Ready; then asnrefreshnow="$(date +%s)"; else asnrefreshnow="0"; fi
 	while IFS="$(printf '\t')" read -r _asnversion asnrefreshid asnrefreshtarget asnrefreshtype asnrefreshvalue \
-		_asncomment asnrefreshstate _asncreated _asnexpires _asnolddata; do
+		_asncomment asnrefreshstate _asncreated asnrefreshexpires _asnolddata; do
 		[ "$asnrefreshtype:$asnrefreshstate" = "asn:enabled" ] || continue
+		[ "$asnrefreshexpires" = "0" ] || { [ "$asnrefreshnow" -gt "0" ] && [ "$asnrefreshexpires" -gt "$asnrefreshnow" ]; } || continue
 		asnrefreshraw="$TMP_DIR/asn-${asnrefreshvalue}.$$"
 		asnrefreshvalidated="${asnrefreshraw}.validated"
 		asnrefreshpublic="${asnrefreshraw}.public"
@@ -1283,7 +1285,7 @@ Validate_Rule_Registry() {
 				key = $3 SUBSEP $4 SUBSEP tolower($5)
 				if (seen_key[key]++) exit 1
 			}
-			if ($9 != 0 && ($3 != "ban" || ($4 != "ip" && $4 != "range"))) exit 1
+			if ($9 != 0 && ($3 != "ban" || ($4 != "ip" && $4 != "range" && $4 != "asn"))) exit 1
 			if (($4 == "asn" || $4 == "import") && ($10 == "-" || $10 !~ /^[A-Za-z0-9._-]+$/)) exit 1
 			if ($4 != "asn" && $4 != "import" && $10 != "-") exit 1
 			if (length($6) > 243 || index($6, "\\") || index($6, "\"") || $6 ~ /[[:cntrl:]]/) exit 1
@@ -1712,7 +1714,7 @@ Ensure_User_IPSets() {
 		fi
 	done
 	Ensure_IPSet Skynet-UserBans hash:net hashsize 64 maxelem "$((65536 * 6))" || return 1
-	Ensure_IPSet Skynet-TemporaryBans hash:net hashsize 64 maxelem 65536 timeout 0 || return 1
+	Ensure_IPSet Skynet-TemporaryBans hash:net hashsize 64 maxelem "$((65536 * 6))" timeout 0 || return 1
 	Ensure_IPSet Skynet-UserWhitelist hash:net hashsize 64 maxelem "$((65536 * 6))" || return 1
 	Update_IPSet add Skynet-Master Skynet-UserBans || return 1
 	Update_IPSet add Skynet-Master Skynet-TemporaryBans || return 1
@@ -1867,7 +1869,7 @@ Prepare_User_Rule_Sets() {
 	cleanupipsets="${cleanupipsets}${cleanupipsets:+ }$rulecompilebanset $rulecompiletempset $rulecompilewhitelistset"
 	Destroy_IPSets "$rulecompilebanset" "$rulecompiletempset" "$rulecompilewhitelistset"
 	if ! ipset -q create "$rulecompilebanset" hash:net hashsize 64 maxelem "$((65536 * 6))" \
-		|| ! ipset -q create "$rulecompiletempset" hash:net hashsize 64 maxelem 65536 timeout 0 \
+		|| ! ipset -q create "$rulecompiletempset" hash:net hashsize 64 maxelem "$((65536 * 6))" timeout 0 \
 		|| ! ipset -q create "$rulecompilewhitelistset" hash:net hashsize 64 maxelem "$((65536 * 6))" \
 		|| ! true > "$rulecompilerestore" || ! true > "$rulecompiledeadlines"; then
 		Destroy_IPSets "$rulecompilebanset" "$rulecompiletempset" "$rulecompilewhitelistset"
@@ -1886,8 +1888,13 @@ Prepare_User_Rule_Sets() {
 			fi
 			;;
 			asn|import)
+				[ "$ruleexpires" = "0" ] || { [ "$rulecompilenow" -gt "0" ] && [ "$ruleexpires" -gt "$rulecompilenow" ]; } || continue
 				ruledatafile="$rulesdatadir/$ruledateref"
 				Validate_Compiled_Rule_Data "$ruletype" "$ruledateref" "$ruledatafile" || return 1
+				if [ "$ruleexpires" -gt "0" ]; then
+					awk -v deadline="$ruleexpires" 'NF {print $0 "\t" deadline}' "$ruledatafile" >> "$rulecompiledeadlines" || return 1
+					continue
+				fi
 				if [ "$ruletarget" = "ban" ]; then rulecompiledataset="$rulecompilebanset"; else rulecompiledataset="$rulecompilewhitelistset"; fi
 				# Restore -! already tolerates duplicate owners; stream validated data
 				# without holding another full copy of the import in an AWK table.
@@ -1902,9 +1909,13 @@ Prepare_User_Rule_Sets() {
 	# Calculate remaining lifetimes after large imports have finished compiling
 	# and restoring, so that work cannot extend an absolute expiry deadline.
 	if [ -s "$rulecompiledeadlines" ]; then
-		awk -F '\t' -v now="$(date +%s)" -v setname="$rulecompiletempset" '$2 > now {
-			printf "add %s %s timeout %d\n", setname, $1, $2 - now
-		}' "$rulecompiledeadlines" > "$rulecompilerestore" \
+		# Several ASNs or direct rules may own the same network. Retain its latest
+		# deadline regardless of registry order; other permanent owners stay separate.
+		awk -F '\t' -v now="$(date +%s)" -v setname="$rulecompiletempset" '
+			{sub(/\/32$/, "", $1)}
+			$2 > now && $2 > deadline[$1] {deadline[$1] = $2}
+			END {for (ip in deadline) printf "add %s %s timeout %d\n", setname, ip, deadline[ip] - now}
+		' "$rulecompiledeadlines" > "$rulecompilerestore" \
 			&& ipset restore -! < "$rulecompilerestore" 2>/dev/null || return 1
 	fi
 	return 0
@@ -2182,6 +2193,8 @@ Apply_Registered_ASN_Rules() {
 	registeredaction="$1"
 	registeredtarget="$2"
 	registeredvalues="$3"
+	registeredasnexpires="${4:-0}"
+	registeredasncomment="${5:-}"
 	case "$registeredaction:$registeredtarget" in add:ban|add:whitelist|remove:ban|remove:whitelist) ;; *) return 2 ;; esac
 	if [ "$registeredaction" = "remove" ]; then
 		Stage_Rule_Registry remove "$registeredtarget" asn "$registeredvalues" "" || return "$?"
@@ -2189,10 +2202,19 @@ Apply_Registered_ASN_Rules() {
 		return "$?"
 	fi
 	Time_Is_Ready || return 1
-	registeredrequest="$TMP_DIR/asn-rule-request.$$"
+	# Keep request metadata outside the ASN download cleanup pattern.
+	registeredrequest="$TMP_DIR/rules-asn-request.$$"
 	true > "$registeredrequest" || return 1
 	mkdir -p "$rulesdatadir" || return 1
 	for registeredvalue in $registeredvalues; do
+		if [ "$registeredasnexpires" -gt "0" ]; then
+			registeredexistingdata="$(awk -F '\t' -v target="$registeredtarget" -v value="$registeredvalue" \
+				'$1 == "R2" && $3 == target && $4 == "asn" && $5 == value && $9 == 0 {print $10; exit}' "$skynetrules")"
+			if [ -n "$registeredexistingdata" ]; then
+				printf 'asn\t%s\t%s\n' "$registeredvalue" "$registeredexistingdata" >> "$registeredrequest" || return 1
+				continue
+			fi
+		fi
 		asnraw="$TMP_DIR/asn-${registeredvalue}.$$"
 		asnvalidated="${asnraw}.validated"
 		asnpublic="${asnraw}.public"
@@ -2218,7 +2240,7 @@ Apply_Registered_ASN_Rules() {
 			|| { Prune_Unreferenced_Rule_Data; return 1; }
 	done
 	rm -f "$TMP_DIR"/asn-*.$$*
-	Stage_Rule_Registry_Request add "$registeredtarget" "$registeredrequest" "" 0
+	Stage_Rule_Registry_Request add "$registeredtarget" "$registeredrequest" "$registeredasncomment" "$registeredasnexpires"
 	registeredstatus="$?"
 	if [ "$registeredstatus" != "0" ]; then Prune_Unreferenced_Rule_Data; return "$registeredstatus"; fi
 	if ! Apply_Rule_Registry_Candidate "$rulestagefile"; then Prune_Unreferenced_Rule_Data; return 1; fi
@@ -3475,11 +3497,27 @@ Is_MAC() {
 
 Is_Port() {
 	awk 'NR == 1 && $0 ~ /^[0-9]{1,5}$/ && $0 >= 1 && $0 <= 65535 { valid = 1 }
-		END { exit valid ? 0 : 1 }'
+		END { exit valid && NR == 1 ? 0 : 1 }'
 }
 
 Is_ASN() {
-	grep -qiE '^AS[0-9]{1,6}$'
+	awk 'NR == 1 && toupper($0) ~ /^AS[0-9]{1,6}$/ { valid = 1 }
+		END { exit valid && NR == 1 ? 0 : 1 }'
+}
+
+Normalize_Log_Size() {
+	# Bound retained history to 200MB and strip leading zeroes before arithmetic.
+	printf '%s\n' "$1" | awk '
+		NR != 1 || $0 !~ /^[0-9]+$/ || length($0) > 10 || $0+0 < 10 || $0+0 > 200 {bad=1}
+		END {if (bad || NR != 1) exit 1; printf "%d\n", $0+0}'
+}
+
+Validate_WebUI_URL() {
+	# One HTTP(S) URL with a non-empty host. Reject control characters and shell syntax.
+	[ "${#1}" -le 512 ] && printf '%s\n' "$1" | awk '
+		NR != 1 || $0 !~ /^https?:\/\/[A-Za-z0-9][A-Za-z0-9.-]*(:[0-9]+)?([\/?#][A-Za-z0-9._~:\/?&=#%@+,-]*)?$/ {bad=1}
+		{host=$0; sub(/^https?:\/\//,"",host); sub(/[\/?#].*/,"",host); if (split(host,parts,":")==2 && (length(parts[2])>5 || parts[2]+0<1 || parts[2]+0>65535)) bad=1}
+		END {exit bad || NR != 1}'
 }
 
 Normalize_ASN_Arguments() {
@@ -3661,11 +3699,16 @@ Parse_Ban_Arguments() {
 				parsemode="done"
 			;;
 			entries:*)
-				parsenormalized="$(Normalize_IPSet_Entry "$parseentrytype" "$parsevalue")"
-				if [ -z "$parsenormalized" ] || [ "$parsenormalized" != "${parsevalue%/32}" ]; then
-					parsederror="$parsevalue Is Not A Valid IP/Range"
-					return 1
-				fi
+				case "$parseentrytype" in
+					asn) parsenormalized="$(Normalize_ASN_Arguments "$parsevalue")" || { parsederror="$parsevalue Is Not A Valid ASN"; return 1; } ;;
+					*)
+						parsenormalized="$(Normalize_IPSet_Entry "$parseentrytype" "$parsevalue")"
+						if [ -z "$parsenormalized" ] || [ "$parsenormalized" != "${parsevalue%/32}" ]; then
+							parsederror="$parsevalue Is Not A Valid IP/Range"
+							return 1
+						fi
+					;;
+				esac
 				case " $parsedentries " in *" $parsenormalized "*) ;; *) parsedentries="${parsedentries}${parsedentries:+ }$parsenormalized" ;; esac
 			;;
 			*) parsederror="Use Values, Optional Timeout, Then Optional Comment"; return 1 ;;
@@ -5755,9 +5798,14 @@ History_Stats_Index() {
 	' "$TMP_DIR/history-index.$$" || return 1
 	History_Stats_Summary > "${statsindexpath}/summary.txt" || return 1
 	awk -F '~' '$3 != "" {print $3 " To " $4}' "${statsindexpath}/summary.txt" > "${statsindexpath}/span.txt" || return 1
-	# Detailed retention covers today; using events also preserves protocol filters.
-	History_Read "SELECT strftime('%H',ts,'unixepoch','localtime'),kind,count(*) FROM events WHERE ts>=strftime('%s','now','localtime','start of day','utc')$historystatsprotocol GROUP BY 1,2;" > "$TMP_DIR/history-activity.$$" || return 1
-	awk -F '\t' -v hour="$(date +%H)" '{ hits[$1+0,$2]=$3 } END { for(i=0;i<=hour+0;i++) printf "%02d:00~%d~%d~%d~%d\n",i,hits[i,1],hits[i,2],hits[i,3],hits[i,4] }' "$TMP_DIR/history-activity.$$" > "${statsindexpath}/activity.txt" || return 1
+	# Group the rolling 24-hour window by local clock hour. The first and current
+	# hours may be partial; detailed events preserve the exact cutoff and protocol filter.
+	statsactivityuntil="$(date +%s)"
+	statsactivityfrom="$((statsactivityuntil - 86400))"
+	statsactivityclock="$(date -d "@$statsactivityfrom" '+%M %S')" || return 1
+	statsactivitybase="$(printf '%s\n' "$statsactivityclock" | awk -v epoch="$statsactivityfrom" '{printf "%.0f",epoch-$1*60-$2}')"
+	History_Read "WITH RECURSIVE buckets(n) AS (SELECT 0 UNION ALL SELECT n+1 FROM buckets WHERE $statsactivitybase+(n+1)*3600<$statsactivityuntil), activity AS (SELECT CAST((ts-$statsactivitybase)/3600 AS INTEGER) AS bucket,kind,count(*) AS hits FROM events WHERE ts>=$statsactivityfrom AND ts<$statsactivityuntil$historystatsprotocol GROUP BY 1,2) SELECT strftime('%H',$statsactivitybase+n*3600,'unixepoch','localtime'),coalesce(sum(CASE kind WHEN 1 THEN hits END),0),coalesce(sum(CASE kind WHEN 2 THEN hits END),0),coalesce(sum(CASE kind WHEN 3 THEN hits END),0),coalesce(sum(CASE kind WHEN 4 THEN hits END),0) FROM buckets LEFT JOIN activity ON bucket=n GROUP BY n ORDER BY n;" > "$TMP_DIR/history-activity.$$" || return 1
+	awk -F '\t' '{ h=$1+0; printf "%d%s~%d~%d~%d~%d\n",h%12 ? h%12 : 12,h<12 ? "am" : "pm",$2,$3,$4,$5 }' "$TMP_DIR/history-activity.$$" > "${statsindexpath}/activity.txt" || return 1
 	true > "${statsindexpath}/.history-index" || return 1
 	rm -f "$TMP_DIR/history-index.$$" "$TMP_DIR/history-activity.$$"
 }
@@ -5775,7 +5823,20 @@ Build_Stats_Log_Index() {
 	if History_Ready; then History_Stats_Index; return "$?"; fi
 	[ ! -e "${skynetloc}/history.db" ] || return 1
 
-	awk -v path="$statsindexpath" -v proto="$statsindexproto" -v today="$(date '+%b %e')" -v hour="$(date '+%H')" '
+	# A bounded hour map handles midnight/year changes without invoking date per log row.
+	# RFC3164 cannot distinguish the repeated local hour when daylight saving ends.
+	statsactivityuntil="$(date +%s)"
+	statsactivityfrom="$((statsactivityuntil - 86400))"
+	statsactivityclock="$(date -d "@$statsactivityfrom" '+%M %S')" || return 1
+	statsactivitybase="$(printf '%s\n' "$statsactivityclock" | awk -v epoch="$statsactivityfrom" '{printf "%.0f",epoch-$1*60-$2}')"
+	statsactivitystep="0"
+	while [ "$((statsactivitybase + statsactivitystep * 3600))" -lt "$statsactivityuntil" ]; do
+		statsactivityepoch="$((statsactivitybase + statsactivitystep * 3600))"
+		statsactivitylabel="$(date -d "@$statsactivityepoch" '+%b %e %H~%I%p')" || return 1
+		printf '%s~%s\n' "$statsactivitylabel" "$statsactivityepoch" || return 1
+		statsactivitystep="$((statsactivitystep + 1))"
+	done > "${statsindexpath}/activity-window.txt"
+	awk -v path="$statsindexpath" -v proto="$statsindexproto" -v start="$statsactivityfrom" -v base="$statsactivitybase" -v until="$statsactivityuntil" '
 		# Values in kernel logs end at the next space or comma.
 		function field_value(field, position, value) {
 			position = index($0, " " field "=")
@@ -5784,7 +5845,13 @@ Build_Stats_Log_Index() {
 			sub(/[ ,].*/, "", value)
 			return value
 		}
-		BEGIN { hour += 0 }
+		FNR == NR {
+			split($0,window,"~")
+			hours[window[1]]=window[3]
+			labels[NR-1]=tolower(window[2]); sub(/^0/,"",labels[NR-1])
+			buckets=NR
+			next
+		}
 		{
 			if ($0 !~ /\[BLOCKED - (INBOUND|OUTBOUND|INVALID|IOT)\]/) next
 			{
@@ -5815,8 +5882,11 @@ Build_Stats_Log_Index() {
 				if ((value = field_value("DST")) != "") print value >> path "/iot-dst.txt"
 			}
 
-			if (substr($0, 1, 6) == today) {
-				loghour = substr($0, 8, 2) + 0
+			logkey=substr($0,1,9)
+			split($3,clock,":")
+			logepoch=hours[logkey] + clock[2]*60 + clock[3]
+			if (logkey in hours && logepoch >= start && logepoch < until) {
+				loghour = int((logepoch-base)/3600)
 				if ($0 ~ /\[BLOCKED - INBOUND\]/) inbound[loghour]++
 				else if ($0 ~ /\[BLOCKED - OUTBOUND\]/) outbound[loghour]++
 				else if ($0 ~ /\[BLOCKED - INVALID\]/) invalid[loghour]++
@@ -5825,12 +5895,12 @@ Build_Stats_Log_Index() {
 		}
 		END {
 			for (value in unique) uniquecount++
-			for (i = 0; i <= hour; i++)
-				printf "%02d:00~%d~%d~%d~%d\n", i, inbound[i] + 0, outbound[i] + 0, invalid[i] + 0, iot[i] + 0 > path "/activity.txt"
+			for (i = 0; i < buckets; i++)
+				printf "%s~%d~%d~%d~%d\n", labels[i], inbound[i] + 0, outbound[i] + 0, invalid[i] + 0, iot[i] + 0 > path "/activity.txt"
 			if (first != "") print first " To " last > path "/span.txt"
 			print events + 0 "~" uniquecount + 0 "~" first "~" last > path "/summary.txt"
 		}
-	' "$statsindexsource"
+	' "${statsindexpath}/activity-window.txt" "$statsindexsource"
 }
 
 Extract_Stats_Values() {
@@ -7619,6 +7689,7 @@ Generate_WebUI_Rule_Data() {
 			else if (type == "asn" || type == "import") {
 				kind = type == "import" ? "import" : "group"
 				setname = action == "ban" ? "Skynet-UserBans" : "Skynet-UserWhitelist"; display = value
+				if (expires > 0) setname = "Skynet-TemporaryBans"
 				datafile = datadir "/" data
 				if (!(data in data_count)) {
 					data_count[data] = 0
@@ -7980,6 +8051,8 @@ Generate_Stats() {
 	IFS= read -r statsspan < "${statsworkspace}/span.txt"
 	Write_Stats_ToJS "${statsspan:-N/A}" "$statstmp" "SetStatsDate" "statsdate" || statsstatus="1"
 	Write_Data_ToJS "${statsworkspace}/activity.txt" "$statstmp" "LabelActivityToday" "DataActivityInbound" "DataActivityOutbound" "DataActivityInvalid" "DataActivityIOT" || statsstatus="1"
+	# Exact collection bounds let the chart identify partial hours without using browser time.
+	printf 'var SkynetActivityWindow = {from:%s,until:%s,base:%s};\n' "$statsactivityfrom" "$statsactivityuntil" "$statsactivitybase" >> "$statstmp" || statsstatus="1"
 
 	# Extract chart IPs before enrichment so the large IPSet and dnsmasq histories
 	# are each scanned once for only the addresses the WebUI will display.
@@ -9456,10 +9529,9 @@ Load_Config() {
 	case "$lookupcountry" in enabled|disabled) ;; *) lookupcountry="disabled"; configchanged="1" ;; esac
 	case "$cdnwhitelist" in enabled|disabled) ;; *) cdnwhitelist="disabled"; configchanged="1" ;; esac
 	case "$displaywebui" in enabled|disabled) ;; *) displaywebui="disabled"; configchanged="1" ;; esac
-	case "$logsize" in
-		""|*[!0-9]*) logsize="10"; configchanged="1" ;;
-		*) [ "$logsize" -ge "10" ] || { logsize="10"; configchanged="1"; } ;;
-	esac
+	configlogsize="$(Normalize_Log_Size "$logsize")" \
+		|| configlogsize="$(printf '%s\n' "$logsize" | awk 'END {print NR == 1 && $0 ~ /^[0-9]+$/ && $0+0 > 200 ? 200 : 10}')"
+	if [ "$logsize" != "$configlogsize" ]; then logsize="$configlogsize"; configchanged="1"; fi
 	[ -n "$syslogloc" ] || { syslogloc="/tmp/syslog.log"; configchanged="1"; }
 	[ -n "$syslog1loc" ] || { syslog1loc="/tmp/syslog.log-1"; configchanged="1"; }
 	case "$syslogmode" in
@@ -9700,10 +9772,7 @@ Apply_WebUI_Settings() {
 		case "$webuifilter" in all|inbound|outbound) ;; *) settingsresult="error" ;; esac
 		case "$webuimalware" in daily|weekly|disabled) ;; *) settingsresult="error" ;; esac
 		if [ -n "$webuicustomlist" ]; then
-			# Require HTTP(S) and URL-safe characters; quotes and shell syntax are
-			# intentionally excluded before the value reaches a CLI command.
-			[ "${#webuicustomlist}" -le 512 ] 2>/dev/null || settingsresult="error"
-			printf '%s\n' "$webuicustomlist" | grep -qE '^https?://[A-Za-z0-9._~:/?&=#%@+,-]+$' || settingsresult="error"
+			Validate_WebUI_URL "$webuicustomlist" || settingsresult="error"
 		fi
 		case "$webuiunbanprivate" in enabled|disabled) ;; *) settingsresult="error" ;; esac
 		case "$webuiaiprotect" in enabled|disabled) ;; *) settingsresult="error" ;; esac
@@ -9718,7 +9787,7 @@ Apply_WebUI_Settings() {
 			*) settingsresult="error" ;;
 		esac
 		case "$webuiloginvalid" in enabled|disabled) ;; *) settingsresult="error" ;; esac
-		case "$webuilogsize" in ""|*[!0-9]*) settingsresult="error" ;; *) [ "$webuilogsize" -ge 10 ] 2>/dev/null || settingsresult="error" ;; esac
+		webuilogsize="$(Normalize_Log_Size "$webuilogsize")" || settingsresult="error"
 		case "$webuiextended" in enabled|disabled) ;; *) settingsresult="error" ;; esac
 		case "$webuicountry" in enabled|disabled) ;; *) settingsresult="error" ;; esac
 		case "$webuicdn" in enabled|disabled) ;; *) settingsresult="error" ;; esac
@@ -9802,12 +9871,13 @@ Apply_WebUI_Threat_Feeds() {
 				else set -- banmalware exclude reset; fi
 			;;
 			add|remove)
-				if [ -n "$webuifeedvalues" ]; then set -- banmalware "$webuifeedaction" "$webuifeedvalues"
+				if [ "$webuifeedaction" = "add" ] && ! Validate_WebUI_URL "$webuifeedvalues"; then settingsresult="filter"
+				elif [ -n "$webuifeedvalues" ]; then set -- banmalware "$webuifeedaction" "$webuifeedvalues"
 				else settingsresult="filter"; fi
 			;;
 			template)
 				if [ -n "$webuifeedvalues" ]; then
-					case "$webuifeedvalues" in http://*|https://*) set -- banmalware "$webuifeedvalues" ;; *) settingsresult="filter" ;; esac
+					if Validate_WebUI_URL "$webuifeedvalues"; then set -- banmalware "$webuifeedvalues"; else settingsresult="filter"; fi
 				else set -- banmalware reset; fi
 			;;
 			*) settingsresult="filter" ;;
@@ -9909,7 +9979,10 @@ Set_WebUI_Rule_Result() {
 	webuirulestatus="$1"
 	webuiruleoutput="$2"
 	case "$webuirulestatus" in
-		0) settingsresult="success"; webuirulepersisted="1" ;;
+		0)
+			settingsresult="success"; webuirulepersisted="1"
+			if grep -qF "Existing Permanent Rule Retained" "$webuiruleoutput" 2>/dev/null; then settingsresult="warning:permanent"; fi
+		;;
 		2)
 			if grep -qF "Already Owned By Another Rule" "$webuiruleoutput" 2>/dev/null; then
 				settingsresult="conflict"
@@ -10122,10 +10195,12 @@ Apply_WebUI_Rules() {
 		;;
 		add:ban:domain|add:whitelist:domain|add:unban:domain|add:ban:asn|add:whitelist:asn|add:unban:asn)
 			webuiruleentries="$(Normalize_List "$webuiruleentries")" || settingsresult="validation"
+			if [ -n "$webuiruletimeout" ] && [ "$webuiruleaction:$webuirulemode" != "ban:asn" ]; then settingsresult="validation"; fi
 			if [ "$settingsresult" != "validation" ]; then
 				# Values are validated by the public dispatcher before any live change.
 				# shellcheck disable=SC2086
 				set -- $webuiruleentries
+				[ -z "$webuiruletimeout" ] || set -- "$@" timeout "$webuiruletimeout"
 				webuiruleoutput="$TMP_DIR/webui-rule-output.$$"
 				if [ "$webuiruleaction" = "ban" ]; then Run_WebUI_Command ban "$webuirulemode" "$@" > "$webuiruleoutput" 2>&1
 				elif [ "$webuiruleaction" = "whitelist" ]; then Run_WebUI_Command whitelist "$webuirulemode" "$@" > "$webuiruleoutput" 2>&1
@@ -11047,16 +11122,26 @@ Dispatch_Ban() {
 			Require_Time
 			Require_Connection
 			shift 2
-			asnlist="$(Normalize_ASN_Arguments "$@")" || { echo "[*] ASN Values Must Use AS Followed By Up To Six Digits"; echo; exit 2; }
+			Parse_Ban_Arguments asn 242 "$@" || { echo "[*] $parsederror"; echo "[*] Usage: firewall ban asn AS123 [AS456 ...] [timeout 1h] [comment \"text\"]"; echo; exit 2; }
+			asnlist="$parsedentries"
 			echo "[i] Adding $asnlist To Blacklist"
-			Apply_Registered_ASN_Rules add ban "$asnlist"
+			Apply_Registered_ASN_Rules add ban "$asnlist" "$parsedexpires" "$parsedcomment"
 			asnstatus="$?"
 			if [ "$asnstatus" != "0" ]; then
 				if [ "$asnstatus" = "2" ]; then echo "[*] An ASN Range Is Already Owned By Another Rule"; else echo "[*] Failed To Download Or Apply $asnlist"; fi
 				echo
 				exit "$asnstatus"
 			fi
-			Queue_Action success rules add ban asn "$asnlist" "" || Log error -s "Failed To Queue Rule Action"
+			asnresult="success"
+			if [ "$parsedexpires" -gt "0" ] && [ "$rulestagepermanent" -gt "0" ]; then
+				asnresult="degraded"
+				echo "[!] Existing Permanent Rule Retained"
+			fi
+			asndetail="$parsedcomment"
+			if [ "$parsedexpires" -gt "0" ]; then asndetail="${asndetail}${asndetail:+; }Expires $(Format_Threat_Feed_Time "$parsedexpires")"; fi
+			if [ "$rulestagechanged" -gt "0" ]; then
+				Queue_Action "$asnresult" rules add ban asn "$asnlist" "$asndetail" || Log error -s "Failed To Queue Rule Action"
+			fi
 			return 0
 		;;
 		*)
@@ -12390,32 +12475,12 @@ Settings_InvalidLogging() {
 }
 
 Settings_LogSize() {
-	case "$3" in
-		10)
-			Check_Lock "$@"
-			Require_Running
-			logsize="10"
-			Purge_Logs
-			echo "[i] Log Size Set To 10MB"
-		;;
-		*)
-			Check_Lock "$@"
-			Require_Running
-			if Is_Numeric "$3"; then
-				if [ "$3" -lt 10 ]; then
-					echo "[*] $3 Is Not A Valid Size - Must Be At Least 10MB"
-					exit 2
-				else
-					logsize="$3"
-					Purge_Logs
-					echo "[i] Log Size Set To ${logsize}MB"
-				fi
-			else
-				echo "[*] $3 Is Not A Valid Size - Must Be Numeric"
-				exit 2
-			fi
-		;;
-	esac
+	settingslogsize="$(Normalize_Log_Size "$3")" || { echo "[*] Log Size Must Be Between 10 And 200MB"; return 2; }
+	Check_Lock "$@"
+	Require_Running
+	logsize="$settingslogsize"
+	Purge_Logs || return 1
+	echo "[i] Log Size Set To ${logsize}MB"
 }
 
 Settings_TrafficFilter() {
@@ -14370,6 +14435,12 @@ Menu_Ban() {
 					Prompt_Typed "option3" "ASNs" "Input ASNs To Ban Separated By Spaces:"
 					if ! Menu_Validate_ASN_List "$option3"; then echo "[*] One Or More ASNs Are Not Valid"; echo; unset "option2" "option3"; continue; fi
 					option3="$menuasnlist"; option3list="1"
+					Prompt_Typed "option5" "Lifetime" "Lifetime: 15m, 1h, 6h, 24h, 7d (Enter For Permanent):"
+					case "$option5" in
+						"") unset "option4" ;;
+						15m|1h|6h|24h|7d) option4="timeout" ;;
+						*) echo "[*] Invalid Lifetime"; echo; unset "option2" "option3" "option4" "option5"; continue ;;
+					esac
 					break
 				;;
 				e|exit|back|menu)
@@ -14625,6 +14696,8 @@ Menu_Import() {
 	while :; do
 		if ! Menu_Require_Running; then break; fi
 		option1="import"
+		echo "[i] Imports Are One-Time Copies And Are Not Refreshed Automatically"
+		echo "[i] Use Malware Blacklist Sources For Scheduled Blacklist Updates"
 		while true; do
 			Show_Menu "Select Where To Import List:" \
 				"Blacklist" \
@@ -14740,9 +14813,8 @@ Menu_Settings_Log_Size() {
 		case "$menu3" in
 			1) option3="10"; break ;;
 			2)
-				Prompt_Typed "option3" "Size" "Input Custom Log Size (in MB):"
-				if ! Is_Numeric "$option3"; then echo; echo "[*] $option3 Is Not A Valid Size"; echo; unset "option3"; continue; fi
-				if [ "$option3" -lt 10 ]; then echo; echo "[*] $option3 Is Not A Valid Size - Must Be At Least 10MB"; echo; unset "option3"; continue; fi
+				Prompt_Typed "option3" "Size" "Input Custom Log Size (10-200MB):"
+				option3="$(Normalize_Log_Size "$option3")" || { echo; echo "[*] Log Size Must Be Between 10 And 200MB"; echo; unset "option3"; continue; }
 				break
 			;;
 			e|exit|back|menu) Return_To_Menu; break ;;

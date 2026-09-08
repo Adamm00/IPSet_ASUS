@@ -2422,6 +2422,17 @@
             box-shadow: inset 0 0 28px rgba(57, 239, 157, 0.04);
         }
 
+        .skynet-activity-period {
+            margin-left: 10px;
+            color: var(--skynet-muted-2);
+            font-weight: normal;
+            white-space: nowrap;
+        }
+
+        .skynet-activity-shell::before {
+            opacity: 0.3;
+        }
+
         .skynet-chart-shell::before {
             content: "";
             position: absolute;
@@ -3076,7 +3087,7 @@
             countryCodes: "AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BV BW BY BZ CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK FM FO FR GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY HK HM HN HR HT HU ID IE IL IM IN IO IQ IR IS IT JE JM JO JP KE KG KH KI KM KN KP KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MF MG MH MK ML MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ NA NC NE NF NG NI NL NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS PT PW PY QA RE RO RS RU RW SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TF TG TH TJ TK TL TM TN TO TR TT TV TW TZ UA UG UM US UY UZ VA VC VE VG VI VN VU WF WS YE YT ZA ZM ZW".split(" "),
             chartDefinitions: {
                 ActivityToday: {
-                    title: "Block Activity Today",
+                    title: "Block Activity",
                     multiLabel: false,
                     activity: true
                 },
@@ -4858,6 +4869,28 @@
                 return;
             }
 
+            const period = window.SkynetActivityWindow || {};
+            const from = Number(period.from);
+            const until = Number(period.until);
+            const base = Number(period.base);
+            const timed = Number.isFinite(from) && Number.isFinite(until) &&
+                Number.isFinite(base) && until - from === 86400 &&
+                base <= from && from - base < 3600;
+            const buckets = timed ? labels.map(function(label, index) {
+                const hour = base + index * 3600;
+                return {
+                    start: new Date(Math.max(hour, from) * 1000),
+                    end: new Date(Math.min(hour + 3600, until) * 1000),
+                    partial: hour < from || hour + 3600 > until
+                };
+            }) : [];
+            const shortDate = function(date) {
+                return date.toLocaleDateString(undefined, {day: "numeric", month: "short"});
+            };
+            const clockTime = function(date) {
+                return date.toLocaleTimeString(undefined, {hour: "numeric", minute: "2-digit", hour12: true});
+            };
+
             const series = [
                 {
                     label: "Inbound",
@@ -4908,7 +4941,9 @@
                     borderColor: item.color,
                     backgroundColor: gradient,
                     borderWidth: 2,
-                    pointRadius: 1.5,
+                    pointRadius: item.values.map(function(value, index) {
+                        return index === labels.length - 1 ? 3 : 0;
+                    }),
                     pointHoverRadius: 5,
                     pointBackgroundColor: item.color,
                     pointBorderColor: "#11191c",
@@ -4939,7 +4974,7 @@
                 beforeDatasetDraw: function(chart, args) {
                     chart.ctx.save();
                     chart.ctx.shadowColor = chart.data.datasets[args.index].borderColor;
-                    chart.ctx.shadowBlur = 8;
+                    chart.ctx.shadowBlur = 4;
                 },
                 afterDatasetDraw: function(chart) {
                     chart.ctx.restore();
@@ -4956,10 +4991,7 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    animation: {
-                        duration: 450,
-                        easing: "easeOutQuart"
-                    },
+                    animation: false,
                     interaction: {
                         mode: "index",
                         intersect: false
@@ -5011,6 +5043,14 @@
                             bodyColor: "#dbe4e7",
                             padding: 10,
                             callbacks: {
+                                title: function(items) {
+                                    if (!items.length) return "";
+                                    const bucket = buckets[items[0].dataIndex];
+                                    if (!bucket) return items[0].label;
+                                    return [shortDate(bucket.start),
+                                        clockTime(bucket.start) + " – " + clockTime(bucket.end) +
+                                        (bucket.partial ? " · Partial" : "")];
+                                },
                                 label: function(item) {
                                     return item.dataset.label + ": " +
                                         SkynetUI.formatNumber(item.parsed.y);
@@ -5021,18 +5061,29 @@
                     scales: {
                         x: {
                             grid: {
-                                color: "rgba(143, 209, 245, 0.06)"
+                                display: false
                             },
                             ticks: {
                                 color: textColor,
-                                maxTicksLimit: 8,
-                                maxRotation: 0
+                                autoSkip: false,
+                                maxRotation: 0,
+                                callback: function(value, index) {
+                                    const last = labels.length - 1;
+                                    const step = this.chart.width < 500 || window.innerWidth < 640 ? 6 : 3;
+                                    if (index === 0 || index === last) {
+                                        return buckets[index]
+                                            ? [labels[index], shortDate(buckets[index].start)]
+                                            : labels[index];
+                                    }
+                                    return index % step === 0 && last - index >= step / 2
+                                        ? labels[index] : "";
+                                }
                             }
                         },
                         y: {
                             beginAtZero: true,
                             grid: {
-                                color: "rgba(143, 209, 245, 0.10)"
+                                color: "rgba(143, 209, 245, 0.06)"
                             },
                             ticks: {
                                 color: textColor,
@@ -5047,7 +5098,7 @@
             });
 
             canvas.setAttribute("role", "img");
-            canvas.setAttribute("aria-label", "Hourly block activity today");
+            canvas.setAttribute("aria-label", "Block activity for the past 24 hours at the last statistics refresh");
         };
 
         SkynetUI.groupCountries = function(chartName) {
@@ -5260,7 +5311,7 @@
             html += '<table width="100%" border="0" cellpadding="0" cellspacing="0">';
             html += '<thead class="collapsible expanded skynet-section-head" id="skynet_chart_' + name + '" aria-expanded="true" role="button" tabindex="0">';
             html += '<tr>';
-            html += '<td>' + this.escapeHtml(title) + '</td>';
+            html += '<td>' + this.escapeHtml(title) + '<span class="skynet-activity-period">Past 24 hrs</span></td>';
             html += '<td><span class="skynet-section-toggle" aria-hidden="true">▾</span></td>';
             html += '</tr>';
             html += '</thead>';
@@ -6032,7 +6083,7 @@
         SkynetUI.isTemporaryRule = function(rule) {
             const type = String(rule && rule.type || "").toLowerCase();
             return Boolean(rule && rule.action === "ban" &&
-                (type === "ip" || type === "range" || type === "cidr") &&
+                (type === "ip" || type === "range" || type === "cidr" || type === "asn") &&
                 this.getRuleExpiry(rule));
         };
 
@@ -6069,12 +6120,9 @@
                 .forEach(function(element) {
                     const expires = Number(element.dataset.expires || 0);
                     if (expires <= SkynetUI.getRuleNow()) {
-                        const counterID = element.dataset.ruleType === "ip" ? "blcount1" : "blcount2";
-                        const counter = SkynetUI.getElement(counterID);
-                        const current = Number(String(counter && counter.textContent || "0").replace(/,/g, ""));
-                        if (SkynetUI.isRuleTimeReady() && counter && isFinite(current) && current > 0) {
-                            counter.textContent = SkynetUI.formatNumber(current - 1);
-                        }
+                        // Overlapping owners and ASN groups prevent deriving live
+                        // IP/range totals from an expired logical row. Keep the
+                        // router's counters until the next settings refresh.
                         expired = true;
                     } else {
                         element.textContent = (SkynetUI.isRuleTimeReady()
@@ -6214,7 +6262,7 @@
             const refresh = this.getElement(this.selectors.ruleRefresh);
             const unban = action && action.value === "unban";
             const lifetimeAvailable = action && mode &&
-                action.value === "ban" && mode.value === "ip";
+                action.value === "ban" && (mode.value === "ip" || mode.value === "asn");
             const timeReady = this.isRuleTimeReady();
             if (lifetimeField) lifetimeField.hidden = !lifetimeAvailable;
             if (lifetime && !lifetimeAvailable) lifetime.value = "";
@@ -6833,7 +6881,7 @@
                 ? this.ruleEntries.map(function(entry) {
                     return entry + "\tC" + (SkynetUI.ruleComments[entry] || "");
                 }).join("\t") : "";
-            custom_settings.skynet_ruletimeout = action === "ban" && mode === "ip"
+            custom_settings.skynet_ruletimeout = action === "ban" && (mode === "ip" || mode === "asn")
                 ? lifetime : "";
             custom_settings.skynet_ruleid = rule ? String(rule.id || "") : "";
             custom_settings.skynet_ruletarget = rule ? rule.target : "";
@@ -6901,6 +6949,13 @@
 
             return parts.length === 1 ||
                 (/^\d{1,2}$/.test(parts[1]) && Number(parts[1]) <= 32);
+        };
+
+        SkynetUI.isFeedURL = function(value) {
+            if (value.length > 512 || /[\s\x00-\x1f\x7f]/.test(value) ||
+                !/^https?:\/\/[A-Za-z0-9][A-Za-z0-9.-]*(?::[0-9]+)?(?:[/?#][A-Za-z0-9._~:/?&=#%@+,-]*)?$/.test(value)) return false;
+            const host = value.replace(/^https?:\/\//, "").split(/[/?#]/)[0].split(":");
+            return host.length === 1 || (host[1].length <= 5 && Number(host[1]) >= 1 && Number(host[1]) <= 65535);
         };
 
         SkynetUI.normaliseIOTEntries = function(value) {
@@ -7318,15 +7373,9 @@
                 filters = {range: get("skynetBlockRange"), kind: get("skynetBlockKind"),
                     ip: get("skynetBlockIP"), proto: get("skynetBlockProtocol"), port: get("skynetBlockPort")};
             }
-            if (filters.ip) {
-                const parts = filters.ip.split("/");
-                const octets = parts[0].split(".");
-                if (parts.length > 2 || octets.length !== 4 || octets.some(function(part) {
-                    return !/^\d{1,3}$/.test(part) || Number(part) > 255;
-                }) || (parts.length === 2 && (!/^\d{1,2}$/.test(parts[1]) || Number(parts[1]) > 32))) {
-                    this.setUpdateResult("Enter a complete IPv4 address or CIDR range.", true, this.selectors.blockHistoryResult);
-                    return;
-                }
+            if (filters.ip && !this.isIPv4Range(filters.ip)) {
+                this.setUpdateResult("Enter a complete IPv4 address or CIDR range.", true, this.selectors.blockHistoryResult);
+                return;
             }
             if (filters.port && (!/^\d{1,5}$/.test(filters.port) || Number(filters.port) < 1 || Number(filters.port) > 65535)) {
                 this.setUpdateResult("Enter a port from 1 to 65535.", true, this.selectors.blockHistoryResult);
@@ -8040,7 +8089,7 @@
             this.setUpdateResult("", false, this.selectors.settingsResult);
             value = String(value || "").trim();
             if ((operation !== "template" && !value) || ((operation === "add" || (operation === "template" && value)) &&
-                !/^https?:\/\/[A-Za-z0-9._~:/?&=#%@+,-]+$/.test(value))) {
+                !this.isFeedURL(value))) {
                 this.setUpdateResult("Enter a valid HTTP or HTTPS feed URL.", true, this.selectors.feedStatus);
                 return;
             }
@@ -8157,22 +8206,20 @@
                 return;
             }
 
-            const logsize = this.getElement("skynetLogSize").value;
+            const logsize = this.getElement("skynetLogSize").value.trim();
             const customlisturl = String((window.SkynetSettings || {}).customlisturl || "");
 
-            if (!/^\d+$/.test(logsize) || Number(logsize) < 10) {
+            if (!/^\d{1,10}$/.test(logsize) || Number(logsize) < 10 || Number(logsize) > 200) {
                 this.showView("statistics");
                 this.setUpdateResult(
-                    "Log size must be at least 10MB.",
+                    "Log size must be between 10 and 200MB.",
                     true,
                     this.selectors.settingsResult
                 );
                 return;
             }
 
-            if (customlisturl &&
-                (customlisturl.length > 512 ||
-                    !/^https?:\/\/[A-Za-z0-9._~:/?&=#%@+,-]+$/i.test(customlisturl))) {
+            if (customlisturl && !this.isFeedURL(customlisturl)) {
                 this.setUpdateResult(
                     "Enter a valid HTTP(S) filter list URL.",
                     true,
@@ -8203,7 +8250,7 @@
             custom_settings.skynet_syslogloc = syslog;
             custom_settings.skynet_syslog1loc = syslogArchive;
             custom_settings.skynet_loginvalid = this.getElement("skynetLogInvalid").value;
-            custom_settings.skynet_logsize = logsize;
+            custom_settings.skynet_logsize = String(Number(logsize));
             custom_settings.skynet_extendedstats = this.getElement("skynetExtendedStats").value;
             custom_settings.skynet_lookupcountry = this.getElement("skynetCountryLookup").value;
             custom_settings.skynet_cdnwhitelist = this.getElement("skynetCdnWhitelist").value;
@@ -9095,7 +9142,7 @@
                                                                     <div class="skynet-rules-manager">
                                                                         <div class="skynet-feed-intro">
                                                                             <span class="skynet-feed-title">Create Rules</span>
-                                                                            <span class="skynet-feed-help">Manage permanent or temporary IPv4 rules, domains and ASNs.</span>
+                                                                            <span class="skynet-feed-help">Manage IPv4, domain and ASN rules. IPv4 and ASN bans support temporary lifetimes. Imported rule lists are one-time copies; use threat feeds for scheduled blacklist refreshes.</span>
                                                                         </div>
                                                                         <div class="skynet-rule-overview">
                                                                             <div class="skynet-rule-health" id="skynetRuleHealth">Loading domain health...</div>
@@ -9408,6 +9455,7 @@
                                                                         <input type="number"
                                                                             id="skynetLogSize"
                                                                             min="10"
+                                                                            max="200"
                                                                             step="1"
                                                                             placeholder="10" />
                                                                         <span class="skynet-input-note">MB · Default: 10MB</span>
@@ -9609,11 +9657,11 @@
                                                                 <span class="skynet-kpi-value" id="blcount2">—</span>
                                                             </td>
                                                             <td class="skynet-kpi">
-                                                                <span class="skynet-kpi-label">Inbound Blocks</span>
+                                                                <span class="skynet-kpi-label" title="Packets since the inbound firewall rules were installed. Resets when rules are rebuilt or the router reboots.">Inbound Blocks</span>
                                                                 <span class="skynet-kpi-value" id="hits1">—</span>
                                                             </td>
                                                             <td class="skynet-kpi">
-                                                                <span class="skynet-kpi-label">Outbound Blocks</span>
+                                                                <span class="skynet-kpi-label" title="Packets since the outbound firewall rules were installed. Resets when rules are rebuilt or the router reboots.">Outbound Blocks</span>
                                                                 <span class="skynet-kpi-value" id="hits2">—</span>
                                                             </td>
                                                         </tr>
