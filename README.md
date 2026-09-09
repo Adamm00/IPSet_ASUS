@@ -100,7 +100,7 @@ ASN refreshes retain the original rule deadline, including when the announced ra
 
 Country blocking downloads the selected IPdeny lists concurrently over verified HTTPS and accepts only complete public IPv4 CIDRs. A URL-bound validated cache is used with a warning when a selected list is temporarily unavailable. If no matching cache exists, the complete previous country selection is retained. Applying a new country selection replaces the previous selection rather than appending to it.
 
-Domain rules are stored as logical policy and materialised in dedicated dynamic IP sets. Skynet resolves them every six hours, while dnsmasq adds newly observed answers between refreshes. A successful refresh replaces the complete answer set so addresses no longer returned by DNS are removed. Validated answers may be retained for up to 24 hours during a resolver failure; after that they expire instead of remaining trusted indefinitely. New domain rules still require a successful initial resolution, and removals use the stored rule rather than resolving the domain again.
+Domain rules are stored as logical policy and materialised in dedicated dynamic IP sets. They filter resolved IPv4 addresses, not website names, so other services sharing those addresses may also be affected. Skynet resolves them every six hours, while dnsmasq adds newly observed answers between refreshes. A successful refresh replaces the complete answer set so addresses no longer returned by DNS are removed. Validated answers may be retained for up to 24 hours during a resolver failure; after that they expire instead of remaining trusted indefinitely. New domain rules still require a successful initial resolution, and removals use the stored rule rather than resolving the domain again.
 
 Domain health is reported as `current`, `cached`, `empty`, `expired`, or `failed`. One completed empty lookup retains a recent validated answer; two consecutive empty lookups remove it. Resolver failures retain validated answers within the 24-hour safety window, then report `expired`. Removing a domain does not remove addresses still owned by another rule.
 
@@ -114,6 +114,8 @@ Startup restores validated domain caches without a DNS lookup. Once time is sync
 A Skynet filter list contains one HTTP or HTTPS threat-feed URL per line. It supplies the initial selection or replaces it when explicitly imported. Normal updates use the saved selection, so added, removed and disabled sources remain as configured. Existing source details and exclusions are carried into the saved selection; when no source details exist, the configured custom or default filter list is imported on the first malware update.
 
 Skynet refreshes required whitelists, conditionally downloads enabled feeds, validates their IPv4 entries, removes private and reserved ranges, and rebuilds the malware portion of the blacklist. CIDRs are normalized to their network address, `/32` entries become individual IPs, and source counts include only unique usable entries. Ranges overlapping private or reserved space are excluded. Cached files are bound to their complete source URL so changed URLs cannot inherit stale content with the same filename. Source names remain stable when other sources are removed.
+
+When enabled sources, validated content and saved malware policy are unchanged, Skynet skips compilation and IPSet replacement. Source checks, cache-health reporting, required whitelist refreshes and AiProtection processing still run. A signature in the existing source metadata is committed only after a successful update; changed policy, incompatible parser metadata or pending persistence forces a full rebuild. Entry counts for unchanged excluded caches are reused only when their URL binding and content hash match.
 
 Each source is reported as `current`, `cached`, `failed`, or `excluded`; `pending` means no matching check is available yet. A validated cache may be used when its source cannot be refreshed. If any enabled source has no valid matching cache, the update fails and the complete existing blacklist and saved source selection are retained.
 
@@ -189,6 +191,8 @@ The interactive Settings menu groups options under Updates & Lists, Protection, 
 - `firewall settings unbanprivate enable|disable` - Automatically whitelist private addresses observed in blocked traffic and remove exact entries from the IP blacklist.
 - `firewall settings banaiprotect enable|disable` - Import or remove IPv4 threats recorded by AiProtection.
 - `firewall settings securemode enable|disable` - Control whether Skynet disables WAN access to SSH and the router WebUI when detected.
+
+Secure Mode restricts WAN management access. It does not scan router files for malware or remove software, user profiles or VPN settings. AiProtection ingestion and threat-feed blocking operate independently.
 - `firewall settings cdnwhitelist enable|disable` - Add or remove supported CDN, service, and public DNS ranges from the whitelist.
 
 Repeated AiProtection records are grouped before processing. Successful domain resolutions are reused for 24 hours and failed resolutions for seven days, while a newer AiProtection event is retried immediately. A previous valid mapping is retained if a later lookup fails.
@@ -217,12 +221,17 @@ Enabling isolation, adding devices while it is enabled, or changing allowed port
 
 - `firewall settings logmode enable|disable` - Enable or disable logging of Skynet blocks. Disabling logging pauses scheduled chart generation without removing the WebUI, retained block history or protection. Enabling logging restores the statistics schedule.
 - `firewall settings loginvalid enable|disable` - Enable or disable logging of conntrack INVALID packets handled by the router's drop chain. Other rejected new connections are not classified as invalid.
+- `firewall settings logfirewall enable|disable` - Enable or disable the separate **Firewall Drops** category. Disabled by default; requires Packet Logging.
 - `firewall settings logsize 10` - Set the collected traffic storage budget from 10 to 200MB. Older detailed events expire first when the budget is reached. Saved budgets above 200MB are capped at 200MB.
 - `firewall settings extendedstats enable|disable` - Add associated domain names to statistics when dnsmasq logs are available.
 - `firewall settings lookupcountry enable|disable` - Enable or disable online country lookups for statistics.
 - `firewall settings syslog auto` - Follow the running logger automatically. Uses Scribe's installed Skynet destination while syslog-ng runs, otherwise the system logger's `-O` output or `/tmp/syslog.log`. Symlinks are resolved and the rotated path defaults to the current path plus `-1`.
 - `firewall settings syslog /path/to/syslog [/path/to/rotated-log]` - Select Custom mode and set one or both source paths. Both paths are validated before either changes.
 - `firewall settings syslog1 /path/to/rotated-log` - Select Custom mode and change only the rotated source path. Custom paths remain unchanged across startup and logger detection.
+
+While active, Skynet suppresses the firmware's default IPv4 and IPv6 `DROP ` packet loggers, including after firewall rebuilds and with Skynet packet logging disabled. The firmware's DROP verdicts remain in place. INVALID blocking continues to use the native INPUT/FORWARD rules and their existing exceptions; Skynet only adds a log entry immediately before the native drop-chain verdict. Disabling INVALID logging does not disable native INVALID blocking.
+
+Optional **Firewall Drops** logging records IPv4 NEW packets that reach the native `logdrop` chain, using `[BLOCKED - FIREWALL]`. This includes rejected connections to the router and rejected forwarded traffic. Packets dropped elsewhere or by IPv6 rules are outside this category. The logger runs immediately before the native DROP verdict and does not change blocking or whitelist decisions. Its shared rate limit is 4 packets/second with a burst of 10 across all sources. Statistics and exports count recorded packets, which may undercount actual drops and are not unique connection counts. Firewall Drops and INVALID logging have independent switches under Packet Logging; disabling either retains its collected history.
 
 Log sources can also be selected under WebUI Statistics. Configurations without a saved log-source mode default to Automatic, including those with existing custom paths. Select Custom to pin specific paths; an explicitly saved Custom mode is preserved. Skynet does not install, remove or reconfigure Scribe's filters. Install or reconfigure Scribe through its own installer; its existing Skynet CLI callback remains supported.
 
@@ -239,13 +248,14 @@ Log sources can also be selected under WebUI Statistics. Configurations without 
 - `firewall stats search port 23 [count]` - Show activity involving a port.
 - `firewall stats search ip 8.8.8.8 [count]` - Show current ban and whitelist matches, reasons, associated domains, location, and logged activity for an IPv4 address. Checks include automatic, domain, manual and temporary sets. Whitelist matches take precedence over matching bans.
 - `firewall stats search domain example.com` - Resolve a domain and report the available data for each resulting IPv4 address. Rule reasons are joined for the complete address batch, including overlapping manual, imported and domain owners.
-- `firewall stats search malware 8.8.8.8` - Search downloaded malware feeds for an IPv4 address or CIDR range.
+- `firewall stats search malware 8.8.8.8` - Find exact or covering entries across local malware-feed caches. IPv4 and CIDR queries are supported; excluded feeds and unavailable caches are identified separately. No network lookup is performed.
 - `firewall stats search reason "spamhaus" [count]` - Search active automatic and registered rule reasons without performing network lookups.
 - `firewall stats search manualbans [count]` - Show recorded manual bans.
 - `firewall stats search actions [count]` - Show recent CLI, WebUI, scheduled and startup actions, including degraded and failed outcomes.
 - `firewall stats search device 192.168.1.50 [count]` - Show outbound blocks generated by a LAN device.
 - `firewall stats search reports [count]` - Show saved periodic summaries.
 - `firewall stats search invalid [count]` - Show logged invalid-state packets.
+- `firewall stats search firewall [count]` - Show recorded Firewall Drops. The category also appears in source charts, activity trends, Block History filters and CSV exports.
 - `firewall stats search iot [count]` - Show logged IoT blocks.
 - `firewall stats search connections [ip|port|proto|id] [value]` - Show or filter active connection data when the required AiProtection data is available.
 - `firewall stats remove ip 8.8.8.8` - Remove retained events containing an IPv4 address and subtract their contribution from hourly totals.
@@ -270,7 +280,7 @@ Detailed events are retained for up to seven days within the configured storage 
 
 Each event retains its timestamp, category, source and destination IPv4 addresses, protocol, ports, packet length, interfaces, TCP flags, available ICMP details and logged MAC/link-layer data. The logged link-layer header may identify a gateway rather than the remote IP's device. Normal packet logging omits optional TCP sequence numbers and TCP/IP option dumps. This changes diagnostic detail, not packet blocking or the number of collected events.
 
-Hourly maintenance and explicit refreshes collect newly completed syslog records. Ingestion checkpoints advance only with committed events. Records already lost to system-log rotation cannot be recovered. Counts represent recorded packet events, not unique connections or every packet the firewall may have dropped.
+The 30-minute collector, hourly maintenance and explicit refreshes collect newly completed syslog records. Ingestion checkpoints advance only with committed events. Successfully collected packet entries are then removed from both active and rotated syslog files. Records already lost to system-log rotation cannot be recovered. Counts represent recorded packet events, not unique connections or every packet the firewall may have dropped.
 
 Unchanged source files are skipped after their saved checkpoint is verified. Storage-budget checks use database page metadata and count retained events only when space must be reclaimed.
 
@@ -284,6 +294,7 @@ Changing rules or removing IoT entries does not erase historical traffic. Use th
 - `firewall debug info` - Display system, storage, logging, configuration, and integrity checks.
 - `firewall debug info extended` - Include the current Skynet configuration in the diagnostic output.
 - `firewall debug genstats` - Regenerate WebUI statistics.
+- `firewall collect` - Collect pending packet events without refreshing charts or checking firewall integrity. Runs automatically every 30 minutes while Packet Logging is enabled; skips a run if another Skynet command holds the state lock.
 - `firewall debug clean` - Archive and clean handled Skynet syslog entries.
 - `firewall debug swap install|uninstall` - Create or remove the Skynet-managed swap file.
 - `firewall debug backup` - Save configuration, logical rules, source caches, IPSet data and logs. Keep the latest three dated restore points in `backups/`, with `Skynet-Backup.tar.gz` also pointing to the latest archive's data where hard links are supported. The existing archive is retained as the first point when upgrading. A failed archive build retains the previous backup. Creating dated points requires synchronized router time.
@@ -297,15 +308,24 @@ Skynet separates firewall reconciliation from scheduled maintenance. A normal Me
 
 Packet logging, temporary-rule restoration, rule additions and refreshes, and persistent action timestamps wait for a trustworthy system clock. Permanent blocking, whitelisting, rule removal and IoT enforcement remain available while time synchronization is pending. If time is not ready within five minutes, startup completes in a degraded state and the next firewall reconciliation or hourly maintenance enables the pending time-dependent features.
 
-Startup commits migrated configuration only after the restored policy passes verification. Failed migrations remain eligible for retry; successful migrations are not repeated on subsequent boots.
+Upgrade migration supports public v8 installations only. The v8 updater saves its files and fully unloads before v9 starts, so v9 recovers settings, manual rules, ASN/import ownership and cached domain answers from the saved files before creating live sets. Automatic bans, country entries and IoT devices remain in the base snapshot. Old activity text is converted once, and obsolete v8 WebUI files are removed during this upgrade.
 
-Hourly maintenance runs at a randomized minute and replaces the previous unconditional full save. It archives new block records, enforces the log limit, prunes expired rules, checks firewall integrity, and writes durable state or WebUI settings only when something changed. Log archival retains Skynet block records and discards Merlin's native `DROP` packet messages, including those recorded before Skynet starts. Unrelated system messages are preserved. The shutdown persistence hook performs a narrow conditional commit without running statistics, security remediation, or a firewall restart.
+The saved configuration remains marked v8 until the restored policy passes verification and its configuration is committed. Interrupted upgrades reuse published rules and caches without duplicating ownership or inventing DNS lookup times. After that commit, v9 starts skip migration entirely; there is no separate persistent migration marker to read or rewrite. Restoring a v8 backup uses the same path. Earlier releases and unreleased v9 development formats are unsupported; current v9 data is validated directly. Fresh installations create an empty current-format rule registry.
+
+Text-to-database packet-history import follows database activation, since firmware without compatible SQLite still uses text logging and may gain SQLite support later. Completed imports are not repeated.
+
+Packet collection has a separate quiet job at minutes 0 and 30 while Packet Logging is enabled. It uses the existing SQLite file checkpoints to skip unchanged files and import only appended records, including records from the rotated log. Collection waits for synchronized time and completed startup, and skips a run when Skynet is busy. It does not regenerate charts, check firewall integrity, save configuration or prune the history database. Disabling Packet Logging removes this job; re-enabling restores it independently of the WebUI.
+
+Hourly maintenance runs at a randomized minute. It also archives new block records, enforces the log limit, prunes expired rules, checks firewall integrity, and writes durable state or WebUI settings only when something changed. Both database and text collectors remove handled Skynet packet records and native `DROP` messages from syslog while preserving unrelated system messages. The shutdown persistence hook performs a narrow conditional commit without running statistics, Secure Mode enforcement, or a firewall restart.
+
+SQLite cleanup removes only the committed prefix. It briefly pauses the supported syslog writers during the final file replacement to avoid a rotation race; parsing and database work run while logging continues. A watchdog resumes writers if cleanup is interrupted. A private `.skynet-cleanup` directory beside each source retains a hard link to the old file until late writes and complete records have been collected and the logger releases its descriptor. Retries use the original inode checkpoint to avoid importing packet events twice, and unrelated late messages are appended back to syslog. Failed imports and incomplete trailing records remain available for retry. Unchanged, already-cleaned files are skipped using a small RAM checkpoint. Skynet does not restart the logger or change its configuration.
+
 
 Manual `firewall save` stops with a failure status if private-address whitelisting or log archival fails, without continuing to save the IPSet snapshot.
 
 If maintenance changes rule or time-dependent state but cannot finish updating the WebUI, a pending marker in RAM retains the refresh request for the next successful maintenance run. Unchanged runs do not regenerate settings.
 
-If another command is active, maintenance waits up to 60 seconds for the state lock. If it remains busy, the run returns a failure status and records `deferred (state-lock)` in debug information without interrupting the active command. Saved settings are reloaded after acquiring the lock. The rule registry is staged for expiry pruning only when a deadline is due; unchanged registries are read without a staging write. Hourly collection cannot recover syslog records already overwritten by rotation during sustained traffic bursts.
+If another command is active, maintenance waits up to 60 seconds for the state lock. If it remains busy, the run returns a failure status and records `deferred (state-lock)` in debug information without interrupting the active command. Saved settings are reloaded after acquiring the lock. The rule registry is staged for expiry pruning only when a deadline is due; unchanged registries are read without a staging write. The 30-minute collector cannot recover syslog records already overwritten by rotation during sustained traffic bursts.
 
 ## WebUI
 
@@ -325,6 +345,7 @@ The WebUI provides:
 - Manual IP, range, domain and ASN ban, unban and whitelist management, including grouped imported lists.
 - Domain rules expand to show their retained resolved IPv4 addresses and whether the result is current or cached. Up to 64 addresses are displayed per rule, with copying and an explicit limit when more are retained. Opening these details performs no DNS lookup; Refresh Dynamic Rules updates the cached results.
 - IP Details lists matching rule owners, identifies permanent and temporary rules, and shows temporary expiry in local 12-hour time. CLI IP searches show remaining lifetime. These details use the saved rule snapshot; they do not reconstruct the policy at the time of an older packet event.
+- Find matching feeds beneath Ban Matches in IP Details checks local feed caches on demand, showing matching sources and covering networks only when requested. Cached membership does not establish an active ban; excluded sources are not enforced. Use Manage Rules for ban, unban and whitelist controls; global whitelists apply to all clients, not just one device.
 - Add Entries stages IPv4/CIDR entries with the comment currently entered. Staged tags show their saved comments; Apply Rules submits the complete batch together. Changing the comment field does not change previously staged entries. Re-adding a staged address updates its comment.
 - Permanent or preset temporary IPv4/CIDR and ASN bans, remaining lifetime, stable rule removal, and a dedicated Temporary filter.
 - Activity History shows the latest 200 valid journal entries, ten per page, with category, result and text filters. Export CSV downloads all matching entries within that window, not just the visible page. Older retained entries remain in `events.log`. Country changes identify the countries added or removed, while source refreshes are recorded only when validated content changes.
@@ -340,7 +361,7 @@ Temporary-rule controls are disabled until the router clock is synchronized. Exp
 
 ## Action History
 
-Skynet records completed changes and operational failures as a structured, bounded action journal in `events.log`. Each entry identifies its origin, result, subsystem, operation and affected values. Normal writes append one small record; the file is compacted only when it exceeds 1MB or 2,000 entries. Existing text summaries remain available until normal retention compaction, invalid or incomplete records are discarded during compaction, and the current history is retained when restoring an older Skynet backup.
+Skynet records completed changes and operational failures as a structured, bounded action journal in `events.log`. Each entry identifies its origin, result, subsystem, operation and affected values. Normal writes append one small record; the file is compacted only when it exceeds 1MB or 2,000 entries. The v8 upgrade preserves old activity text as imported records with an unknown year; subsequent journal writes accept only the current structured format. Invalid or incomplete records are discarded during compaction, and current activity history is retained when restoring a backup.
 
 Action records are written only after the router clock is synchronized, preventing persistent entries with incorrect startup timestamps.
 
@@ -364,6 +385,10 @@ Include the complete output, the command that failed, and the relevant syslog li
 - [Official SNBForums support thread](https://www.snbforums.com/threads/release-skynet-router-firewall-security-enhancements.16798/)
 - [GitHub issues](https://github.com/Adamm00/IPSet_ASUS/issues)
 
+
+## Development checks
+
+Run `sh tests/v8-upgrade.sh /path/to/firewall.sh` with BusyBox `sh` to verify v8 data conversion, backup validation, interrupted-upgrade recovery and migration-free v9 startup. The test uses a private temporary directory and mocks router state changes; it does not load the tested script as the live firewall.
 
 ## About
 

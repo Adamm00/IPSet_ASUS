@@ -229,6 +229,20 @@
             line-height:var(--skynet-line-body);
         }
 
+        .skynet-guidance-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 6px 12px;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(180, 210, 220, 0.12);
+            font-size: 13px;
+        }
+
+        .skynet-guidance-row:last-child { border-bottom: 0; }
+        .skynet-guidance-label { align-self: center; font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
+        .skynet-guidance-detail { grid-column: 1 / -1; color: #b8cbd1; line-height: 1.45; overflow-wrap: anywhere; }
+        .skynet-guidance-state { align-self: center; white-space: nowrap; padding: 3px 10px; border: 1px solid #66818a; border-radius: 20px; color: #cfdee3; }
+
         .skynet-status {
             position:absolute;
             top:11px;
@@ -3117,6 +3131,12 @@
                     legendLabel: "IP ADDRESS",
                     setting: "loginvalid"
                 },
+                TFwConnHits: {
+                    title: "Top 10 Sources (Firewall Drops)",
+                    multiLabel: true,
+                    legendLabel: "IP ADDRESS",
+                    setting: "logfirewall"
+                },
                 TIOTConnHits: {
                     title: "Top 10 IoT Blocks (Outbound)",
                     multiLabel: true,
@@ -3192,11 +3212,24 @@
                 settingsResult: "skynetSettingsResult",
                 blockHistoryButton: "skynetBlockRefresh",
                 blockHistoryResult: "skynetBlockStatus",
+                sourceSearchButton: "skynetSourceSearch",
+                sourceSearchResult: "skynetSourceStatus",
                 overviewTab: "skynetOverviewTab",
                 overviewView: "skynetOverviewView",
                 settingsView: "skynetSettingsView"
             },
             actionDefinitions: {
+                sources: {
+                    button: "sourceSearchButton",
+                    result: "sourceSearchResult",
+                    label: "Find matching feeds",
+                    success: "Local source caches checked.",
+                    failure: "Unable to search source caches. Try again.",
+                    timeout: "Source search did not complete. Try again.",
+                    loadError: "Unable to load source matches.",
+                    source: "settings",
+                    requireSuccess: true
+                },
                 history: {
                     button: "blockHistoryButton",
                     result: "blockHistoryResult",
@@ -3908,6 +3941,7 @@
         };
 
         SkynetUI.openDetails = function(details) {
+            if (this.refreshInProgress && this.sourceQueryRequest === this.activeRequest) return;
             const panel = this.getElement("skynetDetail");
             const title = this.getElement("skynetDetailTitle");
             const body = this.getElement("skynetDetailBody");
@@ -3917,6 +3951,9 @@
             }
 
             title.textContent = details.title || "Skynet Details";
+            this.sourceDetailIP = details.title === "IP Details" && details.primary
+                ? String(details.primary.value) : "";
+            const canSearchFeeds = this.isIPv4Range(this.sourceDetailIP);
 
             const rows = [];
             const seenFields = Object.create(null);
@@ -3936,6 +3973,9 @@
                         return field.label !== "Ban Reason" && field.label !== "Match Type";
                     }).concat(ruleFields);
                 }
+            }
+            if (canSearchFeeds && !detailFields.some(function(field) { return field.label === "Ban Matches"; })) {
+                detailFields.push({ label: "Ban Matches", value: "No matches in the saved rule snapshot." });
             }
             detailFields.forEach(function(field) {
                 if (field.value === undefined ||
@@ -3994,6 +4034,12 @@
                                     '">' + value + '</span>' +
                                 valueActions +
                             '</div>' +
+                            (canSearchFeeds && field.label === "Ban Matches"
+                                ? '<div class="skynet-detail-actions"><input type="button" class="button_gen" id="skynetSourceSearch" value="Find matching feeds" /> ' +
+                                    '<input type="button" class="button_gen" id="skynetSourceRules" value="Manage Rules" /></div>' +
+                                    '<div id="skynetSourceStatus" class="skynet-settings-result" role="status"></div>' +
+                                    '<div id="skynetSourceMatches" hidden></div>'
+                                : '') +
                         '</td>' +
                     '</tr>'
                 );
@@ -4050,6 +4096,10 @@
             }
 
             body.innerHTML = html;
+            const sourceButton = this.getElement(this.selectors.sourceSearchButton);
+            if (sourceButton) sourceButton.addEventListener("click", function() { SkynetUI.querySourceMatches(); });
+            const sourceRules = this.getElement("skynetSourceRules");
+            if (sourceRules) sourceRules.addEventListener("click", function() { SkynetUI.getElement("skynetRulesTab").click(); });
             panel.classList.add("visible");
             panel.setAttribute("aria-hidden", "false");
 
@@ -4103,6 +4153,52 @@
             });
         };
 
+        SkynetUI.querySourceMatches = function() {
+            if (this.refreshInProgress || !this.isIPv4Range(this.sourceDetailIP || "")) return;
+            document.form.amng_custom.value = JSON.stringify(Object.assign({}, custom_settings, {
+                skynet_sourceip: this.sourceDetailIP
+            }));
+            this.refreshInProgress = true;
+            this.setUpdateResult("Searching local caches...", false, this.selectors.sourceSearchResult);
+            this.setActionState(true, this.selectors.sourceSearchButton, "Searching...");
+            this.submitBackgroundAction("start_SkynetSources");
+            this.sourceQueryRequest = this.activeRequest;
+            this.waitForUpdate(window.SkynetSettingsGenerated, 120, "sources");
+        };
+
+        SkynetUI.renderSourceMatches = function() {
+            const container = this.getElement("skynetSourceMatches");
+            if (!container || window.SkynetSettingsResult !== "success" ||
+                window.SkynetSourceIP !== this.sourceDetailIP) return;
+            container.textContent = "";
+            container.hidden = false;
+            const matches = String(window.SkynetSourceMatches || "").split("\n").filter(Boolean);
+            matches.forEach(function(line) {
+                const fields = line.split("\t");
+                if (fields.length !== 4) return;
+                const row = document.createElement("div");
+                row.className = "skynet-guidance-row";
+                const name = document.createElement("span");
+                name.className = "skynet-guidance-label";
+                name.textContent = fields[0];
+                const state = document.createElement("span");
+                state.className = "skynet-guidance-state";
+                state.textContent = fields[2] === "enabled" ? "Enabled" : "Excluded";
+                const detail = document.createElement("div");
+                detail.className = "skynet-guidance-detail";
+                detail.textContent = fields[3] + " · " + fields[1];
+                row.appendChild(name); row.appendChild(state); row.appendChild(detail);
+                container.appendChild(row);
+            });
+            const summary = window.SkynetSourceSummary || {};
+            const note = document.createElement("div");
+            note.className = "skynet-setting-help";
+            note.textContent = (matches.length ? "" : "No matching entries in available caches. ") +
+                (Number(summary.checked) || 0) + " caches checked; " +
+                (Number(summary.missing) || 0) + " unavailable. Cached feed matches do not establish an active ban; excluded feeds are not enforced. Whitelists take precedence.";
+            container.appendChild(note);
+        };
+
         SkynetUI.getDirection = function(chartName) {
             if (chartName === "TIConnHits" ||
                 chartName === "InPortHits" ||
@@ -4120,6 +4216,7 @@
             }
             if (chartName === "THConnHits") return "HTTP(s) Blocks";
             if (chartName === "TInvConnHits") return "Invalid Packet Blocks";
+            if (chartName === "TFwConnHits") return "Firewall Drops (Logged Packets)";
             if (chartName === "TIOTConnHits") return "IoT Blocks";
             if (chartName === "TCConnHits") return "Blocked Connections From Device";
             if (chartName === "InPortHits") return "Targeted Ports";
@@ -4912,6 +5009,13 @@
                     setting: "loginvalid"
                 },
                 {
+                    label: "Firewall Drops",
+                    values: window.DataActivityFirewall,
+                    color: "#ffb454",
+                    fill: "rgba(255, 180, 84, 0.12)",
+                    setting: "logfirewall"
+                },
+                {
                     label: "IoT",
                     values: window.DataActivityIOT,
                     color: "#c875ff",
@@ -5476,20 +5580,17 @@
                 }
             });
 
-            /* Accept both the legacy labeled payload and the compact format. */
+            /* Current payloads contain plain dates and sizes. */
             const statsDate = this.getElement("statsdate");
             const statsSize = this.getElement("statssize");
 
             if (statsDate) {
                 statsDate.textContent = statsDate.textContent
-                    .replace(/^Monitoring From\s*/i, "")
                     .replace(/\s+To\s+/i, " — ")
                     .trim() || "N/A";
             }
             if (statsSize) {
                 statsSize.textContent = statsSize.textContent
-                    .replace(/^Log Size\s*-\s*\(?/i, "")
-                    .replace(/\)\s*$/, "")
                     .trim() || "N/A";
             }
 
@@ -5770,7 +5871,7 @@
             return [
                 "skynetAutoUpdate", "skynetMalwareUpdates",
                 "skynetFilterTraffic", "skynetUnbanPrivate", "skynetAiProtect",
-                "skynetSecureMode", "skynetLogMode", "skynetSyslogMode", "skynetSyslog", "skynetSyslogArchive", "skynetLogInvalid", "skynetLogSize",
+                "skynetSecureMode", "skynetLogMode", "skynetSyslogMode", "skynetSyslog", "skynetSyslogArchive", "skynetLogInvalid", "skynetLogFirewall", "skynetLogSize",
                 "skynetExtendedStats", "skynetCountryLookup", "skynetCdnWhitelist"
             ].map(function(id) {
                 return (SkynetUI.getElement(id) || {}).value || "";
@@ -6271,6 +6372,11 @@
                     ? "Adding and refreshing rules requires synchronized router time."
                     : "";
             }
+            const scope = this.getElement("skynetRuleScope");
+            if (scope) {
+                scope.hidden = !action || action.value !== "whitelist";
+                scope.textContent = "Whitelisting allows these destinations for all clients and takes precedence over bans. It is not a device-specific exception.";
+            }
             if (comment && mode) {
                 comment.disabled = busy || !supported || mode.value !== "ip" || unban;
                 comment.placeholder = unban
@@ -6494,6 +6600,7 @@
                     banmalware: "Malware Update Schedule",
                     logmode: "Packet Logging",
                     loginvalid: "Invalid Packet Logging",
+                    logfirewall: "Firewall Drop Logging",
                     logsize: "Log Size",
                     filter: "Traffic Filtering",
                     unbanprivate: "Unban Private IPs",
@@ -6959,7 +7066,7 @@
         };
 
         SkynetUI.normaliseIOTEntries = function(value) {
-            /* Accept legacy commas for display, but keep unique sorted values. */
+            /* Normalize device address input. */
             const entries = [];
 
             String(value || "").split(/[\s,]+/).forEach(function(entry) {
@@ -7455,7 +7562,7 @@
                 time.textContent = new Date(row.epoch * 1000).toLocaleString(undefined, {hour12: true});
                 summary.appendChild(time);
                 const kind = document.createElement("span");
-                kind.textContent = row.kind === "iot" ? "IoT" : String(row.kind).replace(/^./, function(c) { return c.toUpperCase(); });
+                kind.textContent = row.kind === "iot" ? "IoT" : row.kind === "firewall" ? "Firewall Drops" : String(row.kind).replace(/^./, function(c) { return c.toUpperCase(); });
                 summary.appendChild(kind);
                 [[row.src, row.sport, "Source"], [row.dst, row.dport, "Destination"]].forEach(function(address) {
                     const cell = document.createElement("span");
@@ -7501,9 +7608,9 @@
             // No event bucket does not prove zero traffic or continuous logging.
             // Nulls preserve elapsed time and break the line across unknown intervals.
             for (let epoch = first; epoch <= last && points.length < 2200; epoch += bucket) {
-                points.push(observed[epoch] || [epoch, null, null, null, null]);
+                points.push(observed[epoch] || [epoch, null, null, null, null, null]);
             }
-            const colors = ["#68bed4", "#8bbfab", "#c9a96f", "#a69dca"];
+            const colors = ["#68bed4", "#8bbfab", "#c9a96f", "#a69dca", "#ffb454"];
             const selected = (this.blockHistoryFilters || {}).kind;
             this.blockHistoryChart = new Chart(canvas, {
                 type: "line",
@@ -7512,13 +7619,13 @@
                         return new Date(point[0] * 1000).toLocaleString(undefined, data.range === "90d"
                             ? {month: "short", day: "numeric"} : {month: "short", day: "numeric", hour: "numeric", hour12: true});
                     }),
-                    datasets: ["Inbound", "Outbound", "Invalid", "IoT"].map(function(label, index) {
+                    datasets: ["Inbound", "Outbound", "Invalid", "IoT", "Firewall Drops"].map(function(label, index) {
                         return {label: label, data: points.map(function(point) {
                             return point[index + 1] === null ? null : Number(point[index + 1]) || 0;
                         }),
                             borderColor: colors[index], backgroundColor: colors[index], borderWidth: 1.5,
                             pointRadius: 1.5, pointHitRadius: 6, tension: 0.15, spanGaps: false,
-                            hidden: Boolean(selected && selected !== "all" && selected !== label.toLowerCase())};
+                            hidden: Boolean(selected && selected !== "all" && selected !== ["inbound", "outbound", "invalid", "iot", "firewall"][index])};
                     })
                 },
                 options: {responsive: true, maintainAspectRatio: false, animation: false,
@@ -7549,6 +7656,7 @@
                 skynetSyslog: settings.syslogloc,
                 skynetSyslogArchive: settings.syslog1loc,
                 skynetLogInvalid: settings.loginvalid,
+                skynetLogFirewall: settings.logfirewall || "disabled",
                 skynetLogSize: settings.logsize,
                 skynetExtendedStats: settings.extendedstats,
                 skynetCountryLookup: settings.lookupcountry,
@@ -7830,6 +7938,7 @@
 			this.populateBlacklistCounts(settings);
 			if (preserveInput) return;
 			switch (requestType) {
+				case "sources": this.renderSourceMatches(); return;
 				case "history": this.populateBlockHistory(); return;
 				case "backup": this.getElement("skynetBackupSelect").value = ""; this.populateBackup(); break;
 				case "rules": this.populateRules(); break;
@@ -8178,6 +8287,7 @@
                     skynetLogMode: "enabled",
                     skynetSyslogMode: "auto",
                     skynetLogInvalid: "disabled",
+                    skynetLogFirewall: "disabled",
                     skynetLogSize: "10",
                     skynetExtendedStats: "enabled",
                     skynetCountryLookup: "enabled"
@@ -8250,6 +8360,7 @@
             custom_settings.skynet_syslogloc = syslog;
             custom_settings.skynet_syslog1loc = syslogArchive;
             custom_settings.skynet_loginvalid = this.getElement("skynetLogInvalid").value;
+            custom_settings.skynet_logfirewall = this.getElement("skynetLogFirewall").value;
             custom_settings.skynet_logsize = String(Number(logsize));
             custom_settings.skynet_extendedstats = this.getElement("skynetExtendedStats").value;
             custom_settings.skynet_lookupcountry = this.getElement("skynetCountryLookup").value;
@@ -8660,7 +8771,7 @@
             [
                 "skynetAutoUpdate", "skynetMalwareUpdates", "skynetMalwareUrl",
                 "skynetFilterTraffic", "skynetUnbanPrivate", "skynetAiProtect",
-                "skynetSecureMode", "skynetLogMode", "skynetSyslogMode", "skynetSyslog", "skynetSyslogArchive", "skynetLogInvalid", "skynetLogSize",
+                "skynetSecureMode", "skynetLogMode", "skynetSyslogMode", "skynetSyslog", "skynetSyslogArchive", "skynetLogInvalid", "skynetLogFirewall", "skynetLogSize",
                 "skynetExtendedStats", "skynetCountryLookup", "skynetCdnWhitelist"
             ].forEach(function(id) {
                 const control = SkynetUI.getElement(id);
@@ -9205,6 +9316,7 @@
                                                                             <span class="skynet-country-empty">Add entries with their comment, then select Apply Rules.</span>
                                                                         </div>
                                                                         <div class="skynet-rule-time-status" id="skynetRuleTimeStatus" aria-live="polite"></div>
+                                                                        <div class="skynet-setting-help" id="skynetRuleScope" hidden></div>
                                                                         <div class="skynet-rules-actions">
                                                                             <span class="skynet-country-status" id="skynetRuleStatus" aria-live="polite"></span>
                                                                             <input type="button"
@@ -9447,6 +9559,18 @@
                                                             </tr>
                                                             <tr>
                                                                 <th>
+                                                                    <span class="skynet-setting-name">Firewall Drop Logging</span>
+                                                                    <span class="skynet-setting-help">Logs new IPv4 connections rejected by the router firewall. Requires Packet Logging. Limited to 4 packets/second with a burst of 10; totals count logged packets and may undercount drops. Blocking is unchanged.</span>
+                                                                </th>
+                                                                <td>
+                                                                    <select class="input_option" id="skynetLogFirewall">
+                                                                        <option value="enabled">Enabled</option>
+                                                                        <option value="disabled">Disabled (Default)</option>
+                                                                    </select>
+                                                                </td>
+                                                            </tr>
+                                                            <tr>
+                                                                <th>
                                                                     <span class="skynet-setting-name">Log Size</span>
                                                                     <span class="skynet-setting-help">Limits retained block history. Older entries are removed when space is needed.</span>
                                                                 </th>
@@ -9528,7 +9652,7 @@
                                                                         </div>
                                                                         <div class="skynet-block-filters">
                                                                             <label for="skynetBlockRange">Period<select id="skynetBlockRange" class="input_option"><option value="today">Today</option><option value="7d">Last 7 Days</option><option value="90d">Last 90 Days</option></select></label>
-                                                                            <label for="skynetBlockKind">Category<select id="skynetBlockKind" class="input_option"><option value="all">All Categories</option><option value="inbound">Inbound</option><option value="outbound">Outbound</option><option value="invalid">Invalid</option><option value="iot">IoT</option></select></label>
+                                                                            <label for="skynetBlockKind">Category<select id="skynetBlockKind" class="input_option"><option value="all">All Categories</option><option value="inbound">Inbound</option><option value="outbound">Outbound</option><option value="invalid">Invalid</option><option value="iot">IoT</option><option value="firewall">Firewall Drops</option></select></label>
                                                                             <label for="skynetBlockIP">IP Address / CIDR<input type="text" id="skynetBlockIP" maxlength="18" placeholder="Any IP address" spellcheck="false" /></label>
                                                                             <label for="skynetBlockProtocol">Protocol<select id="skynetBlockProtocol" class="input_option"><option value="all">All Protocols</option><option value="TCP">TCP</option><option value="UDP">UDP</option><option value="ICMP">ICMP</option></select></label>
                                                                             <label for="skynetBlockPort">Port<input type="text" id="skynetBlockPort" maxlength="5" inputmode="numeric" placeholder="Any port" /></label>
@@ -9538,7 +9662,7 @@
                                                                             <input type="button" id="skynetBlockRefresh" class="button_gen skynet-update-button" value="Refresh History" />
                                                                         </div>
                                                                         <div class="skynet-block-chart" hidden><canvas id="skynetBlockChart" aria-label="Recorded events by time and category" role="img"></canvas></div>
-                                                                        <div class="skynet-history-footer"><span class="skynet-block-note">Trends show recorded category totals. Gaps have no recorded events, not a confirmed zero. IP, protocol and port filters apply to detailed events below.</span></div>
+                                                                        <div class="skynet-history-footer"><span class="skynet-block-note">Trends show recorded category totals. Firewall Drops logging is rate-limited, so recorded totals may undercount drops. Gaps have no recorded events, not a confirmed zero. IP, protocol and port filters apply to detailed events below.</span></div>
                                                                         <div id="skynetBlockRows"><div class="skynet-feed-empty">Open History to load retained events.</div></div>
                                                                         <div class="skynet-history-footer">
                                                                             <span id="skynetBlockCount" aria-live="polite"></span>
