@@ -150,7 +150,17 @@ VPN whitelisting uses Merlin's configured NVRAM values without scanning active r
 
 ### Importing and Removing Lists
 
-Import accepts either a local file path or an HTTP/HTTPS URL. Input files must contain one IPv4 address or CIDR range per line. Private and reserved ranges are ignored. Bare addresses and `/32` entries are handled as IPs; all other valid CIDRs are handled as ranges.
+Import accepts either a local file path or an HTTP/HTTPS URL. Input files contain one IPv4 address or CIDR range per line, optionally followed by `# comment`:
+
+```text
+1.1.1.1 # this is my comment
+8.8.8.0/24 # Google DNS range
+9.9.9.9
+```
+
+Inline comments are retained for matching-rule explanations in statistics and IP details, including after restarts and backup restores. The import remains one removable group; its optional command-line comment labels that group and supplies the reason for entries without inline comments. Blank lines and comment-only lines are ignored. Leading/trailing spaces are trimmed; comments may contain up to 242 bytes and must not contain control characters. An invalid comment on an accepted public address rejects the import without applying it.
+
+Private and reserved ranges are ignored. Bare addresses and `/32` entries are handled as IPs; other valid CIDRs are normalised to their network address. Duplicate normalised entries use the first occurrence and its comment. Existing imports must be imported again to acquire comments from the original file.
 
 Imports are one-time copies. Skynet retains the imported entries but does not fetch the original file again. For a blacklist that refreshes on schedule, add its URL to Malware Blacklist sources with `firewall banmalware add <url>` or the WebUI threat feed manager. Threat feeds are for blocking, not scheduled whitelist imports.
 

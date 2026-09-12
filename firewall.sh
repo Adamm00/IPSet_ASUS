@@ -1257,7 +1257,9 @@ Normalize_Public_IPList() {
 	# Canonicalise provider CIDRs and reject any network that overlaps private,
 	# reserved or non-routable IPv4 space. A /0 response is therefore never usable.
 	# An optional IPv4/CIDR query selects covering networks for local feed search.
-	awk -v query="$3" '
+	# Import mode retains inline labels in the immutable membership file. Other
+	# callers still receive plain addresses; comments never enter IPSet restore.
+	awk -v query="$3" -v comments="${4:-}" '
 		function power(base, exponent, result) { result = 1; while (exponent-- > 0) result *= base; return result }
 		function ipv4(a, b, c, d) { return (((a * 256) + b) * 256 + c) * 256 + d }
 		function reserve(start, end) { blocked_start[++blocked_count] = start; blocked_end[blocked_count] = end }
@@ -1283,6 +1285,13 @@ Normalize_Public_IPList() {
 			reserve(ipv4(224,0,0,0), ipv4(255,255,255,255))
 		}
 		{
+			label = ""
+			if (comments == "import") {
+				sub(/\r$/, ""); sub(/^[ \t]+/, ""); sub(/[ \t]+$/, "")
+				tail = $0; sub(/^[^ \t]+[ \t]*/, "", tail)
+				if (tail != "" && substr(tail, 1, 1) != "#") next
+				label = tail; sub(/^#[ \t]*/, "", label)
+			}
 			parts = split($1, address, "/"); octets = split(address[1], octet, ".")
 			if (parts > 2 || octets != 4) next
 			invalid=0
@@ -1300,8 +1309,10 @@ Normalize_Public_IPList() {
 			second = int(start / 65536); start -= second * 65536
 			third = int(start / 256); fourth = start - third * 256
 			result = sprintf("%d.%d.%d.%d", first, second, third, fourth)
-			if (parts == 2) result = result "/" prefix
-			if (!seen[result]++) print result
+			if (parts == 2 && (comments != "import" || prefix != 32)) result = result "/" prefix
+			if (comments == "import" && (length(label) > 242 || label ~ /[[:cntrl:]]/)) exit 2
+			# First occurrence wins, including an entry with no inline comment.
+			if (!seen[result]++) print result (label == "" ? "" : " # " label)
 		}
 	' "$1" > "$2"
 }
@@ -1371,36 +1382,6 @@ Stats_Search_Malware() {
 	echo "[i] $sourcequerychecked Caches Checked / $sourcequerymissing Unavailable"
 	echo "[i] Excluded Sources Are Not Active. Whitelists Take Precedence Over Bans."
 	rm -f "$statsfeedmatches"
-}
-
-Download_IPList() {
-	iplistdownload="$TMP_DIR/iplist-download"
-	if ! Curl_Fetch -o "$iplistdownload" "$1"; then
-		rm -f "$iplistdownload"
-		return 1
-	fi
-	Extract_IPList "$iplistdownload" "$TMP_DIR/iplist-unfiltered.txt"
-	ipliststatus="$?"
-	rm -f "$iplistdownload"
-	return "$ipliststatus"
-}
-
-Build_IPList_Restore() {
-	# The input has already passed Extract_IPList. Filter private/reserved space
-	# once, then classify a bare address or /32 as a host and every other CIDR
-	# as a range so imported list membership remains deterministic.
-	iplistaction="$1"
-	iplisttarget="$2"
-	iplistdescription="$3"
-	Filter_PrivateIP < "$4" | awk -v action="$iplistaction" -v target="$iplisttarget" -v desc="$iplistdescription" '
-		{
-			value = $1
-			if (target == "whitelist") setname = "Skynet-Whitelist"
-			else if (index(value, "/") && value !~ /\/32$/) setname = "Skynet-BlockedRanges"
-			else setname = "Skynet-Blacklist"
-			if (action == "add") printf "add %s %s comment \"%s\"\n", setname, value, desc
-			else printf "del %s %s\n", setname, value
-		}' > "$5"
 }
 
 Refresh_Registered_ASN_Rules() {
@@ -1896,8 +1877,19 @@ Validate_Rule_Data_File() {
 	# rejects host bits, leading zeroes and whitespace without a process per entry.
 	ruledatanormalized="$TMP_DIR/rule-data-normalized.$$"
 	ruledatacompare="$TMP_DIR/rule-data-compare.$$"
-	Normalize_IPSet_Entries any < "$1" > "$ruledatanormalized" \
-		&& sed '/^$/d; s~/32$~~' "$1" > "$ruledatacompare" \
+	# Only import data may carry a bounded inline label. Treat it as text, never
+	# as restore syntax. Plain v8 membership files remain valid without migration.
+	awk -v type="${2:-}" '
+		/^$/ {next}
+		{
+			if (type == "import" && index($0, " # ")) {
+				position = index($0, " # "); label = substr($0, position + 3)
+				if (label == "" || length(label) > 242 || label ~ /[[:cntrl:]]/ || label ~ /^ | $/) exit 1
+				$0 = substr($0, 1, position - 1)
+			}
+			sub(/\/32$/, ""); print
+		}' "$1" > "$ruledatacompare" \
+		&& Normalize_IPSet_Entries any < "$ruledatacompare" > "$ruledatanormalized" \
 		&& cmp -s "$ruledatanormalized" "$ruledatacompare"
 	ruledatastatus="$?"
 	rm -f "$ruledatanormalized" "$ruledatacompare"
@@ -1954,7 +1946,7 @@ Validate_Compiled_Rule_Data() {
 	if [ "${rulevalidationactive:-0}" = "1" ]; then
 		case " $rulevalidatedfiles " in *" $2 "*) return 0 ;; esac
 	fi
-	Validate_Rule_Data_File "$3" && Validate_Rule_Data_Reference "$1" "$2" "$3" || return 1
+	Validate_Rule_Data_File "$3" "$1" && Validate_Rule_Data_Reference "$1" "$2" "$3" || return 1
 	if [ "${rulevalidationactive:-0}" = "1" ]; then
 		rulevalidatedfiles="${rulevalidatedfiles}${rulevalidatedfiles:+ }$2"
 	fi
@@ -1987,9 +1979,11 @@ Build_Rule_Reason_Index() {
 				fi
 				awk -v target="$ruleindextarget" -v reason="$ruleindexreason" -v id="$ruleindexid" \
 					-v expires="$ruleindexexpires" -v value="$ruleindexvalue" 'NF {
-						sub(/\/32$/, "")
-						type = index($0, "/") ? "range" : "ip"
-						printf "R2I\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", target, type, $0, reason, id, expires, value
+						entry = $1; sub(/\/32$/, "", entry)
+						position = index($0, " # ")
+						label = position ? substr($0, position + 3) : reason
+						type = index(entry, "/") ? "range" : "ip"
+						printf "R2I\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", target, type, entry, label, id, expires, value
 					}' "$ruleindexfile" >> "$ruleindexstage" || return 1
 			;;
 		esac
@@ -2046,7 +2040,7 @@ Prepare_User_Rule_Sets() {
 				if [ "$ruletarget" = "ban" ]; then rulecompiledataset="$rulecompilebanset"; else rulecompiledataset="$rulecompilewhitelistset"; fi
 				# Restore -! already tolerates duplicate owners; stream validated data
 				# without holding another full copy of the import in an AWK table.
-				awk -v setname="$rulecompiledataset" 'NF {printf "add %s %s\n", setname, $0}' "$ruledatafile" >> "$rulecompilerestore" || return 1
+				awk -v setname="$rulecompiledataset" 'NF {printf "add %s %s\n", setname, $1}' "$ruledatafile" >> "$rulecompilerestore" || return 1
 			;;
 		esac
 	done < "$rulecompilefile"
@@ -2368,12 +2362,10 @@ Apply_Registered_Import() {
 	importtarget="$1"
 	importsource="$2"
 	importcomment="$3"
-	importrestore="$4"
+	importentries="$4"
 	case "$importtarget" in ban|whitelist) ;; *) return 2 ;; esac
 	Time_Is_Ready || return 1
-	importentries="$TMP_DIR/import-entries.$$"
-	awk '$1 == "add" {print $3}' "$importrestore" | awk 'NF && !seen[$0]++' > "$importentries" || return 1
-	Validate_Rule_Data_File "$importentries" || return 1
+	Validate_Rule_Data_File "$importentries" import || return 1
 	importhash="$(sha256sum "$importentries" 2>/dev/null | awk '{print $1}')"
 	New_Rule_ID "$importtarget" import "$importsource" "$(date +%s)" || return 1
 	importid="$ruleid"
@@ -12182,78 +12174,47 @@ Dispatch_Whitelist() {
 
 Dispatch_Import() {
 	case "$2" in
-		blacklist)
-			Check_Lock "$@"
-			Require_Running
-			Purge_Logs
-			echo "[i] This Function Extracts All IPs And Adds Them ALL To Blacklist"
-			if [ -f "$3" ]; then
-				echo "[i] Local Custom List Detected: $3"
-				Extract_IPList "$3" "$TMP_DIR/iplist-unfiltered.txt"
-			elif [ -n "$3" ]; then
-				echo "[i] Remote Custom List Detected: $3"
-				Require_Connection
-				Download_IPList "$3" || { echo "[*] Download Error Detected - Stopping Import"; echo; exit 1; }
-			else
-				echo "[*] URL/File Field Can't Be Empty - Please Try Again"
-				echo; exit 2
-			fi
-			if ! Is_IPRange < "$TMP_DIR/iplist-unfiltered.txt"; then echo "[*] No Content Detected - Stopping Import"; echo; exit 1; fi
-			echo "[i] Processing List"
-			if [ -n "$4" ]; then
-				if ! Validate_IPSet_Comment "$4" 242; then echo "[*] Comment Contains Invalid Characters Or Is Too Long"; echo; exit 2; fi
-				importdesc="$4"
-			else
-				importdesc="Imported List"
-			fi
-			Build_IPList_Restore add blacklist "" "$TMP_DIR/iplist-unfiltered.txt" "$TMP_DIR/iplist-filtered.txt"
-			if [ ! -s "$TMP_DIR/iplist-filtered.txt" ]; then echo "[*] No Public IPs Detected - Stopping Import"; echo; exit 1; fi
-			echo "[i] Adding IPs To Blacklist"
-			Apply_Registered_Import ban "$3" "$importdesc" "$TMP_DIR/iplist-filtered.txt" \
-				|| { echo "[*] Failed To Apply Import - Previous Entries Retained"; echo; exit 1; }
-			importcount="$(wc -l < "$TMP_DIR/iplist-filtered.txt" | tr -d ' ')"
-			rm -f "$TMP_DIR/iplist-unfiltered.txt" "$TMP_DIR/iplist-filtered.txt"
-			nocfg="1"
-			Queue_Action success rules add ban import "$3" "$importdesc ($importcount entries)" || Log error -s "Failed To Queue Import Action"
-		;;
-		whitelist)
-			Check_Lock "$@"
-			Require_Running
-			Purge_Logs
-			echo "[i] This Function Extracts All IPs And Adds Them ALL To Whitelist"
-			if [ -f "$3" ]; then
-				echo "[i] Local Custom List Detected: $3"
-				Extract_IPList "$3" "$TMP_DIR/iplist-unfiltered.txt"
-			elif [ -n "$3" ]; then
-				echo "[i] Remote Custom List Detected: $3"
-				Require_Connection
-				Download_IPList "$3" || { echo "[*] Download Error Detected - Stopping Import"; echo; exit 1; }
-			else
-				echo "[*] URL/File Field Can't Be Empty - Please Try Again"
-				echo; exit 2
-			fi
-			if ! Is_IPRange < "$TMP_DIR/iplist-unfiltered.txt"; then echo "[*] No Content Detected - Stopping Import"; echo; exit 1; fi
-			echo "[i] Processing List"
-			if [ -n "$4" ]; then
-				if ! Validate_IPSet_Comment "$4" 242; then echo "[*] Comment Contains Invalid Characters Or Is Too Long"; echo; exit 2; fi
-				importdesc="$4"
-			else
-				importdesc="Imported List"
-			fi
-			Build_IPList_Restore add whitelist "" "$TMP_DIR/iplist-unfiltered.txt" "$TMP_DIR/iplist-filtered.txt"
-			if [ ! -s "$TMP_DIR/iplist-filtered.txt" ]; then echo "[*] No Public IPs Detected - Stopping Import"; echo; exit 1; fi
-			echo "[i] Adding IPs To Whitelist"
-			Apply_Registered_Import whitelist "$3" "$importdesc" "$TMP_DIR/iplist-filtered.txt" \
-				|| { echo "[*] Failed To Apply Import - Previous Entries Retained"; echo; exit 1; }
-			importcount="$(wc -l < "$TMP_DIR/iplist-filtered.txt" | tr -d ' ')"
-			rm -f "$TMP_DIR/iplist-unfiltered.txt" "$TMP_DIR/iplist-filtered.txt"
-			nocfg="1"
-			Queue_Action success rules add whitelist import "$3" "$importdesc ($importcount entries)" || Log error -s "Failed To Queue Import Action"
-		;;
-		*)
-			Command_Not_Recognized
-		;;
+		blacklist) importtarget="ban" ;;
+		whitelist) importtarget="whitelist" ;;
+		*) Command_Not_Recognized ;;
 	esac
+	Check_Lock "$@"
+	Require_Running
+	Purge_Logs
+	if [ -n "$4" ]; then
+		if ! Validate_IPSet_Comment "$4" 242; then echo "[*] Comment Contains Invalid Characters Or Is Too Long"; echo; exit 2; fi
+		importdesc="$4"
+	else
+		importdesc="Imported List"
+	fi
+	importinput="$TMP_DIR/import-input.$$"
+	importentries="$TMP_DIR/import-entries.$$"
+	if [ -f "$3" ]; then
+		echo "[i] Local Custom List Detected: $3"
+		importinput="$3"
+	elif [ -n "$3" ]; then
+		echo "[i] Remote Custom List Detected: $3"
+		Require_Connection
+		Curl_Fetch -o "$importinput" "$3" || { echo "[*] Download Error Detected - Stopping Import"; echo; exit 1; }
+	else
+		echo "[*] URL/File Field Can't Be Empty - Please Try Again"
+		echo; exit 2
+	fi
+	echo "[i] Processing List"
+	Normalize_Public_IPList "$importinput" "$importentries" "" import
+	importstatus="$?"
+	if [ "$importstatus" != "0" ]; then
+		echo "[*] Import Failed - Check File And Inline Comments (242 Bytes Max, No Control Characters)"
+		echo; exit "$importstatus"
+	fi
+	if [ ! -s "$importentries" ]; then echo "[*] No Public IPs Detected - Stopping Import"; echo; exit 1; fi
+	echo "[i] Adding IPs To $2"
+	Apply_Registered_Import "$importtarget" "$3" "$importdesc" "$importentries" \
+		|| { echo "[*] Failed To Apply Import - Previous Entries Retained"; echo; exit 1; }
+	importcount="$(wc -l < "$importentries" | tr -d ' ')"
+	rm -f "$importentries" "$TMP_DIR/import-input.$$"
+	nocfg="1"
+	Queue_Action success rules add "$importtarget" import "$3" "$importdesc ($importcount entries)" || Log error -s "Failed To Queue Import Action"
 }
 
 Dispatch_Save() {
@@ -14086,7 +14047,7 @@ Validate_Backup_Data() {
 		Validate_Rule_Registry "$backupvalidate/skynet.rules" || return 1
 		awk -F "\t" '$4 == "asn" || $4 == "import" {print $4 " " $10}' "$backupvalidate/skynet.rules" > "$TMP_DIR/backup-sidecars.$$" || return 1
 		while read -r backupdatatype backupdataname; do
-			Validate_Rule_Data_File "$backupvalidate/lists/rules/data/$backupdataname" \
+			Validate_Rule_Data_File "$backupvalidate/lists/rules/data/$backupdataname" "$backupdatatype" \
 				&& Validate_Rule_Data_Reference "$backupdatatype" "$backupdataname" "$backupvalidate/lists/rules/data/$backupdataname" || return 1
 		done < "$TMP_DIR/backup-sidecars.$$"
 	fi
@@ -15076,6 +15037,7 @@ Menu_Import() {
 		if ! Menu_Require_Running; then break; fi
 		option1="import"
 		echo "[i] Imports Are One-Time Copies And Are Not Refreshed Automatically"
+		echo "[i] Entries May Include Inline Comments: 1.1.1.1 # My Comment"
 		echo "[i] Use Malware Blacklist Sources For Scheduled Blacklist Updates"
 		while true; do
 			Show_Menu "Select Where To Import List:" \
