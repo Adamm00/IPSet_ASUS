@@ -193,7 +193,7 @@ The interactive Settings menu groups options under Updates & Lists, Protection, 
 #### Updates & Lists
 
 - `firewall settings autoupdate enable|disable` - Enable weekly automatic Skynet updates. When disabled, Skynet checks weekly but does not install an update.
-- `firewall settings banmalware daily|weekly|disable` - Set or disable scheduled malware blacklist refreshes.
+- `firewall settings banmalware daily|weekly|disable [hour|auto]` - Set or disable scheduled malware blacklist refreshes. Choose an hour from 0–23 in router local time; jobs run at minute 25, on Monday for weekly updates. `auto` keeps the default random hour (1–23), selected when the schedule is installed. Omitting the hour retains the saved choice, including while updates are disabled. The hour is also available under WebUI Updates and is saved with Apply Settings.
 
 #### Protection
 
@@ -214,7 +214,7 @@ CDN source data is downloaded concurrently and validated before the dynamic whit
 IoT WAN blocking applies to devices in the Skynet IoT IPSet. When enabled, their forwarded WAN traffic is blocked except for the configured TCP/UDP ports and traffic routed through OpenVPN or WireGuard server interfaces. Traffic between local bridges remains subject to Merlin's access controls; Skynet does not override LAN isolation. By default, UDP port 123 remains available for NTP time synchronization; accurate device time is required by certificates, secure connections and scheduled activity. The default can be replaced with up to 15 custom ports or disabled entirely. The saved device list and the blocking switch are managed independently.
 
 - `firewall settings iot ban 192.168.1.50 192.168.1.60` - Add one or more IPv4 addresses or CIDR ranges to the IoT list.
-- `firewall settings iot unban 192.168.1.50 192.168.1.60` - Remove one or more IPv4 addresses or CIDR ranges from the IoT list and clear their recorded IoT blocks. Other traffic records are retained.
+- `firewall settings iot unban 192.168.1.50 192.168.1.60` - Remove one or more IPv4 addresses or CIDR ranges from the IoT list. Recorded traffic history is retained.
 - `firewall settings iot enable|disable` - Start or pause IoT WAN blocking without clearing the saved device list.
 - `firewall settings iot view` - Display detected clients, their IoT state, and the current allowed protocol and ports.
 - `firewall settings iot ports 123 124 125` - Replace the allowed WAN port list. Ports must be between 1 and 65535, with a maximum of 15 entries.
@@ -350,6 +350,7 @@ The WebUI provides:
 - IP details including ban reason, country, associated domains, AlienVault OTX, and SpeedGuide links where applicable. Saved rule matches show overlapping bans and allowances, with whitelist precedence and the statistics refresh time. These describe the saved metadata at refresh, not live enforcement or the policy when each historical event occurred.
 - Background statistics refresh without navigating away from the page. Every action waits for its matching worker result, and statistics also verify the chart payload belongs to that request. Busy or failed requests report an error and retain the existing charts.
 - Common Skynet settings with descriptions and documented defaults.
+- Restart Skynet under Protection requests the same Merlin firewall restart as `firewall restart`, with confirmation and a tracked result. Connections may be briefly interrupted; IPSet data and schedules are retained.
 - Threat-feed status, usable entry counts, last successful checks, content age, source toggles, manual refresh, and feed URL additions/removals. Use Template replaces the saved selection with the default or custom filter list after confirmation.
 - Country blocking with country selection and removal.
 - Manual IP, range, domain and ASN ban, unban and whitelist management, including grouped imported lists.
@@ -399,6 +400,8 @@ Include the complete output, the command that failed, and the relevant syslog li
 ## Development checks
 
 Run `sh tests/v8-upgrade.sh /path/to/firewall.sh` with BusyBox `sh` to verify v8 data conversion, backup validation, interrupted-upgrade recovery and migration-free v9 startup. The test uses a private temporary directory and mocks router state changes; it does not load the tested script as the live firewall.
+
+Run all isolated suites with `for test in tests/*.sh; do sh "$test" ./firewall.sh || exit 1; done` from the repository root on BusyBox. History suites require the firmware's compatible `/usr/sbin/sqlite3`; they use private databases and do not signal the router's logger. Tests cover native public-v8 fixtures, lifecycle locking, backup validation, logging, collection, imports and WebUI controls. Keep `tests/fixtures/` beside the scripts. See [the v9 release audit](docs/v9-release-audit.md) for live evidence and limitations, and [the roadmap](docs/roadmap.md) for proposed follow-up work.
 
 ## About
 

@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                           06/09/2026 - v9.0.0                                             #
+#                                           20/09/2026 - v9.0.0                                             #
 #############################################################################################################
 
 
@@ -866,7 +866,7 @@ Format_Threat_Feed_Time() {
 
 Print_Threat_Feed_Status() {
 	feedstatusfile="${skynetloc}/lists/.sources"
-	echo "[i] Malware List Schedule - $banmalwareupdate"
+	echo "[i] Malware List Schedule - $banmalwareupdate (Hour: ${banmalwarehour:-auto}, Minute: 25)"
 	echo "[i] Last Successful Update - $(Format_Threat_Feed_Time "$banmalwarelastupdated")"
 	if [ -n "$customlisturl" ]; then
 		echo "[i] Filter List - $customlisturl"
@@ -3542,11 +3542,13 @@ Load_Cron() {
 				cru a Skynet_maintenance "$min * * * * SKYNET_ACTION_ORIGIN=cron sh /jffs/scripts/firewall maintenance" || cronstatus="1"
 			;;
 			banmalwaredaily)
-				hour=$(Generate_Random_Number 1 23)
+				hour="${banmalwarehour:-auto}"
+				[ "$hour" != "auto" ] || hour=$(Generate_Random_Number 1 23)
 				cru a Skynet_banmalware "25 $hour * * * sh /jffs/scripts/firewall banmalware" || cronstatus="1"
 			;;
 			banmalwareweekly)
-				hour=$(Generate_Random_Number 1 23)
+				hour="${banmalwarehour:-auto}"
+				[ "$hour" != "auto" ] || hour=$(Generate_Random_Number 1 23)
 				cru a Skynet_banmalware "25 $hour * * Mon sh /jffs/scripts/firewall banmalware" || cronstatus="1"
 			;;
 			autoupdate)
@@ -4676,7 +4678,12 @@ Prepare_Domain_Rule_Update() {
 			domaincachecandidate="$rulecachedir/$domainoldcache"
 		fi
 		if [ -n "$domaincachecandidate" ]; then
-			if [ "$domainnow" = "0" ] || { [ "$domainupdatemode" = "startup" ] && [ "$domainoldsuccess" = "0" ]; }; then
+			# A cache-only pass is not a DNS observation. In particular, time
+			# activation immediately follows v8 cache recovery during cold start.
+			# Keep unknown-age migrated answers until the first real refresh;
+			# failed DNS refreshes still cannot claim a fresh lookup timestamp.
+			if [ "$domainnow" = "0" ] || { [ "$domainoldsuccess" = "0" ] \
+				&& { [ "$domainupdatemode" = "startup" ] || [ "$domainupdatemode" = "cached" ]; }; }; then
 				domaincachefresh="1"
 			elif [ "$domainoldsuccess" -gt "0" ] 2>/dev/null \
 				&& [ "$domainoldsuccess" -le "$domainnow" ] 2>/dev/null \
@@ -6642,12 +6649,31 @@ Show_Action_Rule_History() {
 	actionhistorycount="$1"
 	actionhistorytmp="$TMP_DIR/action-history.$$"
 	awk -F '\t' '$1 == "A1" && NF == 12 && $6 == "rules" && $7 == "add" && $8 == "ban" {
-		printf "%s | %-8s | %-9s | %s%s\n", $3, $9, $5, $10, ($11 == "" ? "" : " | " $11)
+		print
 	}' "$skynetevents" | tail -n "$actionhistorycount" > "$actionhistorytmp"
-	echo
-	Red "Last $actionhistorycount Manual Ban Actions;"
-	printf '%-22s | %-8s | %-9s | %s\n' "Time" "Type" "Result" "Entries / Comment"
-	Format_Action_Times < "$actionhistorytmp"
+	Display_Header "9"
+	Red "Last $actionhistorycount Manual Ban Actions"
+	Format_Action_Times < "$actionhistorytmp" | awk -F '\t' '
+		BEGIN { width = length("| Banned Entries |") }
+		{
+			kind = ($9 == "address" || $9 == "domain" ? "" : toupper($9) ": ")
+			times[NR] = $3
+			entries[NR] = kind $10
+			if (length(entries[NR]) > width) width = length(entries[NR])
+			detail = $11
+			sub(/^Comments stored per rule(;[[:space:]]*|$)/, "", detail)
+			if ($5 != "success") detail = "[" toupper($5) "]" (detail == "" ? "" : " " detail)
+			details[NR] = (detail == "" ? "-" : detail)
+		}
+		END {
+			rowformat = "%-22s | %-" width "s | %s\n"
+			printf "\n\n"
+			printf rowformat, "--------", "------------------", "-----------"
+			printf rowformat, "| Time |", "| Banned Entries |", "| Details |"
+			printf rowformat, "--------", "------------------", "-----------"
+			printf "\n"
+			for (i = 1; i <= NR; i++) printf rowformat, times[i], entries[i], details[i]
+		}'
 	rm -f "$actionhistorytmp"
 }
 
@@ -7954,7 +7980,8 @@ Generate_WebUI_Backup_Data() {
 		webuibackupsize="$(ls -ln "$backuplocation" | awk '{print $5}')" || return 1
 		case "$webuibackupsize" in ""|*[!0-9]*) return 1 ;; esac
 		case "$webuibackupid" in latest) webuibackuproute="backup.cab" ;; *) webuibackuproute="backup-$webuibackupid.cab" ;; esac
-		if [ "$(readlink "/www/user/skynet/$webuibackuproute")" != "$backuplocation" ]; then
+		# CLI startup and restore also generate metadata with the WebUI unmounted.
+		if Is_Enabled "$displaywebui" && [ "$(readlink "/www/user/skynet/$webuibackuproute")" != "$backuplocation" ]; then
 			ln -sf "$backuplocation" "/www/user/skynet/$webuibackuproute" || return 1
 		fi
 		printf '%s{id:"%s",created:%s,size:%s}' "$webuibackupseparator" "$webuibackupid" "$webuibackupcreated" "$webuibackupsize" >> "$settingstmp"
@@ -8120,6 +8147,7 @@ Generate_WebUI_Settings() {
 	rm -f "$settingsiotraw"
 	if [ "$settingspreparestatus" = "0" ] && printf 'var SkynetSettings = {"autoupdate":"%s","banmalwareupdate":"%s","banmalwarelastupdated":"%s","blacklist1count":"%s","blacklist2count":"%s","countrylist":"%s","customlisturl":"%s","excludelists":"%s","filtertraffic":"%s","unbanprivateip":"%s","banaiprotect":"%s","securemode":"%s","loginvalid":"%s","logfirewall":"%s","logsize":"%s","extendedstats":"%s","lookupcountry":"%s","cdnwhitelist":"%s","iotblocked":"%s","iotlogging":"%s","iotports":"%s","iotproto":"%s","iotentries":"%s","iotcount":"%s"};\n' "$autoupdate" "$banmalwareupdate" "$banmalwarelastupdated" "$blacklist1count" "$blacklist2count" "$countrylist" "$customlistjs" "$excludelistsjs" "$filtertraffic" "$unbanprivateip" "$banaiprotect" "$securemode" "$loginvalid" "$logfirewall" "$logsize" "$extendedstats" "$lookupcountry" "$cdnwhitelist" "$iotblocked" "$iotlogging" "$iotports" "$iotproto" "$iotentries" "$iotcount" > "$settingstmp" \
 		&& printf 'SkynetSettings.logmode = "%s";\n' "$logmode" >> "$settingstmp" \
+		&& printf 'SkynetSettings.banmalwarehour = "%s";\nSkynetSettings.webuirestart = true;\n' "${banmalwarehour:-auto}" >> "$settingstmp" \
 		&& printf 'SkynetSettings.syslogmode = "%s";\n' "$syslogmode" >> "$settingstmp" \
 		&& printf "SkynetSettings.syslogloc = '%s';\nSkynetSettings.syslog1loc = '%s';\n" \
 			"$sysloglocjs" "$syslog1locjs" >> "$settingstmp" \
@@ -9547,7 +9575,14 @@ History_Collect() {
 		History_Write "DELETE FROM meta WHERE key='legacy_pending';" || return 1
 	fi
 	for historysource in "$syslog1loc" "$syslogloc"; do
-		historysource="$(readlink -f "$historysource")" || return 1
+		if [ -e "$historysource" ] || [ -L "$historysource" ]; then
+			historysource="$(readlink -f "$historysource")" || return 1
+		else
+			# BusyBox readlink requires the final component to exist. A rotated
+			# log may not exist yet; still drain any retained cleanup beside it.
+			historysourcedir="$(readlink -f "${historysource%/*}")" || return 1
+			historysource="$historysourcedir/${historysource##*/}"
+		fi
 		History_Drain_Syslog_Cleanup "$historysource" || { Log error "Failed To Collect Pending Syslog Cleanup - Original Retained"; return 1; }
 		[ -f "$historysource" ] || continue
 		History_Import_File "$historysource" || { Log error "Failed To Collect Firewall History - Source Log Retained"; return 1; }
@@ -9768,7 +9803,7 @@ Load_Config() {
 		# A restored older config may omit settings present in the running process.
 		# Clear only persisted values; paths, locks and transaction state stay live.
 		unset model localver swaplocation blacklist1count blacklist2count customlisturl customlist2url \
-			banmalwarelastupdated countrylist excludelists autoupdate banmalwareupdate forcebanmalwareupdate \
+			banmalwarelastupdated countrylist excludelists autoupdate banmalwareupdate banmalwarehour forcebanmalwareupdate \
 			filtertraffic unbanprivateip banaiprotect securemode cdnwhitelist iotblocked iotlogging iotports iotproto \
 			logmode loginvalid logfirewall logsize extendedstats syslogmode syslogloc syslog1loc lookupcountry displaywebui fastswitch \
 			configlegacyexclusions configlegacyports
@@ -9796,6 +9831,7 @@ Load_Config() {
 	case "$banmalwarelastupdated" in "") ;; *[!0-9]*) banmalwarelastupdated=""; configchanged="1" ;; esac
 	case "$autoupdate" in enabled|disabled) ;; *) autoupdate="disabled"; configchanged="1" ;; esac
 	case "$banmalwareupdate" in daily|weekly|disabled) ;; *) banmalwareupdate="disabled"; configchanged="1" ;; esac
+	case "$banmalwarehour" in auto|[0-9]|1[0-9]|2[0-3]) ;; *) banmalwarehour="auto"; configchanged="1" ;; esac
 	case "$forcebanmalwareupdate" in enabled|disabled) ;; *) forcebanmalwareupdate="disabled"; configchanged="1" ;; esac
 	case "$logmode" in enabled|disabled) ;; *) logmode="disabled"; configchanged="1" ;; esac
 	case "$loginvalid" in enabled|disabled) ;; *) loginvalid="disabled"; configchanged="1" ;; esac
@@ -9959,6 +9995,7 @@ Write_Config() {
 	config_customlisturl="$customlisturl" config_banmalwarelastupdated="$banmalwarelastupdated" \
 	config_countrylist="$countrylist" config_excludelists="$excludelists" \
 	config_autoupdate="$autoupdate" config_banmalwareupdate="$banmalwareupdate" config_forcebanmalwareupdate="$forcebanmalwareupdate" \
+	config_banmalwarehour="${banmalwarehour:-auto}" \
 	config_filtertraffic="$filtertraffic" config_unbanprivateip="$unbanprivateip" \
 	config_banaiprotect="$banaiprotect" config_securemode="$securemode" config_cdnwhitelist="$cdnwhitelist" \
 	config_iotblocked="$iotblocked" config_iotlogging="$iotlogging" config_iotports="$iotports" config_iotproto="$iotproto" \
@@ -9987,7 +10024,7 @@ Write_Config() {
 			printf "%-45s %s\n\n", "## " stamp, "##"
 			section("Installer", "model localver swaplocation")
 			section("Counters / Lists", "blacklist1count blacklist2count customlisturl banmalwarelastupdated countrylist excludelists")
-			section("Updates & Lists", "autoupdate banmalwareupdate forcebanmalwareupdate")
+			section("Updates & Lists", "autoupdate banmalwareupdate banmalwarehour forcebanmalwareupdate")
 			section("Protection", "filtertraffic unbanprivateip banaiprotect securemode cdnwhitelist")
 			section("IoT Isolation", "iotblocked iotlogging iotports iotproto")
 			section("Logging & Statistics", "logmode loginvalid logfirewall logsize extendedstats syslogmode syslogloc syslog1loc lookupcountry")
@@ -10055,6 +10092,8 @@ Apply_WebUI_Settings() {
 		webuiautoupdate="$(am_settings_get skynet_autoupdate)"
 		webuifilter="$(am_settings_get skynet_filtertraffic)"
 		webuimalware="$(am_settings_get skynet_banmalwareupdate)"
+		webuimalwarehour="$(am_settings_get skynet_banmalwarehour)"
+		[ -n "$webuimalwarehour" ] || webuimalwarehour="${banmalwarehour:-auto}"
 		webuicustomlist="$(am_settings_get skynet_customlisturl)"
 		webuiunbanprivate="$(am_settings_get skynet_unbanprivateip)"
 		webuiaiprotect="$(am_settings_get skynet_banaiprotect)"
@@ -10079,6 +10118,7 @@ Apply_WebUI_Settings() {
 		case "$webuiautoupdate" in enabled|disabled) ;; *) settingsresult="error" ;; esac
 		case "$webuifilter" in all|inbound|outbound) ;; *) settingsresult="error" ;; esac
 		case "$webuimalware" in daily|weekly|disabled) ;; *) settingsresult="error" ;; esac
+		case "$webuimalwarehour" in auto|[0-9]|1[0-9]|2[0-3]) ;; *) settingsresult="error" ;; esac
 		if [ -n "$webuicustomlist" ]; then
 			Validate_WebUI_URL "$webuicustomlist" || settingsresult="error"
 		fi
@@ -10107,9 +10147,9 @@ Apply_WebUI_Settings() {
 		if [ "$settingsresult" = "success" ] && [ "$webuifilter" != "$filtertraffic" ]; then
 			Run_WebUI_Command settings filter "$webuifilter" >/dev/null 2>&1 || settingsresult="error"
 		fi
-		if [ "$settingsresult" = "success" ] && [ "$webuimalware" != "$banmalwareupdate" ]; then
+		if [ "$settingsresult" = "success" ] && { [ "$webuimalware" != "$banmalwareupdate" ] || [ "$webuimalwarehour" != "${banmalwarehour:-auto}" ]; }; then
 			if [ "$webuimalware" = "disabled" ]; then webuimalware="disable"; fi
-			Run_WebUI_Command settings banmalware "$webuimalware" >/dev/null 2>&1 || settingsresult="error"
+			Run_WebUI_Command settings banmalware "$webuimalware" "$webuimalwarehour" >/dev/null 2>&1 || settingsresult="error"
 		fi
 		if [ "$settingsresult" = "success" ]; then
 			Apply_WebUI_Toggle "$webuiunbanprivate" "$unbanprivateip" unbanprivate || settingsresult="error"
@@ -12700,51 +12740,42 @@ Settings_AutoUpdate() {
 }
 
 Settings_MalwareSchedule() {
+	[ "$#" -ge 3 ] && [ "$#" -le 4 ] || { Command_Not_Recognized; return 2; }
 	case "$3" in
-		daily)
-			Check_Lock "$@"
-			Require_Running
-			Purge_Logs
-			malwarescheduleold="$banmalwareupdate"
-			if ! Unload_Cron "banmalware" || ! Load_Cron "banmalwaredaily"; then
-				Unload_Cron "banmalware" >/dev/null 2>&1
-				case "$malwarescheduleold" in daily) Load_Cron banmalwaredaily ;; weekly) Load_Cron banmalwareweekly ;; esac
-				echo "[*] Failed To Update Malware Schedule"; echo; exit 1
-			fi
-			banmalwareupdate="daily"
-			forcebanmalwareupdate="enabled"
-			echo "[i] Daily Malware Blacklist Updates Enabled"
-		;;
-		weekly)
-			Check_Lock "$@"
-			Require_Running
-			Purge_Logs
-			malwarescheduleold="$banmalwareupdate"
-			if ! Unload_Cron "banmalware" || ! Load_Cron "banmalwareweekly"; then
-				Unload_Cron "banmalware" >/dev/null 2>&1
-				case "$malwarescheduleold" in daily) Load_Cron banmalwaredaily ;; weekly) Load_Cron banmalwareweekly ;; esac
-				echo "[*] Failed To Update Malware Schedule"; echo; exit 1
-			fi
-			banmalwareupdate="weekly"
-			forcebanmalwareupdate="enabled"
-			echo "[i] Weekly Malware Blacklist Updates Enabled"
-		;;
-		disable)
-			Check_Lock "$@"
-			Require_Running
-			Purge_Logs
-			malwarescheduleold="$banmalwareupdate"
-			if ! Unload_Cron "banmalware"; then
-				case "$malwarescheduleold" in daily) Load_Cron banmalwaredaily ;; weekly) Load_Cron banmalwareweekly ;; esac
-				echo "[*] Failed To Disable Malware Schedule"; echo; exit 1
-			fi
-			banmalwareupdate="disabled"
-			echo "[i] Malware Blacklist Updates Disabled"
-		;;
-		*)
-			Command_Not_Recognized
-		;;
+		daily|weekly) malwareschedulenew="$3" ;;
+		disable) malwareschedulenew="disabled" ;;
+		*) Command_Not_Recognized; return 2 ;;
 	esac
+	malwarehournew="${4:-${banmalwarehour:-auto}}"
+	case "$malwarehournew" in
+		auto|[0-9]|1[0-9]|2[0-3]) ;;
+		*) echo "[*] Malware Update Hour Must Be auto Or 0-23"; return 2 ;;
+	esac
+	Check_Lock "$@" || return 1
+	Require_Running
+	[ "$malwareschedulenew:$malwarehournew" != "$banmalwareupdate:${banmalwarehour:-auto}" ] || return 0
+	malwarescheduleold="$banmalwareupdate"
+	malwarehourold="${banmalwarehour:-auto}"
+	banmalwarehour="$malwarehournew"
+	malwareschedulestatus="0"
+	Unload_Cron banmalware || malwareschedulestatus="1"
+	if [ "$malwareschedulestatus" = "0" ]; then
+		case "$malwareschedulenew" in
+			daily) Load_Cron banmalwaredaily || malwareschedulestatus="1" ;;
+			weekly) Load_Cron banmalwareweekly || malwareschedulestatus="1" ;;
+		esac
+	fi
+	if [ "$malwareschedulestatus" != "0" ]; then
+		banmalwarehour="$malwarehourold"
+		Unload_Cron banmalware >/dev/null 2>&1
+		case "$malwarescheduleold" in daily) Load_Cron banmalwaredaily ;; weekly) Load_Cron banmalwareweekly ;; esac
+		echo "[*] Failed To Update Malware Schedule"; echo; return 1
+	fi
+	banmalwareupdate="$malwareschedulenew"
+	if [ "$banmalwareupdate" != "disabled" ] && [ "$banmalwareupdate" != "$malwarescheduleold" ]; then
+		forcebanmalwareupdate="enabled"
+	fi
+	echo "[i] Malware Blacklist Schedule - $banmalwareupdate (Hour: $banmalwarehour)"
 }
 
 Settings_LogMode() {
@@ -13274,7 +13305,7 @@ Dispatch_Settings() {
 		iot:ports|iot:proto) settingsactionarea="iot"; shift 3; settingsactionentries="$*" ;;
 		*:enable) settingsactionoperation="enable" ;;
 		*:disable) settingsactionoperation="disable" ;;
-		banmalware:*) settingsactiontype="schedule" ;;
+		banmalware:*) settingsactiontype="schedule"; settingsactiondetail="Hour: $banmalwarehour (router local time, minute 25)" ;;
 		logsize:*) settingsactiontype="megabytes" ;;
 		filter:*) settingsactiontype="direction" ;;
 		syslog:*|syslog1:*)
@@ -13306,6 +13337,21 @@ Apply_WebUI_Backup() {
 			Log error "Backup Created But WebUI Download Could Not Be Mounted"
 		fi
 	fi
+	Publish_WebUI_Result
+}
+
+Apply_WebUI_Restart() {
+	# Use the CLI lock and Merlin restart path; acknowledge only this request.
+	settingsresult="error"
+	webuirestartoutput="$TMP_DIR/webui-restart-output.$$"
+	if Run_WebUI_Command restart > "$webuirestartoutput" 2>&1; then
+		settingsresult="success"
+	elif grep -qE 'Lock File Detected|Lock file busy' "$webuirestartoutput"; then
+		settingsresult="busy"
+	else
+		Log error "WebUI Firewall Restart Failed"
+	fi
+	rm -f "$webuirestartoutput"
 	Publish_WebUI_Result
 }
 
@@ -13379,6 +13425,9 @@ Dispatch_WebUI() {
 		;;
 		SkynetBackup)
 			Apply_WebUI_Backup
+		;;
+		SkynetRestart)
+			Apply_WebUI_Restart
 		;;
 		SkynetRestore)
 			Apply_WebUI_Restore
@@ -13657,14 +13706,14 @@ Debug_Info() {
 	if Is_Enabled "$displaywebui"; then
 		printf "║ %-33s ║ " "Local WebUI Files"
 		[ -f "${skynetloc}/webui/skynet.asp" ] || localfail="${localfail}skynet.asp "
-		[ -f "${skynetloc}/webui/stats.js" ] || localfail="${localfail}stats.js "
+		if Is_Enabled "$logmode" && [ ! -f "${skynetloc}/webui/stats.js" ]; then localfail="${localfail}stats.js "; fi
 		[ -f "${skynetloc}/webui/settings.js" ] || localfail="${localfail}settings.js "
 		if [ -z "$localfail" ]; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
 		printf '%-80s ║\n' "$result"
 		printf "║ %-33s ║ " "Mounted WebUI Files"
 		Find_WebUI_Page "${skynetloc}/webui/skynet.asp" 2>/dev/null
 		[ -f "/www/user/${MyPage}" ] || mountedfail="${mountedfail}skynet.asp "
-		[ -f "/www/user/skynet/stats.js" ] || mountedfail="${mountedfail}stats.js "
+		if Is_Enabled "$logmode" && [ ! -f "/www/user/skynet/stats.js" ]; then mountedfail="${mountedfail}stats.js "; fi
 		[ -f "/www/user/skynet/settings.js" ] || mountedfail="${mountedfail}settings.js "
 		if [ -z "$mountedfail" ]; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
 		printf '%-80s ║\n' "$result"
@@ -13954,7 +14003,7 @@ Validate_Backup_Data() {
 	# dollars, backticks, quotes and backslashes must be escaped within values.
 	awk '
 		BEGIN {
-			n=split("model localver swaplocation blacklist1count blacklist2count customlisturl customlist2url banmalwarelastupdated countrylist excludelists autoupdate banmalwareupdate forcebanmalwareupdate filtertraffic unbanprivateip banaiprotect securemode cdnwhitelist iotblocked iotlogging iotports iotproto logmode loginvalid logfirewall logsize extendedstats syslogmode syslogloc syslog1loc lookupcountry displaywebui fastswitch", keys, " ")
+			n=split("model localver swaplocation blacklist1count blacklist2count customlisturl customlist2url banmalwarelastupdated countrylist excludelists autoupdate banmalwareupdate banmalwarehour forcebanmalwareupdate filtertraffic unbanprivateip banaiprotect securemode cdnwhitelist iotblocked iotlogging iotports iotproto logmode loginvalid logfirewall logsize extendedstats syslogmode syslogloc syslog1loc lookupcountry displaywebui fastswitch", keys, " ")
 			for(i=1;i<=n;i++) allowed[keys[i]]=1
 		}
 		/^[[:space:]]*(#|$)/ {next}
@@ -14267,6 +14316,7 @@ Dispatch_Stats() {
 
 Dispatch_Install() {
 	Check_Lock "$@"
+	localver="$(Filter_Version < "$0")"
 	if ! ipset -v 2>/dev/null | grep -qE 'v6|v7'; then
 		echo "[*] IPSet Version Not Supported - Please Update To Latest Firmware"
 		echo; exit 1
@@ -14501,6 +14551,7 @@ Dispatch_Install() {
 }
 
 Dispatch_Uninstall() {
+	Check_Lock "$@" || return 1
 	echo "If You Were Experiencing Issues, Try Update Or Visit SNBForums/GitHub For Support"
 	echo "https://github.com/Adamm00/IPSet_ASUS"
 	echo

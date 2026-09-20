@@ -3192,6 +3192,8 @@
                 ruleHealth: "skynetRuleHealth",
                 ruleActivity: "skynetRuleActivity",
                 backupButton: "skynetCreateBackup",
+                restartButton: "skynetRestart",
+                restartResult: "skynetRestartResult",
                 backupDownload: "skynetDownloadBackup",
                 backupRestore: "skynetRestoreBackup",
                 backupResult: "skynetBackupResult",
@@ -3219,6 +3221,17 @@
                 settingsView: "skynetSettingsView"
             },
             actionDefinitions: {
+                restart: {
+                    button: "restartButton",
+                    result: "restartResult",
+                    label: "Restart Skynet",
+                    success: "Firewall restart requested. Skynet will reconcile its rules automatically.",
+                    failure: "Unable to request a restart. Check the router log.",
+                    timeout: "Restart has not been confirmed. Check the router log before retrying.",
+                    loadError: "Unable to confirm the restart. Reload data before retrying.",
+                    source: "settings",
+                    requireSuccess: true
+                },
                 sources: {
                     button: "sourceSearchButton",
                     result: "sourceSearchResult",
@@ -5869,7 +5882,7 @@
 
         SkynetUI.getSettingsOptions = function() {
             return [
-                "skynetAutoUpdate", "skynetMalwareUpdates",
+                "skynetAutoUpdate", "skynetMalwareUpdates", "skynetMalwareHour",
                 "skynetFilterTraffic", "skynetUnbanPrivate", "skynetAiProtect",
                 "skynetSecureMode", "skynetLogMode", "skynetSyslogMode", "skynetSyslog", "skynetSyslogArchive", "skynetLogInvalid", "skynetLogFirewall", "skynetLogSize",
                 "skynetExtendedStats", "skynetCountryLookup", "skynetCdnWhitelist"
@@ -5884,6 +5897,10 @@
 
         SkynetUI.updateSettingsControls = function() {
             const apply = this.getElement(this.selectors.settingsButton);
+            this.getElement("skynetMalwareHour").disabled = this.refreshInProgress ||
+                this.getElement("skynetMalwareUpdates").value === "disabled";
+            this.getElement(this.selectors.restartButton).disabled = this.refreshInProgress ||
+                !(window.SkynetSettings || {}).webuirestart;
             const automatic = this.getElement("skynetSyslogMode").value === "auto";
             ["skynetSyslog", "skynetSyslogArchive"].forEach(function(id) {
                 SkynetUI.getElement(id).disabled = automatic || SkynetUI.refreshInProgress;
@@ -6529,9 +6546,8 @@
                     comment.appendChild(detail);
                     comment.appendChild(remaining);
 				} else {
-					comment.textContent = SkynetUI.isDirectRule(rule)
-						? (rule.comment || rule.display || "—")
-						: "—";
+					comment.textContent = rule.comment ||
+						(SkynetUI.isDirectRule(rule) ? rule.display : "") || "—";
 					comment.title = comment.textContent;
 				}
                 count.className = "skynet-rule-count";
@@ -7646,6 +7662,7 @@
             const fields = {
                 skynetAutoUpdate: settings.autoupdate,
                 skynetMalwareUpdates: settings.banmalwareupdate,
+                skynetMalwareHour: settings.banmalwarehour || "auto",
                 skynetMalwareUrl: settings.customlisturl,
                 skynetFilterTraffic: settings.filtertraffic,
                 skynetUnbanPrivate: settings.unbanprivateip,
@@ -7738,6 +7755,7 @@
             [
                 this.selectors.updateButton,
                 this.selectors.backupButton,
+                this.selectors.restartButton,
                 this.selectors.backupDownload,
                 this.selectors.backupRestore,
                 "skynetConfirmRestore",
@@ -7763,6 +7781,7 @@
 
                 if (button) {
                     button.disabled = active ||
+                        (id === SkynetUI.selectors.restartButton && !(window.SkynetSettings || {}).webuirestart) ||
                         ((id === SkynetUI.selectors.backupDownload || id === SkynetUI.selectors.backupRestore || id === "skynetBackupSelect") && !SkynetUI.getSelectedBackup()) ||
                         (id === SkynetUI.selectors.backupButton && !window.SkynetSettingsGenerated) ||
                         (id === SkynetUI.selectors.settingsButton &&
@@ -7940,6 +7959,7 @@
 			switch (requestType) {
 				case "sources": this.renderSourceMatches(); return;
 				case "history": this.populateBlockHistory(); return;
+				case "restart": return;
 				case "backup": this.getElement("skynetBackupSelect").value = ""; this.populateBackup(); break;
 				case "rules": this.populateRules(); break;
 				case "ruleRefresh": this.renderRules(); this.renderRuleOverview(); break;
@@ -8274,6 +8294,7 @@
                 updates: {
                     skynetAutoUpdate: "enabled",
                     skynetMalwareUpdates: "daily",
+                    skynetMalwareHour: "auto",
                     skynetMalwareUrl: ""
                 },
                 protection: {
@@ -8340,6 +8361,13 @@
 
             custom_settings.skynet_autoupdate = this.getElement("skynetAutoUpdate").value;
             custom_settings.skynet_banmalwareupdate = this.getElement("skynetMalwareUpdates").value;
+            const malwareHour = this.getElement("skynetMalwareHour").value;
+            if (!/^(auto|[0-9]|1[0-9]|2[0-3])$/.test(malwareHour)) {
+                this.showView("updates");
+                this.setUpdateResult("Select a malware update hour.", true, this.selectors.settingsResult);
+                return;
+            }
+            custom_settings.skynet_banmalwarehour = malwareHour;
             custom_settings.skynet_customlisturl = customlisturl;
             custom_settings.skynet_filtertraffic = this.getElement("skynetFilterTraffic").value;
             custom_settings.skynet_unbanprivateip = this.getElement("skynetUnbanPrivate").value;
@@ -8391,6 +8419,17 @@
             this.setActionState(true, this.selectors.settingsReloadButton, "Reloading...");
             this.submitBackgroundAction("start_SkynetSettingsLoad");
             this.waitForUpdate(window.SkynetSettingsGenerated, 60, "reload");
+        };
+
+        SkynetUI.restart = function() {
+            if (this.refreshInProgress || !(window.SkynetSettings || {}).webuirestart) return;
+            if (!window.confirm("Restart Skynet through Merlin's firewall service? Connections may be briefly interrupted.")) return;
+            this.refreshInProgress = true;
+            this.setUpdateResult("Requesting firewall restart...", false, this.selectors.restartResult);
+            this.setActionState(true, this.selectors.restartButton, "Restarting...");
+            document.form.amng_custom.value = "{}";
+            this.submitBackgroundAction("start_SkynetRestart");
+            this.waitForUpdate(window.SkynetSettingsGenerated, 120, "restart");
         };
 
         /* Page rendering and controls. */
@@ -8669,6 +8708,7 @@
             });
             if (historyExport) historyExport.addEventListener("click", function() { SkynetUI.exportActionHistory(); });
             const createBackup = this.getElement(this.selectors.backupButton);
+            this.getElement(this.selectors.restartButton).addEventListener("click", function() { SkynetUI.restart(); });
             const downloadBackup = this.getElement(this.selectors.backupDownload);
             if (createBackup) createBackup.addEventListener("click", function() { SkynetUI.createBackup(); });
             if (downloadBackup) downloadBackup.addEventListener("click", function() { SkynetUI.downloadBackup(); });
@@ -8769,7 +8809,7 @@
             }
 
             [
-                "skynetAutoUpdate", "skynetMalwareUpdates", "skynetMalwareUrl",
+                "skynetAutoUpdate", "skynetMalwareUpdates", "skynetMalwareHour", "skynetMalwareUrl",
                 "skynetFilterTraffic", "skynetUnbanPrivate", "skynetAiProtect",
                 "skynetSecureMode", "skynetLogMode", "skynetSyslogMode", "skynetSyslog", "skynetSyslogArchive", "skynetLogInvalid", "skynetLogFirewall", "skynetLogSize",
                 "skynetExtendedStats", "skynetCountryLookup", "skynetCdnWhitelist"
@@ -9104,6 +9144,41 @@
                                                             </tr>
                                                             <tr>
                                                                 <th>
+                                                                    <span class="skynet-setting-name">Malware Update Hour</span>
+                                                                    <span class="skynet-setting-help">Router local time. Weekly updates run on Monday. Automatic selects a random hour when the schedule is installed.</span>
+                                                                </th>
+                                                                <td>
+                                                                    <select class="input_option" id="skynetMalwareHour" aria-label="Malware update hour">
+                                                                        <option value="auto">Automatic (Default)</option>
+                                                                        <option value="0">12:25 AM</option>
+                                                                        <option value="1">1:25 AM</option>
+                                                                        <option value="2">2:25 AM</option>
+                                                                        <option value="3">3:25 AM</option>
+                                                                        <option value="4">4:25 AM</option>
+                                                                        <option value="5">5:25 AM</option>
+                                                                        <option value="6">6:25 AM</option>
+                                                                        <option value="7">7:25 AM</option>
+                                                                        <option value="8">8:25 AM</option>
+                                                                        <option value="9">9:25 AM</option>
+                                                                        <option value="10">10:25 AM</option>
+                                                                        <option value="11">11:25 AM</option>
+                                                                        <option value="12">12:25 PM</option>
+                                                                        <option value="13">1:25 PM</option>
+                                                                        <option value="14">2:25 PM</option>
+                                                                        <option value="15">3:25 PM</option>
+                                                                        <option value="16">4:25 PM</option>
+                                                                        <option value="17">5:25 PM</option>
+                                                                        <option value="18">6:25 PM</option>
+                                                                        <option value="19">7:25 PM</option>
+                                                                        <option value="20">8:25 PM</option>
+                                                                        <option value="21">9:25 PM</option>
+                                                                        <option value="22">10:25 PM</option>
+                                                                        <option value="23">11:25 PM</option>
+                                                                    </select>
+                                                                </td>
+                                                            </tr>
+                                                            <tr>
+                                                                <th>
                                                                     <span class="skynet-setting-name">Filter List Template</span>
                                                                     <span class="skynet-setting-help">Starting feed selection. Leave blank for Skynet defaults. Importing replaces your saved sources; normal updates keep your changes.</span>
                                                                 </th>
@@ -9183,6 +9258,16 @@
                                                             </tr>
                                                             <tr class="skynet-settings-group" data-settings-section="protection">
                                                                 <th colspan="2">Protection</th>
+                                                            </tr>
+                                                            <tr>
+                                                                <th>
+                                                                    <span class="skynet-setting-name">Restart Skynet</span>
+                                                                    <span class="skynet-setting-help">Restarts Merlin's firewall and reapplies Skynet rules. Connections may be briefly interrupted.</span>
+                                                                </th>
+                                                                <td>
+                                                                    <input type="button" id="skynetRestart" value="Restart Skynet" class="button_gen skynet-update-button skynet-settings-reload" disabled="disabled" />
+                                                                    <div id="skynetRestartResult" class="skynet-feed-status" aria-live="polite"></div>
+                                                                </td>
                                                             </tr>
                                                             <tr>
                                                                 <th>
