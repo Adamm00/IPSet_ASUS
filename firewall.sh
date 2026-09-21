@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                           20/09/2026 - v9.0.0                                             #
+#                                           21/09/2026 - v9.0.0                                             #
 #############################################################################################################
 
 
@@ -6119,181 +6119,32 @@ History_Stats_Index() {
 }
 
 Build_Stats_Log_Index() {
-	# Parse the block log once into small purpose-specific indexes. This avoids
-	# rescanning the full router log for every CLI table and WebUI chart.
-	statsindexsource="$1"
+	# Build compact indexes from one database snapshot for CLI and WebUI reports.
 	statsindexpath="$2"
 	statsindexproto="$3"
 	for statsindexfile in inbound-src inbound-dpt inbound-spt outbound-src outbound-dst outbound-all-dst outbound-http-dst invalid-src iot-dst firewall-src activity span summary; do
 		true > "${statsindexpath}/${statsindexfile}.txt" || return 1
 	done
 	rm -f "${statsindexpath}/.history-index"
-	if History_Ready; then History_Stats_Index; return "$?"; fi
-	[ ! -e "${skynetloc}/history.db" ] || return 1
-
-	# A bounded hour map handles midnight/year changes without invoking date per log row.
-	# RFC3164 cannot distinguish the repeated local hour when daylight saving ends.
-	statsactivityuntil="$(date +%s)"
-	statsactivityfrom="$((statsactivityuntil - 86400))"
-	statsactivityclock="$(date -d "@$statsactivityfrom" '+%M %S')" || return 1
-	statsactivitybase="$(printf '%s\n' "$statsactivityclock" | awk -v epoch="$statsactivityfrom" '{printf "%.0f",epoch-$1*60-$2}')"
-	statsactivitystep="0"
-	while [ "$((statsactivitybase + statsactivitystep * 3600))" -lt "$statsactivityuntil" ]; do
-		statsactivityepoch="$((statsactivitybase + statsactivitystep * 3600))"
-		statsactivitylabel="$(date -d "@$statsactivityepoch" '+%b %e %H~%I%p')" || return 1
-		printf '%s~%s\n' "$statsactivitylabel" "$statsactivityepoch" || return 1
-		statsactivitystep="$((statsactivitystep + 1))"
-	done > "${statsindexpath}/activity-window.txt"
-	awk -v path="$statsindexpath" -v proto="$statsindexproto" -v start="$statsactivityfrom" -v base="$statsactivitybase" -v until="$statsactivityuntil" '
-		# Values in kernel logs end at the next space or comma.
-		function field_value(field, position, value) {
-			position = index($0, " " field "=")
-			if (!position) return ""
-			value = substr($0, position + length(field) + 2)
-			sub(/[ ,].*/, "", value)
-			return value
-		}
-		FNR == NR {
-			split($0,window,"~")
-			hours[window[1]]=window[3]
-			labels[NR-1]=tolower(window[2]); sub(/^0/,"",labels[NR-1])
-			buckets=NR
-			next
-		}
-		{
-			if ($0 !~ /\[BLOCKED - (INBOUND|OUTBOUND|INVALID|IOT|FIREWALL)\]/) next
-			{
-				events++
-				stamp = $1 " " $2 " " $3
-				if (first == "") first = stamp
-				last = stamp
-				if ($0 ~ /\[BLOCKED - (INBOUND|INVALID|FIREWALL)\]/) summaryvalue = field_value("SRC")
-				else if ($0 ~ /\[BLOCKED - OUTBOUND\]/) summaryvalue = field_value("DST")
-				else summaryvalue = ""
-				if (summaryvalue ~ /^[0-9.]+$/) unique[summaryvalue] = 1
-			}
-			if (proto != "" && index($0, "PROTO=" proto " ") == 0) next
-			if ($0 ~ /\[BLOCKED - INBOUND\]/) {
-				if ((value = field_value("SRC")) != "") print value >> path "/inbound-src.txt"
-				if ((value = field_value("DPT")) != "") print value >> path "/inbound-dpt.txt"
-				if ((value = field_value("SPT")) != "") print value >> path "/inbound-spt.txt"
-			} else if ($0 ~ /\[BLOCKED - OUTBOUND\]/) {
-				if ((value = field_value("SRC")) != "") print value >> path "/outbound-src.txt"
-				if ((value = field_value("DST")) != "") {
-					print value >> path "/outbound-all-dst.txt"
-					if (field_value("DPT") ~ /^(80|443)$/) print value >> path "/outbound-http-dst.txt"
-					else print value >> path "/outbound-dst.txt"
-				}
-			} else if ($0 ~ /\[BLOCKED - INVALID\]/) {
-				if ((value = field_value("SRC")) != "") print value >> path "/invalid-src.txt"
-			} else if ($0 ~ /\[BLOCKED - FIREWALL\]/) {
-				if ((value = field_value("SRC")) != "") print value >> path "/firewall-src.txt"
-			} else if ($0 ~ /\[BLOCKED - IOT\]/) {
-				if ((value = field_value("DST")) != "") print value >> path "/iot-dst.txt"
-			}
-
-			logkey=substr($0,1,9)
-			split($3,clock,":")
-			logepoch=hours[logkey] + clock[2]*60 + clock[3]
-			if (logkey in hours && logepoch >= start && logepoch < until) {
-				loghour = int((logepoch-base)/3600)
-				if ($0 ~ /\[BLOCKED - INBOUND\]/) inbound[loghour]++
-				else if ($0 ~ /\[BLOCKED - OUTBOUND\]/) outbound[loghour]++
-				else if ($0 ~ /\[BLOCKED - INVALID\]/) invalid[loghour]++
-				else if ($0 ~ /\[BLOCKED - IOT\]/) iot[loghour]++
-				else if ($0 ~ /\[BLOCKED - FIREWALL\]/) firewall[loghour]++
-			}
-		}
-		END {
-			for (value in unique) uniquecount++
-			for (i = 0; i < buckets; i++)
-				printf "%s~%d~%d~%d~%d~%d\n", labels[i], inbound[i] + 0, outbound[i] + 0, invalid[i] + 0, iot[i] + 0, firewall[i] + 0 > path "/activity.txt"
-			if (first != "") print first " To " last > path "/span.txt"
-			print events + 0 "~" uniquecount + 0 "~" first "~" last > path "/summary.txt"
-		}
-	' "${statsindexpath}/activity-window.txt" "$statsindexsource"
+	History_Ready || return 1
+	History_Stats_Index
 }
 
 Extract_Stats_Values() {
-	# $1 = source, $2 = include pattern, $3 = exclude pattern
-	# $4 = field, $5 = recent/oldest/top, $6 = result limit
-	# "top" counts every value; the other modes de-duplicate while retaining
-	# chronological or reverse-chronological order.
+	# Read value/count/first/last rows from the prepared database indexes.
 	statsextractsource="$1"
-	statsextractinclude="$2"
-	statsextractexclude="$3"
-	statsextractfield="$4"
 	statsextractmode="$5"
 	statsextractlimit="$6"
+	[ -f "${statsextractsource%/*}/.history-index" ] || return 1
 	statsextracttmp="$TMP_DIR/stats-extract.$$"
 	statsextractstatus="0"
-	if [ -f "${statsextractsource%/*}/.history-index" ] && [ -z "$statsextractfield" ]; then
-		case "$statsextractmode" in
-			top) awk -F '\t' '{printf "%7d %s\n",$2,$1}' "$statsextractsource" > "$statsextracttmp" && sort -nr "$statsextracttmp" > "$statsextracttmp.sorted" || statsextractstatus="1" ;;
-			oldest) sort -t "$(printf '\t')" -k3,3n "$statsextractsource" > "$statsextracttmp" && cut -f1 "$statsextracttmp" > "$statsextracttmp.sorted" || statsextractstatus="1" ;;
-			recent) sort -t "$(printf '\t')" -k4,4nr "$statsextractsource" > "$statsextracttmp" && cut -f1 "$statsextracttmp" > "$statsextracttmp.sorted" || statsextractstatus="1" ;;
-			*) statsextractstatus="1" ;;
-		esac
-		if [ "$statsextractstatus" = "0" ]; then head -n "$statsextractlimit" "$statsextracttmp.sorted" || statsextractstatus="1"; fi
-		rm -f "$statsextracttmp" "$statsextracttmp.sorted"
-		return "$statsextractstatus"
-	fi
-	if [ -n "$statsextractfield" ]; then
-		statsextractfield="${statsextractfield}="
-	fi
-
-	awk -v matchpattern="$statsextractinclude" -v skippattern="$statsextractexclude" -v field="$statsextractfield" -v mode="$statsextractmode" -v limit="$statsextractlimit" '
-		BEGIN {
-			if (mode != "top" && limit <= 0) exit
-			mode = mode == "top" ? 1 : (mode == "oldest" ? 2 : 0)
-		}
-		$0 ~ matchpattern && (skippattern == "" || $0 !~ skippattern) {
-			position = index($0, field)
-			if (field != "" && position > 0) {
-				value = substr($0, position + length(field))
-				sub(/[ ,].*/, "", value)
-			} else if (field == "") {
-				value = $0
-			} else {
-				next
-			}
-
-			if (!mode) values[++entries] = value
-			else if (mode == 1) hits[value]++
-			else {
-				# The first requested unique values are final; do not retain or scan
-				# the remaining history once this result is complete.
-				if (!(value in seen)) {
-					print value
-					seen[value] = 1
-					if (++output >= limit) exit
-				}
-			}
-		}
-		END {
-			if (mode == 1) {
-				for (value in hits) printf "%7d %s\n", hits[value], value
-			} else if (!mode) {
-				for (i = entries; i >= 1 && output < limit; i--) {
-					value = values[i]
-					if (!(value in seen)) {
-						print value
-						seen[value] = 1
-						output++
-					}
-				}
-			}
-		}
-	' "$statsextractsource" > "$statsextracttmp" || statsextractstatus="1"
-	# Check each stage independently; POSIX pipelines only return the last status.
-	if [ "$statsextractstatus" = "0" ]; then
-		if [ "$statsextractmode" = "top" ]; then
-			sort -nr "$statsextracttmp" > "$statsextracttmp.sorted" \
-				&& head -n "$statsextractlimit" "$statsextracttmp.sorted" || statsextractstatus="1"
-		else
-			cat "$statsextracttmp" || statsextractstatus="1"
-		fi
-	fi
+	case "$statsextractmode" in
+		top) awk -F '\t' '{printf "%7d %s\n",$2,$1}' "$statsextractsource" > "$statsextracttmp" && sort -nr "$statsextracttmp" > "$statsextracttmp.sorted" || statsextractstatus="1" ;;
+		oldest) sort -t "$(printf '\t')" -k3,3n "$statsextractsource" > "$statsextracttmp" && cut -f1 "$statsextracttmp" > "$statsextracttmp.sorted" || statsextractstatus="1" ;;
+		recent) sort -t "$(printf '\t')" -k4,4nr "$statsextractsource" > "$statsextracttmp" && cut -f1 "$statsextracttmp" > "$statsextracttmp.sorted" || statsextractstatus="1" ;;
+		*) statsextractstatus="1" ;;
+	esac
+	if [ "$statsextractstatus" = "0" ]; then head -n "$statsextractlimit" "$statsextracttmp.sorted" || statsextractstatus="1"; fi
 	rm -f "$statsextracttmp" "$statsextracttmp.sorted"
 	return "$statsextractstatus"
 }
@@ -6721,7 +6572,7 @@ Print_Stats_Rows() {
 
 Show_Stats_Block() {
 	# Arguments:
-	# $1 = source         ("log" or "events")
+	# $1 = source         ("log" selects the prepared history indexes)
 	# $2 = pattern        (e.g. "IOT.*$proto")
 	# $3 = field          ("SRC", "DST", or "" for full line)
 	# $4 = title          (display title)
@@ -6729,10 +6580,8 @@ Show_Stats_Block() {
 	# $6 = count          (number of entries)
 	# $7 = header_id      (passed to Display_Header)
 	# $8 = stats_mode     (1 for recent values, 2 for hit counts)
-	case "$1" in
-		events) statssource="$skynetevents" ;;
-		*)      statssource="$skynetlog" ;;
-	esac
+	[ "$1" = "log" ] && [ -n "$statsindexpath" ] || return 1
+	statssource=""
 
 	statspattern="$2"
 	statsfield="$3"
@@ -6757,6 +6606,8 @@ Show_Stats_Block() {
 			statsfield=""
 		fi
 	fi
+
+	[ -n "$statssource" ] || return 1
 
 	Display_Header "9"
 	Red "$statstitle"
@@ -7067,89 +6918,8 @@ Build_Stats_Search_Log() {
 	statssearchother="${statssearchprefix}.other"
 	statssearchlogsummary="${statssearchprefix}.logsummary"
 	rm -f "$statssearchmatches" "$statssearchsummary" "$statssearchdpt" "$statssearchspt" "$statssearchhttp" "$statssearchother" "$statssearchlogsummary"
-	if History_Ready; then History_Stats_Search; return "$?"; fi
-	[ ! -e "${skynetloc}/history.db" ] || return 1
-	awk -v mode="$statssearchmode" -v value="$statssearchvalue" -v protocol="$statssearchproto" \
-		-v matches="$statssearchmatches" -v summary="$statssearchsummary" \
-		-v dptfile="$statssearchdpt" -v sptfile="$statssearchspt" \
-		-v httpfile="$statssearchhttp" -v otherfile="$statssearchother" \
-		-v logsummary="$statssearchlogsummary" '
-		function line_value(name, start, value) {
-			start = index($0, " " name "=")
-			if (!start) return ""
-			value = substr($0, start + length(name) + 2)
-			sub(/[ ,].*/, "", value)
-			return value
-		}
-		BEGIN {
-			printf "%s", "" > matches; close(matches)
-			printf "%s", "" > dptfile; close(dptfile)
-			printf "%s", "" > sptfile; close(sptfile)
-			printf "%s", "" > httpfile; close(httpfile)
-			printf "%s", "" > otherfile; close(otherfile)
-		}
-		/kernel: (\[[0-9. ]+\] )?\[BLOCKED - (INBOUND|OUTBOUND|INVALID|IOT|FIREWALL)\] / {
-			source = destination = destinationport = sourceport = ""
-			firewall = index($0, "[BLOCKED - FIREWALL]") != 0
-			inbound = index($0, "[BLOCKED - INBOUND]") != 0
-			invalid = index($0, "[BLOCKED - INVALID]") != 0
-			outbound = index($0, "[BLOCKED - OUTBOUND]") != 0
-			if (index($0, "BLOCKED -")) {
-				globalevents++
-				globalstamp = $1 " " $2 " " $3
-				if (globalfirst == "") globalfirst = globalstamp
-				globallast = globalstamp
-			}
-			if (inbound || invalid || firewall) {
-				source = line_value("SRC")
-				globaladdress = source
-			} else if (outbound) {
-				destination = line_value("DST")
-				globaladdress = destination
-			}
-			else globaladdress = ""
-			if (globaladdress ~ /^[0-9.]+$/) globalunique[globaladdress] = 1
-			matched = 0
-			if (mode == "port") matched = (line_value("SPT") == value || line_value("DPT") == value)
-			else if (mode == "ip") matched = (line_value("SRC") == value || line_value("DST") == value)
-			else if (mode == "firewall") matched = firewall
-			else if (mode == "device") matched = outbound && line_value("SRC") == value && (protocol == "" || line_value("PROTO") == protocol)
-			if (!matched) next
-			print $0 >> matches
-			stamp = $1 " " $2 " " $3
-			if (total == 0) first = stamp
-			last = stamp
-			total++
-			if (mode == "port") {
-				if (source == "") source = line_value("SRC")
-				if (source != "") unique[source] = 1
-			}
-			if (mode == "ip" && inbound && source == value) {
-				destinationport = line_value("DPT")
-				sourceport = line_value("SPT")
-				if (destinationport != "") dpt[destinationport]++
-				if (sourceport != "") spt[sourceport]++
-			}
-			if (mode == "device") {
-				if (destination == "") destination = line_value("DST")
-				destinationport = line_value("DPT")
-				if (destination != "") {
-					if (destinationport == 80 || destinationport == 443) http[destination]++
-					else other[destination]++
-				}
-			}
-		}
-		END {
-			for (item in unique) uniquecount++
-			for (item in globalunique) globaluniquecount++
-			print globalevents + 0 "~" globaluniquecount + 0 "~" globalfirst "~" globallast > logsummary
-			print first "~" last "~" total + 0 "~" uniquecount + 0 > summary
-			for (item in dpt) print dpt[item], item > dptfile
-			for (item in spt) print spt[item], item > sptfile
-			for (item in http) print http[item], item > httpfile
-			for (item in other) print other[item], item > otherfile
-		}
-	' "$skynetlog"
+	History_Ready || return 1
+	History_Stats_Search
 }
 
 History_Stats_Domain_Search() {
@@ -7183,8 +6953,7 @@ History_Stats_Domain_Search() {
 }
 
 Build_Stats_Domain_Search_Log() {
-	# Index every resolved address during one block-log pass. Per-address output
-	# is rendered from this compact index rather than rescanning the live log.
+	# Search every resolved address in one database read transaction.
 	statsdomainvalues="$1"
 	statsdomainprefix="$2"
 	statsdomainmatches="${statsdomainprefix}.matches"
@@ -7193,73 +6962,8 @@ Build_Stats_Domain_Search_Log() {
 	statsdomainspt="${statsdomainprefix}.spt"
 	statsdomainlogsummary="${statsdomainprefix}.logsummary"
 	rm -f "$statsdomainmatches" "$statsdomainsummary" "$statsdomaindpt" "$statsdomainspt" "$statsdomainlogsummary"
-	if History_Ready; then
-		History_Stats_Domain_Search
-		return "$?"
-	fi
-	[ ! -e "${skynetloc}/history.db" ] || return 1
-	awk -v values="$statsdomainvalues" -v matches="$statsdomainmatches" \
-		-v summary="$statsdomainsummary" -v dptfile="$statsdomaindpt" -v sptfile="$statsdomainspt" \
-		-v logsummary="$statsdomainlogsummary" '
-		function line_value(name, start, value) {
-			start = index($0, " " name "=")
-			if (!start) return ""
-			value = substr($0, start + length(name) + 2)
-			sub(/[ ,].*/, "", value)
-			return value
-		}
-		function record(address, source, destinationport, sourceport, inbound, stamp) {
-			if (!(address in wanted)) return
-			print address "~" $0 >> matches
-			stamp = $1 " " $2 " " $3
-			if (total[address] == 0) first[address] = stamp
-			last[address] = stamp
-			total[address]++
-			if (inbound && source == address) {
-				if (destinationport != "") dpt[address SUBSEP destinationport]++
-				if (sourceport != "") spt[address SUBSEP sourceport]++
-			}
-		}
-		BEGIN {
-			count = split(values, input, " ")
-			for (position = 1; position <= count; position++) if (input[position] != "" && !(input[position] in wanted)) {
-				wanted[input[position]] = 1
-				order[++addresscount] = input[position]
-			}
-			printf "%s", "" > matches; close(matches)
-			printf "%s", "" > dptfile; close(dptfile)
-			printf "%s", "" > sptfile; close(sptfile)
-		}
-		/kernel: (\[[0-9. ]+\] )?\[BLOCKED - (INBOUND|OUTBOUND|INVALID|IOT|FIREWALL)\] / {
-			source = line_value("SRC")
-			destination = line_value("DST")
-			inbound = index($0, "[BLOCKED - INBOUND]") != 0
-			if (inbound && source in wanted) {
-				destinationport = line_value("DPT")
-				sourceport = line_value("SPT")
-			} else destinationport = sourceport = ""
-			if (index($0, "BLOCKED -")) {
-				globalevents++
-				globalstamp = $1 " " $2 " " $3
-				if (globalfirst == "") globalfirst = globalstamp
-				globallast = globalstamp
-			}
-			if ((index($0, "[BLOCKED - INBOUND]") || index($0, "[BLOCKED - INVALID]") || index($0, "[BLOCKED - FIREWALL]")) && source ~ /^[0-9.]+$/) globalunique[source] = 1
-			else if (index($0, "[BLOCKED - OUTBOUND]") && destination ~ /^[0-9.]+$/) globalunique[destination] = 1
-			record(source, source, destinationport, sourceport, inbound)
-			if (destination != source) record(destination, source, destinationport, sourceport, inbound)
-		}
-		END {
-			for (item in globalunique) globaluniquecount++
-			print globalevents + 0 "~" globaluniquecount + 0 "~" globalfirst "~" globallast > logsummary
-			for (position = 1; position <= addresscount; position++) {
-				address = order[position]
-				print address "~" first[address] "~" last[address] "~" total[address] + 0 > summary
-			}
-			for (item in dpt) { split(item, field, SUBSEP); print field[1] "~" dpt[item] " " field[2] > dptfile }
-			for (item in spt) { split(item, field, SUBSEP); print field[1] "~" spt[item] " " field[2] > sptfile }
-		}
-	' "$skynetlog"
+	History_Ready || return 1
+	History_Stats_Domain_Search
 }
 
 Remove_Stats_Search_Files() {
@@ -7279,8 +6983,7 @@ Remove_Stats_Domain_Search_Files() {
 }
 
 Print_Stats_Logging_Header() {
-	statslogdisplay="$skynetlog"
-	if History_Ready; then statslogdisplay="${skynetloc}/history.db"; fi
+	statslogdisplay="${skynetloc}/history.db"
 	printf '╔═════════════════════ Logging ═════════════════════════════════════════════════════════════════════════════╗\n'
 	printf '║ %-20s │ %-82s ║\n' "Syslog Locations" "$syslogloc $syslog1loc"
 	printf '║ %-20s │ %-82s ║\n' "Skynet Log"       "$statslogdisplay"
@@ -7307,46 +7010,6 @@ Set_Stats_Search_Count() {
 	counter="$1"
 }
 
-Legacy_Stats_Remove() {
-	statsremovemode="$1"
-	case "$statsremovemode" in
-		ip) statsremovevalue="$(Normalize_IPSet_Entry ip "$2")" || return 2 ;;
-		port)
-			printf '%s\n' "$2" | Is_Port || return 2
-			statsremovevalue="$(printf '%s\n' "$2" | awk '{print $0+0}')" || return 2
-		;;
-		*) return 2 ;;
-	esac
-	statsremovelock="${log_lock_held:-0}"
-	Acquire_Log_Lock || return 1
-	statsremovestatus="1"
-	statsremovefile="${skynetlog}.remove.$$"
-	statsremovecount="$TMP_DIR/stats-remove-count.$$"
-	# Keep the original until filtering and counting both succeed. The sibling
-	# replacement preserves permissions and is renamed under the collector lock.
-	if [ ! -e "${skynetloc}/history.db" ] && cp -p "$skynetlog" "$statsremovefile" \
-		&& awk -v mode="$statsremovemode" -v value="$statsremovevalue" -v countfile="$statsremovecount" '
-		function field(name, start, result) {
-			start = index($0, " " name "=")
-			if (!start) return ""
-			result = substr($0, start + length(name) + 2)
-			sub(/[ ,].*/, "", result)
-			return result
-		}
-		/kernel: (\[[0-9. ]+\] )?\[BLOCKED - (INBOUND|OUTBOUND|INVALID|IOT|FIREWALL)\] / {
-			if ((mode == "ip" && (field("SRC") == value || field("DST") == value)) ||
-				(mode == "port" && (field("SPT") == value || field("DPT") == value))) { removed++; next }
-		}
-		{ print }
-		END { print removed + 0 > countfile }
-	' "$skynetlog" > "$statsremovefile" \
-		&& read -r logcount < "$statsremovecount" \
-		&& mv -f "$statsremovefile" "$skynetlog"; then statsremovestatus="0"
-	fi
-	rm -f "$statsremovefile" "$statsremovecount"
-	[ "$statsremovelock" = "1" ] || Release_Log_Lock
-	return "$statsremovestatus"
-}
 
 History_Stats_Remove() {
 	case "$1" in
@@ -7606,7 +7269,7 @@ Stats_Search_Connections() {
 
 Run_Stats() {
 		Purge_Logs || return 1
-		if [ -e "${skynetloc}/history.db" ] && ! History_Ready; then
+		if ! History_Ready; then
 			Log error "Firewall History Is Unavailable - Existing Data Retained"
 			return 1
 		fi
@@ -7617,16 +7280,12 @@ Run_Stats() {
 			Red "[*] To Enable Use ( sh $0 settings logmode enable )"
 			echo
 		fi
-		if ! History_Ready && [ ! -s "$skynetlog" ] && [ ! -s "$skynetevents" ] && [ "$2:$3" != "search:reason" ]; then
-			echo "[*] No Logging Data Detected - Give This Time To Generate"
-			echo; exit 0
-		fi
 		case "$2:$3" in
 			search:ip|search:port|search:device|search:domain|search:invalid|search:iot|search:firewall) ;;
 			reset:*|remove:*|search:*) Print_Stats_Logging_Header ;;
 		esac
 		counter="10"
-		if [ "$2:$3" = "search:firewall" ] || { History_Ready && { [ "$2:$3" = "search:invalid" ] || [ "$2:$3" = "search:iot" ]; }; }; then
+		if [ "$2:$3" = "search:firewall" ] || [ "$2:$3" = "search:invalid" ] || [ "$2:$3" = "search:iot" ]; then
 			case "$#" in 3) ;; 4) Set_Stats_Search_Count "$4" || return 2 ;; *) return 2 ;; esac
 			case "$3" in iot) statscategorylabel="IoT" ;; firewall) statscategorylabel="Firewall" ;; *) statscategorylabel="Invalid" ;; esac
 			Build_Stats_Search_Log "$3" "" "" "$TMP_DIR/stats-category.$$" || return 1
@@ -7660,23 +7319,19 @@ Run_Stats() {
 		fi
 		case "$2" in
 			reset)
-				if History_Ready; then History_Clear || exit 1; else Purge_Logs "force" || exit 1; fi
+				History_Clear || exit 1
 				echo "[i] Stat Data Reset"
 			;;
 			remove)
 				case "$3" in
 					ip)
 						if ! echo "$4" | Is_IP; then echo "[*] $4 Is Not A Valid IP"; echo; exit 2; fi
-						if History_Ready; then History_Stats_Remove ip "$4" || exit 1
-						else Legacy_Stats_Remove ip "$4" || exit 1
-						fi
+						History_Stats_Remove ip "$4" || exit 1
 						echo "[i] $logcount Log Entries Removed Containing IP $4"
 					;;
 					port)
 						if ! echo "$4" | Is_Port; then echo "[*] $4 Is Not A Valid Port"; echo; exit 2; fi
-						if History_Ready; then History_Stats_Remove port "$4" || exit 1
-						else Legacy_Stats_Remove port "$4" || exit 1
-						fi
+						History_Stats_Remove port "$4" || exit 1
 						echo "[i] $logcount Log Entries Removed Containing Port $4"
 					;;
 					*)
@@ -7739,44 +7394,8 @@ Run_Stats() {
 						tail -"$counter" "$reportrows"
 						rm -f "$reportrows"
 					;;
-					invalid)
-						if [ "$4" -eq "$4" ] 2>/dev/null; then counter="$4"; fi
-						Print_Stats_Logging_Header
-						echo "[i] First Invalid Block Tracked On $(grep -m1 -F "BLOCKED - INVALID" "$skynetlog" | awk '{printf "%s %s %s\n", $1, $2, $3}')"
-						echo "[i] Last Invalid Block Tracked On $(grep -F "BLOCKED - INVALID" "$skynetlog" | tail -1 | awk '{printf "%s %s %s\n", $1, $2, $3}')"
-						echo;echo
-						Red "First Invalid Block Tracked;"
-						grep -m1 -F "BLOCKED - INVALID" "$skynetlog"
-						echo;echo
-						Red "$counter Most Recent Invalid Blocks;"
-						grep -F "BLOCKED - INVALID" "$skynetlog" | tail -"$counter"
-					;;
 					connections)
 						Stats_Search_Connections "$@" || return "$?"
-					;;
-					iot)
-						if [ "$4" -eq "$4" ] 2>/dev/null; then counter="$4"; fi
-						Print_Stats_Logging_Header
-						echo "[i] First IoT Block Tracked On $(grep -m1 -F "BLOCKED - IOT" "$skynetlog" | awk '{printf "%s %s %s\n", $1, $2, $3}')"
-						echo "[i] Last IoT Block Tracked On $(grep -F "BLOCKED - IOT" "$skynetlog" | tail -1 | awk '{printf "%s %s %s\n", $1, $2, $3}')"
-						echo;echo
-						Red "First IoT Block Tracked;"
-						grep -m1 -F "BLOCKED - IOT" "$skynetlog"
-						echo;echo
-						Red "$counter Most Recent IoT Blocks;"
-						grep -F "BLOCKED - IOT" "$skynetlog" | tail -"$counter"
-						echo;echo
-						Red "Top $counter IoT Blocks (Outbound);"
-						Display_Header "2"
-						Extract_Stats_Values "$skynetlog" "IOT.*$proto" "" "DST" "top" "$counter" > "$TMP_DIR/stats-iot.txt" || return 1
-						awk 'NF >= 2 {print $NF}' "$TMP_DIR/stats-iot.txt" > "$TMP_DIR/stats-lookup-ips.txt" || return 1
-						statsreasoncache="$TMP_DIR/stats-reasons.txt"
-						statscountrycache="$TMP_DIR/stats-countries.txt"
-						statsdomaincache="$TMP_DIR/stats-domains.txt"
-						true > "$statscountrycache" || return 1
-						Build_Stats_Ban_Reason_Cache "$TMP_DIR/stats-lookup-ips.txt" "$skynetipset" "$statsreasoncache" || return 1
-						Build_Stats_Domain_Cache "$TMP_DIR/stats-lookup-ips.txt" "$statsdomaincache" || return 1
-						Print_Stats_Rows "$TMP_DIR/stats-iot.txt" "2"
 					;;
 					*)
 						Command_Not_Recognized
@@ -8377,7 +7996,7 @@ Generate_Stats() {
 	Addon_API_Supported || return 0
 	Is_Enabled "$displaywebui" || return 0
 	Is_Enabled "$logmode" || return 0
-	if [ -e "${skynetloc}/history.db" ] && ! History_Ready; then
+	if ! History_Ready; then
 		Log error "Firewall History Is Unavailable - Existing Statistics Retained"
 		return 1
 	fi
@@ -8420,8 +8039,7 @@ Generate_Stats() {
 	Write_Stats_ToJS "$blacklist2count" "$statstmp" "SetBLCount2" "blcount2" || statsstatus="1"
 	Write_Stats_ToJS "$hits1" "$statstmp" "SetHits1" "hits1" || statsstatus="1"
 	Write_Stats_ToJS "$hits2" "$statstmp" "SetHits2" "hits2" || statsstatus="1"
-	statslogdisplay="$skynetlog"
-	if History_Ready; then statslogdisplay="${skynetloc}/history.db"; fi
+	statslogdisplay="${skynetloc}/history.db"
 	statslogsize="$(du -h "$statslogdisplay")" || statsstatus="1"
 	Write_Stats_ToJS "${statslogsize%%[[:space:]]*}B" "$statstmp" "SetStatsSize" "statssize" || statsstatus="1"
 	printf 'var SkynetStatsGenerated = "%s.%s";\n' "$(date +%s)" "$$" >> "$statstmp" || statsstatus="1"
@@ -8555,62 +8173,16 @@ Generate_Stats() {
 	return 1
 }
 Generate_Blocked_Events() {
-	if [ -e "${skynetloc}/history.db" ] && ! History_Ready; then
-		blockedevents="Unavailable"; monitorspan="Unavailable"
+	blockedevents="Unavailable"; monitorspan="Unavailable"
+	if ! History_Ready || ! History_Stats_Summary > "$TMP_DIR/history-summary-display.$$"; then
+		rm -f "$TMP_DIR/history-summary-display.$$"
 		printf '║ %-20s │ %-82s ║\n' "Block Events" "$blockedevents"
 		return 1
 	fi
-	if History_Ready; then
-		if History_Stats_Summary > "$TMP_DIR/history-summary-display.$$"; then
-			IFS='~' read -r statseventcount statsuniquecount monitorfirst monitorlast < "$TMP_DIR/history-summary-display.$$"
-			blockedevents="$statseventcount ($statsuniquecount Unique IPs)"
-			if [ -n "$monitorfirst" ]; then monitorspan="$monitorfirst → $monitorlast"; else monitorspan="No Data"; fi
-		else blockedevents="Unavailable"; monitorspan="Unavailable"
-		fi
-		rm -f "$TMP_DIR/history-summary-display.$$"
-		printf '║ %-20s │ %-82s ║\n' "Block Events" "$blockedevents"
-		return 0
-	fi
-	# Count events, unique remote IPs and the monitor span in one log pass. A
-	# manual counter is used because POSIX awk does not define length(array).
-	if blockedeventsummary="$(awk '
-		/\[BLOCKED - (INBOUND|OUTBOUND|INVALID|IOT|FIREWALL)\]/ {
-			eventcount++
-			stamp=$1 " " $2 " " $3
-			if (monitorfirst == "") monitorfirst=stamp
-			monitorlast=stamp
-		}
-		/\[BLOCKED - (INBOUND|INVALID|FIREWALL)\]/ {
-			for (i = 1; i <= NF; i++)
-				if ($i ~ /^SRC=/) {
-					split($i, ip, "=")
-					if (ip[2] ~ /^[0-9.]+$/ && !seen[ip[2]]++) uniquecount++
-					break
-				}
-		}
-		/\[BLOCKED - OUTBOUND\]/ {
-			for (i = 1; i <= NF; i++)
-				if ($i ~ /^DST=/) {
-					split($i, ip, "=")
-					if (ip[2] ~ /^[0-9.]+$/ && !seen[ip[2]]++) uniquecount++
-					break
-				}
-		}
-		END { printf "%d (%d Unique IPs)|%s|%s", eventcount, uniquecount, monitorfirst, monitorlast }
-	' "$skynetlog")"; then
-		blockedevents="${blockedeventsummary%%|*}"
-		monitorvalues="${blockedeventsummary#*|}"
-		monitorfirst="${monitorvalues%%|*}"
-		monitorlast="${monitorvalues#*|}"
-		if [ -n "$monitorfirst" ] && [ -n "$monitorlast" ]; then
-			monitorspan="$monitorfirst → $monitorlast"
-		else
-			monitorspan="No Data"
-		fi
-	else
-		blockedevents="Unavailable"
-		monitorspan="Unavailable"
-	fi
+	IFS='~' read -r statseventcount statsuniquecount monitorfirst monitorlast < "$TMP_DIR/history-summary-display.$$"
+	blockedevents="$statseventcount ($statsuniquecount Unique IPs)"
+	if [ -n "$monitorfirst" ]; then monitorspan="$monitorfirst → $monitorlast"; else monitorspan="No Data"; fi
+	rm -f "$TMP_DIR/history-summary-display.$$"
 	printf '║ %-20s │ %-82s ║\n' "Block Events" "$blockedevents"
 }
 
@@ -9434,9 +9006,9 @@ Publish_Failed_Actions() {
 }
 
 History_SQLite() {
+	# Native firmware locations only; command failures propagate to the caller.
 	if [ -x /usr/sbin/sqlite3 ]; then /usr/sbin/sqlite3 "$@"
-	elif [ -x /usr/bin/sqlite3 ]; then /usr/bin/sqlite3 "$@"
-	else return 3; fi
+	else /usr/bin/sqlite3 "$@"; fi
 }
 
 History_Read() {
@@ -9463,10 +9035,6 @@ History_Initialize() (
 	umask 077
 	# Only the firmware SQLite is used. Existing databases are never silently
 	# replaced when damaged or from an unsupported schema version.
-	if [ ! -x /usr/sbin/sqlite3 ] && [ ! -x /usr/bin/sqlite3 ]; then
-		[ ! -e "${skynetloc}/history.db" ] && [ ! -L "${skynetloc}/history.db" ] || return 1
-		return 3
-	fi
 	[ ! -L "${skynetloc}/history.db" ] || return 1
 	[ ! -e "${skynetloc}/history.db" ] || [ -f "${skynetloc}/history.db" ] || return 1
 	if [ -f "${skynetloc}/history.db" ]; then
@@ -9478,10 +9046,6 @@ History_Initialize() (
 			&& [ "$(History_Read 'SELECT COUNT(*) FROM sqlite_master;' 2>/dev/null)" = "0" ] \
 			&& [ "$(History_Read 'PRAGMA quick_check;' 2>/dev/null)" = "ok" ] || return 1
 		chmod 600 "${skynetloc}/history.db" || return 1
-	fi
-	if ! History_SQLite -readonly :memory: 'CREATE TEMP TABLE test(a INTEGER PRIMARY KEY) WITHOUT ROWID; SELECT hex(unhex("AA"));' >/dev/null 2>&1; then
-		[ ! -e "${skynetloc}/history.db" ] && [ ! -L "${skynetloc}/history.db" ] || return 1
-		return 3
 	fi
 	History_Write "PRAGMA journal_mode=DELETE;
 PRAGMA auto_vacuum=INCREMENTAL;
@@ -9764,9 +9328,7 @@ History_Clean_Syslog_Source() (
 
 History_Collect() {
 	Time_Is_Ready || return 0
-	History_Initialize
-	historyinitstatus="$?"
-	[ "$historyinitstatus" = "0" ] || return "$historyinitstatus"
+	History_Initialize || { Log error "Failed To Initialize Firewall History - Existing Data Retained"; return 1; }
 	historynow="$(date +%s)"; historyyear="$(date +%Y)"; historyzone="$(date +%z)"
 	historyzone="$(printf '%s\n' "$historyzone" | awk '{ sign=substr($0,1,1)=="-" ? -1 : 1; print sign*(substr($0,2,2)*3600+substr($0,4,2)*60) }')"
 	if ! History_Ready; then
@@ -9873,112 +9435,28 @@ Archive_Block_Logs() {
 	Acquire_Log_Lock || return 1
 	History_Collect
 	archivehistorystatus="$?"
-	if [ "$archivehistorystatus" != "3" ]; then
-		Release_Log_Lock
-		return "$archivehistorystatus"
-	fi
-	archivefailed="0"
-	archiverewritten="0"
-	archiverecords="$TMP_DIR/archive-records.$$"
-	archiverollback="$TMP_DIR/archive-rollback.$$"
-	for syslogfile in "$syslog1loc" "$syslogloc"; do
-		[ -f "$syslogfile" ] || continue
-		# Detect cleanup and extract Skynet records in one pass. Native DROP
-		# messages are discarded; unrelated system messages stay in syslog.
-		awk '
-			/kernel: (\[[^]]*\] )?\[BLOCKED - (INBOUND|OUTBOUND|INVALID|IOT|FIREWALL)\]/ { print; found = 1; next }
-			/kernel: DROP IN=/ { found = 1 }
-			END { exit found ? 0 : 3 }
-		' "$syslogfile" > "$archiverecords" 2>/dev/null
-		case "$?" in 0) ;; 3) continue ;; *) archivefailed="1"; continue ;; esac
-		archiveoldsize="$(wc -c < "$skynetlog" 2>/dev/null)"
-		case "$archiveoldsize" in ""|*[!0-9]*) archivefailed="1"; continue ;; esac
-		if cat "$archiverecords" >> "$skynetlog" 2>/dev/null \
-			&& sed -ri '\~kernel: (\[[^]]*\] )?\[BLOCKED - (INBOUND|OUTBOUND|INVALID|IOT|FIREWALL)\]~d; /kernel: DROP IN=/d' "$syslogfile" 2>/dev/null; then
-			archiverewritten="1"
-			if [ -s "$archiverecords" ]; then Whitelist_Blocked_Private_IPs "$archiverecords" || archivefailed="1"; fi
-		else
-			archivefailed="1"
-			if head -c "$archiveoldsize" "$skynetlog" > "$archiverollback" 2>/dev/null \
-				&& chmod 600 "$archiverollback" && mv -f "$archiverollback" "$skynetlog"; then :; else
-				Log error "Failed To Restore Firewall Log After Archive Failure"
-			fi
-		fi
-	done
-	rm -f "$archiverecords" "$archiverollback"
 	Release_Log_Lock
-	if [ "$archiverewritten" = "1" ] && [ -f "/opt/etc/syslog-ng.d/skynet" ]; then
-		killall -HUP syslog-ng 2>/dev/null
-	fi
-	[ "$archivefailed" = "0" ] || { Log error "Failed To Archive Firewall Logs - Source Logs Retained"; return 1; }
+	return "$archivehistorystatus"
 }
 
 Enforce_Log_Limit_Locked() {
-	if History_Ready; then History_Prune; return "$?"; fi
-	[ ! -e "${skynetloc}/history.db" ] && [ ! -L "${skynetloc}/history.db" ] || return 1
-	log_kb="$(du -k "$skynetlog" 2>/dev/null | cut -f1)" || log_kb="0"
-	log_kb="${log_kb:-0}"
-	log_kb_limit="$((logsize * 1024))"
-	if [ "$log_kb" -ge "$log_kb_limit" ] || [ "$1" = "force" ]; then
-		if Generate_Stats; then
-			sed -i '/BLOCKED -/d' "$skynetlog" 2>/dev/null || return 1
-			iptables -Z PREROUTING -t raw || return 1
-			log_kb="$(du -k "$skynetlog" 2>/dev/null | cut -f1)" || log_kb="0"
-			if [ "${log_kb:-0}" -ge 3000 ]; then : > "$skynetlog" || return 1; fi
-		else
-			Log error "Failed To Generate Statistics - Firewall Logs Retained"
-			return 1
-		fi
-	fi
-	return 0
+	# History activation waits for trusted timestamps; protection changes do not.
+	Time_Is_Ready || return 0
+	History_Prune
 }
 
 Enforce_Log_Limit() {
 	Acquire_Log_Lock || return 1
-	Enforce_Log_Limit_Locked "$@"
+	Enforce_Log_Limit_Locked
 	loglimitstatus="$?"
 	Release_Log_Lock
 	return "$loglimitstatus"
 }
 
-Housekeep_Syslog() {
-	# Cursor-based collection leaves source rotation and retention to the logger.
-	[ ! -f "${skynetloc}/history.db" ] || return 0
-	logcounts="$(awk '
-		/Skynet: \[i\] Startup Initiated/ { starts++ }
-		/Skynet: \[i\] Restarting Firewall Service/ { restarts++ }
-		END { print starts + 0, restarts + 0 }
-	' "$syslogloc" 2>/dev/null)"
-	logcounts="${logcounts:-0 0}"
-	start_count="${logcounts%% *}"
-	restart_count="${logcounts#* }"
-	sysloghousekeeping="0"
-	if [ "$1" = "all" ]; then
-		sed -i '/Skynet: \[i\] /{
-			/Startup Initiated/!{
-				/Restarting Firewall Service/!d
-			}
-		}; /Skynet: \[#\] /d; /Skynet: \[\*\] Lock /d' "$syslog1loc" "$syslogloc" 2>/dev/null
-		sysloghousekeeping="1"
-	fi
-	if [ "$start_count" -gt 3 ]; then
-		sed -i '/Skynet: \[i\] Startup Initiated/d' "$syslog1loc" "$syslogloc" 2>/dev/null
-		sysloghousekeeping="1"
-	fi
-	if [ "$restart_count" -gt 3 ]; then
-		sed -i '/Skynet: \[i\] Restarting Firewall Service/d' "$syslog1loc" "$syslogloc" 2>/dev/null
-		sysloghousekeeping="1"
-	fi
-	if [ "$sysloghousekeeping" = "1" ] && [ -f "/opt/etc/syslog-ng.d/skynet" ]; then
-		killall -HUP syslog-ng 2>/dev/null
-	fi
-}
-
 
 Purge_Logs() {
 	Archive_Block_Logs || return 1
-	Enforce_Log_Limit "$1" || return 1
-	Housekeep_Syslog "$1"
+	Enforce_Log_Limit
 }
 
 Print_Command_Summary() {
@@ -13977,11 +13455,10 @@ Debug_Info() {
 	printf '╚══════════════════════╧════════════════════════════════════════════════════════════════════════════════════╝\n\n\n'
 	printf '╔═════════════════════ Logging ═════════════════════════════════════════════════════════════════════════════╗\n'
 	printf '║ %-20s │ %-82s ║\n' "Syslog Locations" "$syslogloc $syslog1loc"
-	debuglogdisplay="$skynetlog"
-	[ ! -f "${skynetloc}/history.db" ] || debuglogdisplay="${skynetloc}/history.db"
+	debuglogdisplay="${skynetloc}/history.db"
 	printf '║ %-20s │ %-82s ║\n' "Skynet Log"       "$debuglogdisplay"
-	SZ="$(du -h "$debuglogdisplay" | awk '{print $1}')"
-	printf '║ └── %-16s │ %-82s ║\n' "Used/Total" "$SZ / ${logsize}MB"
+	SZ="$(du -h "$debuglogdisplay" 2>/dev/null | awk '{print $1}')"
+	printf '║ └── %-16s │ %-82s ║\n' "Used/Total" "${SZ:-Not initialized} / ${logsize}MB"
 	if [ -n "$countrylist" ]; then
 		countries="$countrylist"
 		if [ "${#countries}" -gt 82 ]; then
@@ -14358,7 +13835,6 @@ Debug_Backup() {
 	echo "[i] Backing Up Skynet Related Files"
 	echo
 	set -- skynet.ipset skynet.cfg
-	if [ ! -f "${skynetloc}/history.db" ] && [ -f "$skynetlog" ]; then set -- "$@" skynet.log; fi
 	[ ! -f "$skynetevents" ] || set -- "$@" events.log
 	[ ! -f "$skynetrules" ] || set -- "$@" skynet.rules
 	[ ! -d "${skynetloc}/lists" ] || set -- "$@" lists
@@ -14368,12 +13844,10 @@ Debug_Backup() {
 	for backupfile in "$@"; do
 		cp -a "${skynetloc}/$backupfile" "$TMP_DIR/backup/" || { Log error "Unable To Stage Backup Files"; return 1; }
 	done
-	if [ -f "${skynetloc}/history.db" ]; then
-		if ! Backup_History_Database "$TMP_DIR/backup/history.db"; then
-			Log error "Unable To Prepare History Backup"; return 1
-		fi
-		set -- "$@" history.db
+	if ! History_Ready || ! Backup_History_Database "$TMP_DIR/backup/history.db"; then
+		Log error "Unable To Prepare History Backup"; return 1
 	fi
+	set -- "$@" history.db
 	# Archive structure alone cannot prove that settings, rules and their data
 	# can be restored. Check the complete staged snapshot before touching points.
 	Validate_Backup_Data "$TMP_DIR/backup" || { Log error "Backup Data Failed Restore Validation - Existing Backups Retained"; return 1; }
@@ -14959,7 +14433,7 @@ Dispatch_Install() {
 	rulestatusmanifest="${skynetloc}/lists/rules/.manifest"
 	rulesdatadir="${skynetloc}/lists/rules/data"
 	RULE_REASON_INDEX="${skynetloc}/lists/rules/.reasons"
-	touch "$skynetevents" "$skynetlog" && chmod 600 "$skynetevents" || return 1
+	touch "$skynetevents" && chmod 600 "$skynetevents" || return 1
 	remotedir="https://raw.githubusercontent.com/Adamm00/IPSet_ASUS/master"
 	mkdir -p "${skynetloc}/webui" || return 1
 	Download_File "webui/skynet.asp" "${skynetloc}/webui/skynet.asp" \

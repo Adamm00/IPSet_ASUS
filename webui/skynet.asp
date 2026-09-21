@@ -1285,6 +1285,34 @@
             display: none;
         }
 
+        #FormTitle .skynet-rule-scope {
+            margin: 0 10px 10px;
+            padding: 8px 10px;
+            border: 1px solid var(--skynet-border-faint);
+            border-left: 2px solid var(--skynet-accent-muted);
+            border-radius: 4px;
+            background: rgba(143, 209, 245, 0.04);
+            color: var(--skynet-muted);
+            font-size: var(--skynet-font-caption);
+            line-height: var(--skynet-line-caption);
+        }
+
+        #FormTitle .skynet-rule-scope strong {
+            display: block;
+            margin-bottom: 2px;
+            color: var(--skynet-accent-muted);
+            font-weight: 600;
+        }
+
+        #FormTitle .skynet-rule-scope span {
+            color: inherit;
+            background: transparent;
+        }
+
+        #FormTitle .skynet-rule-scope[hidden] {
+            display: none;
+        }
+
         #FormTitle .skynet-rule-label {
             box-sizing: border-box;
             color: var(--skynet-accent-muted) !important;
@@ -6402,7 +6430,6 @@
             const scope = this.getElement("skynetRuleScope");
             if (scope) {
                 scope.hidden = !action || action.value !== "whitelist";
-                scope.textContent = "Whitelisting allows these destinations for all clients and takes precedence over bans. It is not a device-specific exception.";
             }
             if (comment && mode) {
                 comment.disabled = busy || !supported || mode.value !== "ip" || unban;
@@ -7473,7 +7500,7 @@
 
         /* History pages are bounded queries; unrelated settings reloads never replace them. */
         SkynetUI.getBlockHistoryError = function(response) {
-            if (response === "unavailable") return "Block history is unavailable on this router. Existing statistics remain available.";
+            if (response === "unavailable") return "Unable to load block history. Try refreshing history again.";
             if (response === "validation") return "Check the history period, IP address, protocol and port.";
             if (response === "stale") return "This history view has expired. Refresh History to load retained events.";
             if (response === "time") return "Refresh History requires synchronized router time. Existing results were retained.";
@@ -7505,7 +7532,7 @@
                 const messages = [];
                 if (dirty) messages.push("Refresh History to apply changed filters.");
                 if (!this.isLoggingEnabled()) messages.push("Packet logging is disabled. Retained history remains available.");
-                if (summary.available === false) messages.push(summary.error || "Block history is unavailable on this router.");
+                if (summary.available === false) messages.push(summary.error || "Block history is not ready. Try refreshing history.");
                 if (data.collected) messages.push("Collected through " + new Date(Number(data.collected) * 1000).toLocaleString(undefined, {hour12: true}) + ".");
                 if (data.earliest) messages.push("Detailed events from " + new Date(Number(data.earliest) * 1000).toLocaleString(undefined, {hour12: true}) + ".");
                 messages.push(data.limited ? "Storage capacity has shortened detailed retention." : "Up to 7 days of detailed events and 90 days of totals.");
@@ -9444,7 +9471,10 @@
                                                                             <span class="skynet-country-empty">Add entries with their comment, then select Apply Rules.</span>
                                                                         </div>
                                                                         <div class="skynet-rule-time-status" id="skynetRuleTimeStatus" aria-live="polite"></div>
-                                                                        <div class="skynet-setting-help" id="skynetRuleScope" hidden></div>
+                                                                        <div class="skynet-rule-scope" id="skynetRuleScope" hidden>
+                                                                            <strong>Applies to all clients</strong>
+                                                                            <span>Whitelisted destinations take precedence over bans.</span>
+                                                                        </div>
                                                                         <div class="skynet-rules-actions">
                                                                             <span class="skynet-country-status" id="skynetRuleStatus" aria-live="polite"></span>
                                                                             <input type="button"
