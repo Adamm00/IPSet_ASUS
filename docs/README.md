@@ -37,7 +37,7 @@ Welcome to the Skynet v9 documentation. Use the router's **Firewall → Skynet**
 
 [![Skynet Overview with illustrative traffic statistics](../assets/screenshots/overview.png)](../assets/screenshots/overview.png)
 
-*Illustrative demo data. Explore the [full screenshot gallery](../README.md#explore-the-interface) for rules, feeds, history, IoT and the SSH menu.*
+*Illustrative demo data. Explore the [full screenshot gallery](../README.md#explore-the-interface) for rules, feeds, country bans, history, IoT and the SSH menu.*
 
 ## Keep these behaviours in mind
 

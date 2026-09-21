@@ -57,6 +57,15 @@ Choose detected devices or enter their IPv4 addresses. Configure WAN blocking se
 </details>
 
 <details>
+<summary><strong>Countries — manage country bans and source health</strong></summary>
+
+Choose the countries whose IPv4 ranges you want to block. Review range counts, last successful updates and source health, including when a validated cache keeps an existing selection available.
+
+[![Country blocking with four illustrative selections, fictional range counts, last successful updates and current or cached source states](assets/screenshots/countries.png)](assets/screenshots/countries.png)
+
+</details>
+
+<details>
 <summary><strong>Traffic statistics — see what gets blocked and where</strong></summary>
 
 Explore the Overview's traffic breakdowns by device, IP address, country and port. Select a chart entry to inspect its details, including device names and MAC addresses when available.

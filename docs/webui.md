@@ -90,6 +90,8 @@ Select the countries whose IPv4 ranges you want to block, then use **Apply Count
 
 Country lists describe address allocation and are not a guarantee of a person's physical location. If a selected source is unavailable, Skynet uses its validated cache where possible; without a matching cache, the previous complete selection is retained.
 
+[Preview the Countries tab with illustrative data](../assets/screenshots/countries.png).
+
 ## Statistics
 
 Configure Packet Logging, Invalid Packet Logging, Firewall Drop Logging, storage budget, Extended Statistics, Country Lookup and syslog source paths.
