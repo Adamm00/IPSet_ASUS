@@ -1448,11 +1448,14 @@ Stats_Search_Malware() {
 
 Refresh_Registered_ASN_Rules() {
 	# Refresh every registered ASN into one staged registry and publish the
-	# combined ban/whitelist policy only after all sources validate.
+	# combined policy only when every source has fresh or validated cached data.
 	asnrefreshmap="$TMP_DIR/rules-asn-refresh-map.$$"
 	asnrefreshchanged="0"
+	asnrefreshcached=""
+	asnrefreshfailure=""
+	asnrefreshwarnings="$TMP_DIR/rules-asn-refresh-warnings.$$"
 	asnrefreshcandidate="${skynetrules}.tmp.$$"
-	true > "$asnrefreshmap" || return 1
+	true > "$asnrefreshmap" && true > "$asnrefreshwarnings" || return 1
 	mkdir -p "$rulesdatadir" || return 1
 	if Time_Is_Ready; then asnrefreshnow="$(date +%s)"; else asnrefreshnow="0"; fi
 	while IFS="$(printf '\t')" read -r _asnversion asnrefreshid asnrefreshtarget asnrefreshtype asnrefreshvalue \
@@ -1462,10 +1465,33 @@ Refresh_Registered_ASN_Rules() {
 		asnrefreshraw="$TMP_DIR/asn-${asnrefreshvalue}.$$"
 		asnrefreshvalidated="${asnrefreshraw}.validated"
 		asnrefreshpublic="${asnrefreshraw}.public"
-		if ! Curl_Fetch -o "$asnrefreshraw" "https://asn.ipinfo.app/api/text/list/$asnrefreshvalue" \
-			|| ! Extract_IPList "$asnrefreshraw" "$asnrefreshvalidated" \
+		asnrefreshreason=""
+		if ! Curl_Fetch -o "$asnrefreshraw" "https://asn.ipinfo.app/api/text/list/$asnrefreshvalue"; then
+			asnrefreshreason="Download Failed"
+		elif [ ! -s "$asnrefreshraw" ]; then
+			asnrefreshreason="Empty Response"
+		elif ! Extract_IPList "$asnrefreshraw" "$asnrefreshvalidated" \
 			|| ! Normalize_Public_IPList "$asnrefreshvalidated" "$asnrefreshpublic" \
 			|| [ ! -s "$asnrefreshpublic" ]; then
+			asnrefreshreason="No Usable Public IPv4 Entries"
+		fi
+		if [ -n "$asnrefreshreason" ]; then
+			# Bind the fallback to this rule, then verify its content and digest.
+			# Leave its registry reference untouched so a failed fetch cannot erase it.
+			asnrefreshcachevalid="0"
+			case "$_asnolddata" in
+				"asn-${asnrefreshtarget}-${asnrefreshvalue}-"*.list)
+					Validate_Compiled_Rule_Data asn "$_asnolddata" "$rulesdatadir/$_asnolddata" && asnrefreshcachevalid="1"
+				;;
+			esac
+			if [ "$asnrefreshcachevalid" = "1" ]; then
+				asnrefreshcached="${asnrefreshcached}${asnrefreshcached:+ }$asnrefreshvalue"
+				printf '%s\t%s\t%s\n' "$asnrefreshtarget" "$asnrefreshvalue" "$asnrefreshreason" >> "$asnrefreshwarnings" || return 1
+				echo "[!] $asnrefreshvalue - $asnrefreshreason - Cached Ranges Retained"
+				continue
+			fi
+			asnrefreshfailure="$asnrefreshvalue: $asnrefreshreason - No Valid Cached Ranges"
+			echo "[*] $asnrefreshfailure"
 			rm -f "$TMP_DIR"/asn-*.$$* "$asnrefreshmap" "$asnrefreshcandidate"
 			Prune_Unreferenced_Rule_Data
 			return 1
@@ -5858,6 +5884,9 @@ Wait_For_Service_Idle() {
 Request_Service_Restart() {
 	Wait_For_Service_Idle || return 1
 	service "$1"
+	servicerequeststatus="$?"
+	printf '\n'
+	return "$servicerequeststatus"
 }
 
 Dnsmasq_Generation() {
@@ -9781,6 +9810,7 @@ Print_Command_Summary() {
 		case "$summaryorigin" in cli|menu|webui|cron|startup) ;; *) summaryorigin="cli" ;; esac
 		summarycommand="$(Command_Summary_Label "$@")"
 		summaryresult=""
+		if [ "$1:$2" = "rules:refresh" ] && [ "$rulerefreshresult" = "degraded" ]; then summaryresult=" [degraded]"; fi
 		if [ "${commandfailed:-${dispatchstatus:-0}}" != "0" ]; then summaryresult=" [failed]"; fi
 		if [ "$webuisummary" = "1" ]; then
 			summarycommand="$(WebUI_Summary_Label)"
@@ -11183,6 +11213,7 @@ Dispatch_Rules() {
 			fi
 			rulerefreshasn="1"
 			asnrefreshchanged="0"
+			asnrefreshcached=""
 			if [ "${SKYNET_ACTION_ORIGIN:-}" = "cron" ] && [ "$(date +%H)" != "00" ]; then
 				rulerefreshasn="0"
 			fi
@@ -11190,11 +11221,16 @@ Dispatch_Rules() {
 				echo "[i] Refreshing ASN Rules"
 				if ! Refresh_Registered_ASN_Rules; then
 					Rollback_Domain_Rule_Update || Log error -s "Failed To Restore Rule Refresh State"
-					Queue_Action failed rules refresh all asn "registered ASNs" "Source or apply failure" || true
+					Queue_Action failed rules refresh all asn "${asnrefreshvalue:-registered ASNs}" "${asnrefreshfailure:-Source or apply failure}" || true
 					echo "[*] Failed To Refresh ASN Rules - Complete Previous Rule State Restored"
 					echo
 					return 1
 				fi
+				while IFS="$(printf '\t')" read -r asnwarningtarget asnwarningvalue asnwarningreason; do
+					Queue_Action degraded rules refresh "$asnwarningtarget" asn "$asnwarningvalue" "$asnwarningreason - Cached Ranges Retained" \
+						|| Log error -s "Failed To Queue ASN Refresh Warning"
+				done < "$asnrefreshwarnings"
+				rm -f "$asnrefreshwarnings"
 			fi
 			if awk -F '\t' '($1 == "D2") && $4 != "current" {found = 1} END {exit !found}' "$rulestatusmanifest" 2>/dev/null; then
 				rulerefreshresult="degraded"
@@ -11202,9 +11238,11 @@ Dispatch_Rules() {
 			else
 				rulerefreshresult="success"
 			fi
+			[ -z "$asnrefreshcached" ] || rulerefreshresult="degraded"
 			rulerefreshentries="$(awk -F '\t' '$1 == "R2" && ($4 == "domain" || $4 == "asn") && $7 == "enabled" {count++} END {print count + 0}' "$skynetrules") logical rules"
 			rulerefreshdetail="$(Build_Domain_Rule_Action_Detail)"
 			if [ "$asnrefreshchanged" = "1" ]; then rulerefreshdetail="$rulerefreshdetail; ASN ranges updated"; fi
+			[ -z "$asnrefreshcached" ] || rulerefreshdetail="$rulerefreshdetail; cached ASN ranges retained: $asnrefreshcached"
 			[ "$rulerefreshasn" = "1" ] || rulerefreshdetail="$rulerefreshdetail; ASN refresh not due"
 			rulerefreshduration="$(($(Uptime_Seconds) - stime))"
 			rulerefreshdetail="$rulerefreshdetail; ${rulerefreshduration}s"
@@ -16286,7 +16324,6 @@ if [ "$restartfirewall" = "1" ]; then
 		Log error -s "Firewall Restart Failed - Run ( service restart_firewall )"
 		commandstatus="1"
 	fi
-	echo
 fi
 if [ "$commandstatus" = "0" ]; then
 	Publish_Actions || commandstatus="1"
@@ -16311,5 +16348,10 @@ if [ "$1" = "install" ] && [ "$commandstatus" = "0" ]; then
 		echo "[i] Check Initial Malware Update Status Under Updates In The WebUI"
 	fi
 fi
-if [ -n "$reloadmenu" ]; then echo;echo; printf "[i] Press Enter To Continue..."; read -r "_menucontinue"; Return_To_Menu; fi
+if [ -n "$reloadmenu" ]; then
+	if [ "$restartfirewall" != "1" ]; then echo;echo; fi
+	printf "[i] Press Enter To Continue..."
+	read -r "_menucontinue"
+	Return_To_Menu
+fi
 exit "$commandstatus"

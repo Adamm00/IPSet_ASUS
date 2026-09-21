@@ -8152,7 +8152,7 @@
                                     ? " for " + cachedCountries.join(", ") + "."
                                     : ".");
                         } else if (requestType === "ruleRefresh") {
-                            degradedMessage = "Dynamic domain rules refreshed using validated cached data.";
+                            degradedMessage = "Rules refreshed with degraded sources. Check Action History for details.";
                         }
                         self.setUpdateResult(
                             degradedMessage,

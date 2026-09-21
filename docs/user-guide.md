@@ -70,6 +70,8 @@ Startup restores validated domain caches without a DNS lookup. Once time is sync
 - `firewall rules status` - Display registered rule totals and the current health of every dynamic domain rule.
 - `firewall rules refresh` - Refresh registered domain rules and ASN ranges. Scheduled refreshes update domains every six hours and ASNs once daily.
 
+If an ASN source fails or returns no usable public IPv4 entries, refresh retains that rule's validated cached ranges and continues updating healthy sources. The result is marked degraded, with each affected ASN and reason listed in Action History. If no valid cache exists, the refresh fails and restores the previous rule state.
+
 ### Malware Lists
 
 A Skynet filter list contains one HTTP or HTTPS threat-feed URL per line. It supplies the initial selection or replaces it when explicitly imported. Normal updates use the saved selection, so added, removed and disabled sources remain as configured. Existing source details and exclusions are carried into the saved selection; when no source details exist, the configured custom or default filter list is imported on the first malware update.
