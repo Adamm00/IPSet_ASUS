@@ -3303,6 +3303,7 @@
                     result: "settingsResult",
                     label: "Reload Data",
                     success: "Current data reloaded.",
+                    failure: "Unable to reload current data. Try again.",
                     timeout: "Data reload did not complete.",
                     loadError: "Unable to load current settings.",
                     source: "settings",
@@ -5880,13 +5881,17 @@
                 });
         };
 
-        SkynetUI.getSettingsOptions = function() {
+        SkynetUI.getSettingsFields = function() {
             return [
                 "skynetAutoUpdate", "skynetMalwareUpdates", "skynetMalwareHour",
                 "skynetFilterTraffic", "skynetUnbanPrivate", "skynetAiProtect",
                 "skynetSecureMode", "skynetLogMode", "skynetSyslogMode", "skynetSyslog", "skynetSyslogArchive", "skynetLogInvalid", "skynetLogFirewall", "skynetLogSize",
                 "skynetExtendedStats", "skynetCountryLookup", "skynetCdnWhitelist"
-            ].map(function(id) {
+            ];
+        };
+
+        SkynetUI.getSettingsOptions = function() {
+            return this.getSettingsFields().map(function(id) {
                 return (SkynetUI.getElement(id) || {}).value || "";
             }).join("|");
         };
@@ -5897,6 +5902,10 @@
 
         SkynetUI.updateSettingsControls = function() {
             const apply = this.getElement(this.selectors.settingsButton);
+            this.getSettingsFields().forEach(function(id) {
+                const field = SkynetUI.getElement(id);
+                if (field) field.disabled = SkynetUI.refreshInProgress;
+            });
             this.getElement("skynetMalwareHour").disabled = this.refreshInProgress ||
                 this.getElement("skynetMalwareUpdates").value === "disabled";
             this.getElement(this.selectors.restartButton).disabled = this.refreshInProgress ||
@@ -6271,6 +6280,7 @@
             String(value || "").trim().split(/\s+/).forEach(function(raw) {
                 let entry = raw;
                 if (!entry) return;
+                if (mode === "ip") entry = SkynetUI.normaliseIPv4Range(entry);
                 if (mode === "domain") entry = entry.toLowerCase().replace(/\.$/, "");
                 if (mode === "asn") entry = entry.toUpperCase();
                 const validDomain = entry.length >= 1 && entry.length <= 253 &&
@@ -7081,12 +7091,27 @@
             return host.length === 1 || (host[1].length <= 5 && Number(host[1]) >= 1 && Number(host[1]) <= 65535);
         };
 
+        SkynetUI.normaliseIPv4Range = function(value) {
+            if (!this.isIPv4Range(value)) return "";
+            const parts = String(value).split("/");
+            const prefix = parts.length === 2 ? Number(parts[1]) : 32;
+            const size = Math.pow(2, 32 - prefix);
+            const address = parts[0].split(".").reduce(function(total, octet) {
+                return total * 256 + Number(octet);
+            }, 0);
+            const network = Math.floor(address / size) * size;
+            return [24, 16, 8, 0].map(function(shift) {
+                return Math.floor(network / Math.pow(2, shift)) % 256;
+            }).join(".") + (prefix === 32 ? "" : "/" + prefix);
+        };
+
         SkynetUI.normaliseIOTEntries = function(value) {
             /* Normalize device address input. */
             const entries = [];
 
             String(value || "").split(/[\s,]+/).forEach(function(entry) {
-                if (SkynetUI.isIPv4Range(entry) && entries.indexOf(entry) === -1) {
+                entry = SkynetUI.normaliseIPv4Range(entry);
+                if (entry && entries.indexOf(entry) === -1) {
                     entries.push(entry);
                 }
             });
@@ -7239,7 +7264,7 @@
             if (!this.iotSelection.length) {
                 const empty = document.createElement("span");
                 empty.className = "skynet-country-empty";
-                empty.textContent = "No devices are saved in the IoT list.";
+                empty.textContent = "No devices selected.";
                 list.appendChild(empty);
             } else {
                 this.iotSelection.forEach(function(ip) {
@@ -7256,8 +7281,8 @@
                         : ip;
                     meta.className = "skynet-iot-tag-meta";
                     meta.textContent = main.textContent === ip
-                        ? (device.state || "saved")
-                        : ip + " · " + (device.state || "saved");
+                        ? (device.state || "manual")
+                        : ip + " · " + (device.state || "manual");
                     remove.type = "button";
                     remove.className = "skynet-country-remove skynet-iot-remove";
                     remove.dataset.iot = ip;
@@ -7356,8 +7381,8 @@
         };
 
         SkynetUI.addIOT = function(value) {
-            value = String(value || "").trim();
-            if (!this.isIPv4Range(value)) {
+            value = this.normaliseIPv4Range(String(value || "").trim());
+            if (!value) {
                 this.setUpdateResult(
                     "Enter a valid IPv4 address or CIDR range.",
                     true,
@@ -7847,8 +7872,10 @@
             const button = this.getElement(buttonSelector);
 
             if (button && label) {
-                button.value = label;
+                if (button.tagName === "BUTTON") button.textContent = label;
+                else button.value = label;
             }
+            this.updateSettingsControls();
             this.updateIOTControls();
             this.updateFeedControls();
             this.updateBlockHistoryControls(active);
@@ -8511,6 +8538,7 @@
             if (overviewTab) {
                 overviewTab.classList.toggle("active", !settings);
                 overviewTab.setAttribute("aria-selected", String(!settings));
+                overviewTab.tabIndex = settings ? -1 : 0;
             }
 
             document.querySelectorAll(".skynet-settings-tab").forEach(function(tab) {
@@ -8519,6 +8547,8 @@
 
                 tab.classList.toggle("active", active);
                 tab.setAttribute("aria-selected", String(active));
+                tab.tabIndex = active ? 0 : -1;
+                if (active && settingsView) settingsView.setAttribute("aria-labelledby", tab.id);
             });
 
             if (overviewView) {
@@ -8536,6 +8566,31 @@
                 if (!this.blockHistory && !this.refreshInProgress) this.queryBlockHistory();
                 if (this.blockHistoryChart) this.blockHistoryChart.resize();
             }
+        };
+
+        SkynetUI.bindViewTabs = function() {
+            const tabs = Array.from(document.querySelectorAll(".skynet-tab"));
+            tabs.forEach(function(tab) {
+                tab.tabIndex = tab.getAttribute("aria-selected") === "true" ? 0 : -1;
+                tab.addEventListener("click", function() {
+                    SkynetUI.showView(this.getAttribute("data-settings-target") || "overview");
+                });
+                tab.addEventListener("keydown", function(event) {
+                    if (event.altKey || event.ctrlKey || event.metaKey) return;
+                    const available = tabs.filter(function(item) { return !item.disabled; });
+                    const index = available.indexOf(this);
+                    if (index < 0) return;
+                    let next;
+                    if (event.key === "ArrowRight") next = (index + 1) % available.length;
+                    else if (event.key === "ArrowLeft") next = (index + available.length - 1) % available.length;
+                    else if (event.key === "Home") next = 0;
+                    else if (event.key === "End") next = available.length - 1;
+                    else return;
+                    event.preventDefault();
+                    available[next].focus();
+                    available[next].click();
+                });
+            });
         };
 
         SkynetUI.bindChartControls = function() {
@@ -8842,19 +8897,7 @@
                 });
             }
 
-            const overviewTab = this.getElement(this.selectors.overviewTab);
-
-            if (overviewTab) {
-                overviewTab.addEventListener("click", function() {
-                    SkynetUI.showView("overview");
-                });
-            }
-
-            document.querySelectorAll(".skynet-settings-tab").forEach(function(tab) {
-                tab.addEventListener("click", function() {
-                    SkynetUI.showView(this.getAttribute("data-settings-target"));
-                });
-            });
+            this.bindViewTabs();
             [["skynetBlockRefresh", ""], ["skynetBlockPrevious", "previous"],
                 ["skynetBlockNext", "next"], ["skynetBlockExport", "export"]].forEach(function(control) {
                 SkynetUI.getElement(control[0]).addEventListener("click", function() {
@@ -9103,7 +9146,7 @@
                                                         aria-selected="false" />
                                                 </div>
 
-                                                <div id="skynetSettingsView" class="skynet-view-hidden" role="tabpanel">
+                                                <div id="skynetSettingsView" class="skynet-view-hidden" role="tabpanel" aria-labelledby="skynetUpdatesTab">
                                                     <div class="skynet-settings">
                                                         <table class="FormTable skynet-settings-table">
                                                             <tr class="skynet-settings-group" data-settings-section="updates">
@@ -9823,7 +9866,7 @@
                                                     </div>
                                                 </div>
 
-                                                <div id="skynetOverviewView" role="tabpanel">
+                                                <div id="skynetOverviewView" role="tabpanel" aria-labelledby="skynetOverviewTab">
                                                 <div id="skynetLoggingDisabled" hidden="hidden" role="status">
                                                     <strong>Traffic statistics are disabled</strong>
                                                     Packet logging is off. Settings, rules and source management remain available.<br />

@@ -47,6 +47,8 @@ amtm
 
 The installer prompts for the USB partition, swap size, traffic direction, logging, malware list schedule, and Skynet update schedule. Installation stops if the required WebUI file cannot be downloaded.
 
+Reinstalling onto another partition copies saved policy, feed selections, history and recovery archives. The original Skynet directory is retained for recovery; remove it manually only after confirming the new installation works. Allow enough space on the destination for the copied data.
+
 ## Usage
 
 Run `firewall` to open the interactive menu:
@@ -396,12 +398,6 @@ Include the complete output, the command that failed, and the relevant syslog li
 - [Official SNBForums support thread](https://www.snbforums.com/threads/release-skynet-router-firewall-security-enhancements.16798/)
 - [GitHub issues](https://github.com/Adamm00/IPSet_ASUS/issues)
 
-
-## Development checks
-
-Run `sh tests/v8-upgrade.sh /path/to/firewall.sh` with BusyBox `sh` to verify v8 data conversion, backup validation, interrupted-upgrade recovery and migration-free v9 startup. The test uses a private temporary directory and mocks router state changes; it does not load the tested script as the live firewall.
-
-Run all isolated suites with `for test in tests/*.sh; do sh "$test" ./firewall.sh || exit 1; done` from the repository root on BusyBox. History suites require the firmware's compatible `/usr/sbin/sqlite3`; they use private databases and do not signal the router's logger. Tests cover native public-v8 fixtures, lifecycle locking, backup validation, logging, collection, imports and WebUI controls. Keep `tests/fixtures/` beside the scripts. See [the v9 release audit](docs/v9-release-audit.md) for live evidence and limitations, and [the roadmap](docs/roadmap.md) for proposed follow-up work.
 
 ## About
 
