@@ -3545,25 +3545,36 @@ Ensure_IPSet_Topology() {
 Reconcile_Firewall_Rules() {
 	# Merlin has already rebuilt its base firewall. Serialize only the short rule
 	# inspection and repair; no state, network or presentation work occurs here.
-	Acquire_Firewall_Lock || return 1
+	Acquire_Firewall_Lock || { Log error -s "Failed To Acquire Firewall Lock"; return 1; }
 	# Firmware loggers can return even when all Skynet rules remain intact.
 	Suppress_Firmware_Drop_Logging
 	if Check_IPTables; then
 		Release_Firewall_Lock
 		return 0
 	fi
-	Purge_Skynet_IPTables_Rules || { Release_Firewall_Lock; return 1; }
-	if ! Load_IPTables || ! Load_IOT_Rules; then
+	if ! Purge_Skynet_IPTables_Rules; then
+		Log error -s "Failed To Remove Previous Firewall Rules"
+		Release_Firewall_Lock
+		return 1
+	fi
+	if ! Load_IPTables; then
+		Log error -s "Failed To Load Firewall Blocking Rules"
+		Release_Firewall_Lock
+		return 1
+	fi
+	if ! Load_IOT_Rules; then
+		Log error -s "Failed To Load IoT Firewall Rules"
 		Release_Firewall_Lock
 		return 1
 	fi
 	if Time_Is_Ready; then
-		Load_LogIPTables || { Release_Firewall_Lock; return 1; }
+		Load_LogIPTables || { Log error -s "Failed To Load Firewall Logging Rules"; Release_Firewall_Lock; return 1; }
 	else
 		Unload_LogIPTables
 	fi
 	Check_IPTables
 	reconcilestatus="$?"
+	[ "$reconcilestatus" = "0" ] || Log error -s "Firewall Rule Verification Failed ($fail)"
 	Release_Firewall_Lock
 	return "$reconcilestatus"
 }
@@ -9292,6 +9303,18 @@ Syslog_File_In_Use() {
 	return 1
 }
 
+Filter_Syslog_Cleanup() {
+	# During uninstall discard only Skynet-owned messages. Generic firmware DROP
+	# records remain in syslog; ordinary collection still archives those records.
+	awk -v uninstall="${sysloguninstall:-0}" -v requirechange="${2:-0}" '
+		/kernel: (\[[^]]*\] )?\[BLOCKED - (INBOUND|OUTBOUND|INVALID|IOT|FIREWALL)\]/ {removed=1; next}
+		uninstall == 1 && /(^|[[:space:]])Skynet(\[[0-9]+\])?:/ {removed=1; next}
+		uninstall != 1 && /kernel: DROP IN=/ {removed=1; next}
+		{print}
+		END {if (requirechange == 1 && !removed) exit 3}
+	' "$1"
+}
+
 History_Drain_Syslog_Cleanup() (
 	cleansource="$1"
 	cleandir="${cleansource}.skynet-cleanup"
@@ -9313,18 +9336,25 @@ History_Drain_Syslog_Cleanup() (
 	fi
 	# Import late writes through the same inode checkpoint. Already saved packet
 	# records cannot be imported twice, even if the logger rotated the source.
-	History_Import_File "$cleandir/original" || return 1
-	[ "$historyposition" -ge "$cleanoffset" ] || return 1
-	if [ "$historyposition" -gt "$cleanoffset" ]; then
-		tail -c "+$((cleanoffset+1))" "$cleandir/original" | head -c "$((historyposition-cleanoffset))" > "$cleandir/snapshot" || return 1
-		[ "$(wc -c < "$cleandir/snapshot")" = "$((historyposition-cleanoffset))" ] || return 1
-		awk '!/kernel: (\[[^]]*\] )?\[BLOCKED - (INBOUND|OUTBOUND|INVALID|IOT|FIREWALL)\]/ && !/kernel: DROP IN=/' "$cleandir/snapshot" > "$cleandir/tail" || return 1
+	if [ "${sysloguninstall:-0}" = "1" ]; then
+		# Uninstall must not depend on SQLite, trusted time or retained history.
+		cleancollectedposition="$(wc -c < "$cleandir/original")" || return 1
+		[ "$cleancollectedposition" = "0" ] || [ "$(tail -c 1 "$cleandir/original" | wc -l)" = "1" ] || return 1
+	else
+		History_Import_File "$cleandir/original" || return 1
+		cleancollectedposition="$historyposition"
+	fi
+	[ "$cleancollectedposition" -ge "$cleanoffset" ] || return 1
+	if [ "$cleancollectedposition" -gt "$cleanoffset" ]; then
+		tail -c "+$((cleanoffset+1))" "$cleandir/original" | head -c "$((cleancollectedposition-cleanoffset))" > "$cleandir/snapshot" || return 1
+		[ "$(wc -c < "$cleandir/snapshot")" = "$((cleancollectedposition-cleanoffset))" ] || return 1
+		Filter_Syslog_Cleanup "$cleandir/snapshot" > "$cleandir/tail" || return 1
 		# Preserve unrelated messages appended to the old descriptor, too. Open
 		# in append mode so this cannot overwrite concurrent writes to the new log.
 		cat "$cleandir/tail" >> "$cleansource" || return 1
-		printf '%s\n' "$historyposition" > "$cleandir/offset.tmp" \
+		printf '%s\n' "$cleancollectedposition" > "$cleandir/offset.tmp" \
 			&& mv -f "$cleandir/offset.tmp" "$cleandir/offset" || return 1
-		cleanoffset="$historyposition"
+		cleanoffset="$cleancollectedposition"
 	fi
 	if Syslog_File_In_Use "$cleandir/original"; then return 0; fi
 	# An incomplete last line is retained for a later collection, never discarded.
@@ -9345,7 +9375,7 @@ History_Clean_Syslog_Source() (
 	cleanmarker="${TMP_DIR%/*}/syslog-clean.$(printf '%s' "$cleansource" | md5sum | cut -d ' ' -f1)"
 	cleanprevious=""
 	[ ! -f "$cleanmarker" ] || IFS= read -r cleanprevious < "$cleanmarker"
-	[ "$cleanprevious" != "$cleanidentity:$cleanposition:$cleananchor" ] || return 0
+	[ "${sysloguninstall:-0}" = "1" ] || [ "$cleanprevious" != "$cleanidentity:$cleanposition:$cleananchor" ] || return 0
 	mkdir -m 700 "$cleandir" || return 1
 	if ! ln "$cleansource" "$cleandir/original"; then rmdir "$cleandir"; return 1; fi
 	# Both paths are fixed; only the filesystem and numeric inode are read.
@@ -9359,8 +9389,7 @@ History_Clean_Syslog_Source() (
 		[ "$(tail -c "$cleananchorsize" "$cleandir/snapshot" | md5sum | cut -d ' ' -f1)" = "$cleananchor" ] || return 1
 	fi
 	cp -p "$cleandir/original" "$cleandir/kept" || return 1
-	awk '/kernel: (\[[^]]*\] )?\[BLOCKED - (INBOUND|OUTBOUND|INVALID|IOT|FIREWALL)\]/ || /kernel: DROP IN=/ {removed=1; next} {print} END {exit removed ? 0 : 3}' \
-		"$cleandir/snapshot" > "$cleandir/kept"
+	Filter_Syslog_Cleanup "$cleandir/snapshot" 1 > "$cleandir/kept"
 	case "$?" in
 		0) ;;
 		3)
@@ -9527,6 +9556,57 @@ Purge_Logs() {
 	Enforce_Log_Limit
 }
 
+Drain_Uninstall_Syslog() (
+	# syslog-ng may briefly retain the replaced descriptor after its HUP.
+	# Do not leave its late system messages stranded when Skynet is removed.
+	uninstalldrainattempt="0"
+	while [ "$uninstalldrainattempt" -lt 5 ]; do
+		History_Drain_Syslog_Cleanup "$1" || return 1
+		[ -d "${1}.skynet-cleanup" ] || return 0
+		sleep 1
+		uninstalldrainattempt=$((uninstalldrainattempt + 1))
+	done
+	return 1
+)
+
+Purge_Uninstall_Syslog() (
+	Acquire_Log_Lock || return 1
+	sysloguninstall="1"
+	uninstallcleaned="$TMP_DIR/uninstall-syslogs"
+	: > "$uninstallcleaned" || return 1
+	# Include the router's standard logs when Scribe/custom sources are selected.
+	# Resolve aliases and avoid processing the same pathname twice.
+	if [ "$#" = "0" ]; then
+		set -- "$syslog1loc" "$syslogloc" /tmp/syslog.log-1 /tmp/syslog.log /jffs/syslog.log-1 /jffs/syslog.log
+	fi
+	for uninstallsource do
+		[ -e "$uninstallsource" ] || [ -L "$uninstallsource" ] || [ -d "${uninstallsource}.skynet-cleanup" ] || continue
+		# Merlin may create the rotated-log alias before its target exists.
+		if [ -L "$uninstallsource" ] && [ ! -e "$uninstallsource" ]; then
+			[ ! -e "${uninstallsource}.skynet-cleanup" ] || return 1
+			continue
+		fi
+		if [ -e "$uninstallsource" ] || [ -L "$uninstallsource" ]; then
+			uninstallsource="$(readlink -f "$uninstallsource")" || return 1
+		else
+			uninstallparent="$(readlink -f "${uninstallsource%/*}")" || return 1
+			uninstallsource="$uninstallparent/${uninstallsource##*/}"
+		fi
+		Validate_Syslog_Path "$uninstallsource" || return 1
+		grep -qxF "$uninstallsource" "$uninstallcleaned" && continue
+		printf '%s\n' "$uninstallsource" >> "$uninstallcleaned" || return 1
+		Drain_Uninstall_Syslog "$uninstallsource" || return 1
+		[ -e "$uninstallsource" ] || continue
+		[ -f "$uninstallsource" ] || return 1
+		uninstallposition="$(wc -c < "$uninstallsource")" || return 1
+		[ "$uninstallposition" = "0" ] || [ "$(tail -c 1 "$uninstallsource" | wc -l)" = "1" ] || return 1
+		# shellcheck disable=SC2012 # Fixed pathname; only its numeric inode is read.
+		uninstallidentity="$(df -P "$uninstallsource" | awk 'NR==2 {print $1}'):$(ls -di "$uninstallsource" | awk '{print $1}')"
+		History_Clean_Syslog_Source "$uninstallsource" "$uninstallidentity" "$uninstallposition" 0 "" || return 1
+		Drain_Uninstall_Syslog "$uninstallsource" || return 1
+	done
+)
+
 Command_Summary_Label() {
 	# Log command structure, never raw URLs, comments, paths or submitted values.
 	case "$1" in
@@ -9619,6 +9699,7 @@ Print_Command_Summary() {
 		case "$summaryorigin" in cli|menu|webui|cron|startup) ;; *) summaryorigin="cli" ;; esac
 		summarycommand="$(Command_Summary_Label "$@")"
 		summaryresult=""
+		if [ "${commandfailed:-${dispatchstatus:-0}}" != "0" ]; then summaryresult=" [failed]"; fi
 		if [ "$webuisummary" = "1" ]; then
 			summarycommand="$(WebUI_Summary_Label)"
 			case "${settingsresult%%:*}" in
@@ -12328,20 +12409,21 @@ Restore_Startup_Policy() {
 	rm -f "$STARTUP_READY" || return 1
 	startupsource="$skynetipset"
 	if V8_Upgrade_Pending; then
-		Prepare_V8_Upgrade || { echo "[*] Failed To Migrate v8 Data"; return 1; }
+		Prepare_V8_Upgrade || { Log error -s "Failed To Migrate v8 Data"; return 1; }
 		startupsource="$TMP_DIR/v8-base.ipset"
 	else
-		Validate_Rule_Registry "$skynetrules" || { echo "[*] Invalid Or Missing v9 Rule Registry"; return 1; }
+		Validate_Rule_Registry "$skynetrules" || { Log error -s "Invalid Or Missing v9 Rule Registry"; return 1; }
 	fi
 	# Some Merlin kernels provide the set match without a loadable xt_set module.
-	grep -qxF set /proc/net/ip_tables_matches || modprobe xt_set || return 1
-	Ensure_IPSet_Topology || { echo "[*] Failed To Create IPSet Topology"; return 1; }
+	grep -qxF set /proc/net/ip_tables_matches || modprobe xt_set \
+		|| { Log error -s "Failed To Load Firewall IPSet Match Module"; return 1; }
+	Ensure_IPSet_Topology || { Log error -s "Failed To Create IPSet Topology"; return 1; }
 	if [ -f "$skynetipset" ]; then
 		startuprestore="$TMP_DIR/startup-entries.$$"
 		if ! awk '$1 == "add"' "$startupsource" > "$startuprestore" \
 			|| ! ipset restore -! -f "$startuprestore"; then
 			rm -f "$startuprestore"
-			echo "[*] Failed To Restore Saved IPSet Data"
+			Log error -s "Failed To Restore Saved IPSet Data"
 			return 1
 		fi
 		rm -f "$startuprestore"
@@ -12349,14 +12431,14 @@ Restore_Startup_Policy() {
 		: > "$skynetipset" && chmod 600 "$skynetipset" || return 1
 	fi
 	if ! Time_Is_Ready; then Mark_Time_Dependent_State_Pending || return 1; fi
-	Apply_Rule_Registry_Candidate "$skynetrules" startup || { echo "[*] Failed To Compile User Rules"; return 1; }
-	Update_Domain_Rules "$skynetrules" startup || { echo "[*] Failed To Restore Cached Domain Rules"; return 1; }
-	Whitelist_Blocked_Private_IPs || { echo "[*] Failed To Whitelist Private Networks"; return 1; }
-	Whitelist_VPN || { echo "[*] Failed To Restore VPN Whitelist"; return 1; }
-	Whitelist_Shared || { echo "[*] Failed To Restore Shared Whitelist"; return 1; }
-	Save_IPSets || { echo "[*] Failed To Persist Restored Base State"; return 1; }
-	Reconcile_Firewall_Rules || { echo "[*] Failed To Load Permanent Firewall Rules"; return 1; }
-	Check_IPSets || { echo "[*] Restored IPSet Integrity Check Failed ($fail)"; return 1; }
+	Apply_Rule_Registry_Candidate "$skynetrules" startup || { Log error -s "Failed To Compile User Rules"; return 1; }
+	Update_Domain_Rules "$skynetrules" startup || { Log error -s "Failed To Restore Cached Domain Rules"; return 1; }
+	Whitelist_Blocked_Private_IPs || { Log error -s "Failed To Whitelist Private Networks"; return 1; }
+	Whitelist_VPN || { Log error -s "Failed To Restore VPN Whitelist"; return 1; }
+	Whitelist_Shared || { Log error -s "Failed To Restore Shared Whitelist"; return 1; }
+	Save_IPSets || { Log error -s "Failed To Persist Restored Base State"; return 1; }
+	Reconcile_Firewall_Rules || return 1
+	Check_IPSets || { Log error -s "Restored IPSet Integrity Check Failed ($fail)"; return 1; }
 	Revalidate_IOT_Connections || return 1
 	# Rule compilation suppresses the command footer's config write. Commit the
 	# migration marker only after the restored policy has passed verification.
@@ -12365,7 +12447,7 @@ Restore_Startup_Policy() {
 		upgradefrom=""
 		if ! Write_Config; then
 			upgradefrom="$startupupgradefrom"
-			echo "[*] Failed To Commit Startup Configuration"
+			Log error -s "Failed To Commit Startup Configuration"
 			return 1
 		fi
 		unset startupupgradefrom configchanged
@@ -12382,22 +12464,22 @@ Dispatch_Start() {
 		if Time_Is_Ready && Time_Dependent_State_Pending; then
 			Wait_For_Lock "$@" || return 1
 			if Time_Dependent_State_Pending; then
-				Activate_Time_Dependent_State || { echo "[*] Failed To Activate Time-Dependent Rules"; echo; return 1; }
+				Activate_Time_Dependent_State || { Log error -s "Failed To Activate Time-Dependent Rules"; echo; return 1; }
 			else
-				Reconcile_Firewall_Rules || { echo "[*] Failed To Reconcile Firewall Rules"; echo; return 1; }
+				Reconcile_Firewall_Rules || return 1
 			fi
 		else
-			Reconcile_Firewall_Rules || { echo "[*] Failed To Reconcile Firewall Rules"; echo; return 1; }
+			Reconcile_Firewall_Rules || return 1
 		fi
 		if ! Time_Is_Ready; then
 			Mark_Time_Dependent_State_Pending || return 1
 			if Wait_For_Time; then
 				Wait_For_Lock "$@" || return 1
 				if Time_Dependent_State_Pending; then
-					Activate_Time_Dependent_State || { echo "[*] Failed To Activate Time-Dependent Rules"; echo; return 1; }
+					Activate_Time_Dependent_State || { Log error -s "Failed To Activate Time-Dependent Rules"; echo; return 1; }
 					Generate_WebUI_Settings || true
 				else
-					Reconcile_Firewall_Rules || { echo "[*] Failed To Reconcile Firewall Rules"; echo; return 1; }
+					Reconcile_Firewall_Rules || return 1
 				fi
 			else
 				echo "[!] Router Time Is Not Synchronized - Logging And Temporary Rules Remain Pending"
@@ -12442,14 +12524,14 @@ Dispatch_Start() {
 		return 0
 	fi
 	Wait_For_Lock "$@" || return 1
-	Activate_Time_Dependent_State || { echo "[*] Failed To Activate Time-Dependent Rules"; echo; return 1; }
+	Activate_Time_Dependent_State || { Log error -s "Failed To Activate Time-Dependent Rules"; echo; return 1; }
 	Purge_Logs "all" || return 1
 	Ensure_Startup_Stats || return 1
-	Generate_WebUI_Settings || { echo "[*] Failed To Generate WebUI Settings"; echo; return 1; }
+	Generate_WebUI_Settings || { Log error -s "Failed To Generate WebUI Settings"; echo; return 1; }
 	Queue_Action success system restore startup lifecycle "Skynet" "Protection and time-dependent services active" \
 		|| Log error -s "Failed To Queue Startup Action"
 	if Is_Enabled "$forcebanmalwareupdate"; then
-		Write_Config || { echo "[*] Failed To Save Configuration"; echo; return 1; }
+		Write_Config || { Log error -s "Failed To Save Configuration"; echo; return 1; }
 		# The footer confirms startup before the first network-dependent feed update.
 		# Keep the update in this hook so it still runs and reports its own outcome.
 		startupfeedrefresh="1"
@@ -14713,9 +14795,8 @@ Dispatch_Uninstall() {
 					done
 				fi
 				echo "[i] Unloading Skynet Components"
-				# Final collection is best effort: uninstall must also work after a
-				# previous disable or partial teardown has removed the live sets.
-				Purge_Logs "all" || echo "[*] Unable To Collect Final Logs - Continuing Requested Uninstall"
+				# Stop producers first; syslog cleanup below does not require history,
+				# a synchronized clock or live sets from a previously disabled install.
 				rm -f "$STARTUP_READY" "$STARTUP_PENDING" || { echo "[*] Failed To Clear Startup State"; return 1; }
 				Unload_Cron "all" || { echo "[*] Failed To Remove Skynet Schedules"; return 1; }
 				Unload_Skynet_Firewall_Rules || { echo "[*] Failed To Unload Skynet Firewall Rules"; echo; exit 1; }
@@ -14730,6 +14811,8 @@ Dispatch_Uninstall() {
 				[ ! -f "/opt/etc/syslog-ng.d/skynet" ] || echo "[i] Reconfigure Scribe To Restore Its Standard Firewall Log Handler"
 				echo "[i] Restarting Firewall Service"
 				Request_Service_Restart restart_firewall || { echo "[*] Failed To Restart Firewall Service"; return 1; }
+				echo "[i] Removing Skynet Entries From Syslog"
+				Purge_Uninstall_Syslog || { echo "[*] Failed To Clean Syslog - Uninstaller Retained"; return 1; }
 				echo "[i] Deleting Skynet Files"
 				# Retain the executable until data removal succeeds so a failed
 				# cleanup can be retried. Never unlink the active state-lock inode.
