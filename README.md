@@ -6,7 +6,7 @@
 
 Control what connects. See what gets blocked.
 
-[Install](#installation) · [Explore](#features) · [User guide](docs/user-guide.md) · [Support](https://www.snbforums.com/threads/skynet-v8-router-firewall-security-enhancements.96167/) · [Donate](#support-the-project)
+[Install](#installation) · [Explore](#explore-the-interface) · [User guide](docs/README.md) · [Support](https://www.snbforums.com/threads/skynet-v8-router-firewall-security-enhancements.96167/) · [Donate](#support-the-project)
 
 </div>
 
@@ -116,11 +116,9 @@ Prefer a terminal? Run `firewall` for the interactive menu. Both interfaces mana
 
 ### Already using Skynet?
 
-Create a backup, then check for and install the published update:
+Update directly from an SSH session:
 
 ```sh
-firewall debug backup
-firewall update check
 firewall update
 ```
 
@@ -138,7 +136,7 @@ Upgrades from public v8 releases preserve supported settings and saved policy. S
 | `firewall debug backup` | Create a dated restore point. |
 | `firewall debug info` | Show configuration and integrity diagnostics. |
 
-The [user guide](docs/user-guide.md) covers the full command reference, settings, imports, temporary bans, whitelists, backups and troubleshooting.
+Start with the [user guide](docs/README.md) for setup and everyday tasks, or open the [command reference](docs/user-guide.md) for every CLI option and detailed operating notes.
 
 ## Understanding your results
 
@@ -152,8 +150,9 @@ The [user guide](docs/user-guide.md) covers the full command reference, settings
 
 Start with `firewall debug info` when troubleshooting. Include the failing command, relevant output and syslog lines in a support request, checking them for private information first. Let Skynet manage `skynet.cfg`; use the WebUI or CLI to change settings.
 
-- [User guide and command reference](docs/user-guide.md)
-- [Common issues](https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues)
+- [User guide](docs/README.md)
+- [Command reference](docs/user-guide.md)
+- [Troubleshooting and common issues](docs/troubleshooting.md)
 - [SNBForums support and release discussion](https://www.snbforums.com/threads/skynet-v8-router-firewall-security-enhancements.96167/)
 - [Report a bug on GitHub](https://github.com/Adamm00/IPSet_ASUS/issues)
 

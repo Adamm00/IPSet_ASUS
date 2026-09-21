@@ -1,8 +1,8 @@
-# Skynet user guide
+# Skynet command reference
 
-[← Skynet homepage](../README.md) · [Installation](../README.md#installation) · [Support](https://www.snbforums.com/threads/skynet-v8-router-firewall-security-enhancements.96167/)
+[← User guide](README.md) · [Getting started](getting-started.md) · [WebUI guide](webui.md) · [Troubleshooting](troubleshooting.md)
 
-The complete command reference and operating notes for Skynet. Run `firewall` over SSH for the interactive menu, or open **Firewall → Skynet** in your router's WebUI.
+The complete command reference and operating notes for Skynet v9. Run `firewall` over SSH for the interactive menu, or open **Firewall → Skynet** in your router's WebUI. For a walkthrough, start with the [user guide](README.md).
 
 Commands return `0` on success, `1` for a runtime failure, and `2` for an invalid command or input. Examples that change policy should be adapted to the addresses and services you actually want to manage.
 
@@ -353,6 +353,6 @@ firewall debug info
 
 Include the complete output, the command that failed, and the relevant syslog lines when requesting support. Do not manually edit `skynet.cfg`; it is generated and maintained by Skynet.
 
-- [Common issues and documentation](https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues)
+- [Troubleshooting and common issues](troubleshooting.md)
 - [Official SNBForums support thread](https://www.snbforums.com/threads/skynet-v8-router-firewall-security-enhancements.96167/)
 - [GitHub issues](https://github.com/Adamm00/IPSet_ASUS/issues)
