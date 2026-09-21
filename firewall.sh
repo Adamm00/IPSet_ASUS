@@ -447,6 +447,19 @@ Grn()   { Print_Colored '1;32' "$1"; }
 Blue()  { Print_Colored '1;36' "$1"; }
 Ylow()  { Print_Colored '1;33' "$1"; }
 
+Print_Info_Row() {
+	# Wrap long paths/values without losing content or moving the table border.
+	printf '%s\n' "$2" | awk -v label="$1" '{
+		gsub(/[[:cntrl:]]/, " ")
+		while (length($0) > 82) {
+			printf "║ %-20s │ %-82s ║\n", label, substr($0, 1, 82)
+			$0=substr($0, 83); label=""
+		}
+		printf "║ %-20s │ %-82s ║\n", label, $0
+		label=""
+	}'
+}
+
 # Check if a swap file (not just partition) is active
 Check_Swap() {
 	grep -qsF "file" "/proc/swaps"
@@ -7035,20 +7048,21 @@ Remove_Stats_Domain_Search_Files() {
 Print_Stats_Logging_Header() {
 	statslogdisplay="${skynetloc}/history.db"
 	printf '╔═════════════════════ Logging ═════════════════════════════════════════════════════════════════════════════╗\n'
-	printf '║ %-20s │ %-82s ║\n' "Syslog Locations" "$syslogloc $syslog1loc"
-	printf '║ %-20s │ %-82s ║\n' "Skynet Log"       "$statslogdisplay"
+	Print_Info_Row "Syslog" "$syslogloc"
+	Print_Info_Row "Rotated Syslog" "$syslog1loc"
+	Print_Info_Row "Skynet Log"       "$statslogdisplay"
 	SZ="$(du -h "$statslogdisplay" | awk '{print $1}')"
 	printf '║ └── %-16s │ %-82s ║\n' "Used/Total" "$SZ / ${logsize}MB"
 	if [ -s "$statslogsummary" ]; then
 		IFS='~' read -r statseventcount statsuniquecount monitorfirst monitorlast < "$statslogsummary"
 		blockedevents="${statseventcount:-0} (${statsuniquecount:-0} Unique IPs)"
-		if [ -n "$monitorfirst" ] && [ -n "$monitorlast" ]; then monitorspan="$monitorfirst → $monitorlast"; else monitorspan="No Data"; fi
-		printf '║ %-20s │ %-82s ║\n' "Block Events" "$blockedevents"
+		if [ -n "$monitorfirst" ] && [ -n "$monitorlast" ]; then monitorspan="$monitorfirst - $monitorlast"; else monitorspan="No Data"; fi
+		Print_Info_Row "Block Events" "$blockedevents"
 	else
 		Generate_Blocked_Events
 	fi
-	printf '║ %-20s │ %-82s ║\n' "Manual Bans" "$(awk -F '\t' '$1 == "R2" && $3 == "ban" && $7 == "enabled" {count++} END {print count + 0}' "$skynetrules")"
-	printf '║ %-20s │ %-84s ║\n' "Monitor Span" "$monitorspan"
+	Print_Info_Row "Manual Bans" "$(awk -F '\t' '$1 == "R2" && $3 == "ban" && $7 == "enabled" {count++} END {print count + 0}' "$skynetrules")"
+	Print_Info_Row "Monitor Span" "$monitorspan"
 	printf '╚══════════════════════╧════════════════════════════════════════════════════════════════════════════════════╝\n\n\n'
 }
 
@@ -8226,14 +8240,14 @@ Generate_Blocked_Events() {
 	blockedevents="Unavailable"; monitorspan="Unavailable"
 	if ! History_Ready || ! History_Stats_Summary > "$TMP_DIR/history-summary-display.$$"; then
 		rm -f "$TMP_DIR/history-summary-display.$$"
-		printf '║ %-20s │ %-82s ║\n' "Block Events" "$blockedevents"
+		Print_Info_Row "Block Events" "$blockedevents"
 		return 1
 	fi
 	IFS='~' read -r statseventcount statsuniquecount monitorfirst monitorlast < "$TMP_DIR/history-summary-display.$$"
 	blockedevents="$statseventcount ($statsuniquecount Unique IPs)"
-	if [ -n "$monitorfirst" ]; then monitorspan="$monitorfirst → $monitorlast"; else monitorspan="No Data"; fi
+	if [ -n "$monitorfirst" ]; then monitorspan="$monitorfirst - $monitorlast"; else monitorspan="No Data"; fi
 	rm -f "$TMP_DIR/history-summary-display.$$"
-	printf '║ %-20s │ %-82s ║\n' "Block Events" "$blockedevents"
+	Print_Info_Row "Block Events" "$blockedevents"
 }
 
 ########################
@@ -8421,36 +8435,40 @@ Clear_Client_Name_Data() {
 Resolve_Client_Name() {
 	localname=""
 	if [ "$customclientlistloaded" != "1" ]; then
-		customclientlist="$(nvram get custom_clientlist)"
+		customclientlist="$(nvram get custom_clientlist)" 2>/dev/null || customclientlist=""
 		customclientlistloaded="1"
 	fi
 	if [ "$clientcontextloaded" != "1" ]; then
-		clientwanip="$(nvram get wan0_ipaddr)"
-		clientwgsip="$(nvram get wgs1_addr | cut -d'/' -f1)"
-		clientvpnremote1="$(nvram get vpn_server1_remote)"
-		clientvpnremote2="$(nvram get vpn_server2_remote)"
+		clientwanip="$(nvram get wan0_ipaddr)" 2>/dev/null || clientwanip=""
+		clientwgsip="$(nvram get wgs1_addr)" 2>/dev/null || clientwgsip=""
+		clientwgsip="${clientwgsip%%/*}"
+		clientvpnremote1="$(nvram get vpn_server1_remote)" 2>/dev/null || clientvpnremote1=""
+		clientvpnremote2="$(nvram get vpn_server2_remote)" 2>/dev/null || clientvpnremote2=""
 		clientcontextloaded="1"
 	fi
 
 	# Merlin stores custom clients as <display name>...MAC records. Extract the
 	# name associated with this MAC, then remove characters unsafe for chart text.
 	if [ -n "$macaddr" ] && [ -n "$customclientlist" ]; then
-		localname="$(printf '%s\n' "$customclientlist" | grep -ioE "<.*>$macaddr" | sed -E 's/.*<([^>]+)>[^<]*$/\1/; s/[^a-zA-Z0-9.-]//g')"
+		localname="$(printf '%s\n' "$customclientlist" | awk -F '>' -v RS='<' -v mac="$macaddr" '
+			toupper($2) == toupper(mac) {gsub(/[^a-zA-Z0-9.-]/, "", $1); print $1; exit}
+		')" 2>/dev/null || localname=""
 	fi
 	
 	# Fallback to dnsmasq leases
 	if [ -z "$localname" ]; then
-		localname="$(awk -v ip="$ipaddr" '$3 == ip { print $4; exit }' /var/lib/misc/dnsmasq.leases)"
+		localname="$(awk -v ip="$ipaddr" '$3 == ip { print $4; exit }' /var/lib/misc/dnsmasq.leases)" 2>/dev/null || localname=""
 	fi
 	
 	# If no name found, check OUI DB for MAC address
 	if [ -z "$localname" ] || [ "$localname" = "*" ]; then
+		localname=""
 		if [ -n "$macaddr" ]; then
-			macaddr2="$(printf '%s\n' "$macaddr" | awk '{ gsub(/:/, ""); print toupper(substr($0, 1, 6)) }')"
+			macaddr2="$(printf '%s\n' "$macaddr" | awk '{ gsub(/:/, ""); print toupper(substr($0, 1, 6)) }')" 2>/dev/null || macaddr2=""
 			if [ "$clientouiprepared" = "1" ]; then
-				localname="$(awk -F '\t' -v prefix="$macaddr2" '$1 == prefix { print $2; exit }' "$clientouifile")"
+				localname="$(awk -F '\t' -v prefix="$macaddr2" '$1 == prefix { print $2; exit }' "$clientouifile")" 2>/dev/null || localname=""
 			else
-				localname="$(awk -v prefix="\"$macaddr2\"" 'index($0, prefix) == 1 { value=$0; sub(/^[^:]*:[[:space:]]*"/, "", value); sub(/",?[[:space:]]*$/, "", value); print value; exit }' /www/ajax/ouiDB.json)"
+				localname="$(awk -v prefix="\"$macaddr2\"" 'index($0, prefix) == 1 { value=$0; sub(/^[^:]*:[[:space:]]*"/, "", value); sub(/",?[[:space:]]*$/, "", value); print value; exit }' /www/ajax/ouiDB.json)" 2>/dev/null || localname=""
 			fi
 		fi
 		# Additional checks for specific cases	
@@ -12432,9 +12450,9 @@ Dispatch_Start() {
 		|| Log error -s "Failed To Queue Startup Action"
 	if Is_Enabled "$forcebanmalwareupdate"; then
 		Write_Config || { echo "[*] Failed To Save Configuration"; echo; return 1; }
-		Release_Lock
-		"$0" banmalware
-		return "$?"
+		# The footer confirms startup before the first network-dependent feed update.
+		# Keep the update in this hook so it still runs and reports its own outcome.
+		startupfeedrefresh="1"
 	fi
 }
 
@@ -12454,6 +12472,7 @@ Restart_Firewall_Confirmed() {
 	# successful firewall-start generation and verified live rules prove completion.
 	restartgeneration="$(cat "$FIREWALL_READY" 2>/dev/null)"
 	Request_Service_Restart restart_firewall || { Log error -s "Firewall Restart Request Failed"; return 1; }
+	[ "${installwaiting:-0}" != "1" ] || echo "[i] Waiting For Skynet Startup..."
 	restartattempt="0"
 	while [ "$restartattempt" -lt 90 ]; do
 		restartcurrent="$(cat "$FIREWALL_READY" 2>/dev/null)"
@@ -13069,17 +13088,17 @@ Settings_IOT() {
 				Resolve_Client_Name
 				if ipset test Skynet-IOT "$ipaddr" >/dev/null 2>&1; then
 					if Is_Enabled "$iotblocked"; then
-						state="$(Ylow Blocked)"
+						state="$(Ylow "$(printf '%-20s' Blocked)")"
 					else
-						state="$(Ylow Paused)"
+						state="$(Ylow "$(printf '%-20s' Paused)")"
 					fi
 				elif ! printf '%s\n' "$macaddr" | Is_MAC; then
 					macaddr="Unknown"
-					state="$(Red Offline)"
+					state="$(Red "$(printf '%-20s' Offline)")"
 				else
-					state="$(Grn Unblocked)"
+					state="$(Grn "$(printf '%-20s' Unblocked)")"
 				fi
-				printf '║ %-40s ║ %-16s ║ %-20s ║ %-20s ║\n' "$localname" "$ipaddr" "$macaddr" "$state"
+				printf '║ %-40s ║ %-16s ║ %-20s ║ %s ║\n' "$localname" "$ipaddr" "$macaddr" "$state"
 			done < "$iotviewneighbors"
 			Clear_Client_Name_Data
 			rm -f "$iotviewneighbors"
@@ -13559,28 +13578,27 @@ Debug_Info() {
 	fi
 	unset "lockstatuscommand" "lockstatuspid" "lockstatusepoch" "lockstatusruntime"
 	printf '╔═════════════════════ System ══════════════════════════════════════════════════════════════════════════════╗\n'
-	printf '║ %-20s │ %-82s ║\n' "Router Model"   "$(nvram get productid)"
-	printf '║ %-20s │ %-82s ║\n' "Skynet Version" "$(Filter_Version < "$0") ($(Filter_Date < "$0"))"
+	Print_Info_Row "Router Model"   "$(nvram get productid)"
+	Print_Info_Row "Skynet Version" "$(Filter_Version < "$0") ($(Filter_Date < "$0"))"
 	printf '║ └── %-16s │ %-82s ║\n' "Hash" "$(md5sum "$0" | awk "{print \$1}")"
-	printf '║ %-20s │ %-82s ║\n' "FW Version"     "$(uname -o) v$(nvram get buildno)_$(nvram get extendno) (Kernel $(uname -r)) ($(uname -v | awk "{printf \"%s %s %s\n\", \$5,\$6,\$9}"))"
-	printf '║ %-20s │ %-82s ║\n' "iptables"       "$(iptables --version)"
-	printf '║ %-20s │ %-82s ║\n' "ipset"          "$(ipset -v 2>/dev/null | head -n1)"
-	if printf '%s\n' "$debugpublicip" | Is_PrivateIP; then debugpublicipdisplay="$(Red "$debugpublicip")"; else debugpublicipdisplay="$debugpublicip"; fi
-	printf '║ %-20s │ %-82s ║\n' "Public IP"      "$debugpublicipdisplay"
-	printf '║ %-20s │ %-82s ║\n' "WAN Info"       "${iface} - $(nvram get wan0_proto)"
+	Print_Info_Row "FW Version"     "$(uname -o) v$(nvram get buildno)_$(nvram get extendno) (Kernel $(uname -r)) ($(uname -v | awk "{printf \"%s %s %s\n\", \$5,\$6,\$9}"))"
+	Print_Info_Row "iptables"       "$(iptables --version)"
+	Print_Info_Row "ipset"          "$(ipset -v 2>/dev/null | head -n1)"
+	Print_Info_Row "WAN IP"         "$debugpublicip"
+	Print_Info_Row "WAN Info"       "${iface} - $(nvram get wan0_proto)"
 	printf '╚══════════════════════╧════════════════════════════════════════════════════════════════════════════════════╝\n\n\n'
 	printf '╔═════════════════════ Storage ═════════════════════════════════════════════════════════════════════════════╗\n'
-	printf '║ %-20s │ %-82s ║\n' "Install Dir"    "${skynetloc}"
+	Print_Info_Row "Install Dir"    "${skynetloc}"
 	UA="$(df -h "$skynetloc" | awk 'NR==2{print $3 " / " $2}')"
 	printf '║ └── %-16s │ %-82s ║\n' "Used/Total" "$UA"
 	if [ -n "$swaplocation" ]; then
-		printf '║ %-20s │ %-82s ║\n' "SWAP File" "$swaplocation"
+		Print_Info_Row "SWAP File" "$swaplocation"
 		SZ="$(du -h "$swaplocation" | awk '{print $1}')"
 		printf '║ └── %-16s │ %-82s ║\n' "Size" "$SZ"
 	fi
 	printf '╚══════════════════════╧════════════════════════════════════════════════════════════════════════════════════╝\n\n\n'
 	printf '╔═════════════════════ Runtime ═════════════════════════════════════════════════════════════════════════════╗\n'
-	printf '║ %-20s │ %-82s ║\n' "Uptime"        "$(uptime | awk -F'( |,|:)+' '{ if ($7=="min") m=$6; else if ($7~/^day/) {d=$6;h=$8;m=$9} else {h=$6;m=$7} } {print d+0,"days,",h+0,"hours,",m+0,"minutes."}')"
+	Print_Info_Row "Uptime"        "$(uptime | awk -F'( |,|:)+' '{ if ($7=="min") m=$6; else if ($7~/^day/) {d=$6;h=$8;m=$9} else {h=$6;m=$7} } {print d+0,"days,",h+0,"hours,",m+0,"minutes."}')"
 	debugmemory="$(awk '
 		/MemTotal:/ { total=$2 }
 		/MemAvailable:/ { available=$2; found=1 }
@@ -13589,11 +13607,11 @@ Debug_Info() {
 	' /proc/meminfo)"
 	memavailable="${debugmemory%% *}"
 	totalmem="${debugmemory#* }"
-	printf '║ %-20s │ %-82s ║\n' "RAM Available/Total" "(${memavailable}M / ${totalmem}M)"
+	Print_Info_Row "RAM Available/Total" "(${memavailable}M / ${totalmem}M)"
 	printf '╚══════════════════════╧════════════════════════════════════════════════════════════════════════════════════╝\n\n\n'
 	printf '╔═════════════════════ Lifecycle ═══════════════════════════════════════════════════════════════════════════╗\n'
 	if Time_Is_Ready; then debugtimestatus="Ready"; else debugtimestatus="Pending"; fi
-	printf '║ %-20s │ %-82s ║\n' "Router Time" "$debugtimestatus"
+	Print_Info_Row "Router Time" "$debugtimestatus"
 	if ! Is_Enabled "$logmode"; then
 		debugloggingstatus="Disabled"
 	elif iptables-save 2>/dev/null | grep -qF '[BLOCKED -'; then
@@ -13601,20 +13619,20 @@ Debug_Info() {
 	else
 		debugloggingstatus="Pending"
 	fi
-	printf '║ %-20s │ %-82s ║\n' "Packet Logging" "$debugloggingstatus"
+	Print_Info_Row "Packet Logging" "$debugloggingstatus"
 	debugtemporarycount="$(ipset list Skynet-TemporaryBans 2>/dev/null | awk -F ': ' '/^Number of entries:/ {print $2; exit}')"
 	case "$debugtemporarycount" in ""|*[!0-9]*) debugtemporarycount="0" ;; esac
 	if Time_Dependent_State_Pending; then debugtemporarystatus="$debugtemporarycount active; restoration pending"
 	else debugtemporarystatus="$debugtemporarycount active"; fi
-	printf '║ %-20s │ %-82s ║\n' "Temporary Rules" "$debugtemporarystatus"
+	Print_Info_Row "Temporary Rules" "$debugtemporarystatus"
 	debugnextexpiry="$(awk -F '\t' -v now="$(date +%s)" '$1 == "R2" && $9 > now && (!expiry || $9 < expiry) {expiry=$9} END {print expiry + 0}' "$skynetrules" 2>/dev/null)"
 	if [ "$debugnextexpiry" -gt "0" ] 2>/dev/null; then debugnextexpirydisplay="$(Format_Threat_Feed_Time "$debugnextexpiry")"
 	else debugnextexpirydisplay="None"; fi
-	printf '║ %-20s │ %-82s ║\n' "Next Expiry" "$debugnextexpirydisplay"
+	Print_Info_Row "Next Expiry" "$debugnextexpirydisplay"
 	if Validate_Rule_Registry "$skynetrules"; then debugregistrystatus="R2 valid"
 	else debugregistrystatus="Invalid"; fi
 	V8_Upgrade_Pending && debugregistrystatus="$debugregistrystatus; v8 upgrade pending"
-	printf '║ %-20s │ %-82s ║\n' "Rule Registry" "$debugregistrystatus"
+	Print_Info_Row "Rule Registry" "$debugregistrystatus"
 	debugmaintenancestatus="Not run since startup"
 	if IFS="$(printf '\t')" read -r debugmaintenanceversion debugmaintenanceepoch debugmaintenanceresult debugmaintenancedetail 2>/dev/null < "$MAINTENANCE_STATUS" \
 		&& [ "$debugmaintenanceversion" = "M1" ]; then
@@ -13622,12 +13640,13 @@ Debug_Info() {
 		else debugmaintenancetime="time pending"; fi
 		debugmaintenancestatus="$debugmaintenanceresult ($debugmaintenancedetail; $debugmaintenancetime)"
 	fi
-	printf '║ %-20s │ %-82s ║\n' "Maintenance" "$debugmaintenancestatus"
+	Print_Info_Row "Maintenance" "$debugmaintenancestatus"
 	printf '╚══════════════════════╧════════════════════════════════════════════════════════════════════════════════════╝\n\n\n'
 	printf '╔═════════════════════ Logging ═════════════════════════════════════════════════════════════════════════════╗\n'
-	printf '║ %-20s │ %-82s ║\n' "Syslog Locations" "$syslogloc $syslog1loc"
+	Print_Info_Row "Syslog" "$syslogloc"
+	Print_Info_Row "Rotated Syslog" "$syslog1loc"
 	debuglogdisplay="${skynetloc}/history.db"
-	printf '║ %-20s │ %-82s ║\n' "Skynet Log"       "$debuglogdisplay"
+	Print_Info_Row "Skynet Log"       "$debuglogdisplay"
 	SZ="$(du -h "$debuglogdisplay" 2>/dev/null | awk '{print $1}')"
 	printf '║ └── %-16s │ %-82s ║\n' "Used/Total" "${SZ:-Not initialized} / ${logsize}MB"
 	if [ -n "$countrylist" ]; then
@@ -13635,15 +13654,15 @@ Debug_Info() {
 		if [ "${#countries}" -gt 82 ]; then
 			countries="$(printf '%.81s+' "$countries")"
 		fi
-		printf '║ %-20s │ %-82s ║\n' "Banned Countries" "$countries"
+		Print_Info_Row "Banned Countries" "$countries"
 	fi
-	[ -n "$customlisturl" ] && printf '║ %-20s │ %-82s ║\n' "Custom Filter URL" "$customlisturl"
+	[ -n "$customlisturl" ] && Print_Info_Row "Custom Filter URL" "$customlisturl"
 	Generate_Blocked_Events
-	printf '║ %-20s │ %-84s ║\n' "Monitor Span"      "$monitorspan"
+	Print_Info_Row "Monitor Span"      "$monitorspan"
 	if Is_Enabled "$displaywebui" && Is_Enabled "$logmode"; then
 		if [ -f "${skynetloc}/webui/stats.js" ]; then debugchartstatus="Ready"
 		else debugchartstatus="Awaiting first refresh - select Refresh Stats in the WebUI"; fi
-		printf '║ %-20s │ %-82s ║\n' "Chart Data" "$debugchartstatus"
+		Print_Info_Row "Chart Data" "$debugchartstatus"
 	fi
 	printf '╚══════════════════════╧════════════════════════════════════════════════════════════════════════════════════╝\n\n\n'
 	passedtests="0"
@@ -13660,16 +13679,16 @@ Debug_Info() {
 
 		if ! printf '%s\n' "$macaddr" | Is_MAC; then
 			macaddr="Unknown"
-			state="$(Red Offline)"
+			state="$(Red "$(printf '%-20s' Offline)")"
 		elif [ "$state" = "STALE" ]; then
-			state="$(Grn Inactive)"
+			state="$(Grn "$(printf '%-20s' Inactive)")"
 		elif [ "$state" = "REACHABLE" ]; then
-			state="$(Grn Online)"
+			state="$(Grn "$(printf '%-20s' Online)")"
 		else
-			state="$(Grn "$state")"
+			state="$(Grn "$(printf '%-20s' "$state")")"
 		fi
 
-		printf '║ %-40s ║ %-16s ║ %-20s ║ %-31s ║\n' \
+		printf '║ %-40s ║ %-16s ║ %-20s ║ %s ║\n' \
 			"$localname" "$ipaddr" "$macaddr" "$state"
 	done < "$debugneighbors"
 	Clear_Client_Name_Data
@@ -13680,9 +13699,10 @@ Debug_Info() {
 	printf "║ %-33s ║ " "Internet Connectivity"
 	if Check_Connection >/dev/null 2>&1; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
 	printf '%-80s ║\n' "$result"
-	printf "║ %-33s ║ " "Public IP Address"
+	printf "║ %-33s ║ " "WAN IP Address"
 	publicip="$debugpublicip"
-	if printf '%s\n' "$publicip" | Is_IP && ! printf '%s\n' "$publicip" | Is_PrivateIP; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
+	# An upstream modem/NAT may legitimately assign a private WAN address.
+	if printf '%s\n' "$publicip" | Is_IP && [ "$publicip" != "0.0.0.0" ]; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
 	printf '%-80s ║\n' "$result"
 	printf "║ %-33s ║ " "Write Permission"
 	if [ -w "${skynetloc}" ]; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
@@ -14648,6 +14668,7 @@ Dispatch_Install() {
 	Unload_Skynet_Firewall_Rules || { echo "[*] Failed To Unload Skynet Firewall Rules"; echo; exit 1; }
 	Unload_IPSets
 	echo "[i] Restarting Firewall Service To Complete Installation"
+	installwaiting="1"
 	restartfirewall="1"
 	nolog="2"
 }
@@ -15823,31 +15844,26 @@ Load_Menu() {
 	Load_Config || return 1
 	Display_Header "9"
 	menupublicip="$(nvram get wan0_ipaddr)"
-	if printf '%s\n' "$menupublicip" | Is_PrivateIP; then
-		menupublicipdisplay="$(Red "$menupublicip")"
-	else
-		menupublicipdisplay="$menupublicip"
-	fi
 	printf '╔═════════════════════ System ══════════════════════════════════════════════════════════════════════════════╗\n'
-	printf '║ %-20s │ %-82s ║\n' "Router Model"   "$(nvram get productid)"
-	printf '║ %-20s │ %-82s ║\n' "Skynet Version" "$(Filter_Version < "$0") ($(Filter_Date < "$0"))"
+	Print_Info_Row "Router Model"   "$(nvram get productid)"
+	Print_Info_Row "Skynet Version" "$(Filter_Version < "$0") ($(Filter_Date < "$0"))"
 	printf '║ └── %-16s │ %-82s ║\n' "Hash" "$(md5sum "$0" | awk "{print \$1}")"
-	printf '║ %-20s │ %-82s ║\n' "Install Dir"    "${skynetloc}"
-	printf '║ %-20s │ %-82s ║\n' "FW Version"     "$(uname -o) v$(nvram get buildno)_$(nvram get extendno) (Kernel $(uname -r)) ($(uname -v | awk "{printf \"%s %s %s\n\", \$5,\$6,\$9}"))"
-	printf '║ %-20s │ %-82s ║\n' "iptables"       "$(iptables --version)"
-	printf '║ %-20s │ %-82s ║\n' "ipset"          "$(ipset -v 2>/dev/null | head -n1)"
-	printf '║ %-20s │ %-82s ║\n' "Public IP"      "$menupublicipdisplay"
-	printf '║ %-20s │ %-82s ║\n' "WAN Info"       "${iface} - $(nvram get wan0_proto)"
+	Print_Info_Row "Install Dir"    "${skynetloc}"
+	Print_Info_Row "FW Version"     "$(uname -o) v$(nvram get buildno)_$(nvram get extendno) (Kernel $(uname -r)) ($(uname -v | awk "{printf \"%s %s %s\n\", \$5,\$6,\$9}"))"
+	Print_Info_Row "iptables"       "$(iptables --version)"
+	Print_Info_Row "ipset"          "$(ipset -v 2>/dev/null | head -n1)"
+	Print_Info_Row "WAN IP"         "$menupublicip"
+	Print_Info_Row "WAN Info"       "${iface} - $(nvram get wan0_proto)"
 	if [ -n "$countrylist" ]; then
 		countries="$countrylist"
 		if [ "${#countries}" -gt 82 ]; then
 			countries="$(printf '%.81s+' "$countries")"
 		fi
-		printf '║ %-20s │ %-82s ║\n' "Banned Countries" "$countries"
+		Print_Info_Row "Banned Countries" "$countries"
 	fi
-	[ -n "$customlisturl" ] && printf '║ %-20s │ %-82s ║\n' "Custom Filter URL" "$customlisturl"
+	[ -n "$customlisturl" ] && Print_Info_Row "Custom Filter URL" "$customlisturl"
 	printf '╚══════════════════════╧════════════════════════════════════════════════════════════════════════════════════╝\n\n\n'
-	unset "menupublicip" "menupublicipdisplay"
+	unset "menupublicip"
 	if Read_Active_Lock; then
 		Red "[*] Lock File Detected ($lockstatuscommand) (pid=$lockstatuspid, runtime=${lockstatusruntime}s)"
 		Ylow '[*] Locked Processes Generally Take 1-2 Minutes To Complete And May Result In Temporarily "Failed" Tests'
@@ -16119,10 +16135,21 @@ else
 	Publish_Failed_Actions || Log error -s "Failed To Record Action Failure"
 fi
 if [ "$1" = "start" ] && [ "$commandstatus" = "0" ]; then
-	# Publish only after the entire start command succeeds, including fast reloads.
+	# Confirm restored protection and runtime before optional initial feed downloads.
 	if ! printf '%s.%s\n' "$(Uptime_Seconds)" "$$" > "$TMP_DIR/firewall.ready" \
 		|| ! chmod 600 "$TMP_DIR/firewall.ready" || ! mv -f "$TMP_DIR/firewall.ready" "$FIREWALL_READY"; then
 		commandstatus="1"
+	fi
+fi
+if [ "$1" = "start" ] && [ "$commandstatus" = "0" ] && [ "${startupfeedrefresh:-0}" = "1" ]; then
+	Release_Lock
+	"$0" banmalware
+	commandstatus="$?"
+fi
+if [ "$1" = "install" ] && [ "$commandstatus" = "0" ]; then
+	echo "[i] Installation Complete"
+	if Is_Enabled "$forcebanmalwareupdate"; then
+		echo "[i] Check Initial Malware Update Status Under Updates In The WebUI"
 	fi
 fi
 if [ -n "$reloadmenu" ]; then echo;echo; printf "[i] Press Enter To Continue..."; read -r "_menucontinue"; Return_To_Menu; fi
