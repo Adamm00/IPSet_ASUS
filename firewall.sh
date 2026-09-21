@@ -10,13 +10,27 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                           21/09/2026 - v9.0.0                                             #
+#                                           21/09/2026 - v9.0.1                                             #
 #############################################################################################################
 
 
 # shellcheck shell=busybox
 export PATH="/sbin:/bin:/usr/sbin:/usr/bin:$PATH"
 export LC_ALL=C
+
+SHA256_Hash() {
+	# Older Merlin platforms omit the BusyBox SHA256 applet. Native OpenSSL
+	# supplies the same digest without an Entware dependency or cache migration.
+	case "$#" in
+		0) sha256output="$(/usr/sbin/openssl dgst -sha256)" || return 1 ;;
+		1) sha256output="$(/usr/sbin/openssl dgst -sha256 < "$1")" || return 1 ;;
+		*) return 1 ;;
+	esac
+	sha256output="${sha256output##* }"
+	[ "${#sha256output}" = "64" ] || return 1
+	case "$sha256output" in *[!0-9a-f]*) return 1 ;; esac
+	printf '%s\n' "$sha256output"
+}
 
 #########################
 #- Runtime And Logging -#
@@ -552,9 +566,10 @@ Check_Settings() {
 		return 1
 	fi
 
-	# warn if too small (<1GB)
+	# /proc/swaps excludes the header page. Allow up to 64KiB of page overhead
+	# so a correctly sized 1GiB file does not trigger the minimum-size warning.
 	swap_kb=$(awk '$2 == "file" {total += $3} END {print total + 0}' /proc/swaps)
-	if [ "$swap_kb" -gt 0 ] && [ "$swap_kb" -lt 1048576 ]; then
+	if [ "$swap_kb" -gt 0 ] && [ "$swap_kb" -lt 1048512 ]; then
 		Log error -s "SWAP File Too Small (<1GB) - Please Fix Immediately!"
 	fi
 
@@ -1046,7 +1061,7 @@ Publish_Threat_Feed_Status() {
 		case "$feedsuccess" in ""|*[!0-9]*) feedsuccess="0" ;; esac
 		feedhash=""
 		if [ -e "${skynetloc}/lists/$feedname" ]; then
-			feedhash="$(sha256sum "${skynetloc}/lists/$feedname")" \
+			feedhash="$(SHA256_Hash "${skynetloc}/lists/$feedname")" \
 				|| return 1
 			feedhash="${feedhash%% *}"
 		fi
@@ -1129,7 +1144,7 @@ Build_Threat_Feed_Signature() {
 			if (start) {reason=substr($0,start+9); sub(/".*/,"",reason); print $2 "\t" $3 "\t" reason}
 		}
 	' "$skynetipset" >> "$feedpolicyinput" || return 1
-	feedpolicyhash="$(sha256sum "$feedpolicyinput")" || return 1
+	feedpolicyhash="$(SHA256_Hash "$feedpolicyinput")" || return 1
 	printf '%s\n' "${feedpolicyhash%% *}"
 }
 
@@ -1157,7 +1172,7 @@ Reuse_Threat_Feed_Policy() {
 			esac
 		fi
 		[ -s "$feedpolicycache" ] || return 1
-		feedcachehash="$(sha256sum "$feedpolicycache")" || return 1
+		feedcachehash="$(SHA256_Hash "$feedpolicycache")" || return 1
 		[ "${feedcachehash%% *}" = "$feedoldhash" ] || return 1
 		printf '%s\t%s\n' "$list" "$feedoldcount" >> "$feedcounts" || return 1
 		printf '%s\t%s\t%s\t%s\n' "$list" "$url" "$selection" "$feedoldhash" >> "$feedpolicyrows" || return 1
@@ -1455,7 +1470,7 @@ Refresh_Registered_ASN_Rules() {
 			Prune_Unreferenced_Rule_Data
 			return 1
 		fi
-		asnrefreshhash="$(sha256sum "$asnrefreshpublic" 2>/dev/null | awk '{print $1}')"
+		asnrefreshhash="$(SHA256_Hash "$asnrefreshpublic" 2>/dev/null)"
 		[ -n "$asnrefreshhash" ] || { rm -f "$TMP_DIR"/asn-*.$$* "$asnrefreshmap"; Prune_Unreferenced_Rule_Data; return 1; }
 		asnrefreshdata="asn-${asnrefreshtarget}-${asnrefreshvalue}-${asnrefreshhash}.list"
 		asnrefreshtargetfile="$rulesdatadir/$asnrefreshdata"
@@ -1536,7 +1551,7 @@ New_Rule_ID() {
 	# The checksum keeps IDs compact on BusyBox. The numeric suffix resolves the
 	# unlikely collision and is retained permanently once the row is published.
 	ruleidsource="$1|$2|$3|$4|$$"
-	ruleidbase="$(printf '%s\n' "$ruleidsource" | sha256sum | awk '{print substr($1, 1, 8)}')"
+	ruleidbase="$(printf '%s\n' "$ruleidsource" | SHA256_Hash | awk '{print substr($1, 1, 8)}')"
 	[ "${#ruleidbase}" = "8" ] || return 1
 	case "$ruleidbase" in *[!0-9a-f]*) return 1 ;; esac
 	ruleidbase="$(printf '%u' "0x$ruleidbase")" || return 1
@@ -1649,7 +1664,7 @@ Migrate_V8_Rule_Registry() {
 				if (toupper(value) == expected) print $3
 			}' "$ruleregistrysource" | awk '!seen[$0]++' > "$ruledatawork"
 			[ -s "$ruledatawork" ] || { rm -f "$ruledatawork"; continue; }
-			ruledatahash="$(sha256sum "$ruledatawork" 2>/dev/null | awk '{print $1}')"
+			ruledatahash="$(SHA256_Hash "$ruledatawork" 2>/dev/null)"
 			[ -n "$ruledatahash" ] || return 1
 			ruledata="asn-${ruletarget}-${rulevalue}-${ruledatahash}.list"
 			if [ ! -f "$rulemigrationdir/$ruledata" ]; then mv -f "$ruledatawork" "$rulemigrationdir/$ruledata" || return 1; else rm -f "$ruledatawork"; fi
@@ -1680,7 +1695,7 @@ Migrate_V8_Rule_Registry() {
 			if (rowtarget == target && comment == expected) print $3
 		}' "$ruleregistrysource" | awk '!seen[$0]++' > "$ruledatawork" || return 1
 		[ -s "$ruledatawork" ] || return 1
-		ruledatahash="$(sha256sum "$ruledatawork" 2>/dev/null | awk '{print $1}')"
+		ruledatahash="$(SHA256_Hash "$ruledatawork" 2>/dev/null)"
 		[ -n "$ruledatahash" ] || return 1
 		ruledata="import-${rulevalue}-${ruledatahash}.list"
 		mv -f "$ruledatawork" "$rulemigrationdir/$ruledata" || return 1
@@ -1958,7 +1973,7 @@ Validate_Rule_Data_Reference() {
 	esac
 	ruledataexpected="${ruledataname%.list}"
 	ruledataexpected="${ruledataexpected##*-}"
-	[ "$(sha256sum "$ruledatafile" 2>/dev/null | awk '{print $1}')" = "$ruledataexpected" ]
+	[ "$(SHA256_Hash "$ruledatafile" 2>/dev/null)" = "$ruledataexpected" ]
 }
 
 Prune_Unreferenced_Rule_Data() {
@@ -2047,7 +2062,7 @@ Rule_Reason_Index_Hash() {
 	# Domain ownership is resolved through its own manifest and never appears in
 	# the compact address index. Excluding those rows avoids needless rebuilds.
 	awk -F '\t' '$1 == "R2" && $7 == "enabled" && ($4 == "ip" || $4 == "range" || $4 == "asn" || $4 == "import")' "$1" 2>/dev/null \
-		| sha256sum 2>/dev/null | awk '{print $1}'
+		| SHA256_Hash 2>/dev/null
 }
 
 Rule_Reason_Index_Is_Current() {
@@ -2418,7 +2433,7 @@ Apply_Registered_ASN_Rules() {
 			Prune_Unreferenced_Rule_Data
 			return 1
 		fi
-		asnhash="$(sha256sum "$asnpublic" 2>/dev/null | awk '{print $1}')"
+		asnhash="$(SHA256_Hash "$asnpublic" 2>/dev/null)"
 		[ -n "$asnhash" ] || { Prune_Unreferenced_Rule_Data; return 1; }
 		asndata="asn-${registeredtarget}-${registeredvalue}-${asnhash}.list"
 		asntarget="$rulesdatadir/$asndata"
@@ -2452,7 +2467,7 @@ Apply_Registered_Import() {
 	case "$importtarget" in ban|whitelist) ;; *) return 2 ;; esac
 	Time_Is_Ready || return 1
 	Validate_Rule_Data_File "$importentries" import || return 1
-	importhash="$(sha256sum "$importentries" 2>/dev/null | awk '{print $1}')"
+	importhash="$(SHA256_Hash "$importentries" 2>/dev/null)"
 	New_Rule_ID "$importtarget" import "$importsource" "$(date +%s)" || return 1
 	importid="$ruleid"
 	importdata="import-${importid}-${importhash}.list"
@@ -4625,8 +4640,8 @@ Migrate_V8_Domain_Caches() {
 		domainmigrationips="$TMP_DIR/domain-migration-ips.$$"
 		Extract_V8_Domain_IPs "$domainmigrationtarget" "$domainmigrationvalue" "$skynetipset" > "$domainmigrationips" || return 1
 		[ -s "$domainmigrationips" ] || continue
-		domainmigrationhash="$(sha256sum "$domainmigrationips" | awk '{print $1}')" || return 1
-		domainmigrationkey="$(printf '%s:%s\n' "$domainmigrationtarget" "$domainmigrationvalue" | sha256sum | awk '{print substr($1,1,16)}')"
+		domainmigrationhash="$(SHA256_Hash "$domainmigrationips")" || return 1
+		domainmigrationkey="$(printf '%s:%s\n' "$domainmigrationtarget" "$domainmigrationvalue" | SHA256_Hash | awk '{print substr($1,1,16)}')"
 		domainmigrationname="domain.${domainmigrationkey}.${domainmigrationhash}.list"
 		domainmigrationcache="$domainmigrationdir/$domainmigrationname"
 		[ ! -L "$domainmigrationcache" ] || return 1
@@ -4668,7 +4683,7 @@ Validate_Bound_Domain_Rule_Cache() {
 	[ "$(wc -l < "$1" | tr -d ' ')" = "$3" ] || return 1
 	[ "${#4}" = "64" ] || return 1
 	case "$4" in *[!0-9a-f]*) return 1 ;; esac
-	[ "$(sha256sum "$1" 2>/dev/null | awk '{print $1}')" = "$4" ]
+	[ "$(SHA256_Hash "$1" 2>/dev/null)" = "$4" ]
 }
 
 Validate_Rule_Status_Manifest() {
@@ -4698,7 +4713,7 @@ Validate_Rule_Status_Manifest() {
 		[ "$(Normalize_Domain "$domainvalidatedomain" 2>/dev/null)" = "$domainvalidatedomain" ] || return 1
 		[ -n "$domainvalidatecache" ] || continue
 		case "$domainvalidatestate" in empty|expired|failed) continue ;; esac
-		domainvalidatekey="$(printf '%s:%s\n' "$domainvalidatetarget" "$domainvalidatedomain" | sha256sum | awk '{print substr($1, 1, 16)}')"
+		domainvalidatekey="$(printf '%s:%s\n' "$domainvalidatetarget" "$domainvalidatedomain" | SHA256_Hash | awk '{print substr($1, 1, 16)}')"
 		[ "$domainvalidatecachefile" = "domain.$domainvalidatekey.$domainvalidatehash.list" ] || return 1
 		Validate_Bound_Domain_Rule_Cache "$domainvalidatecache/$domainvalidatecachefile" "$domainvalidatetarget" "$domainvalidatecount" "$domainvalidatehash" || return 1
 	done < "$domainvalidatefile"
@@ -4865,8 +4880,8 @@ Prepare_Domain_Rule_Update() {
 		esac
 		if [ "$domainresultstate" = "current" ] || [ "$domainresultstate" = "cached" ]; then
 			Validate_Domain_Rule_Cache "$domainresultips" "$domainworktarget" || return 1
-			domainresulthash="$(sha256sum "$domainresultips" 2>/dev/null | awk '{print $1}')"
-			domainresultkey="$(printf '%s:%s\n' "$domainworktarget" "$domainworkvalue" | sha256sum | awk '{print substr($1, 1, 16)}')"
+			domainresulthash="$(SHA256_Hash "$domainresultips" 2>/dev/null)"
+			domainresultkey="$(printf '%s:%s\n' "$domainworktarget" "$domainworkvalue" | SHA256_Hash | awk '{print substr($1, 1, 16)}')"
 			domaincachefile="domain.${domainresultkey}.${domainresulthash}.list"
 			cp -f "$domainresultips" "$domainstagedir/$domaincachefile" || return 1
 			domainresultcount="$(wc -l < "$domainresultips" | tr -d ' ')"
@@ -10758,7 +10773,7 @@ Fetch_Country_Zone() {
 $countryfetchold
 EOF
 		countryfetchentries="$(wc -l < "$countryfetchvalidation")"
-		countryfetchhash="$(sha256sum "$countryfetchvalidation" 2>/dev/null | awk '{print $1}')"
+		countryfetchhash="$(SHA256_Hash "$countryfetchvalidation" 2>/dev/null)"
 		case "$countryfetcholdsuccess" in ""|*[!0-9]*) countryfetcholdsuccess="$(date -r "$countryfetchcache" +%s 2>/dev/null)" ;; esac
 		case "$countryfetcholdsuccess" in ""|*[!0-9]*) countryfetcholdsuccess="$countryfetchnow" ;; esac
 		case "$countryfetcholdchanged" in ""|*[!0-9]*) countryfetcholdchanged="$countryfetcholdsuccess" ;; esac
@@ -10774,7 +10789,7 @@ EOF
 	elif [ "$countryfetchstatus" = "0" ] && [ -s "$countryfetchraw" ]; then
 		if Normalize_Country_Zone "$countryfetchraw" "$countryfetchzone"; then
 			countryfetchentries="$(wc -l < "$countryfetchzone")"
-			countryfetchhash="$(sha256sum "$countryfetchzone" 2>/dev/null | awk '{print $1}')"
+			countryfetchhash="$(SHA256_Hash "$countryfetchzone" 2>/dev/null)"
 			if [ -n "$countryfetcholdhash" ] && [ "$countryfetcholdhash" = "$countryfetchhash" ]; then
 				countryfetchchanged="$countryfetcholdchanged"
 			else
@@ -11694,7 +11709,7 @@ Consolidate_Threat_Feed_Sources() {
 			elif [ "$selection" = "excluded" ] && [ -s "$listfile" ] && [ "$feedbound" = "1" ]; then
 				# A count is reusable only for the exact validated bytes and URL. Older
 				# manifests or changed caches take the normal parser path.
-				feedcachehash="$(sha256sum "$listfile")" || { Restore_Threat_Feed_Selection; return 1; }
+				feedcachehash="$(SHA256_Hash "$listfile")" || { Restore_Threat_Feed_Selection; return 1; }
 				if [ "${feedcachehash%% *}" = "$feedoldhash" ] && [ "$feedoldcount" -gt 0 ]; then
 					printf '%s\t%s\n' "$list" "$feedoldcount" >> "$feedreusedcounts" \
 						|| { Restore_Threat_Feed_Selection; return 1; }
