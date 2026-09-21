@@ -1,0 +1,28 @@
+name: Suggest an improvement
+description: Share a practical idea for protection, visibility or everyday management.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Skynet · Feature request
+        Describe the task you want to make easier. Check the [user guide](https://github.com/Adamm00/IPSet_ASUS/tree/master/docs) and [existing requests](https://github.com/Adamm00/IPSet_ASUS/issues) first; the capability or discussion may already exist.
+  - type: textarea
+    id: use-case
+    attributes:
+      label: What would you like to do?
+      description: Describe a real situation and what is difficult or missing today.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed improvement
+      description: Explain how it would work in the WebUI, SSH menu or CLI, and what a successful result would look like.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives and context
+      description: Include any workaround, related issue, or mockup that helps explain the idea. Remove private information from screenshots.

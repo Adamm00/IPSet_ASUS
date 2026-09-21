@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Setup and everyday use
+    url: https://github.com/Adamm00/IPSet_ASUS/tree/master/docs
+    about: Installation, WebUI walkthrough, CLI commands and troubleshooting.
+  - name: Community support and release discussion
+    url: https://www.snbforums.com/threads/skynet-v8-router-firewall-security-enhancements.96167/
+    about: Ask for help, compare configurations and discuss Skynet on SNBForums.

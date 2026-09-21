@@ -154,7 +154,8 @@ Start with `firewall debug info` when troubleshooting. Include the failing comma
 - [Command reference](docs/user-guide.md)
 - [Troubleshooting and common issues](docs/troubleshooting.md)
 - [SNBForums support and release discussion](https://www.snbforums.com/threads/skynet-v8-router-firewall-security-enhancements.96167/)
-- [Report a bug on GitHub](https://github.com/Adamm00/IPSet_ASUS/issues)
+- [Report a bug or suggest an improvement](https://github.com/Adamm00/IPSet_ASUS/issues/new/choose)
+- [Contribute code or documentation](.github/CONTRIBUTING.md)
 
 ## Support the project
 

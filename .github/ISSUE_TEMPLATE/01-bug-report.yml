@@ -1,0 +1,62 @@
+name: Report a bug
+description: Something in Skynet is not working as expected.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Skynet · Bug report
+        Tell us what failed and how to reproduce it. For setup questions, visit the [user guide](https://github.com/Adamm00/IPSet_ASUS/tree/master/docs) or [SNBForums community](https://www.snbforums.com/threads/skynet-v8-router-firewall-security-enhancements.96167/).
+
+        Search [existing issues](https://github.com/Adamm00/IPSet_ASUS/issues) before opening a new report. Remove private addresses, hostnames and credentials from logs and screenshots.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Describe the problem and what you expected instead. Include any exact error message.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Include the WebUI tab and action, or the exact SSH command. If it is intermittent, describe when it happens.
+      placeholder: |
+        1. Open…
+        2. Select…
+        3. See…
+    validations:
+      required: true
+  - type: input
+    id: router
+    attributes:
+      label: Router model
+      placeholder: e.g. GT-BE98
+    validations:
+      required: true
+  - type: input
+    id: firmware
+    attributes:
+      label: Asuswrt-Merlin version
+      description: Include the complete firmware version shown by your router.
+    validations:
+      required: true
+  - type: input
+    id: skynet-version
+    attributes:
+      label: Skynet version
+      description: Shown in the WebUI or SSH menu. If Skynet will not start, enter the last known version or unknown.
+      placeholder: e.g. v9.0.0
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Relevant diagnostics
+      description: Run `firewall debug info` over SSH if available. Paste the relevant output and related syslog lines after checking for private information. Code formatting is applied automatically.
+      render: text
+  - type: textarea
+    id: context
+    attributes:
+      label: Screenshots and additional context
+      description: For WebUI issues, include your browser and version. Mention relevant add-ons, custom firewall scripts, or whether this started after an upgrade. You can attach screenshots here.

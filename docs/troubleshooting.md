@@ -112,7 +112,7 @@ Capture the exact command and error, and inspect USB health and free space. Do n
 
 ## Reporting a problem
 
-Use the [SNBForums support thread](https://www.snbforums.com/threads/skynet-v8-router-firewall-security-enhancements.96167/) for questions, or [GitHub Issues](https://github.com/Adamm00/IPSet_ASUS/issues) for reproducible bugs.
+Use the [SNBForums support thread](https://www.snbforums.com/threads/skynet-v8-router-firewall-security-enhancements.96167/) for questions, or the [bug report form](https://github.com/Adamm00/IPSet_ASUS/issues/new?template=01-bug-report.yml) for reproducible bugs.
 
 Include the router model, firmware and Skynet versions, what you did, what you expected, what happened, and relevant output from `firewall debug info` and syslog. Check attachments for private addresses, hostnames, credentials and other information you do not want to publish. Keep timestamps and error text where possible.
 

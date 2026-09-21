@@ -1,0 +1,28 @@
+name: Improve the documentation
+description: Report an outdated instruction, broken link or unclear explanation.
+labels: [documentation]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Skynet · Documentation
+        Help keep the README, wiki and user guide clear and accurate. Small corrections are also welcome as a [pull request](https://github.com/Adamm00/IPSet_ASUS/blob/master/.github/CONTRIBUTING.md).
+  - type: input
+    id: location
+    attributes:
+      label: Page or section
+      description: Link to the page, or give its name and heading.
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What needs improving?
+      description: Tell us what is incorrect, missing or hard to follow.
+    validations:
+      required: true
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested correction
+      description: Share replacement wording or a clearer example if you have one. Include your Skynet version if the behaviour differs from the guide.

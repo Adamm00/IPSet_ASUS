@@ -48,6 +48,6 @@ Welcome to the Skynet v9 documentation. Use the router's **Firewall → Skynet**
 
 ## Help and contributions
 
-Ask questions in the [SNBForums support thread](https://www.snbforums.com/threads/skynet-v8-router-firewall-security-enhancements.96167/), or [report a bug](https://github.com/Adamm00/IPSet_ASUS/issues). The [troubleshooting guide](troubleshooting.md#reporting-a-problem) explains what to include.
+Ask questions in the [SNBForums support thread](https://www.snbforums.com/threads/skynet-v8-router-firewall-security-enhancements.96167/), or [report a bug](https://github.com/Adamm00/IPSet_ASUS/issues/new?template=01-bug-report.yml). The [troubleshooting guide](troubleshooting.md#reporting-a-problem) explains what to include.
 
-Documentation lives alongside the code so it can be reviewed and updated with each change. Corrections and clearer examples are welcome through a pull request.
+Documentation lives alongside the code so it can be reviewed and updated with each change. Corrections and clearer examples are welcome; see [contributing to Skynet](../.github/CONTRIBUTING.md) for a quick guide.
