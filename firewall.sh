@@ -3627,7 +3627,7 @@ Load_Cron() {
 		case "$job" in
 			collect)
 				if Is_Enabled "$logmode"; then
-					cru a Skynet_collect '*/30 * * * * sh /jffs/scripts/firewall collect' || cronstatus="1"
+					cru a Skynet_collect '*/30 * * * * SKYNET_ACTION_ORIGIN=cron sh /jffs/scripts/firewall collect' || cronstatus="1"
 				else
 					cru d Skynet_collect || cronstatus="1"
 				fi
@@ -3639,25 +3639,25 @@ Load_Cron() {
 			banmalwaredaily)
 				hour="${banmalwarehour:-auto}"
 				[ "$hour" != "auto" ] || hour=$(Generate_Random_Number 1 23)
-				cru a Skynet_banmalware "25 $hour * * * sh /jffs/scripts/firewall banmalware" || cronstatus="1"
+				cru a Skynet_banmalware "25 $hour * * * SKYNET_ACTION_ORIGIN=cron sh /jffs/scripts/firewall banmalware" || cronstatus="1"
 			;;
 			banmalwareweekly)
 				hour="${banmalwarehour:-auto}"
 				[ "$hour" != "auto" ] || hour=$(Generate_Random_Number 1 23)
-				cru a Skynet_banmalware "25 $hour * * Mon sh /jffs/scripts/firewall banmalware" || cronstatus="1"
+				cru a Skynet_banmalware "25 $hour * * Mon SKYNET_ACTION_ORIGIN=cron sh /jffs/scripts/firewall banmalware" || cronstatus="1"
 			;;
 			autoupdate)
 				min=$(Generate_Random_Number 3 23)
-				cru a Skynet_autoupdate "$min 1 * * Mon sh /jffs/scripts/firewall update" || cronstatus="1"
+				cru a Skynet_autoupdate "$min 1 * * Mon SKYNET_ACTION_ORIGIN=cron sh /jffs/scripts/firewall update" || cronstatus="1"
 			;;
 			checkupdate)
 				min=$(Generate_Random_Number 3 23)
-				cru a Skynet_checkupdate "$min 1 * * Mon sh /jffs/scripts/firewall update check" || cronstatus="1"
+				cru a Skynet_checkupdate "$min 1 * * Mon SKYNET_ACTION_ORIGIN=cron sh /jffs/scripts/firewall update check" || cronstatus="1"
 			;;
 			genstats)
 				Is_Enabled "$logmode" || continue
 				min=$(Generate_Random_Number 28 57)
-				cru a Skynet_genstats "$min 11,23 * * * sh /jffs/scripts/firewall debug genstats" || cronstatus="1"
+				cru a Skynet_genstats "$min 11,23 * * * SKYNET_ACTION_ORIGIN=cron sh /jffs/scripts/firewall debug genstats" || cronstatus="1"
 			;;
 			rules)
 				min=$(Generate_Random_Number 0 59)
@@ -5785,10 +5785,58 @@ Whitelist_VPN() {
 	rm -f "$vpnentries" "$vpnvalidated" "$vpnrestore" "$vpnsnapshot"
 }
 
+Wait_For_Service_Idle() {
+	servicewait="0"
+	while [ -n "$(nvram get rc_service)" ]; do
+		if [ "$servicewait" -ge 30 ]; then
+			Log error "Service Manager Busy - Request Not Sent"
+			return 1
+		fi
+		sleep 1
+		servicewait=$((servicewait + 1))
+	done
+}
+
+Request_Service_Restart() {
+	Wait_For_Service_Idle || return 1
+	service "$1"
+}
+
+Dnsmasq_Generation() {
+	dnsmasqpid="$(cat /var/run/dnsmasq.pid 2>/dev/null)"
+	case "$dnsmasqpid" in ""|*[!0-9]*) return 1 ;; esac
+	[ "$(cat "/proc/$dnsmasqpid/comm" 2>/dev/null)" = "dnsmasq" ] || return 1
+	awk -v pid="$dnsmasqpid" 'NF >= 22 {print pid ":" $22}' "/proc/$dnsmasqpid/stat" 2>/dev/null
+}
+
+Dnsmasq_Domain_Config_Applied() {
+	[ -f /etc/dnsmasq.conf ] || return 1
+	dnsmasqexpected=""
+	if [ -f /jffs/configs/dnsmasq.conf.add ]; then
+		dnsmasqexpected="$(sed -n '/# Skynet/p' /jffs/configs/dnsmasq.conf.add)" || return 1
+	fi
+	dnsmasqactual="$(sed -n '/# Skynet/p' /etc/dnsmasq.conf)" || return 1
+	[ "$dnsmasqactual" = "$dnsmasqexpected" ]
+}
+
 Restart_Domain_Dnsmasq() {
 	dnsmasqrestartpending="1"
-	service restart_dnsmasq >/dev/null 2>&1 || return 1
-	dnsmasqrestartpending="0"
+	dnsmasqbefore="$(Dnsmasq_Generation)"
+	Request_Service_Restart restart_dnsmasq >/dev/null 2>&1 || { Log error "DNS Restart Request Failed"; return 1; }
+	# Merlin may return zero for a skipped notification. Require a new daemon
+	# and the generated configuration before committing the domain transaction.
+	dnsmasqwait="0"
+	while [ "$dnsmasqwait" -lt 90 ]; do
+		dnsmasqafter="$(Dnsmasq_Generation)"
+		if [ -n "$dnsmasqafter" ] && [ "$dnsmasqafter" != "$dnsmasqbefore" ] && Dnsmasq_Domain_Config_Applied; then
+			dnsmasqrestartpending="0"
+			return 0
+		fi
+		sleep 1
+		dnsmasqwait=$((dnsmasqwait + 1))
+	done
+	Log error "DNS Restart Not Confirmed - Domain Configuration Not Committed"
+	return 1
 }
 
 Restore_Domain_Dnsmasq_Config() {
@@ -5881,7 +5929,9 @@ Publish_Domain_Dnsmasq_Config() {
 		rm -f "$dnsmasqtmp"
 		# A previous failed recovery can leave these bytes on disk without a
 		# successful service reload. Do not report an unchanged retry as applied.
-		[ "${dnsmasqrestartpending:-0}" != "1" ] || Restart_Domain_Dnsmasq || return 1
+		if [ "${dnsmasqrestartpending:-0}" = "1" ] || ! Dnsmasq_Domain_Config_Applied; then
+			Restart_Domain_Dnsmasq || return 1
+		fi
 		return 0
 	fi
 	# Validate the complete candidate before replacing the live custom file. If
@@ -9459,9 +9509,67 @@ Purge_Logs() {
 	Enforce_Log_Limit
 }
 
+Command_Summary_Label() {
+	# Log command structure, never raw URLs, comments, paths or submitted values.
+	case "$1" in
+		ban|unban|whitelist|banmalware|rules|settings|debug|stats|import|update|amtmupdate|save|persist|maintenance|collect|start|restart|disable|install|uninstall) summarylabel="$1" ;;
+		*) summarylabel="unknown" ;;
+	esac
+	case "$1" in
+		ban|unban|whitelist|banmalware|rules|settings|debug|stats|import|update|amtmupdate)
+			case "$2" in
+				ip|range|domain|asn|country|comment|malware|nomanual|all|vpn|shared|refresh|remove|view|status|sources|add|exclude|reset|check|-f|blacklist|whitelist|watch|info|genstats|clean|swap|backup|restore|run|search|autoupdate|banmalware|logmode|loginvalid|logfirewall|logsize|filter|unbanprivate|banaiprotect|securemode|extendedstats|syslog|syslog1|iot|iotlogging|lookupcountry|cdnwhitelist|webui)
+					summarylabel="$summarylabel $2"
+				;;
+			esac
+		;;
+	esac
+	case "$1:$2" in
+		settings:*|whitelist:remove|ban:country|stats:search|stats:remove)
+			case "$3" in
+				enable|disable|all|inbound|outbound|daily|weekly|auto|ban|unban|ports|proto|view|ip|range|domain|asn|refresh|status|actions|reason|port|malware|manualbans|device)
+					summarylabel="$summarylabel $3"
+				;;
+			esac
+		;;
+	esac
+	printf '%s' "$summarylabel"
+}
+
+WebUI_Summary_Label() {
+	case "$webuiaction" in
+		SkynetStats) printf 'debug genstats' ;;
+		SkynetBackup) printf 'debug backup' ;;
+		SkynetRestore) printf 'debug restore' ;;
+		SkynetRestart) printf 'restart' ;;
+		SkynetSettings|apply) printf 'settings apply' ;;
+		SkynetIOT|iot) printf 'settings iot apply' ;;
+		SkynetBanMalware|banmalware)
+			printf 'banmalware'
+			case "$webuifeedaction" in refresh|selection|add|remove|template) printf ' %s' "$webuifeedaction" ;; esac
+		;;
+		SkynetCountries|countries)
+			if [ "$webuicountryrefresh" = "1" ]; then printf 'ban country refresh'
+			elif [ -z "$webuicountries" ]; then printf 'unban country'
+			else printf 'ban country'; fi
+		;;
+		SkynetRules|rules)
+			printf 'rules'
+			case "$webuiruleoperation" in
+				refresh|remove) printf ' %s' "$webuiruleoperation" ;;
+				add)
+					printf ' add'
+					case "$webuiruleaction" in ban|unban|whitelist) printf ' %s' "$webuiruleaction" ;; esac
+					case "$webuirulemode" in ip|range|domain|asn) printf ' %s' "$webuirulemode" ;; esac
+				;;
+			esac
+		;;
+	esac
+}
+
 Print_Command_Summary() {
-	oldips="${blacklist1count:-0}"
-	oldranges="${blacklist2count:-0}"
+	oldips="${webuisummaryoldips:-${blacklist1count:-0}}"
+	oldranges="${webuisummaryoldranges:-${blacklist2count:-0}}"
 	Update_Block_Counts
 	blacklist1count="${blacklist1count:-0}"
 	blacklist2count="${blacklist2count:-0}"
@@ -9489,9 +9597,23 @@ Print_Command_Summary() {
 		# Only print log to terminal
 		Grn "$blacklist1count IPs (${newips}) -- $blacklist2count Ranges Banned (${newranges}) || $hits1 Inbound -- $hits2 Outbound Connections Blocked!"
 	else
-		# Print log to terminal and syslog
-		logz="[#] $blacklist1count IPs (${newips}) -- $blacklist2count Ranges Banned (${newranges}) || $hits1 Inbound -- $hits2 Outbound Connections Blocked! [$1] [${ftime}s]"
-		Log "$logz"
+		summaryorigin="${SKYNET_ACTION_ORIGIN:-cli}"
+		case "$summaryorigin" in cli|menu|webui|cron|startup) ;; *) summaryorigin="cli" ;; esac
+		summarycommand="$(Command_Summary_Label "$@")"
+		summaryresult=""
+		if [ "$webuisummary" = "1" ]; then
+			summarycommand="$(WebUI_Summary_Label)"
+			case "${settingsresult%%:*}" in
+				success|warning|degraded|busy|validation|stale|error|time|conflict|unavailable) summaryresult="${settingsresult%%:*}" ;;
+				*) summaryresult="error" ;;
+			esac
+			if [ "${commandfailed:-$dispatchstatus}" != "0" ] && [ "$summaryresult" = "success" ]; then summaryresult="error"; fi
+			summaryresult=" [$summaryresult]"
+		fi
+		logz="[#] $blacklist1count IPs (${newips}) -- $blacklist2count Ranges Banned (${newranges}) || $hits1 Inbound -- $hits2 Outbound Connections Blocked! [$summaryorigin: $summarycommand]${summaryresult} [${ftime}s]"
+		# Workers still update counts, but their WebUI dispatcher logs the complete
+		# request once, including direct rule/IoT edits and the final result.
+		if [ -n "$SKYNET_WEBUI_REQUEST" ]; then printf '%s\n' "$logz"; else Log "$logz"; fi
 	fi
 }
 
@@ -12148,7 +12270,11 @@ Ensure_Startup_Stats() {
 	Time_Is_Ready || return 0
 	Is_Enabled "$displaywebui" && Is_Enabled "$logmode" || return 0
 	Wait_For_Lock start || return 1
-	[ -f "${skynetloc}/webui/stats.js" ] || Generate_Stats
+	[ -f "${skynetloc}/webui/stats.js" ] && return 0
+	# Fresh installs and v8 upgrades need their history initialized/imported before
+	# the first chart build. Generate_Stats deliberately only reads ready history.
+	History_Ready || Archive_Block_Logs || return 1
+	Generate_Stats
 }
 
 Ensure_Startup_Runtime() {
@@ -12318,8 +12444,31 @@ Dispatch_Restart() {
 	echo "[i] Restarting Firewall Service"
 	Release_Lock
 	restartfirewall="1"
+	restartverify="1"
 	nolog="2"
 	nocfg="1"
+}
+
+Restart_Firewall_Confirmed() {
+	# Merlin can return success even when it drops a service notification. A new
+	# successful firewall-start generation and verified live rules prove completion.
+	restartgeneration="$(cat "$FIREWALL_READY" 2>/dev/null)"
+	Request_Service_Restart restart_firewall || { Log error -s "Firewall Restart Request Failed"; return 1; }
+	restartattempt="0"
+	while [ "$restartattempt" -lt 90 ]; do
+		restartcurrent="$(cat "$FIREWALL_READY" 2>/dev/null)"
+		if [ -n "$restartcurrent" ] && [ "$restartcurrent" != "$restartgeneration" ] \
+			&& Load_Config fresh && Check_IPSets && Check_IPTables; then
+			if [ "$1" != "quiet" ]; then
+				Queue_Action success system refresh firewall lifecycle "Skynet" "Firewall rebuilt and protection verified" || return 1
+			fi
+			return 0
+		fi
+		sleep 1
+		restartattempt=$((restartattempt + 1))
+	done
+	Log error -s "Firewall Restart Not Confirmed - Check Firewall-Start And Router Logs"
+	return 1
 }
 
 Dispatch_Disable() {
@@ -12381,13 +12530,15 @@ Rollback_Update() {
 	trap '' INT TERM
 	updateactive="0"
 	updaterollbackstatus="0"
+	Wait_For_Lock update || return 1
 	if ! Restore_Update_Files; then
 		updaterecoverypreserve="1"
 		updaterollbackstatus="1"
 		Log error "Skynet Update Recovery Failed - Backup Files Retained ($updatefirewallbackup)"
 	fi
 	Log info "Restarting Firewall Service"
-	service restart_firewall >/dev/null 2>&1 || {
+	Release_Lock
+	Restart_Firewall_Confirmed quiet >/dev/null 2>&1 || {
 		Log error "Firewall Restart Failed - Run ( service restart_firewall )"
 		updaterollbackstatus="1"
 	}
@@ -12486,7 +12637,9 @@ Dispatch_Update() {
 			exit 1
 		fi
 		Log info "Restarting Firewall Service"
-		if service restart_firewall >/dev/null 2>&1; then
+		# The startup hook must acquire the state lock before it can confirm recovery.
+		Release_Lock
+		if Restart_Firewall_Confirmed quiet >/dev/null 2>&1; then
 			updateactive="0"
 			echo
 			exit 0
@@ -13188,7 +13341,6 @@ Apply_WebUI_Backup() {
 }
 
 Apply_WebUI_Restart() {
-	# Use the CLI lock and Merlin restart path; acknowledge only this request.
 	settingsresult="error"
 	webuirestartoutput="$TMP_DIR/webui-restart-output.$$"
 	if Run_WebUI_Command restart > "$webuirestartoutput" 2>&1; then
@@ -13254,6 +13406,25 @@ Dispatch_WebUI() {
 	fi
 	_am_settings_path="$TMP_DIR/webui-settings"
 	if [ "$(am_settings_get skynet_request)" != "$webuirequestid" ]; then
+		settingsresult="busy"
+		Publish_WebUI_Result
+		return 1
+	fi
+	if [ "$3" != "deferred" ]; then
+		# A fresh process owns its workspace and completion payload. Detach all
+		# WebUI work, including rule changes that restart DNS, so the synchronous
+		# service-event hook returns before any worker requests another service.
+		sh "$0" webui "$2" deferred </dev/null >/dev/null 2>&1 &
+		return 0
+	fi
+	case "$webuiaction" in
+		SkynetStats|SkynetSettings|apply|SkynetBackup|SkynetRestart|SkynetRestore|SkynetBanMalware|banmalware|SkynetCountries|countries|SkynetRules|rules|SkynetIOT|iot)
+			webuisummary="1"
+			webuisummaryoldips="${blacklist1count:-0}"
+			webuisummaryoldranges="${blacklist2count:-0}"
+		;;
+	esac
+	if ! Wait_For_Service_Idle; then
 		settingsresult="busy"
 		Publish_WebUI_Result
 		return 1
@@ -13469,6 +13640,11 @@ Debug_Info() {
 	[ -n "$customlisturl" ] && printf '║ %-20s │ %-82s ║\n' "Custom Filter URL" "$customlisturl"
 	Generate_Blocked_Events
 	printf '║ %-20s │ %-84s ║\n' "Monitor Span"      "$monitorspan"
+	if Is_Enabled "$displaywebui" && Is_Enabled "$logmode"; then
+		if [ -f "${skynetloc}/webui/stats.js" ]; then debugchartstatus="Ready"
+		else debugchartstatus="Awaiting first refresh - select Refresh Stats in the WebUI"; fi
+		printf '║ %-20s │ %-82s ║\n' "Chart Data" "$debugchartstatus"
+	fi
 	printf '╚══════════════════════╧════════════════════════════════════════════════════════════════════════════════════╝\n\n\n'
 	passedtests="0"
 	totaltests="18"
@@ -13562,14 +13738,15 @@ Debug_Info() {
 	if Is_Enabled "$displaywebui"; then
 		printf "║ %-33s ║ " "Local WebUI Files"
 		[ -f "${skynetloc}/webui/skynet.asp" ] || localfail="${localfail}skynet.asp "
-		if Is_Enabled "$logmode" && [ ! -f "${skynetloc}/webui/stats.js" ]; then localfail="${localfail}stats.js "; fi
+		# stats.js is generated data, not an installed application file. Its pending
+		# state is shown above without reporting the same absent output twice.
 		[ -f "${skynetloc}/webui/settings.js" ] || localfail="${localfail}settings.js "
 		if [ -z "$localfail" ]; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
 		printf '%-80s ║\n' "$result"
 		printf "║ %-33s ║ " "Mounted WebUI Files"
 		Find_WebUI_Page "${skynetloc}/webui/skynet.asp" 2>/dev/null
 		[ -f "/www/user/${MyPage}" ] || mountedfail="${mountedfail}skynet.asp "
-		if Is_Enabled "$logmode" && [ ! -f "/www/user/skynet/stats.js" ]; then mountedfail="${mountedfail}stats.js "; fi
+		if Is_Enabled "$logmode" && [ -f "${skynetloc}/webui/stats.js" ] && [ ! -f "/www/user/skynet/stats.js" ]; then mountedfail="${mountedfail}stats.js "; fi
 		[ -f "/www/user/skynet/settings.js" ] || mountedfail="${mountedfail}settings.js "
 		if [ -z "$mountedfail" ]; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
 		printf '%-80s ║\n' "$result"
@@ -14528,10 +14705,10 @@ Dispatch_Uninstall() {
 					[ -e "$uninstallhook" ] || continue
 					sed -i '\~# Skynet~d' "$uninstallhook" || { echo "[*] Failed To Remove Skynet Hook ($uninstallhook)"; return 1; }
 				done
-				service restart_dnsmasq >/dev/null 2>&1 || { echo "[*] Failed To Restart DNS Service"; return 1; }
+				Restart_Domain_Dnsmasq || { echo "[*] Failed To Restart DNS Service"; return 1; }
 				[ ! -f "/opt/etc/syslog-ng.d/skynet" ] || echo "[i] Reconfigure Scribe To Restore Its Standard Firewall Log Handler"
 				echo "[i] Restarting Firewall Service"
-				service restart_firewall || { echo "[*] Failed To Restart Firewall Service"; return 1; }
+				Request_Service_Restart restart_firewall || { echo "[*] Failed To Restart Firewall Service"; return 1; }
 				echo "[i] Deleting Skynet Files"
 				# Retain the executable until data removal succeeds so a failed
 				# cleanup can be retried. Never unlink the active state-lock inode.
@@ -15843,6 +16020,7 @@ LOG_LOCK="/tmp/skynet/log.lock"
 TIME_PENDING="/tmp/skynet/time.pending"
 STARTUP_PENDING="/tmp/skynet/startup.pending"
 STARTUP_READY="/tmp/skynet/startup.ready"
+FIREWALL_READY="/tmp/skynet/firewall.ready"
 DURABLE_PENDING="/tmp/skynet/snapshot.pending"
 MAINTENANCE_STATUS="/tmp/skynet/maintenance.status"
 MAINTENANCE_WEBUI_PENDING="/tmp/skynet/maintenance-webui.pending"
@@ -15920,11 +16098,16 @@ Clean_Stale_Temp
 Dispatch_Command "$@"
 dispatchstatus="$?"
 Display_Header "9"
-if [ "$nolog" != "2" ]; then Print_Command_Summary "$@"; echo; fi
+if [ "$nolog" != "2" ] || [ "$webuisummary" = "1" ]; then Print_Command_Summary "$@"; echo; fi
 commandstatus="${commandfailed:-$dispatchstatus}"
 if [ "$commandstatus" = "0" ] && [ "$nocfg" != "1" ]; then Write_Config || commandstatus="1"; fi
 if [ "$restartfirewall" = "1" ]; then
-	if ! service restart_firewall; then
+	# Startup/recovery hooks may need both locks; never wait for them while owning either.
+	Release_Firewall_Lock
+	Release_Lock
+	if [ "$restartverify" = "1" ]; then
+		Restart_Firewall_Confirmed || commandstatus="1"
+	elif ! Restart_Firewall_Confirmed quiet; then
 		Log error -s "Firewall Restart Failed - Run ( service restart_firewall )"
 		commandstatus="1"
 	fi
@@ -15934,6 +16117,13 @@ if [ "$commandstatus" = "0" ]; then
 	Publish_Actions || commandstatus="1"
 else
 	Publish_Failed_Actions || Log error -s "Failed To Record Action Failure"
+fi
+if [ "$1" = "start" ] && [ "$commandstatus" = "0" ]; then
+	# Publish only after the entire start command succeeds, including fast reloads.
+	if ! printf '%s.%s\n' "$(Uptime_Seconds)" "$$" > "$TMP_DIR/firewall.ready" \
+		|| ! chmod 600 "$TMP_DIR/firewall.ready" || ! mv -f "$TMP_DIR/firewall.ready" "$FIREWALL_READY"; then
+		commandstatus="1"
+	fi
 fi
 if [ -n "$reloadmenu" ]; then echo;echo; printf "[i] Press Enter To Continue..."; read -r "_menucontinue"; Return_To_Menu; fi
 exit "$commandstatus"

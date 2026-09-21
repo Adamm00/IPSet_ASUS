@@ -3253,8 +3253,8 @@
                     button: "restartButton",
                     result: "restartResult",
                     label: "Restart Skynet",
-                    success: "Firewall restart requested. Skynet will reconcile its rules automatically.",
-                    failure: "Unable to request a restart. Check the router log.",
+                    success: "Firewall restarted. Skynet protection verified.",
+                    failure: "Restart could not be verified. Check the router log.",
                     timeout: "Restart has not been confirmed. Check the router log before retrying.",
                     loadError: "Unable to confirm the restart. Reload data before retrying.",
                     source: "settings",
@@ -8483,7 +8483,7 @@
             this.setActionState(true, this.selectors.restartButton, "Restarting...");
             document.form.amng_custom.value = "{}";
             this.submitBackgroundAction("start_SkynetRestart");
-            this.waitForUpdate(window.SkynetSettingsGenerated, 120, "restart");
+            this.waitForUpdate(window.SkynetSettingsGenerated, 180, "restart");
         };
 
         /* Page rendering and controls. */
