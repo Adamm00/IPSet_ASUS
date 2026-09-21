@@ -1127,10 +1127,10 @@ Join_Threat_Feed_Counts() {
 }
 
 Build_Threat_Feed_Signature() {
-	# P1 identifies the public-address parser contract. Bump it whenever accepted
+	# P2 identifies the public-address parser contract. Bump it whenever accepted
 	# addresses or de-duplication semantics change. Packet counters are excluded.
 	feedpolicyinput="$TMP_DIR/feed-policy-input"
-	printf 'P1\n' > "$feedpolicyinput" || return 1
+	printf 'P2\n' > "$feedpolicyinput" || return 1
 	awk -F '\t' '
 		$3=="enabled" {
 			if (length($4)!=64 || $4 ~ /[^0-9a-f]/) { invalid=1; next }
@@ -5246,9 +5246,28 @@ Apply_Blacklist_File() {
 	blacklistrestore="$TMP_DIR/blacklist.restore"
 	rangesrestore="$TMP_DIR/ranges.restore"
 	Destroy_IPSets "$blacklisttempset" "$rangestempset"
+	# Retained bans precede refreshed feed rows. Keep their ownership comments,
+	# except that feed ownership must survive the subsequent AiProtection refresh.
+	# Only AiProtection rows need buffering; strict restore still rejects bad data.
 	if [ ! -s "$1" ] \
-		|| ! sed -n "s/^add Skynet-Blacklist /add $blacklisttempset /p" "$1" > "$blacklistrestore" \
-		|| ! sed -n "s/^add Skynet-BlockedRanges /add $rangestempset /p" "$1" > "$rangesrestore" \
+		|| ! awk -v target="$blacklisttempset" '$1 == "add" && $2 == "Skynet-Blacklist" {
+			key=$3; sub(/\/32$/, "", key)
+			if (key in aiprotect) {
+				if (index($0, "comment \"BanMalware: ")) {
+					sub(/^[[:space:]]*add[[:space:]]+[^[:space:]]+[[:space:]]+/, "add " target " "); print
+					delete aiprotect[key]
+				}
+				next
+			}
+			if (seen[key]++) next
+			sub(/^[[:space:]]*add[[:space:]]+[^[:space:]]+[[:space:]]+/, "add " target " ")
+			if (index($0, "comment \"BanAiProtect")) aiprotect[key]=$0
+			else print
+		} END {for (key in aiprotect) print aiprotect[key]}' "$1" > "$blacklistrestore" \
+		|| ! awk -v target="$rangestempset" '$1 == "add" && $2 == "Skynet-BlockedRanges" {
+			key=$3; sub(/\/32$/, "", key)
+			if (!seen[key]++) {sub(/^[[:space:]]*add[[:space:]]+[^[:space:]]+[[:space:]]+/, "add " target " "); print}
+		}' "$1" > "$rangesrestore" \
 		|| ! blacklistcount="$(wc -l < "$blacklistrestore")" \
 		|| ! rangescount="$(wc -l < "$rangesrestore")" \
 		|| ! Create_Sized_IPSet "$blacklisttempset" Skynet-Blacklist "$blacklistcount" \
@@ -7549,7 +7568,7 @@ Run_Stats() {
 				Red "Top $counter Blocked Devices (Outbound);"
 				Display_Header "4"
 				Extract_Stats_Values "${statsindexpath}/outbound-src.txt" ".*" "" "" "top" "$counter" > "$TMP_DIR/statsclients.txt"
-				ip neigh > "$TMP_DIR/statsneighbors.txt" 2>/dev/null
+				Read_IPv4_Neighbors "$TMP_DIR/statsneighbors.txt" || :
 				while read -r hits ipaddr; do
 					macaddr="$(awk -v ip="$ipaddr" '$1 == ip { print $5; exit }' "$TMP_DIR/statsneighbors.txt")"
 					Resolve_Client_Name
@@ -7574,7 +7593,7 @@ Generate_WebUI_IOT_Data() {
 	fi
 	# Neighbour discovery is optional enrichment. Discard partial command output
 	# on failure; saved devices and lease names remain available without it.
-	if ip neigh > "$iotraw" 2>/dev/null; then
+	if Read_IPv4_Neighbors "$iotraw"; then
 		awk '
 			/^([0-9]{1,3}\.){3}[0-9]{1,3} / {
 				mac = ""
@@ -7592,7 +7611,7 @@ Generate_WebUI_IOT_Data() {
 		}
 		$1 == "N" {
 			entries[$2] = 1
-			if ($3 != "") mac[$2] = $3
+			if ($3 != "" && $3 != "-") mac[$2] = $3
 			state[$2] = tolower($4)
 		}
 		END {
@@ -8235,7 +8254,7 @@ Generate_Stats() {
 	# Top Clients
 	Extract_Stats_Values "${statsworkspace}/outbound-src.txt" ".*" "" "" "top" "10" > "${statsworkspace}/clients.txt" || statsstatus="1"
 	statsneighbors="${statsworkspace}/neighbors.txt"
-	ip neigh > "$statsneighbors" 2>/dev/null
+	Read_IPv4_Neighbors "$statsneighbors" || :
 	Prepare_Client_Name_Data "$statsneighbors" || true
 	while read -r statsclienthits statsclientip; do
 		[ -n "$statsclientip" ] || continue
@@ -8415,6 +8434,54 @@ Download_File() {
 ########################
 #- Devices And Storage -#
 ########################
+
+Read_IPv4_Neighbors() (
+	# Check discovery separately: a failed ip process in a pipeline otherwise
+	# looks like a successful empty table. ARP remains available without netlink.
+	neighborraw="$TMP_DIR/neighbors-raw.$$"
+	neighborkeys="$TMP_DIR/neighbors-keys.$$"
+	neighborsorted="$TMP_DIR/neighbors-sorted.$$"
+	trap 'rm -f "$neighborraw" "$neighborkeys" "$neighborsorted"' 0
+	trap 'exit 1' INT TERM
+	: > "$1" || return 1
+	if { ip -4 neigh > "$neighborraw"; } 2>/dev/null; then
+		neighborsource="netlink"
+	else
+		neighborsource="arp"
+		cat /proc/net/arp > "$neighborraw" || return 1
+	fi
+	# Normalize optional neighbour fields before consumers read fixed columns.
+	# A padded IPv4 key needs only lexical sorting, not four numeric sort keys.
+	awk -v source="$neighborsource" '
+		$1 ~ /^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/ {
+			split($1, octet, ".")
+			for (i=1; i<=4; i++) if (octet[i]+0 > 255) next
+			mac="-"; device="-"; state="UNKNOWN"
+			if (source == "arp") {
+				if (NF < 6) next
+				device=$6
+				flags=index("0123456789abcdef", substr(tolower($3), length($3), 1))-1
+				if (flags >= 0 && int(flags/2)%2 && $4 != "00:00:00:00:00:00") {
+					mac=$4
+					state=(int(flags/4)%2 ? "PERMANENT" : "CACHED")
+				} else state="INCOMPLETE"
+			} else {
+				for (i=2; i<=NF; i++) {
+					if ($i == "dev" && i < NF) device=$(i+1)
+					if ($i == "lladdr" && i < NF) mac=$(i+1)
+					if ($i ~ /^(NONE|INCOMPLETE|REACHABLE|STALE|DELAY|PROBE|FAILED|NOARP|PERMANENT)$/) state=$i
+				}
+				if (state == "INCOMPLETE" || state == "FAILED" || mac == "00:00:00:00:00:00") mac="-"
+			}
+			printf "%03d%03d%03d%03d\t%s dev %s lladdr %s %s\n", octet[1], octet[2], octet[3], octet[4], $1, device, mac, state
+		}' "$neighborraw" > "$neighborkeys" || return 1
+	if { LC_ALL=C sort "$neighborkeys" > "$neighborsorted"; } 2>/dev/null; then
+		cut -f2- "$neighborsorted" > "$1"
+	else
+		# Ordering is cosmetic; a failed sort must not discard discovered devices.
+		cut -f2- "$neighborkeys" > "$1"
+	fi
+)
 
 Prepare_Client_Name_Data() {
 	# Resolve only the OUI prefixes present in the supplied device data. The
@@ -13176,10 +13243,7 @@ Settings_IOT() {
 		view)
 			Display_Header "6"
 			iotviewneighbors="$TMP_DIR/iot-view-neighbors.$$"
-			ip neigh 2>/dev/null \
-				| grep -E '^([0-9]{1,3}\.){3}[0-9]{1,3} ' \
-				| sort -n -t . -k 1,1 -k 2,2 -k 3,3 -k 4,4 \
-				> "$iotviewneighbors"
+			Read_IPv4_Neighbors "$iotviewneighbors" || echo "[!] Unable To Read Device Table"
 			Prepare_Client_Name_Data "$iotviewneighbors" || :
 			while IFS=' ' read -r ipaddr _neighcommand _neighdevice _neighlabel macaddr _neighstate _neighrest; do
 				Resolve_Client_Name
@@ -13766,10 +13830,7 @@ Debug_Info() {
 	totaltests="18"
 	Display_Header "6"
 	debugneighbors="$TMP_DIR/debug-neighbors.$$"
-	ip neigh 2>/dev/null \
-	| grep -E '^([0-9]{1,3}\.){3}[0-9]{1,3} ' \
-	| sort -n -t . -k 1,1 -k 2,2 -k 3,3 -k 4,4 \
-	> "$debugneighbors"
+	Read_IPv4_Neighbors "$debugneighbors" || echo "[!] Unable To Read Device Table"
 	Prepare_Client_Name_Data "$debugneighbors" || :
 	while IFS=' ' read -r ipaddr _neighcommand _neighdevice _neighlabel macaddr state _neighrest; do
 		Resolve_Client_Name
