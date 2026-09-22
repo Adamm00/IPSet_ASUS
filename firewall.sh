@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                           21/09/2026 - v9.0.1                                             #
+#                                           22/09/2026 - v9.0.2                                             #
 #############################################################################################################
 
 
@@ -7597,7 +7597,7 @@ Run_Stats() {
 				Red "Top $counter Blocked Devices (Outbound);"
 				Display_Header "4"
 				Extract_Stats_Values "${statsindexpath}/outbound-src.txt" ".*" "" "" "top" "$counter" > "$TMP_DIR/statsclients.txt"
-				Read_IPv4_Neighbors "$TMP_DIR/statsneighbors.txt" || :
+				ip neigh > "$TMP_DIR/statsneighbors.txt" 2>/dev/null
 				while read -r hits ipaddr; do
 					macaddr="$(awk -v ip="$ipaddr" '$1 == ip { print $5; exit }' "$TMP_DIR/statsneighbors.txt")"
 					Resolve_Client_Name
@@ -7622,7 +7622,7 @@ Generate_WebUI_IOT_Data() {
 	fi
 	# Neighbour discovery is optional enrichment. Discard partial command output
 	# on failure; saved devices and lease names remain available without it.
-	if Read_IPv4_Neighbors "$iotraw"; then
+	if ip neigh > "$iotraw" 2>/dev/null; then
 		awk '
 			/^([0-9]{1,3}\.){3}[0-9]{1,3} / {
 				mac = ""
@@ -7640,7 +7640,7 @@ Generate_WebUI_IOT_Data() {
 		}
 		$1 == "N" {
 			entries[$2] = 1
-			if ($3 != "" && $3 != "-") mac[$2] = $3
+			if ($3 != "") mac[$2] = $3
 			state[$2] = tolower($4)
 		}
 		END {
@@ -8283,7 +8283,7 @@ Generate_Stats() {
 	# Top Clients
 	Extract_Stats_Values "${statsworkspace}/outbound-src.txt" ".*" "" "" "top" "10" > "${statsworkspace}/clients.txt" || statsstatus="1"
 	statsneighbors="${statsworkspace}/neighbors.txt"
-	Read_IPv4_Neighbors "$statsneighbors" || :
+	ip neigh > "$statsneighbors" 2>/dev/null
 	Prepare_Client_Name_Data "$statsneighbors" || true
 	while read -r statsclienthits statsclientip; do
 		[ -n "$statsclientip" ] || continue
@@ -8463,54 +8463,6 @@ Download_File() {
 ########################
 #- Devices And Storage -#
 ########################
-
-Read_IPv4_Neighbors() (
-	# Check discovery separately: a failed ip process in a pipeline otherwise
-	# looks like a successful empty table. ARP remains available without netlink.
-	neighborraw="$TMP_DIR/neighbors-raw.$$"
-	neighborkeys="$TMP_DIR/neighbors-keys.$$"
-	neighborsorted="$TMP_DIR/neighbors-sorted.$$"
-	trap 'rm -f "$neighborraw" "$neighborkeys" "$neighborsorted"' 0
-	trap 'exit 1' INT TERM
-	: > "$1" || return 1
-	if { ip -4 neigh > "$neighborraw"; } 2>/dev/null; then
-		neighborsource="netlink"
-	else
-		neighborsource="arp"
-		cat /proc/net/arp > "$neighborraw" || return 1
-	fi
-	# Normalize optional neighbour fields before consumers read fixed columns.
-	# A padded IPv4 key needs only lexical sorting, not four numeric sort keys.
-	awk -v source="$neighborsource" '
-		$1 ~ /^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/ {
-			split($1, octet, ".")
-			for (i=1; i<=4; i++) if (octet[i]+0 > 255) next
-			mac="-"; device="-"; state="UNKNOWN"
-			if (source == "arp") {
-				if (NF < 6) next
-				device=$6
-				flags=index("0123456789abcdef", substr(tolower($3), length($3), 1))-1
-				if (flags >= 0 && int(flags/2)%2 && $4 != "00:00:00:00:00:00") {
-					mac=$4
-					state=(int(flags/4)%2 ? "PERMANENT" : "CACHED")
-				} else state="INCOMPLETE"
-			} else {
-				for (i=2; i<=NF; i++) {
-					if ($i == "dev" && i < NF) device=$(i+1)
-					if ($i == "lladdr" && i < NF) mac=$(i+1)
-					if ($i ~ /^(NONE|INCOMPLETE|REACHABLE|STALE|DELAY|PROBE|FAILED|NOARP|PERMANENT)$/) state=$i
-				}
-				if (state == "INCOMPLETE" || state == "FAILED" || mac == "00:00:00:00:00:00") mac="-"
-			}
-			printf "%03d%03d%03d%03d\t%s dev %s lladdr %s %s\n", octet[1], octet[2], octet[3], octet[4], $1, device, mac, state
-		}' "$neighborraw" > "$neighborkeys" || return 1
-	if { LC_ALL=C sort "$neighborkeys" > "$neighborsorted"; } 2>/dev/null; then
-		cut -f2- "$neighborsorted" > "$1"
-	else
-		# Ordering is cosmetic; a failed sort must not discard discovered devices.
-		cut -f2- "$neighborkeys" > "$1"
-	fi
-)
 
 Prepare_Client_Name_Data() {
 	# Resolve only the OUI prefixes present in the supplied device data. The
@@ -9890,7 +9842,7 @@ Load_Config() {
 	esac
 	Resolve_Syslog_Sources
 
-	if [ -n "$countrylist" ]; then
+	if [ -n "$countrylist" ] || V8_Upgrade_Pending; then
 		# Country codes are lowercase, unique and space separated. If an older
 		# value is malformed, recover the authoritative selection from IPSet
 		# comments such as: comment "Country: au".
@@ -9910,7 +9862,7 @@ Load_Config() {
 		if [ "$configinvalid" = "1" ] || [ -z "$countrylist" ]; then
 			configcountrycandidates=""
 			if V8_Upgrade_Pending; then
-				configcountrycandidates="$(sed -n 's~.*comment "Country: \([A-Za-z][A-Za-z]\)".*~\1~p' "$skynetipset" 2>/dev/null | awk '{ value = tolower($0); if (!seen[value]++) { if (output != "") output = output " "; output = output value } } END { print output }')"
+				configcountrycandidates="$(sed -n '/^add Skynet-BlockedRanges /s~.*comment "Country: \([A-Za-z][A-Za-z]\)".*~\1~p' "$skynetipset" 2>/dev/null | awk '{ value = tolower($0); if (!seen[value]++) { if (output != "") output = output " "; output = output value } } END { print output }')"
 			fi
 			countrylist=""
 			for configitem in $configcountrycandidates; do
@@ -10005,6 +9957,7 @@ Prepare_V8_Upgrade() {
 	Migrate_V8_Action_History || return 1
 	Migrate_V8_Rule_Registry || return 1
 	Migrate_V8_Domain_Caches || return 1
+	[ -z "$countrylist" ] || startupcountryrefresh="1"
 	Build_V8_Base_Snapshot "$TMP_DIR/v8-base.ipset" || return 1
 	Clean_V8_WebUI_Files || return 1
 	rm -f "$skynetloc/webui/stats.js" "$skynetloc/webui/settings.js" || return 1
@@ -11520,6 +11473,7 @@ Dispatch_Ban() {
 			if ! Build_Country_Update "$countrylinklist"; then
 				if [ "$3" = "refresh" ]; then
 					Publish_Country_Refresh_Failure "$countrylist" || Log error -s "Failed To Publish Country Source Health"
+					[ "${SKYNET_ACTION_ORIGIN:-}" = "webui" ] || Generate_WebUI_Settings || Log error -s "Failed To Refresh WebUI Country Data"
 				fi
 				rm -f "$countrytmp" "$TMP_DIR"/country.*.raw "$TMP_DIR"/country.*.zone "$TMP_DIR"/country.*.result
 				exit 1
@@ -11575,6 +11529,7 @@ Dispatch_Ban() {
 			nocfg="1"
 			rm -f "$countrytmp"
 			unset "countryactionadded" "countryactionremoved" "countryactionrefreshed" "countryactionhash" "countryactionoldhash"
+			[ "${SKYNET_ACTION_ORIGIN:-}" = "webui" ] || Generate_WebUI_Settings || Log error -s "Failed To Refresh WebUI Country Data"
 			return 0
 		;;
 		asn)
@@ -12512,6 +12467,7 @@ Ensure_Startup_Runtime() {
 	if Is_Enabled "$autoupdate"; then Load_Cron autoupdate || return 1
 	else Load_Cron checkupdate || return 1; fi
 	Load_Cron maintenance collect rules || return 1
+	if [ -n "$countrylist" ] && [ ! -s "$skynetloc/lists/countries/.manifest" ]; then startupcountryrefresh="1"; fi
 	if Is_Enabled "$displaywebui"; then
 		Install_WebUI_Page || { Log error -s "Failed To Install WebUI"; return 1; }
 	else
@@ -13281,7 +13237,10 @@ Settings_IOT() {
 		view)
 			Display_Header "6"
 			iotviewneighbors="$TMP_DIR/iot-view-neighbors.$$"
-			Read_IPv4_Neighbors "$iotviewneighbors" || echo "[!] Unable To Read Device Table"
+			ip neigh 2>/dev/null \
+				| grep -E '^([0-9]{1,3}\.){3}[0-9]{1,3} ' \
+				| sort -n -t . -k 1,1 -k 2,2 -k 3,3 -k 4,4 \
+				> "$iotviewneighbors"
 			Prepare_Client_Name_Data "$iotviewneighbors" || :
 			while IFS=' ' read -r ipaddr _neighcommand _neighdevice _neighlabel macaddr _neighstate _neighrest; do
 				Resolve_Client_Name
@@ -13868,7 +13827,10 @@ Debug_Info() {
 	totaltests="18"
 	Display_Header "6"
 	debugneighbors="$TMP_DIR/debug-neighbors.$$"
-	Read_IPv4_Neighbors "$debugneighbors" || echo "[!] Unable To Read Device Table"
+	ip neigh 2>/dev/null \
+	| grep -E '^([0-9]{1,3}\.){3}[0-9]{1,3} ' \
+	| sort -n -t . -k 1,1 -k 2,2 -k 3,3 -k 4,4 \
+	> "$debugneighbors"
 	Prepare_Client_Name_Data "$debugneighbors" || :
 	while IFS=' ' read -r ipaddr _neighcommand _neighdevice _neighlabel macaddr state _neighrest; do
 		Resolve_Client_Name
@@ -16336,6 +16298,12 @@ if [ "$1" = "start" ] && [ "$commandstatus" = "0" ]; then
 		|| ! chmod 600 "$TMP_DIR/firewall.ready" || ! mv -f "$TMP_DIR/firewall.ready" "$FIREWALL_READY"; then
 		commandstatus="1"
 	fi
+fi
+if [ "$1" = "start" ] && [ "$commandstatus" = "0" ] && [ "${startupcountryrefresh:-0}" = "1" ]; then
+	# Restore protection first, then use the normal country refresh transaction.
+	Release_Lock
+	SKYNET_ACTION_ORIGIN="system" "$0" ban country refresh \
+		|| Log error -s "Country Source Refresh Failed - Retry Refresh Sources In The WebUI"
 fi
 if [ "$1" = "start" ] && [ "$commandstatus" = "0" ] && [ "${startupfeedrefresh:-0}" = "1" ]; then
 	Release_Lock

@@ -3064,7 +3064,6 @@
     </style>
     <script src="/js/chart.min.js"></script>
     <script src="/ext/skynet/stats.js"></script>
-    <script src="/ext/skynet/settings.js"></script>
     <script src="/js/jquery.js"></script>
     <script src="/js/httpApi.js"></script>
     <script src="/state.js"></script>
@@ -6074,7 +6073,7 @@
                 this.populateCountryPicker();
                 this.renderCountries();
                 this.setUpdateResult(
-                    "Reload settings after updating Skynet.",
+                    this.refreshInProgress ? "Loading current settings..." : "Reload Data to load current settings.",
                     false,
                     this.selectors.countryResult
                 );
@@ -6141,7 +6140,9 @@
                 if (header) header.hidden = true;
                 const empty = document.createElement("div");
                 empty.className = "skynet-feed-empty";
-                empty.textContent = "No countries are currently blocked.";
+                empty.textContent = !this.canManageCountries()
+                    ? (this.refreshInProgress ? "Loading countries..." : "Country settings are unavailable.")
+                    : "No countries are currently blocked.";
                 list.appendChild(empty);
                 return;
             }
@@ -7945,6 +7946,37 @@
             return this.loadScript("settings.js", "Unable to load current settings");
         };
 
+        SkynetUI.loadInitialSettings = function() {
+            const self = this;
+            self.refreshInProgress = true;
+            self.populateSettings();
+            self.setActionState(true);
+
+            const load = function(attempt) {
+                return self.loadSettingsScript().then(function() {
+                    if (!window.SkynetSettings || !window.SkynetSettingsGenerated) {
+                        throw new Error("Settings are not ready yet.");
+                    }
+                    self.refreshInProgress = false;
+                    self.populateSettings();
+                    self.setActionState(false);
+                }).catch(function() {
+                    /* Migration publishes settings atomically after mounting the page. */
+                    if (attempt < 2) {
+                        return new Promise(function(resolve) {
+                            window.setTimeout(resolve, 1500);
+                        }).then(function() { return load(attempt + 1); });
+                    }
+                    self.refreshInProgress = false;
+                    self.populateSettings();
+                    self.setActionState(false);
+                    self.setUpdateResult("Unable to load current settings. Use Reload Data to retry.",
+                        true, self.selectors.settingsResult);
+                });
+            };
+            return load(0);
+        };
+
         SkynetUI.getCountryUpdateError = function() {
             const result = String(window.SkynetSettingsResult || "error");
             const parts = result.split(":");
@@ -9067,7 +9099,7 @@
             }
 
             this.applyStatsPayload();
-            this.populateSettings();
+            this.loadInitialSettings();
         };
     </script>
 </head>
