@@ -680,11 +680,16 @@ Curl_Fetch() {
 	# Curl's standard retry policy covers timeouts and transient HTTP responses.
 	# Do not retry every error: permanent HTTP failures such as GitHub's rate-limit
 	# 403 must return immediately so callers can retain their validated data.
-	if curl -fsSL --proto '=http,https' --proto-redir '=http,https' \
-		--retry 3 --connect-timeout 5 --max-time 60 --retry-delay 1 "$@" 2>/dev/null; then
+	# Keep stdout (including country HTTP status codes) separate from diagnostics.
+	# Capture stderr per invocation so parallel downloads cannot mix their errors.
+	if curlerror="$(curl -fsSL --proto '=http,https' --proto-redir '=http,https' \
+		--retry 3 --connect-timeout 5 --max-time 60 --retry-delay 1 "$@" 2>&1 1>&3)" 3>&1; then
 		return 0
 	fi
-	Log error -s "Download Failed - Check Connection Or URL"
+	# Only the last retry error is useful; avoid repeating the whole retry log.
+	curlerror="${curlerror##*
+}"
+	Log error -s "Download Failed - ${curlerror:-Check Connection Or URL}"
 	return 1
 }
 
@@ -8695,7 +8700,7 @@ Maintain_Swap_Hook() {
 Remove_Swap() {
 	# Refuse another addon's file and keep hooks/file intact if swapoff fails.
 	if ! Skynet_Owns_Swap; then
-		echo "[*] SWAP File Ownership Could Not Be Confirmed - Existing Swap Retained"
+		echo "[*] SWAP File May Be Managed By Another Script - Existing Swap Retained"
 		return 1
 	fi
 	if awk -v path="$swaplocation" '$1 == path && $2 == "file" {found=1} END {exit !found}' /proc/swaps \
@@ -9343,16 +9348,27 @@ History_Import_File() {
 		if [ "$(head -c "$historychecksize" /proc/self/fd/6 | md5sum | cut -d ' ' -f1)" != "$historycheckanchor" ]; then historyimportstatus="1"; break; fi
 		historyanchorsize="$historynext"; [ "$historyanchorsize" -le 256 ] || historyanchorsize="256"
 		historyanchor="$(tail -c "+$((historynext-historyanchorsize+1))" /proc/self/fd/6 | head -c "$historyanchorsize" | md5sum | cut -d ' ' -f1)"
-		{
+		(
 			printf '.bail on\n.timeout 5000\nPRAGMA trusted_schema=OFF;\nPRAGMA cache_size=-2048;\nPRAGMA synchronous=FULL;\nBEGIN IMMEDIATE;\n'
 			printf 'CREATE TEMP TABLE incoming AS SELECT ts,kind,src,dst,proto,sport,dport,len,inif,outif,mac,flags,icmp_type,icmp_code FROM events WHERE 0;\n'
-			printf '.mode tabs\n.import "%s" incoming\n' "$historyparsed"
+			# Older Merlin SQLite has no unhex(). Emit validated parser fields as
+			# SQL literals so MACs retain the same BLOB format on every firmware.
+			awk -F '\t' -v quote="'" '
+				{
+					if (NR % 100 == 1) printf "INSERT INTO incoming VALUES"
+					else printf ","
+					printf "(%s,%s,%s,%s,%s,%s,%s,%s,%s%s%s,%s%s%s,X%s%s%s,%s,%s,%s)",
+						$1,$2,$3,$4,$5,$6,$7,$8,quote,$9,quote,quote,$10,quote,quote,$11,quote,$12,$13,$14
+					if (NR % 100 == 0) print ";"
+				}
+				END { if (NR % 100) print ";" }
+			' "$historyparsed" || exit 1
 			printf '%s\n' "UPDATE incoming SET ts=CAST(strftime('%s',ts,'unixepoch','utc') AS INTEGER);"
 			printf '%s\n' 'INSERT OR REPLACE INTO hours SELECT CAST(ts/3600 AS INTEGER)*3600,kind,COUNT(*)+COALESCE((SELECT hits FROM hours h WHERE h.hour=CAST(i.ts/3600 AS INTEGER)*3600 AND h.kind=i.kind),0),SUM(len)+COALESCE((SELECT bytes FROM hours h WHERE h.hour=CAST(i.ts/3600 AS INTEGER)*3600 AND h.kind=i.kind),0) FROM incoming i GROUP BY CAST(ts/3600 AS INTEGER),kind;'
-			printf '%s\n' "INSERT INTO events(ts,kind,src,dst,proto,sport,dport,len,inif,outif,mac,flags,icmp_type,icmp_code) SELECT ts,kind,src,dst,proto,NULLIF(sport,'NULL'),NULLIF(dport,'NULL'),len,inif,outif,unhex(mac),flags,NULLIF(icmp_type,'NULL'),NULLIF(icmp_code,'NULL') FROM incoming;"
+			printf '%s\n' 'INSERT INTO events(ts,kind,src,dst,proto,sport,dport,len,inif,outif,mac,flags,icmp_type,icmp_code) SELECT ts,kind,src,dst,proto,sport,dport,len,inif,outif,mac,flags,icmp_type,icmp_code FROM incoming;'
 			printf "INSERT OR REPLACE INTO cursors VALUES('%s',%s,%s,'%s',%s);\n" "$historyidentity" "$historynext" "$historyanchorsize" "$historyanchor" "$historynow"
 			printf "INSERT OR REPLACE INTO meta VALUES('collected','%s');\nCOMMIT;\n" "$historynow"
-		} > "$historysql" || { historyimportstatus="1"; break; }
+		) > "$historysql" || { historyimportstatus="1"; break; }
 		# Finish policy work before committing the cursor. Otherwise a failed
 		# private-address update is skipped forever on the next collection. The
 		# update is idempotent if SQLite fails and this batch must be retried.
@@ -9516,29 +9532,34 @@ History_Collect() {
 	historynow="$(date +%s)"; historyyear="$(date +%Y)"; historyzone="$(date +%z)"
 	historyzone="$(printf '%s\n' "$historyzone" | awk '{ sign=substr($0,1,1)=="-" ? -1 : 1; print sign*(substr($0,2,2)*3600+substr($0,4,2)*60) }')"
 	if ! History_Ready; then
-		[ ! -L "$skynetlog" ] || return 1
-		History_Import_File "$skynetlog" "" legacy || { Log error "Failed To Migrate Firewall History - Original Log Retained"; return 1; }
-		# Activation and source ownership are one transaction. The pending marker
-		# permits safe retirement after interruption, but cannot select another file.
-		[ ! -s "$skynetlog" ] || [ "$historyposition" = "$historyfilesize" ] || return 1
+		# Legacy logs are optional. Keep committed batches and skip anything that
+		# cannot be converted; activation prevents retrying a broken log forever.
+		historymigrated="0"
+		if [ ! -L "$skynetlog" ] && History_Import_File "$skynetlog" "" legacy >/dev/null 2>&1 \
+			&& { [ ! -s "$skynetlog" ] || [ "$historyposition" = "$historyfilesize" ]; }; then
+			historymigrated="1"
+		fi
 		historyactivation="INSERT OR REPLACE INTO meta VALUES('active','1');"
-		if [ -s "$skynetlog" ]; then
+		if [ "$historymigrated" = "1" ] && [ -s "$skynetlog" ]; then
+			# Only fully imported originals are eligible for retirement.
 			historyactivation="$historyactivation INSERT OR REPLACE INTO meta VALUES('legacy_pending','$historyidentity'); INSERT OR REPLACE INTO meta VALUES('legacy_time_inferred','1');"
 		fi
 		History_Write "BEGIN IMMEDIATE; $historyactivation COMMIT;" || return 1
-		if [ -s "$skynetlog" ]; then Log info "Legacy Firewall History Imported - Missing Years Inferred From Router Date"; fi
+		if [ "$historymigrated" != "1" ]; then Log info "Legacy Firewall History Skipped"
+		elif [ -s "$skynetlog" ]; then Log info "Legacy Firewall History Imported - Missing Years Inferred From Router Date"; fi
 	fi
 	historypending="$(History_Read "SELECT value FROM meta WHERE key='legacy_pending';")" || return 1
 	if [ -n "$historypending" ]; then
-		case "$skynetlog" in "${skynetloc}/skynet.log") ;; *) return 1 ;; esac
 		if [ -e "$skynetlog" ] || [ -L "$skynetlog" ]; then
-			if [ ! -f "$skynetlog" ] || [ -L "$skynetlog" ] || ! History_Import_File "$skynetlog" "$historypending" legacy \
-				|| [ "$historyposition" != "$historyfilesize" ] || [ "$(History_Read 'PRAGMA quick_check;')" != "ok" ]; then
-				Log error "Unable To Retire Migrated Firewall Log - Original File Retained"
-				return 1
+			if [ "$skynetlog" = "${skynetloc}/skynet.log" ] && [ -f "$skynetlog" ] && [ ! -L "$skynetlog" ] \
+				&& History_Import_File "$skynetlog" "$historypending" legacy >/dev/null 2>&1 \
+				&& [ "$historyposition" = "$historyfilesize" ] && [ "$(History_Read 'PRAGMA quick_check;')" = "ok" ]; then
+				rm -f "$skynetlog" || Log info "Legacy Firewall Log Retained"
+			else
+				Log info "Remaining Legacy Firewall History Skipped"
 			fi
-			rm -f "$skynetlog" || return 1
 		fi
+		# An interrupted migration must not keep blocking new history collection.
 		History_Write "DELETE FROM meta WHERE key='legacy_pending';" || return 1
 	fi
 	for historysource in "$syslog1loc" "$syslogloc"; do
@@ -10892,8 +10913,13 @@ Build_Country_Update() {
 	mkdir -p "$countrycachedir" || return 1
 	true > "$countrytmp" || return 1
 	Start_Background_Jobs
+	countryfetchstarted="0"
 	for country in $countryrequested; do
+		# IPdeny recommends 0.5-1 second between requests, even below its
+		# five-connection limit. Avoid launching a burst after reinstalling.
+		[ "$countryfetchstarted" = "0" ] || sleep 1
 		Fetch_Country_Zone "$country" &
+		countryfetchstarted="1"
 		Wait_Background_Job_Slot 4
 	done
 	Wait_Background_Jobs
@@ -12478,9 +12504,9 @@ Ensure_Startup_Stats() {
 Ensure_Startup_Runtime() {
 	# Volatile completion state is published only after all per-boot integration
 	# succeeds. Retrying this phase must not reload an already active policy.
-	[ -f "$STARTUP_READY" ] && { Ensure_Startup_Stats; return "$?"; }
+	[ -f "$STARTUP_READY" ] && return 0
 	Wait_For_Lock start || return 1
-	[ -f "$STARTUP_READY" ] && { Ensure_Startup_Stats; return "$?"; }
+	[ -f "$STARTUP_READY" ] && return 0
 	Maintain_Script_Hooks firewall-start services-stop service-event post-mount unmount \
 		|| { Log error -s "Failed To Maintain Script Hooks"; return 1; }
 	Unload_Cron save banmalware autoupdate checkupdate || return 1
@@ -12499,7 +12525,6 @@ Ensure_Startup_Runtime() {
 	fi
 	Generate_WebUI_Settings || return 1
 	: > "$STARTUP_READY" && chmod 600 "$STARTUP_READY" || return 1
-	Ensure_Startup_Stats
 }
 
 Restore_Startup_Policy() {
@@ -12625,8 +12650,7 @@ Dispatch_Start() {
 	fi
 	Wait_For_Lock "$@" || return 1
 	Activate_Time_Dependent_State || { Log error -s "Failed To Activate Time-Dependent Rules"; echo; return 1; }
-	Purge_Logs "all" || true
-	Ensure_Startup_Stats || return 1
+	startupcollect="1"
 	Generate_WebUI_Settings || { Log error -s "Failed To Generate WebUI Settings"; echo; return 1; }
 	Queue_Action success system restore startup lifecycle "Skynet" "Protection and time-dependent services active" \
 		|| Log error -s "Failed To Queue Startup Action"
@@ -12739,7 +12763,7 @@ Rollback_Update() {
 	fi
 	Log info "Restarting Firewall Service"
 	Release_Lock
-	Restart_Firewall_Confirmed quiet >/dev/null 2>&1 || {
+	Restart_Firewall_Confirmed quiet || {
 		Log error "Firewall Restart Failed - Run ( service restart_firewall )"
 		updaterollbackstatus="1"
 	}
@@ -12842,7 +12866,7 @@ Dispatch_Update() {
 		Log info "Restarting Firewall Service"
 		# The startup hook must acquire the state lock before it can confirm recovery.
 		Release_Lock
-		if Restart_Firewall_Confirmed quiet >/dev/null 2>&1; then
+		if Restart_Firewall_Confirmed quiet; then
 			updateactive="0"
 			echo
 			exit 0
@@ -16317,11 +16341,16 @@ else
 	Publish_Failed_Actions || Log error -s "Failed To Record Action Failure"
 fi
 if [ "$1" = "start" ] && [ "$commandstatus" = "0" ]; then
-	# Confirm restored protection and runtime before optional initial feed downloads.
+	# Confirm protection before optional history migration, charts and downloads.
+	# Large legacy logs on slower routers must not exhaust the updater's wait.
 	if ! printf '%s.%s\n' "$(Uptime_Seconds)" "$$" > "$TMP_DIR/firewall.ready" \
 		|| ! chmod 600 "$TMP_DIR/firewall.ready" || ! mv -f "$TMP_DIR/firewall.ready" "$FIREWALL_READY"; then
 		commandstatus="1"
 	fi
+fi
+if [ "$1" = "start" ] && [ "$commandstatus" = "0" ]; then
+	if [ "${startupcollect:-0}" = "1" ]; then Purge_Logs "all" || true; fi
+	Ensure_Startup_Stats
 fi
 if [ "$1" = "start" ] && [ "$commandstatus" = "0" ] && [ "${startupcountryrefresh:-0}" = "1" ]; then
 	# Restore protection first, then use the normal country refresh transaction.
