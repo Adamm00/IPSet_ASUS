@@ -9513,8 +9513,17 @@ History_Clean_Syslog_Source() (
 		( trap - 0 INT TERM; exec 9>&- 8>&- 7>&- 6<&-; sleep 5; Signal_Syslog_Writers CONT "$cleanwriters" 2>/dev/null ) &
 		cleanwatchdog="$!"
 		Signal_Syslog_Writers STOP "$cleanwriters" || return 1
-		for cleanpid in $cleanwriters; do
-			grep -q '^State:[[:space:]]*T' "/proc/$cleanpid/status" || return 1
+		cleanwait="0"
+		while :; do
+			cleanstopped="1"
+			for cleanpid in $cleanwriters; do
+				[ ! -e "/proc/$cleanpid/status" ] \
+					|| grep -q '^State:[[:space:]]*T' "/proc/$cleanpid/status" || cleanstopped="0"
+			done
+			[ "$cleanstopped" = "0" ] || break
+			[ "$cleanwait" -lt 2 ] || return 1
+			sleep 1
+			cleanwait=$((cleanwait + 1))
 		done
 	fi
 	[ "$cleansource" -ef "$cleandir/original" ] || return 1
@@ -13428,14 +13437,12 @@ Settings_CountryLookup() {
 		enable)
 			Check_Lock "$@" || return 1
 			Require_Running
-			Purge_Logs
 			lookupcountry="enabled"
 			echo "[i] Country Lookups For Stat Data Enabled"
 		;;
 		disable)
 			Check_Lock "$@" || return 1
 			Require_Running
-			Purge_Logs
 			lookupcountry="disabled"
 			echo "[i] Country Lookups For Stat Data Disabled"
 		;;
