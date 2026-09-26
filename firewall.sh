@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                           22/09/2026 - v9.0.2                                             #
+#                                           26/09/2026 - v9.0.3                                             #
 #############################################################################################################
 
 
@@ -8083,6 +8083,7 @@ Generate_WebUI_Settings() {
 	settingsfile="${skynetloc}/webui/settings.js"
 	settingstmp="${settingsfile}.tmp.$$"
 	settingspreparestatus="0"
+	settingsscripthash="$(SHA256_Hash "$0")" || settingspreparestatus="1"
 	customlistjs="$(settings_template="$customlisturl" awk 'BEGIN {
 		value = ENVIRON["settings_template"]
 		for (i = 1; i <= length(value); i++) {
@@ -8104,6 +8105,8 @@ Generate_WebUI_Settings() {
 	rm -f "$settingsiotraw"
 	if [ "$settingspreparestatus" = "0" ] && printf 'var SkynetSettings = {"autoupdate":"%s","banmalwareupdate":"%s","banmalwarelastupdated":"%s","blacklist1count":"%s","blacklist2count":"%s","countrylist":"%s","customlisturl":"%s","excludelists":"%s","filtertraffic":"%s","unbanprivateip":"%s","banaiprotect":"%s","securemode":"%s","loginvalid":"%s","logfirewall":"%s","logsize":"%s","extendedstats":"%s","lookupcountry":"%s","cdnwhitelist":"%s","iotblocked":"%s","iotlogging":"%s","iotports":"%s","iotproto":"%s","iotentries":"%s","iotcount":"%s"};\n' "$autoupdate" "$banmalwareupdate" "$banmalwarelastupdated" "$blacklist1count" "$blacklist2count" "$countrylist" "$customlistjs" "$excludelistsjs" "$filtertraffic" "$unbanprivateip" "$banaiprotect" "$securemode" "$loginvalid" "$logfirewall" "$logsize" "$extendedstats" "$lookupcountry" "$cdnwhitelist" "$iotblocked" "$iotlogging" "$iotports" "$iotproto" "$iotentries" "$iotcount" > "$settingstmp" \
 		&& printf 'SkynetSettings.logmode = "%s";\n' "$logmode" >> "$settingstmp" \
+		&& printf 'SkynetSettings.version = "%s";\n' "$(Filter_Version < "$0")" >> "$settingstmp" \
+		&& printf 'SkynetSettings.scriptsha256 = "%s";\n' "$settingsscripthash" >> "$settingstmp" \
 		&& printf 'SkynetSettings.banmalwarehour = "%s";\nSkynetSettings.webuirestart = true;\n' "${banmalwarehour:-auto}" >> "$settingstmp" \
 		&& printf 'SkynetSettings.syslogmode = "%s";\n' "$syslogmode" >> "$settingstmp" \
 		&& printf "SkynetSettings.syslogloc = '%s';\nSkynetSettings.syslog1loc = '%s';\n" \
@@ -8404,7 +8407,7 @@ Uninstall_WebUI_Page() {
 }
 
 Download_File() {
-	# Download beside the destination and replace only a complete file. The MD5
+	# Download beside the destination and replace only a complete file. The SHA-256
 	# comparison avoids unnecessary flash/USB writes when content is unchanged.
 	# "stage" retains the validated temporary file for a coordinated update.
 	downloadfile="$1"
@@ -8423,8 +8426,14 @@ Download_File() {
 		return 1
 	fi
 
-	downloadremotemd5="$(md5sum "$downloadtmp" | awk '{print $1}')"
-	downloadlocalmd5="$(md5sum "$downloaddest" 2>/dev/null | awk '{print $1}')"
+	downloadlocalsha256=""
+	if ! downloadremotesha256="$(SHA256_Hash "$downloadtmp")" \
+		|| { { [ -e "$downloaddest" ] || [ -L "$downloaddest" ]; } \
+			&& ! downloadlocalsha256="$(SHA256_Hash "$downloaddest")"; }; then
+		rm -f "$downloadtmp"
+		Log error "Failed To Hash $downloadname - Existing File Retained"
+		return 1
+	fi
 	if [ "$downloadname" = "firewall.sh" ]; then
 		if ! chmod 755 "$downloadtmp" || ! sh -n "$downloadtmp"; then
 			rm -f "$downloadtmp"
@@ -8439,7 +8448,7 @@ Download_File() {
 		Log error "Invalid Update File Detected ($downloadname)"
 		return 1
 	fi
-	if [ "$downloadremotemd5" != "$downloadlocalmd5" ] || [ "$downloadforce" = "-f" ]; then
+	if [ "$downloadremotesha256" != "$downloadlocalsha256" ] || [ "$downloadforce" = "-f" ]; then
 		downloadchanged="1"
 	fi
 
@@ -8456,7 +8465,7 @@ Download_File() {
 		fi
 	else
 		rm -f "$downloadtmp"
-		echo "[i] No change to $downloadname (MD5 matched)"
+		echo "[i] No change to $downloadname (SHA-256 matched)"
 	fi
 }
 
@@ -9206,6 +9215,8 @@ COMMIT;" >/dev/null || return 1
 )
 
 History_Parse_Batch() {
+	# History is best-effort: skip malformed/incomplete packet records without
+	# blocking valid records or retrying the same rejected batch indefinitely.
 	# RFC3164 omits its year and zone. Infer the most recent calendar year using
 	# the router's trusted local date. Retain epochs; display formatting is separate.
 	# Civil-date arithmetic avoids non-POSIX awk mktime() and per-record date forks.
@@ -9235,22 +9246,31 @@ History_Parse_Batch() {
 			split("Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec",months," ")
 			split("31 28 31 30 31 30 31 31 30 31 30 31",mdays," ")
 			for(i=1;i<=12;i++) month[months[i]]=i
-			protocol["ICMP"]=1; protocol["IGMP"]=2; protocol["TCP"]=6; protocol["UDP"]=17; protocol["GRE"]=47; protocol["ESP"]=50; protocol["AH"]=51
+			protocol["ICMP"]=1; protocol["IGMP"]=2; protocol["TCP"]=6; protocol["UDP"]=17; protocol["GRE"]=47; protocol["ESP"]=50; protocol["AH"]=51; protocol["UDPLITE"]=136
 			split("FIN SYN RST PSH ACK URG ECE CWR",flagname," ")
 			for(i=1;i<=8;i++) flagvalue[flagname[i]]=2^(i-1)
 		}
 		/kernel: (\[[^]]*\] )?\[BLOCKED - (INBOUND|OUTBOUND|INVALID|IOT|FIREWALL)\]/ {
 			kind=index($0,"[BLOCKED - INBOUND]") ? 1 : index($0,"[BLOCKED - OUTBOUND]") ? 2 : index($0,"[BLOCKED - INVALID]") ? 3 : index($0,"[BLOCKED - IOT]") ? 4 : index($0,"[BLOCKED - FIREWALL]") ? 5 : 0
 			m=month[$1]; d=$2; split($3,clock,":")
-			if(!kind || !m || d !~ /^[0-9]+$/ || d<1 || d>mdays[m]+(m==2 && leap(year)) || $3 !~ /^[0-9][0-9]:[0-9][0-9]:[0-9][0-9]$/ || clock[1]>23 || clock[2]>59 || clock[3]>59) { invalid=1; next }
+			if(!kind || !m || d !~ /^[0-9]+$/ || d<1 || d>mdays[m]+(m==2) || $3 !~ /^[0-9][0-9]:[0-9][0-9]:[0-9][0-9]$/ || clock[1]>23 || clock[2]>59 || clock[3]>59) next
 			daykey=m SUBSEP d
-			if(!(daykey in midnight)) { midnight[daykey]=epoch(year,m,d,0,0,0); if(midnight[daykey]>now+zone+86400) midnight[daykey]=epoch(year-1,m,d,0,0,0) }
+			if(!(daykey in midnight)) {
+				recordyear=year
+				while(m==2 && d==29 && !leap(recordyear)) recordyear--
+				midnight[daykey]=epoch(recordyear,m,d,0,0,0)
+				if(midnight[daykey]>now+zone+86400) {
+					recordyear--
+					while(m==2 && d==29 && !leap(recordyear)) recordyear--
+					midnight[daykey]=epoch(recordyear,m,d,0,0,0)
+				}
+			}
 			ts=midnight[daykey]+clock[1]*3600+clock[2]*60+clock[3]
 			src=address(field("SRC"),1); dst=address(field("DST"),2); p=field("PROTO")
 			proto=p in protocol ? protocol[p] : number(p,255)
 			input=field("IN"); output=field("OUT"); mac=field("MAC"); len=number(field("LEN"),65535)
-			if(src<0 || dst<0 || proto=="NULL" || len=="NULL" || input ~ /[^A-Za-z0-9_.:@-]/ || output ~ /[^A-Za-z0-9_.:@-]/ || mac ~ /[^0-9a-fA-F:]/) { invalid=1; next }
-			gsub(":","",mac); if(length(mac)%2) { invalid=1; next }
+			if(src<0 || dst<0 || proto=="NULL" || len=="NULL" || input ~ /[^A-Za-z0-9_.:@-]/ || output ~ /[^A-Za-z0-9_.:@-]/ || mac ~ /[^0-9a-fA-F:]/) next
+			gsub(":","",mac); if(length(mac)%2) next
 			flags=0; flagstart=index($0," RES=")
 			if(proto==6 && flagstart) {
 				flagtext=substr($0,flagstart+1); flagstop=index(flagtext," URGP=")
@@ -9259,11 +9279,10 @@ History_Parse_Batch() {
 				for(i=1;i<=flagcount;i++) if(flagparts[i] in flagvalue) flags+=flagvalue[flagparts[i]]
 			}
 			# ICMP errors may quote a transport header; its ports and flags are not outer-packet fields.
-			sport=(proto==6 || proto==17) ? number(field("SPT"),65535) : "NULL"
-			dport=(proto==6 || proto==17) ? number(field("DPT"),65535) : "NULL"
+			sport=(proto==6 || proto==17 || proto==136) ? number(field("SPT"),65535) : "NULL"
+			dport=(proto==6 || proto==17 || proto==136) ? number(field("DPT"),65535) : "NULL"
 			printf "%.0f\t%d\t%.0f\t%.0f\t%d\t%s\t%s\t%d\t%s\t%s\t%s\t%d\t%s\t%s\n",ts,kind,src,dst,proto,sport,dport,len,input,output,mac,flags,number(field("TYPE"),255),number(field("CODE"),255)
 		}
-		END { if(invalid) { print "Invalid Firewall History Record - Batch Retained" > "/dev/stderr"; exit 1 } }
 	' "$1" > "$2"
 }
 
@@ -9306,13 +9325,18 @@ History_Import_File() {
 	while [ "$historyposition" -lt "$historyfilesize" ]; do
 		historyremaining="$((historyfilesize-historyposition))"
 		[ "$historyremaining" -le 524288 ] || historyremaining="524288"
-		# BusyBox head/tail byte ranges preserve a partial final record until the
-		# next collection, rather than committing a checkpoint through half a line.
+		# Preserve an unfinished live syslog record for the next collection. The
+		# retired legacy log has no writer, so its last record is complete at EOF.
 		tail -c "+$((historyposition+1))" /proc/self/fd/6 | head -c "$historyremaining" > "$historychunk"
-		if [ "$(tail -c 1 "$historychunk" | wc -l)" != "1" ]; then
-			if ! sed '$d' "$historychunk" > "$historyparsed" || ! mv -f "$historyparsed" "$historychunk"; then historyimportstatus="1"; break; fi
-		fi
 		historybytes="$(wc -c < "$historychunk")"
+		if [ "$(tail -c 1 "$historychunk" | wc -l)" != "1" ]; then
+			if [ "${3:-}" = "legacy" ] && [ "$historybytes" -eq "$((historyfilesize-historyposition))" ]; then
+				printf '\n' >> "$historychunk" || { historyimportstatus="1"; break; }
+			else
+				if ! sed '$d' "$historychunk" > "$historyparsed" || ! mv -f "$historyparsed" "$historychunk"; then historyimportstatus="1"; break; fi
+				historybytes="$(wc -c < "$historychunk")"
+			fi
+		fi
 		[ "$historybytes" -gt 0 ] || break
 		History_Parse_Batch "$historychunk" "$historyparsed" || { historyimportstatus="1"; break; }
 		historynext="$((historyposition+historybytes))"
@@ -9493,10 +9517,10 @@ History_Collect() {
 	historyzone="$(printf '%s\n' "$historyzone" | awk '{ sign=substr($0,1,1)=="-" ? -1 : 1; print sign*(substr($0,2,2)*3600+substr($0,4,2)*60) }')"
 	if ! History_Ready; then
 		[ ! -L "$skynetlog" ] || return 1
-		History_Import_File "$skynetlog" || { Log error "Failed To Migrate Firewall History - Original Log Retained"; return 1; }
+		History_Import_File "$skynetlog" "" legacy || { Log error "Failed To Migrate Firewall History - Original Log Retained"; return 1; }
 		# Activation and source ownership are one transaction. The pending marker
 		# permits safe retirement after interruption, but cannot select another file.
-		[ ! -s "$skynetlog" ] || [ "$(tail -c 1 "$skynetlog" | wc -l)" = "1" ] || return 1
+		[ ! -s "$skynetlog" ] || [ "$historyposition" = "$historyfilesize" ] || return 1
 		historyactivation="INSERT OR REPLACE INTO meta VALUES('active','1');"
 		if [ -s "$skynetlog" ]; then
 			historyactivation="$historyactivation INSERT OR REPLACE INTO meta VALUES('legacy_pending','$historyidentity'); INSERT OR REPLACE INTO meta VALUES('legacy_time_inferred','1');"
@@ -9508,7 +9532,7 @@ History_Collect() {
 	if [ -n "$historypending" ]; then
 		case "$skynetlog" in "${skynetloc}/skynet.log") ;; *) return 1 ;; esac
 		if [ -e "$skynetlog" ] || [ -L "$skynetlog" ]; then
-			if [ ! -f "$skynetlog" ] || [ -L "$skynetlog" ] || ! History_Import_File "$skynetlog" "$historypending" \
+			if [ ! -f "$skynetlog" ] || [ -L "$skynetlog" ] || ! History_Import_File "$skynetlog" "$historypending" legacy \
 				|| [ "$historyposition" != "$historyfilesize" ] || [ "$(History_Read 'PRAGMA quick_check;')" != "ok" ]; then
 				Log error "Unable To Retire Migrated Firewall Log - Original File Retained"
 				return 1
@@ -12439,16 +12463,16 @@ Dispatch_Maintenance() {
 
 Ensure_Startup_Stats() {
 	# Existing charts survive reloads. A failed first publication can be retried
-	# independently of the already restored policy and per-boot integrations.
+	# independently; optional history/statistics must not fail firewall startup.
 	[ -f "${skynetloc}/webui/stats.js" ] && return 0
 	Time_Is_Ready || return 0
 	Is_Enabled "$displaywebui" && Is_Enabled "$logmode" || return 0
-	Wait_For_Lock start || return 1
+	Wait_For_Lock start || return 0
 	[ -f "${skynetloc}/webui/stats.js" ] && return 0
 	# Fresh installs and v8 upgrades need their history initialized/imported before
 	# the first chart build. Generate_Stats deliberately only reads ready history.
-	History_Ready || Archive_Block_Logs || return 1
-	Generate_Stats
+	History_Ready || Archive_Block_Logs || return 0
+	Generate_Stats || true
 }
 
 Ensure_Startup_Runtime() {
@@ -12601,7 +12625,7 @@ Dispatch_Start() {
 	fi
 	Wait_For_Lock "$@" || return 1
 	Activate_Time_Dependent_State || { Log error -s "Failed To Activate Time-Dependent Rules"; echo; return 1; }
-	Purge_Logs "all" || return 1
+	Purge_Logs "all" || true
 	Ensure_Startup_Stats || return 1
 	Generate_WebUI_Settings || { Log error -s "Failed To Generate WebUI Settings"; echo; return 1; }
 	Queue_Action success system restore startup lifecycle "Skynet" "Protection and time-dependent services active" \
@@ -12616,7 +12640,7 @@ Dispatch_Start() {
 
 Dispatch_Restart() {
 	Check_Lock "$@" || return 1
-	if Time_Is_Ready; then Purge_Logs || return 1; fi
+	if Time_Is_Ready; then Purge_Logs || true; fi
 	echo "[i] Restarting Firewall Service"
 	Release_Lock
 	restartfirewall="1"
@@ -12744,27 +12768,29 @@ Dispatch_Update() {
 	fi
 	updatetmp="$downloadtmp"
 	remotever="$(Filter_Version < "$updatetmp")"
-	localmd5="$(md5sum "$updatescripttarget" | awk '{print $1}')"
-	remotemd5="$(md5sum "$updatetmp" | awk '{print $1}')"
+	# Both hashes were computed from the actual files by Download_File. No saved
+	# checksum format or version bump is required to detect an older/hotfix build.
+	localsha256="$downloadlocalsha256"
+	remotesha256="$downloadremotesha256"
 	if [ -z "$remotever" ]; then
 		rm -f "$updatetmp"
 		Log error "Invalid Update File Detected"
 		echo
 		exit 1
 	fi
-	if [ "$localmd5" = "$remotemd5" ] && [ "$2" != "-f" ]; then
+	if [ "$localsha256" = "$remotesha256" ] && [ "$2" != "-f" ]; then
 		rm -f "$updatetmp"
-		Log info "Skynet Up To Date - $(Filter_Version < "$0") (${localmd5})"
+		Log info "Skynet Up To Date - $(Filter_Version < "$0") (${localsha256})"
 		nolog="2"
-	elif [ "$localmd5" != "$remotemd5" ] && [ "$2" = "check" ]; then
+	elif [ "$localsha256" != "$remotesha256" ] && [ "$2" = "check" ]; then
 		rm -f "$updatetmp"
-		Log info "Skynet Update Detected - $remotever (${remotemd5})"
+		Log info "Skynet Update Detected - $remotever (${remotesha256})"
 		nolog="2"
 	elif [ "$2" = "-f" ]; then
 		echo "[i] Forcing Update"
 	fi
-	if [ "$localmd5" != "$remotemd5" ] || [ "$2" = "-f" ] && [ "$nolog" != "2" ]; then
-		Log info "New Version Detected - Updating To $remotever (${remotemd5})"
+	if [ "$localsha256" != "$remotesha256" ] || [ "$2" = "-f" ] && [ "$nolog" != "2" ]; then
+		Log info "New Version Detected - Updating To $remotever (${remotesha256})"
 		mkdir -p "${skynetloc}/webui" || { rm -f "$updatetmp"; Log error "Failed To Prepare WebUI Directory"; echo; exit 1; }
 		if ! Download_File "webui/skynet.asp" "${skynetloc}/webui/skynet.asp" "$2" stage; then
 			rm -f "$updatetmp"
@@ -13738,7 +13764,7 @@ Debug_Info() {
 	printf '╔═════════════════════ System ══════════════════════════════════════════════════════════════════════════════╗\n'
 	Print_Info_Row "Router Model"   "$(nvram get productid)"
 	Print_Info_Row "Skynet Version" "$(Filter_Version < "$0") ($(Filter_Date < "$0"))"
-	printf '║ └── %-16s │ %-82s ║\n' "Hash" "$(md5sum "$0" | awk "{print \$1}")"
+	printf '║ └── %-16s │ %-82s ║\n' "SHA-256" "$(SHA256_Hash "$0")"
 	Print_Info_Row "FW Version"     "$(uname -o) v$(nvram get buildno)_$(nvram get extendno) (Kernel $(uname -r)) ($(uname -v | awk "{printf \"%s %s %s\n\", \$5,\$6,\$9}"))"
 	Print_Info_Row "iptables"       "$(iptables --version)"
 	Print_Info_Row "ipset"          "$(ipset -v 2>/dev/null | head -n1)"
@@ -13768,8 +13794,6 @@ Debug_Info() {
 	Print_Info_Row "RAM Available/Total" "(${memavailable}M / ${totalmem}M)"
 	printf '╚══════════════════════╧════════════════════════════════════════════════════════════════════════════════════╝\n\n\n'
 	printf '╔═════════════════════ Lifecycle ═══════════════════════════════════════════════════════════════════════════╗\n'
-	if Time_Is_Ready; then debugtimestatus="Ready"; else debugtimestatus="Pending"; fi
-	Print_Info_Row "Router Time" "$debugtimestatus"
 	if ! Is_Enabled "$logmode"; then
 		debugloggingstatus="Disabled"
 	elif iptables-save 2>/dev/null | grep -qF '[BLOCKED -'; then
@@ -13787,10 +13811,10 @@ Debug_Info() {
 	if [ "$debugnextexpiry" -gt "0" ] 2>/dev/null; then debugnextexpirydisplay="$(Format_Threat_Feed_Time "$debugnextexpiry")"
 	else debugnextexpirydisplay="None"; fi
 	Print_Info_Row "Next Expiry" "$debugnextexpirydisplay"
-	if Validate_Rule_Registry "$skynetrules"; then debugregistrystatus="R2 valid"
+	if Validate_Rule_Registry "$skynetrules"; then debugregistrystatus="Valid"
 	else debugregistrystatus="Invalid"; fi
 	V8_Upgrade_Pending && debugregistrystatus="$debugregistrystatus; v8 upgrade pending"
-	Print_Info_Row "Rule Registry" "$debugregistrystatus"
+	Print_Info_Row "Rule Definitions" "$debugregistrystatus"
 	debugmaintenancestatus="Not run since startup"
 	if IFS="$(printf '\t')" read -r debugmaintenanceversion debugmaintenanceepoch debugmaintenanceresult debugmaintenancedetail 2>/dev/null < "$MAINTENANCE_STATUS" \
 		&& [ "$debugmaintenanceversion" = "M1" ]; then
@@ -16006,7 +16030,7 @@ Load_Menu() {
 	printf '╔═════════════════════ System ══════════════════════════════════════════════════════════════════════════════╗\n'
 	Print_Info_Row "Router Model"   "$(nvram get productid)"
 	Print_Info_Row "Skynet Version" "$(Filter_Version < "$0") ($(Filter_Date < "$0"))"
-	printf '║ └── %-16s │ %-82s ║\n' "Hash" "$(md5sum "$0" | awk "{print \$1}")"
+	printf '║ └── %-16s │ %-82s ║\n' "SHA-256" "$(SHA256_Hash "$0")"
 	Print_Info_Row "Install Dir"    "${skynetloc}"
 	Print_Info_Row "FW Version"     "$(uname -o) v$(nvram get buildno)_$(nvram get extendno) (Kernel $(uname -r)) ($(uname -v | awk "{printf \"%s %s %s\n\", \$5,\$6,\$9}"))"
 	Print_Info_Row "iptables"       "$(iptables --version)"

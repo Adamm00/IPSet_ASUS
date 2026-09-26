@@ -439,6 +439,46 @@
             display: none;
         }
 
+        .skynet-build {
+            display:flex;
+            flex-direction:column;
+            gap:4px;
+            min-width:0;
+        }
+
+        .skynet-build-heading {
+            display:flex;
+            align-items:baseline;
+            gap:10px;
+        }
+
+        #FormTitle .skynet-version {
+            background:transparent;
+            color:var(--skynet-text);
+            font-size:13px;
+            font-weight:600;
+            line-height:18px;
+        }
+
+        #FormTitle .skynet-build-algorithm {
+            background:transparent;
+            color:var(--skynet-muted-2);
+            font-size:10px;
+            letter-spacing:0.3px;
+        }
+
+        #FormTitle .skynet-build-hash {
+            display:block;
+            color:var(--skynet-muted-2);
+            font-family:monospace;
+            font-size:10px;
+            letter-spacing:0;
+            line-height:16px;
+            overflow-wrap:anywhere;
+            word-break:break-all;
+            user-select:all;
+        }
+
 
         .skynet-update-bar {
             display:grid;
@@ -7709,6 +7749,12 @@
             this.populateBackup();
             this.updateBlockHistoryControls();
             const settings = window.SkynetSettings || {};
+            const version = this.getElement("skynetVersion");
+            if (version) {
+                version.textContent = String(settings.version || "Unavailable").trim();
+            }
+            const scriptHash = this.getElement("skynetScriptHash");
+            if (scriptHash) scriptHash.textContent = settings.scriptsha256 || "Unavailable";
             this.updateLoggingState();
             const apply = this.getElement(this.selectors.settingsButton);
             const malware = this.getElement(this.selectors.malwareButton);
@@ -9360,6 +9406,21 @@
                                                             </tr>
                                                             <tr class="skynet-settings-group" data-settings-section="protection">
                                                                 <th colspan="2">Protection</th>
+                                                            </tr>
+                                                            <tr>
+                                                                <th>
+                                                                    <span class="skynet-setting-name">Installed Build</span>
+                                                                    <span class="skynet-setting-help">Version and script hash identify the exact release or hotfix installed.</span>
+                                                                </th>
+                                                                <td>
+                                                                    <div class="skynet-build">
+                                                                        <div class="skynet-build-heading">
+                                                                            <span class="skynet-version" id="skynetVersion">Loading...</span>
+                                                                            <span class="skynet-build-algorithm">SHA-256</span>
+                                                                        </div>
+                                                                        <code class="skynet-build-hash" id="skynetScriptHash">Loading...</code>
+                                                                    </div>
+                                                                </td>
                                                             </tr>
                                                             <tr>
                                                                 <th>
