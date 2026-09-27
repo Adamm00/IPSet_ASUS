@@ -9348,27 +9348,16 @@ History_Import_File() {
 		if [ "$(head -c "$historychecksize" /proc/self/fd/6 | md5sum | cut -d ' ' -f1)" != "$historycheckanchor" ]; then historyimportstatus="1"; break; fi
 		historyanchorsize="$historynext"; [ "$historyanchorsize" -le 256 ] || historyanchorsize="256"
 		historyanchor="$(tail -c "+$((historynext-historyanchorsize+1))" /proc/self/fd/6 | head -c "$historyanchorsize" | md5sum | cut -d ' ' -f1)"
-		(
+		{
 			printf '.bail on\n.timeout 5000\nPRAGMA trusted_schema=OFF;\nPRAGMA cache_size=-2048;\nPRAGMA synchronous=FULL;\nBEGIN IMMEDIATE;\n'
 			printf 'CREATE TEMP TABLE incoming AS SELECT ts,kind,src,dst,proto,sport,dport,len,inif,outif,mac,flags,icmp_type,icmp_code FROM events WHERE 0;\n'
-			# Older Merlin SQLite has no unhex(). Emit validated parser fields as
-			# SQL literals so MACs retain the same BLOB format on every firmware.
-			awk -F '\t' -v quote="'" '
-				{
-					if (NR % 100 == 1) printf "INSERT INTO incoming VALUES"
-					else printf ","
-					printf "(%s,%s,%s,%s,%s,%s,%s,%s,%s%s%s,%s%s%s,X%s%s%s,%s,%s,%s)",
-						$1,$2,$3,$4,$5,$6,$7,$8,quote,$9,quote,quote,$10,quote,quote,$11,quote,$12,$13,$14
-					if (NR % 100 == 0) print ";"
-				}
-				END { if (NR % 100) print ";" }
-			' "$historyparsed" || exit 1
+			printf '.mode tabs\n.import "%s" incoming\n' "$historyparsed"
 			printf '%s\n' "UPDATE incoming SET ts=CAST(strftime('%s',ts,'unixepoch','utc') AS INTEGER);"
 			printf '%s\n' 'INSERT OR REPLACE INTO hours SELECT CAST(ts/3600 AS INTEGER)*3600,kind,COUNT(*)+COALESCE((SELECT hits FROM hours h WHERE h.hour=CAST(i.ts/3600 AS INTEGER)*3600 AND h.kind=i.kind),0),SUM(len)+COALESCE((SELECT bytes FROM hours h WHERE h.hour=CAST(i.ts/3600 AS INTEGER)*3600 AND h.kind=i.kind),0) FROM incoming i GROUP BY CAST(ts/3600 AS INTEGER),kind;'
-			printf '%s\n' 'INSERT INTO events(ts,kind,src,dst,proto,sport,dport,len,inif,outif,mac,flags,icmp_type,icmp_code) SELECT ts,kind,src,dst,proto,sport,dport,len,inif,outif,mac,flags,icmp_type,icmp_code FROM incoming;'
+			printf '%s\n' "INSERT INTO events(ts,kind,src,dst,proto,sport,dport,len,inif,outif,mac,flags,icmp_type,icmp_code) SELECT ts,kind,src,dst,proto,NULLIF(sport,'NULL'),NULLIF(dport,'NULL'),len,inif,outif,unhex(mac),flags,NULLIF(icmp_type,'NULL'),NULLIF(icmp_code,'NULL') FROM incoming;"
 			printf "INSERT OR REPLACE INTO cursors VALUES('%s',%s,%s,'%s',%s);\n" "$historyidentity" "$historynext" "$historyanchorsize" "$historyanchor" "$historynow"
 			printf "INSERT OR REPLACE INTO meta VALUES('collected','%s');\nCOMMIT;\n" "$historynow"
-		) > "$historysql" || { historyimportstatus="1"; break; }
+		} > "$historysql" || { historyimportstatus="1"; break; }
 		# Finish policy work before committing the cursor. Otherwise a failed
 		# private-address update is skipped forever on the next collection. The
 		# update is idempotent if SQLite fails and this batch must be retried.
