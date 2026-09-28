@@ -312,17 +312,19 @@
         }
         .skynet-meta {
             display:flex;
-            flex:0 0 auto;
+            flex:1 1 auto;
             flex-wrap:nowrap;
-            align-items:baseline;
-            gap:12px;
+            align-items:center;
+            gap:18px;
+            min-width:0;
             margin:0;
             color:var(--skynet-muted-2) !important;
         }
         .skynet-meta-item {
             display:flex;
-            align-items:baseline;
-            gap:5px;
+            flex-direction:column;
+            align-items:flex-start;
+            gap:3px;
             min-width:0;
             padding:0;
         }
@@ -345,8 +347,7 @@
             white-space:nowrap;
         }
         .skynet-meta-period {
-            padding-left:7px;
-            border-left:2px solid #5799b4;
+            flex:1 1 auto;
         }
         .skynet-meta-period .skynet-meta-value {
             color:#e1edf1 !important;
@@ -355,7 +356,8 @@
             letter-spacing:0.1px;
         }
         .skynet-meta-log {
-            padding-left:11px;
+            flex:0 0 auto;
+            padding-left:18px;
             border-left:1px solid rgba(126,153,163,0.28);
         }
         .skynet-meta-log .skynet-meta-value {
@@ -365,18 +367,18 @@
             letter-spacing:0.1px;
         }
         .skynet-update-result {
-            flex:1 1 auto;
+            grid-column:1 / -1;
             min-width:0;
             overflow:hidden;
             min-height:0;
             margin:0;
-            padding-left:10px;
-            border-left:1px solid rgba(126,153,163,0.28);
+            padding-top:8px;
+            border-top:1px solid rgba(126,153,163,0.22);
             color:#b8c4c8;
             font-size:var(--skynet-font-body);
-            line-height:15px;
-            text-overflow:ellipsis;
-            white-space:nowrap;
+            line-height:16px;
+            overflow-wrap:anywhere;
+            white-space:normal;
         }
         .skynet-update-result:empty { display:none; }
         .skynet-update-result.error { color:var(--skynet-error); }
@@ -484,10 +486,10 @@
             display:grid;
             grid-template-columns:minmax(0,1fr) auto;
             align-items: center;
-            gap:10px;
-            min-height:44px;
-            margin: 8px 0 10px 0;
-            padding:7px 9px;
+            gap:8px 20px;
+            min-height:58px;
+            margin:8px 0 10px;
+            padding:11px 14px;
             background:#34464c;
             border:1px solid #566d76;
             border-radius:5px;
@@ -509,22 +511,24 @@
 
         .skynet-update-control {
             position:relative;
-            width:116px;
+            display:flex;
+            align-items:center;
+            gap:8px;
             flex:none;
         }
 
         .skynet-update-control .skynet-update-button {
-            width:100%;
+            width:auto;
             min-width:0;
-            height:28px;
-            padding:0 10px !important;
+            height:30px;
+            padding:0 12px !important;
             border-color:#667f89 !important;
             border-radius:4px !important;
             background:linear-gradient(180deg,#4a626b 0%,#40565e 100%) !important;
             color:#e4edf0 !important;
             font-family:Arial,sans-serif !important;
             font-size:var(--skynet-font-body) !important;
-            line-height:26px !important;
+            line-height:28px !important;
             text-shadow:none;
             box-shadow:inset 0 1px 0 rgba(255,255,255,0.055);
             white-space:nowrap;
@@ -533,6 +537,20 @@
         .skynet-update-control .skynet-update-button:not(:disabled):hover {
             border-color:#7d9aa6 !important;
             background:linear-gradient(180deg,#526d77 0%,#465e67 100%) !important;
+        }
+
+        .skynet-update-control .skynet-reset-button {
+            background:transparent !important;
+            border-color:transparent !important;
+            color:var(--skynet-muted-2) !important;
+            font-weight:normal !important;
+            box-shadow:none;
+        }
+
+        .skynet-update-control .skynet-reset-button:not(:disabled):hover {
+            background:rgba(255,255,255,0.04) !important;
+            border-color:var(--skynet-border-soft) !important;
+            color:var(--skynet-text) !important;
         }
 
         .skynet-update-button {
@@ -2746,7 +2764,7 @@
             }
 
             .skynet-update-control {
-                width:100%;
+                justify-content:flex-end;
             }
 
             .skynet-meta-item {
@@ -3103,7 +3121,6 @@
 
     </style>
     <script src="/js/chart.min.js"></script>
-    <script src="/ext/skynet/stats.js"></script>
     <script src="/js/jquery.js"></script>
     <script src="/js/httpApi.js"></script>
     <script src="/state.js"></script>
@@ -3229,6 +3246,7 @@
             selectors: {
                 statsContent: "skynetDynamicContent",
                 updateButton: "skynetUpdateStats",
+                resetStatsButton: "skynetResetStats",
                 updateResult: "skynetUpdateResult",
                 settingsButton: "skynetApplySettings",
                 settingsReloadButton: "skynetReloadSettings",
@@ -3340,6 +3358,17 @@
                     failure: "Unable to complete the restore. Check the router log before trying again.",
                     timeout: "Restore has not been confirmed. Reload data and check the router log before retrying.",
                     loadError: "Unable to confirm the restore. Check your WebUI session and reload data.",
+                    source: "settings",
+                    requireSuccess: true
+                },
+                statsReset: {
+                    button: "resetStatsButton",
+                    result: "updateResult",
+                    label: "Reset Stats",
+                    success: "Statistics reset. New activity will appear as it is collected.",
+                    failure: "Unable to complete the reset. Reload data and check System Log before retrying.",
+                    timeout: "Reset has not been confirmed. Reload data before retrying.",
+                    loadError: "Unable to load the reset result. Reload data before retrying.",
                     source: "settings",
                     requireSuccess: true
                 },
@@ -7853,6 +7882,7 @@
              */
             [
                 this.selectors.updateButton,
+                this.selectors.resetStatsButton,
                 this.selectors.backupButton,
                 this.selectors.restartButton,
                 this.selectors.backupDownload,
@@ -7880,6 +7910,8 @@
 
                 if (button) {
                     button.disabled = active ||
+                        (id === SkynetUI.selectors.resetStatsButton &&
+                            (!window.SkynetSettingsGenerated || !SkynetUI.isLoggingEnabled())) ||
                         (id === SkynetUI.selectors.restartButton && !(window.SkynetSettings || {}).webuirestart) ||
                         ((id === SkynetUI.selectors.backupDownload || id === SkynetUI.selectors.backupRestore || id === "skynetBackupSelect") && !SkynetUI.getSelectedBackup()) ||
                         (id === SkynetUI.selectors.backupButton && !window.SkynetSettingsGenerated) ||
@@ -8003,6 +8035,16 @@
                     if (!window.SkynetSettings || !window.SkynetSettingsGenerated) {
                         throw new Error("Settings are not ready yet.");
                     }
+                    if (!self.isLoggingEnabled()) return;
+                    return self.loadStatsScript().then(function() {
+                        if (!window.SkynetStatsComplete || !window.SkynetStatsGenerated) {
+                            throw new Error("Statistics are not ready yet.");
+                        }
+                        self.refreshRenderedStats();
+                    }).catch(function() {
+                        self.setUpdateResult("Unable to load statistics. Use Refresh Stats to retry.", true);
+                    });
+                }).then(function() {
                     self.refreshInProgress = false;
                     self.populateSettings();
                     self.setActionState(false);
@@ -8046,6 +8088,12 @@
 
         SkynetUI.getMalwareUpdateError = function() {
             const result = String(window.SkynetSettingsResult || "error");
+            if (result === "busy") {
+                return "Skynet is busy. Try again when the current task finishes.";
+            }
+            if (result === "template-download") {
+                return "Unable to download the source template. Check the template URL and the download error in System Log.";
+            }
             if (result === "validation") {
                 return "Invalid source selection. Check the feed URLs and names; at least one source must stay enabled.";
             }
@@ -8136,13 +8184,14 @@
             const result = requestType === "reload" && this.reloadResult
                 ? this.reloadResult
                 : this.selectors[action.result];
+            const statsRequest = requestType === "stats" || requestType === "statsReset";
             const loadSettings = action.source === "settings";
             const request = loadSettings
                 ? this.loadSettingsScript()
                 : this.loadStatsScript();
 
             request.then(function() {
-                if (requestType === "stats" &&
+                if (statsRequest &&
                     String(window.SkynetSettingsRequest || "") === self.activeRequest &&
                     window.SkynetSettingsResult === "success") {
                     return self.loadStatsScript();
@@ -8158,7 +8207,7 @@
                     const ruleRequestType = requestType === "rules" ||
                         requestType === "ruleRefresh";
                     if (!expectedRequest || currentRequest !== expectedRequest ||
-                        (requestType === "stats" && window.SkynetSettingsResult === "success" &&
+                        (statsRequest && window.SkynetSettingsResult === "success" &&
                             String(window.SkynetStatsRequest || "") !== expectedRequest)) {
                         if (attempts > 0) {
                             window.setTimeout(function() {
@@ -8184,8 +8233,22 @@
                         response.indexOf("warning:") === 0;
 
                     self.refreshInProgress = false;
-                    if (requestType === "stats") {
-                        if (!failed) self.refreshRenderedStats();
+                    if (statsRequest) {
+                        if (!failed) {
+                            self.refreshRenderedStats();
+                            if (requestType === "statsReset") {
+                                self.blockHistory = null;
+                                self.blockHistoryPending = null;
+                                self.blockHistoryCursor = null;
+                                self.blockHistoryCursors = [];
+                                self.getElement("skynetBlockRows").textContent = "";
+                                if (self.blockHistoryChart) {
+                                    self.blockHistoryChart.destroy();
+                                    self.blockHistoryChart = null;
+                                }
+                                self.closeDetails();
+                            }
+                        }
                     } else if (loadSettings) {
                         const preserveFailedInput = failed &&
                             (requestType === "countries" || requestType === "countryRefresh" ||
@@ -8302,6 +8365,18 @@
             document.form.amng_custom.value = JSON.stringify(custom_settings);
             this.submitBackgroundAction("start_SkynetStats");
             this.waitForUpdate(window.SkynetSettingsGenerated, 600, "stats");
+        };
+
+        SkynetUI.resetStats = function() {
+            if (this.refreshInProgress || !window.SkynetSettingsGenerated || !this.isLoggingEnabled()) return;
+            if (!window.confirm("Reset statistics? This permanently clears recorded block history and activity charts. Bans, settings, action history and firewall packet counters are kept.")) return;
+
+            this.refreshInProgress = true;
+            this.setUpdateResult("Resetting statistics...", false);
+            this.setActionState(true, this.selectors.resetStatsButton, "Resetting...");
+            document.form.amng_custom.value = JSON.stringify(custom_settings);
+            this.submitBackgroundAction("start_SkynetStatsReset");
+            this.waitForUpdate(window.SkynetSettingsGenerated, 600, "statsReset");
         };
 
         SkynetUI.updateMalware = function() {
@@ -8723,6 +8798,11 @@
 
         SkynetUI.bindControls = function() {
             this.bindChartControls();
+
+            const resetStats = this.getElement(this.selectors.resetStatsButton);
+            if (resetStats) {
+                resetStats.onclick = function() { SkynetUI.resetStats(); };
+            }
 
             const update = this.getElement(this.selectors.updateButton);
 
@@ -10053,11 +10133,10 @@
                                                                                 <span class="skynet-meta-value" id="statsdate">N/A</span>
                                                                             </span>
                                                                             <span class="skynet-meta-item skynet-meta-log">
-                                                                                <span class="skynet-meta-label">Log Size</span>
+                                                                                <span class="skynet-meta-label" title="Space used by retained history and database metadata, excluding empty space reserved for reuse. Updated with the charts.">Log Size</span>
                                                                                 <span class="skynet-meta-value" id="statssize">N/A</span>
                                                                             </span>
                                                                         </div>
-                                                                        <div class="skynet-update-result" id="skynetUpdateResult" aria-live="polite"></div>
                                                                     </div>
                                                                     <div class="skynet-update-control">
                                                                         <input type="button"
@@ -10065,7 +10144,13 @@
                                                                             value="Refresh Stats"
                                                                             class="button_gen skynet-update-button"
                                                                             aria-label="Update Skynet statistics" />
+                                                                        <input type="button"
+                                                                            id="skynetResetStats"
+                                                                            value="Reset Stats"
+                                                                            class="button_gen skynet-update-button skynet-reset-button"
+                                                                            aria-label="Reset Skynet statistics and recorded block history" />
                                                                     </div>
+                                                                    <div class="skynet-update-result" id="skynetUpdateResult" aria-live="polite"></div>
                                                                 </div>
                                                             </td>
                                                         </tr>

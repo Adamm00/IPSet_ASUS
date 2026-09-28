@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                           26/09/2026 - v9.0.3                                             #
+#                                           28/09/2026 - v9.0.4                                             #
 #############################################################################################################
 
 
@@ -689,7 +689,8 @@ Curl_Fetch() {
 	# Only the last retry error is useful; avoid repeating the whole retry log.
 	curlerror="${curlerror##*
 }"
-	Log error -s "Download Failed - ${curlerror:-Check Connection Or URL}"
+	for curlsource do :; done
+	Log error -s "Download Failed ($curlsource) - ${curlerror:-Check Connection Or URL}"
 	return 1
 }
 
@@ -7130,7 +7131,7 @@ Print_Stats_Logging_Header() {
 	Print_Info_Row "Syslog" "$syslogloc"
 	Print_Info_Row "Rotated Syslog" "$syslog1loc"
 	Print_Info_Row "Skynet Log"       "$statslogdisplay"
-	SZ="$(du -h "$statslogdisplay" | awk '{print $1}')"
+	SZ="$(History_Used_Size)" || SZ="Unavailable"
 	printf '║ └── %-16s │ %-82s ║\n' "Used/Total" "$SZ / ${logsize}MB"
 	if [ -s "$statslogsummary" ]; then
 		IFS='~' read -r statseventcount statsuniquecount monitorfirst monitorlast < "$statslogsummary"
@@ -8185,9 +8186,8 @@ Generate_Stats() {
 	Write_Stats_ToJS "$blacklist2count" "$statstmp" "SetBLCount2" "blcount2" || statsstatus="1"
 	Write_Stats_ToJS "$hits1" "$statstmp" "SetHits1" "hits1" || statsstatus="1"
 	Write_Stats_ToJS "$hits2" "$statstmp" "SetHits2" "hits2" || statsstatus="1"
-	statslogdisplay="${skynetloc}/history.db"
-	statslogsize="$(du -h "$statslogdisplay")" || statsstatus="1"
-	Write_Stats_ToJS "${statslogsize%%[[:space:]]*}B" "$statstmp" "SetStatsSize" "statssize" || statsstatus="1"
+	statslogsize="$(History_Used_Size)" || statsstatus="1"
+	Write_Stats_ToJS "$statslogsize" "$statstmp" "SetStatsSize" "statssize" || statsstatus="1"
 	printf 'var SkynetStatsGenerated = "%s.%s";\n' "$(date +%s)" "$$" >> "$statstmp" || statsstatus="1"
 	case "${SKYNET_WEBUI_REQUEST:-}" in *[!0-9]*) statsstatus="1" ;; esac
 	printf 'var SkynetStatsRequest = "%s";\n' "${SKYNET_WEBUI_REQUEST:-}" >> "$statstmp" || statsstatus="1"
@@ -9175,6 +9175,16 @@ History_Read() {
 		-separator "$(printf '\t')" "${skynetloc}/history.db" "$@"
 }
 
+History_Used_Size() {
+	historysizebytes="$(History_Read 'SELECT (page_count-freelist_count)*page_size FROM pragma_page_count,pragma_freelist_count,pragma_page_size;')" || return 1
+	case "$historysizebytes" in ""|*[!0-9]*) return 1 ;; esac
+	printf '%s\n' "$historysizebytes" | awk '{
+		if ($1 >= 1048576) printf "%.1fMB\n", $1/1048576
+		else if ($1 >= 1024) printf "%.1fKB\n", $1/1024
+		else printf "%dB\n", $1
+	}'
+}
+
 History_Write() {
 	# SQL is generated internally; callers must never interpolate user text here.
 	[ ! -L "${skynetloc}/history.db" ] || return 1
@@ -9743,6 +9753,7 @@ Command_Summary_Label() {
 WebUI_Summary_Label() {
 	case "$webuiaction" in
 		SkynetStats) printf 'debug genstats' ;;
+		SkynetStatsReset) printf 'stats reset' ;;
 		SkynetBackup) printf 'debug backup' ;;
 		SkynetRestore) printf 'debug restore' ;;
 		SkynetRestart) printf 'restart' ;;
@@ -10091,7 +10102,7 @@ Apply_WebUI_Stats() {
 	webuistatsoutput="$TMP_DIR/webui-stats-output.$$"
 	# A rejected worker never publishes stats.js. Publish its result separately
 	# so polling can finish without replacing the previous charts.
-	if Run_WebUI_Command debug genstats > "$webuistatsoutput" 2>&1; then
+	if Run_WebUI_Command debug genstats "$@" > "$webuistatsoutput" 2>&1; then
 		settingsresult="success"
 	elif grep -qE 'Lock File Detected|Lock file busy' "$webuistatsoutput"; then
 		settingsresult="busy"
@@ -10275,6 +10286,10 @@ Apply_WebUI_Threat_Feeds() {
 			elif [ "$webuifeedstatus" = "2" ]; then
 				if [ "$webuifeedaction" = "template" ]; then settingsresult="filter"
 				else settingsresult="validation"; fi
+			elif grep -qE 'Lock File Detected|Lock file busy' "$webuifeedoutput"; then
+				settingsresult="busy"
+			elif grep -qF 'Failed To Download Malware Source Template' "$webuifeedoutput"; then
+				settingsresult="template-download"
 			elif grep -q 'No Valid Cached Copy For Malware Source' "$webuifeedoutput" 2>/dev/null; then
 				webuifailedsource="$(sed -n 's~.*No Valid Cached Copy For Malware Source (\([^)]*\)).*~\1~p' "$webuifeedoutput" | tail -1)"
 				case "$webuifailedsource" in ""|*[!A-Za-z0-9._-]*) settingsresult="error" ;; *) settingsresult="failed:$webuifailedsource" ;; esac
@@ -12138,7 +12153,6 @@ Dispatch_BanMalware() {
 	Prepare_Malware_Update "$@"
 	malwarestatus="$?"
 	[ "$malwarestatus" = "0" ] || exit "$malwarestatus"
-	Require_Connection
 	Purge_Logs
 	Build_Malware_Update
 	malwarestatus="$?"
@@ -13641,7 +13655,7 @@ Dispatch_WebUI() {
 		return 0
 	fi
 	case "$webuiaction" in
-		SkynetStats|SkynetSettings|apply|SkynetBackup|SkynetRestart|SkynetRestore|SkynetBanMalware|banmalware|SkynetCountries|countries|SkynetRules|rules|SkynetIOT|iot)
+		SkynetStats|SkynetStatsReset|SkynetSettings|apply|SkynetBackup|SkynetRestart|SkynetRestore|SkynetBanMalware|banmalware|SkynetCountries|countries|SkynetRules|rules|SkynetIOT|iot)
 			webuisummary="1"
 			webuisummaryoldips="${blacklist1count:-0}"
 			webuisummaryoldranges="${blacklist2count:-0}"
@@ -13658,6 +13672,9 @@ Dispatch_WebUI() {
 	case "$webuiaction" in
 		SkynetStats)
 			Apply_WebUI_Stats
+		;;
+		SkynetStatsReset)
+			Apply_WebUI_Stats reset
 		;;
 		SkynetSettings|apply)
 			Apply_WebUI_Settings
@@ -13849,7 +13866,7 @@ Debug_Info() {
 	Print_Info_Row "Rotated Syslog" "$syslog1loc"
 	debuglogdisplay="${skynetloc}/history.db"
 	Print_Info_Row "Skynet Log"       "$debuglogdisplay"
-	SZ="$(du -h "$debuglogdisplay" 2>/dev/null | awk '{print $1}')"
+	SZ="$(History_Used_Size 2>/dev/null)" || SZ=""
 	printf '║ └── %-16s │ %-82s ║\n' "Used/Total" "${SZ:-Not initialized} / ${logsize}MB"
 	if [ -n "$countrylist" ]; then
 		countries="$countrylist"
@@ -14044,6 +14061,10 @@ Debug_Generate_Stats() {
 	Purge_Logs "all" || return 1
 	if Addon_API_Supported; then
 		if Is_Enabled "$displaywebui"; then
+			if [ "$3" = "reset" ]; then
+				History_Clear || return 1
+				echo "[i] Stat Data Reset"
+			fi
 			echo "[i] Generating Stats For WebUI"
 			Generate_Stats
 		else

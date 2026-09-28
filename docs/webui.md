@@ -21,12 +21,15 @@ The dashboard shows the latest generated ban totals, packet counters and a rolli
 
 Use **Refresh Stats** to collect pending events and regenerate the charts. Changing a setting does not necessarily rebuild chart statistics. If generation fails, the previous charts remain visible.
 
+Use **Reset Stats** to clear recorded block events and activity charts after confirmation. Bans, settings, action history and firewall packet counters are kept. New activity appears as it is collected.
+
 ### Understanding the numbers
 
 | Display | What it measures |
 | --- | --- |
 | IPs / ranges banned | The blacklist totals captured when statistics were generated. |
 | Inbound / outbound headline counters | Packets since their firewall rules were installed; rebuilding rules or rebooting resets them. |
+| Log Size | Used history database space, excluding empty pages reserved for reuse. Refreshed with the charts; a reset retains a small amount of database metadata. |
 | Activity charts and history | Retained logged events; these survive restarts while their history is retained. |
 
 Logging can be disabled or rate-limited, so logged-event totals may differ from packet counters. History gaps indicate no recorded bucket, not confirmed zero traffic. Rule matches in IP details describe the saved policy snapshot, not necessarily the policy when an older event occurred.
