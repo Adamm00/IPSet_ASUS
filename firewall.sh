@@ -4458,7 +4458,7 @@ Display_Result() {
 
 Command_Not_Recognized() {
 	Ylow "Command Not Recognized, Please Try Again"
-	Ylow "For Help:   https://github.com/Adamm00/IPSet_ASUS#help"
+	Ylow "For Help:   https://github.com/Adamm00/IPSet_ASUS#help-and-community"
 	Ylow "Common Issues: https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
 	echo
 	exit 2
