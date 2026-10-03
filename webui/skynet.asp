@@ -2296,9 +2296,32 @@
 
         .skynet-detail-actions {
             display: flex;
+            flex-wrap: wrap;
             justify-content: flex-end;
             gap: 6px;
             margin-top: 10px;
+        }
+        .skynet-detail-sources {
+            margin-top: 14px;
+            padding-top: 12px;
+            border-top: 1px solid var(--skynet-border-soft);
+        }
+        .skynet-detail-sources-head {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+        .skynet-detail-sources-title {
+            color: var(--skynet-heading);
+            font-weight: bold;
+        }
+        .skynet-detail-sources-help {
+            margin-top: 6px;
+            color: var(--skynet-muted);
+            font-size: var(--skynet-font-body);
+            line-height: var(--skynet-line-body);
         }
         .skynet-detail-lookup {
             min-width: 108px;
@@ -3320,7 +3343,7 @@
                 sources: {
                     button: "sourceSearchButton",
                     result: "sourceSearchResult",
-                    label: "Find matching feeds",
+                    label: "Check Sources",
                     success: "Local source caches checked.",
                     failure: "Unable to search source caches. Try again.",
                     timeout: "Source search did not complete. Try again.",
@@ -3337,7 +3360,8 @@
                     timeout: "History request did not complete. Try again.",
                     loadError: "Unable to load block history.",
                     source: "settings",
-                    requireSuccess: true
+                    requireSuccess: true,
+                    accepted: ["success", "warning:history"]
                 },
                 backup: {
                     button: "backupButton",
@@ -3381,7 +3405,8 @@
                     timeout: "Statistics refresh did not complete.",
                     loadError: "Unable to load refreshed data.",
                     source: "settings",
-                    requireSuccess: true
+                    requireSuccess: true,
+                    accepted: ["success", "warning:history"]
                 },
                 settings: {
                     button: "settingsButton",
@@ -4144,12 +4169,6 @@
                                     '">' + value + '</span>' +
                                 valueActions +
                             '</div>' +
-                            (canSearchFeeds && field.label === "Ban Matches"
-                                ? '<div class="skynet-detail-actions"><input type="button" class="button_gen" id="skynetSourceSearch" value="Find matching feeds" /> ' +
-                                    '<input type="button" class="button_gen" id="skynetSourceRules" value="Manage Rules" /></div>' +
-                                    '<div id="skynetSourceStatus" class="skynet-settings-result" role="status"></div>' +
-                                    '<div id="skynetSourceMatches" hidden></div>'
-                                : '') +
                         '</td>' +
                     '</tr>'
                 );
@@ -4187,10 +4206,29 @@
                     rows.join("") +
                 '</table>';
 
-            if (details.actions && details.actions.length) {
+            if (canSearchFeeds) {
+                html += '<div class="skynet-detail-sources">' +
+                    '<div class="skynet-detail-sources-head">' +
+                        '<span class="skynet-detail-sources-title">Threat Feed Sources</span>' +
+                        '<input type="button" class="button_gen" id="skynetSourceSearch" value="Check Sources"' +
+                            (this.refreshInProgress ? ' disabled' : '') + ' />' +
+                    '</div>' +
+                    '<div class="skynet-detail-sources-help">Identify the cached feeds behind this IP. Saved rule matches are shown above; excluded feeds do not enforce bans.</div>' +
+                    '<div id="skynetSourceStatus" class="skynet-settings-result" role="status"></div>' +
+                    '<div id="skynetSourceMatches" hidden></div>' +
+                '</div>';
+            }
+
+            if (canSearchFeeds || (details.actions && details.actions.length)) {
                 html += '<div class="skynet-detail-actions">';
 
-                details.actions.forEach(function(action) {
+                if (canSearchFeeds) {
+                    html += '<input type="button" class="button_gen" id="skynetDetailHistory" value="View Hits in History"' +
+                        (this.refreshInProgress ? ' disabled' : '') + ' /> ' +
+                        '<input type="button" class="button_gen" id="skynetSourceRules" value="Manage Rules" /> ';
+                }
+
+                (details.actions || []).forEach(function(action) {
                     html +=
                         '<input type="button" class="button_gen skynet-detail-action' +
                         (["AlienVault", "SpeedGuide"].indexOf(action.label) !== -1 ? ' skynet-detail-lookup' : '') + '" ' +
@@ -4210,6 +4248,8 @@
             if (sourceButton) sourceButton.addEventListener("click", function() { SkynetUI.querySourceMatches(); });
             const sourceRules = this.getElement("skynetSourceRules");
             if (sourceRules) sourceRules.addEventListener("click", function() { SkynetUI.getElement("skynetRulesTab").click(); });
+            const historyButton = this.getElement("skynetDetailHistory");
+            if (historyButton) historyButton.addEventListener("click", function() { SkynetUI.openIPHistory(SkynetUI.sourceDetailIP); });
             panel.classList.add("visible");
             panel.setAttribute("aria-hidden", "false");
 
@@ -4276,6 +4316,22 @@
             this.waitForUpdate(window.SkynetSettingsGenerated, 120, "sources");
         };
 
+        SkynetUI.openIPHistory = function(ip) {
+            if (this.refreshInProgress || !this.isIPv4Range(ip)) return;
+            const filters = {
+                skynetBlockRange: "7d", skynetBlockKind: "all", skynetBlockIP: ip,
+                skynetBlockProtocol: "all", skynetBlockPort: ""
+            };
+            Object.keys(filters).forEach(function(id) {
+                SkynetUI.getElement(id).value = filters[id];
+            });
+            this.closeDetails();
+            this.queryBlockHistory();
+            this.showView("history");
+            this.getElement("skynetBlockHistoryTab").focus();
+            this.getElement("skynetBlockHistory").scrollIntoView({behavior: "smooth", block: "start"});
+        };
+
         SkynetUI.renderSourceMatches = function() {
             const container = this.getElement("skynetSourceMatches");
             if (!container || window.SkynetSettingsResult !== "success" ||
@@ -4305,7 +4361,7 @@
             note.className = "skynet-setting-help";
             note.textContent = (matches.length ? "" : "No matching entries in available caches. ") +
                 (Number(summary.checked) || 0) + " caches checked; " +
-                (Number(summary.missing) || 0) + " unavailable. Cached feed matches do not establish an active ban; excluded feeds are not enforced. Whitelists take precedence.";
+                (Number(summary.missing) || 0) + " unavailable. Whitelists take precedence over matching bans.";
             container.appendChild(note);
         };
 
@@ -6694,6 +6750,10 @@
 			const target = String(action.target || "");
 			const type = String(action.type || "");
 			const ruleType = {ip: "IP", range: "CIDR", address: "IP/CIDR", domain: "domain", asn: "ASN"}[type] || type;
+			if (area === "rules" && action.result === "failed") {
+				return {add: "Rule addition failed", remove: "Rule removal failed",
+					refresh: "Rule refresh failed", expire: "Rule expiry failed"}[operation] || "Rule update failed";
+			}
 			if (area === "rules" && operation === "expire") return "Temporary ban expired";
 			if (area === "rules" && operation === "refresh" && type === "logical") return "Refreshed dynamic rules";
 			if (area === "rules" && operation === "refresh" && type === "whitelist") return "Refreshed whitelist sources";
@@ -6743,6 +6803,12 @@
                 return ({enable: "Enabled", disable: "Disabled", add: "Added", remove: "Removed"}[operation] || "Updated") + " " + name;
             }
 			if (area === "iot") return "Updated IoT configuration";
+			if (area === "system" && target === "statistics" && operation === "remove") {
+				return action.result === "failed" ? "Statistics reset failed" : "Reset statistics";
+			}
+			if (area === "system" && target === "firewall" && operation === "refresh") {
+				return action.result === "failed" ? "Skynet restart failed" : "Restarted Skynet";
+			}
 			if (area === "system" && operation === "update" && target === "backup") return "Created Skynet backup";
 			if (area === "system" && operation === "restore") {
 				if (target === "startup") return "Started Skynet";
@@ -6764,6 +6830,7 @@
                     entries = {daily: "Daily", weekly: "Weekly", disable: "Disabled"}[entries] || entries;
                 }
             }
+            if (action.area === "system" && action.target === "statistics" && entries === "Block history") entries = "";
             if (action.area === "feeds" &&
                 (entries === "enabled sources" || entries === "Malware blacklist")) entries = "";
             const extra = String(action.detail || "").replace(/(^|; )expires ([0-9]+)$/i,
@@ -7660,7 +7727,8 @@
         SkynetUI.populateBlockHistory = function() {
             const data = window.SkynetHistory || {};
             const pending = this.blockHistoryPending;
-            if (!pending || !data.available || window.SkynetSettingsResult !== "success") return;
+            if (!pending || !data.available ||
+                !["success", "warning:history"].includes(window.SkynetSettingsResult)) return;
             this.blockHistoryPending = null;
             if (pending.export) {
                 const rows = [["Time", "Category", "Source IP", "Destination IP", "Protocol", "Source port", "Destination port", "Packet bytes", "Input interface", "Output interface", "TCP flags", "ICMP type", "ICMP code", "Logged MAC / link-layer header"]];
@@ -7778,6 +7846,12 @@
             this.populateBackup();
             this.updateBlockHistoryControls();
             const settings = window.SkynetSettings || {};
+            const statsLimit = this.getElement("statslimit");
+            if (statsLimit) {
+                const limit = Number(settings.logsize);
+                statsLimit.textContent = Number.isInteger(limit) && limit >= 10 && limit <= 200
+                    ? " / " + limit + "MB" : "";
+            }
             const version = this.getElement("skynetVersion");
             if (version) {
                 version.textContent = String(settings.version || "Unavailable").trim();
@@ -7885,6 +7959,8 @@
                 this.selectors.resetStatsButton,
                 this.selectors.backupButton,
                 this.selectors.restartButton,
+                this.selectors.sourceSearchButton,
+                "skynetDetailHistory",
                 this.selectors.backupDownload,
                 this.selectors.backupRestore,
                 "skynetConfirmRestore",
@@ -8193,7 +8269,7 @@
             request.then(function() {
                 if (statsRequest &&
                     String(window.SkynetSettingsRequest || "") === self.activeRequest &&
-                    window.SkynetSettingsResult === "success") {
+                    ["success", "warning:history"].includes(window.SkynetSettingsResult)) {
                     return self.loadStatsScript();
                 }
             }).then(function() {
@@ -8207,7 +8283,7 @@
                     const ruleRequestType = requestType === "rules" ||
                         requestType === "ruleRefresh";
                     if (!expectedRequest || currentRequest !== expectedRequest ||
-                        (statsRequest && window.SkynetSettingsResult === "success" &&
+                        (statsRequest && ["success", "warning:history"].includes(window.SkynetSettingsResult) &&
                             String(window.SkynetStatsRequest || "") !== expectedRequest)) {
                         if (attempts > 0) {
                             window.setTimeout(function() {
@@ -8234,6 +8310,7 @@
 
                     self.refreshInProgress = false;
                     if (statsRequest) {
+                        self.renderRuleOverview();
                         if (!failed) {
                             self.refreshRenderedStats();
                             if (requestType === "statsReset") {
@@ -8304,7 +8381,11 @@
                         self.setActionState(false, button, action.label);
                     } else if (warning) {
                         self.setUpdateResult(
-                            response === "warning:whitelist"
+                            response === "warning:history"
+                                ? (requestType === "stats"
+                                    ? "Charts rebuilt from saved history. New log collection is pending."
+                                    : "Showing saved history. New log collection is pending.")
+                                : response === "warning:whitelist"
                                 ? "Rule saved, but an existing whitelist takes precedence."
                                 : (response === "warning:permanent"
                                     ? "Existing permanent rule retained."
@@ -10133,8 +10214,8 @@
                                                                                 <span class="skynet-meta-value" id="statsdate">N/A</span>
                                                                             </span>
                                                                             <span class="skynet-meta-item skynet-meta-log">
-                                                                                <span class="skynet-meta-label" title="Space used by retained history and database metadata, excluding empty space reserved for reuse. Updated with the charts.">Log Size</span>
-                                                                                <span class="skynet-meta-value" id="statssize">N/A</span>
+                                                                                <span class="skynet-meta-label" title="Used history space / configured maximum. Excludes empty space reserved for reuse. Usage updates with the charts.">Log Size</span>
+                                                                                <span class="skynet-meta-value"><span id="statssize">N/A</span><span id="statslimit"></span></span>
                                                                             </span>
                                                                         </div>
                                                                     </div>

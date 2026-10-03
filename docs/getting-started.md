@@ -10,6 +10,8 @@
 
 Swap is optional on 2GB-class routers with at least 1.5GiB of usable RAM. Smaller routers require a swap file: **1GB minimum, 2GB recommended**. The installer can create it; swap partitions are not supported.
 
+Skynet uses the standard `myswap.swp` file and mount-relative startup hooks, following the same approach as amtm and Diversion. USB label changes need no swap path repair. Skynet can also remove a standard USB swap file created by another script: it must be a real swap file of at least 1GB. Matching file-specific hooks are removed; shared mount-relative hooks and unrelated script entries are retained.
+
 Skynet's blocklists apply to IPv4. The WebUI uses Merlin's Addons API, and Block History uses the router's native SQLite support. No additional database package is required.
 
 ## Install or update

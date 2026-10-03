@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                           28/09/2026 - v9.0.4                                             #
+#                                           03/10/2026 - v9.0.5                                             #
 #############################################################################################################
 
 
@@ -479,6 +479,10 @@ Check_Swap() {
 	grep -qsF "file" "/proc/swaps"
 }
 
+Active_Swap_Path() {
+	awk '$2 == "file" {gsub(/\\040/, " ", $1); print $1; exit}' /proc/swaps
+}
+
 Swap_Required() {
 	# Kernel reservations reduce usable RAM below the advertised capacity. This
 	# separates 2GB-class routers from 1GB models without a model-name allowlist.
@@ -549,7 +553,7 @@ Check_Settings() {
 	fi
 
 	# SWAP Checks
-	swaplocation="$(awk 'NR==2 { print $1 }' /proc/swaps)"
+	swaplocation="$(Active_Swap_Path)"
 
 	if Swap_Required && ! Check_Swap; then
 		Log error -s "Skynet Requires A SWAP File - Install One ( $0 debug swap install )"
@@ -1326,13 +1330,12 @@ Normalize_Public_IPList() {
 	# Import mode retains inline labels in the immutable membership file. Other
 	# callers still receive plain addresses; comments never enter IPSet restore.
 	awk -v query="$3" -v comments="${4:-}" '
-		function power(base, exponent, result) { result = 1; while (exponent-- > 0) result *= base; return result }
 		function ipv4(a, b, c, d) { return (((a * 256) + b) * 256 + c) * 256 + d }
 		function reserve(start, end) { blocked_start[++blocked_count] = start; blocked_end[blocked_count] = end }
 		BEGIN {
 			if (query!="") {
 				split(query,target,"/"); split(target[1],part,".")
-				queryblock=power(2,32-(target[2]=="" ? 32 : target[2]))
+				queryblock=2 ^ (32-(target[2]=="" ? 32 : target[2]))
 				querystart=int(ipv4(part[1],part[2],part[3],part[4])/queryblock)*queryblock
 				queryend=querystart+queryblock-1
 			}
@@ -1366,7 +1369,7 @@ Normalize_Public_IPList() {
 			prefix = parts == 2 ? address[2] : 32
 			if (prefix !~ /^[0-9]+$/ || prefix < 1 || prefix > 32) next
 			value = ipv4(octet[1], octet[2], octet[3], octet[4])
-			block = power(2, 32 - prefix); start = int(value / block) * block; end = start + block - 1
+			block = 2 ^ (32 - prefix); start = int(value / block) * block; end = start + block - 1
 			if (query!="" && (start>querystart || end<queryend)) next
 			blocked = 0
 			for (i = 1; i <= blocked_count; i++) if (start <= blocked_end[i] && end >= blocked_start[i]) { blocked = 1; break }
@@ -1957,7 +1960,10 @@ Ensure_User_IPSets() {
 Compiled_IPSet_Schema_Is_Valid() {
 	compiledsetname="$1"
 	compiledsetmode="$2"
-	compiledsetcreate="$(Read_IPSet_Schema "$compiledsetname")" || return 1
+	compiledsetcreate="${3:-}"
+	if [ -z "$compiledsetcreate" ]; then
+		compiledsetcreate="$(Read_IPSet_Schema "$compiledsetname")" || return 1
+	fi
 	case "$compiledsetcreate" in "create $compiledsetname hash:net "*) ;; *) return 1 ;; esac
 	case " $compiledsetcreate " in *" comment "*|*" counters "*|*" skbinfo "*) return 1 ;; esac
 	case "$compiledsetmode: $compiledsetcreate " in
@@ -3226,7 +3232,7 @@ Set_IOT_Blocking() {
 	# if the new layout cannot be installed.
 	[ "$1" = "$iotblocked" ] && return 0
 	iotoldblocked="$iotblocked"
-	Purge_Logs || return 1
+	Refresh_History
 	Acquire_Firewall_Lock || return 1
 	Unload_LogIPTables
 	if ! Unload_IOT_Rules; then
@@ -3268,7 +3274,7 @@ Set_IOT_Rule_Options() {
 	[ "$iotnewports:$iotnewproto" = "$iotports:$iotproto" ] && return 0
 	iotoldports="$iotports"
 	iotoldproto="$iotproto"
-	Purge_Logs || return 1
+	Refresh_History
 	Acquire_Firewall_Lock || return 1
 	Unload_LogIPTables
 	if ! Unload_IOT_Rules; then
@@ -3505,8 +3511,8 @@ Expected_IPSet_Schema_Is_Valid() {
 			case "$expectedpadded" in *" timeout 86400 "*) ;; *) return 1 ;; esac
 		;;
 		Skynet-Master:"create Skynet-Master list:set "*|Skynet-MasterWL:"create Skynet-MasterWL list:set "*) ;;
-		Skynet-UserBans:*|Skynet-UserWhitelist:*) Compiled_IPSet_Schema_Is_Valid "$expectedset" permanent || return 1 ;;
-		Skynet-TemporaryBans:*) Compiled_IPSet_Schema_Is_Valid "$expectedset" temporary || return 1 ;;
+		Skynet-UserBans:*|Skynet-UserWhitelist:*) Compiled_IPSet_Schema_Is_Valid "$expectedset" permanent "$expectedcreate" || return 1 ;;
+		Skynet-TemporaryBans:*) Compiled_IPSet_Schema_Is_Valid "$expectedset" temporary "$expectedcreate" || return 1 ;;
 		*) return 1 ;;
 	esac
 	case "$expectedpadded" in *" counters "*|*" skbinfo "*) return 1 ;; esac
@@ -4458,7 +4464,7 @@ Display_Result() {
 
 Command_Not_Recognized() {
 	Ylow "Command Not Recognized, Please Try Again"
-	Ylow "For Help:   https://github.com/Adamm00/IPSet_ASUS#help"
+	Ylow "For Help:   https://github.com/Adamm00/IPSet_ASUS#help-and-community"
 	Ylow "Common Issues: https://github.com/Adamm00/IPSet_ASUS/wiki#common-issues"
 	echo
 	exit 2
@@ -6222,15 +6228,15 @@ History_Stats_Index() {
 	historystatsquery="BEGIN; SELECT count(*),count(DISTINCT CASE WHEN kind IN (1,3,5) THEN src WHEN kind=2 THEN dst END),coalesce(strftime('%m %d %H:%M:%S',min(ts),'unixepoch','localtime'),''),coalesce(strftime('%m %d %H:%M:%S',max(ts),'unixepoch','localtime'),'') FROM events;"
 	# Exact rolling boundaries retain partial first/current hours and protocol filtering.
 	historystatsquery="$historystatsquery WITH RECURSIVE buckets(n) AS (SELECT 0 UNION ALL SELECT n+1 FROM buckets WHERE $statsactivitybase+(n+1)*3600<$statsactivityuntil), activity AS (SELECT CAST((ts-$statsactivitybase)/3600 AS INTEGER) AS bucket,kind,count(*) AS hits FROM events WHERE ts>=$statsactivityfrom AND ts<$statsactivityuntil$historystatsprotocol GROUP BY 1,2) SELECT strftime('%H',$statsactivitybase+n*3600,'unixepoch','localtime'),coalesce(sum(CASE kind WHEN 1 THEN hits END),0),coalesce(sum(CASE kind WHEN 2 THEN hits END),0),coalesce(sum(CASE kind WHEN 3 THEN hits END),0),coalesce(sum(CASE kind WHEN 4 THEN hits END),0),coalesce(sum(CASE kind WHEN 5 THEN hits END),0) FROM buckets LEFT JOIN activity ON bucket=n GROUP BY n ORDER BY n;"
-	for historystatsdataset in inbound-src inbound-dpt inbound-spt outbound-src outbound-dst outbound-all-dst outbound-http-dst invalid-src iot-dst firewall-src; do
+	# Destination charts share one aggregation, retaining separate first/last IDs
+	# for HTTP and other traffic as well as the complete destination totals.
+	historystatsquery="$historystatsquery SELECT 'outbound-destinations',dst,count(*),min(id),max(id),count(CASE WHEN dport IN (80,443) THEN 1 END),min(CASE WHEN dport IN (80,443) THEN id END),max(CASE WHEN dport IN (80,443) THEN id END),count(CASE WHEN dport IS NULL OR dport NOT IN (80,443) THEN 1 END),min(CASE WHEN dport IS NULL OR dport NOT IN (80,443) THEN id END),max(CASE WHEN dport IS NULL OR dport NOT IN (80,443) THEN id END) FROM events NOT INDEXED WHERE kind=2$historystatsprotocol GROUP BY dst;"
+	for historystatsdataset in inbound-src inbound-dpt inbound-spt outbound-src invalid-src iot-dst firewall-src; do
 		case "$historystatsdataset" in
 			inbound-src) historystatscolumn="src"; historystatswhere="kind=1" ;;
 			inbound-dpt) historystatscolumn="dport"; historystatswhere="kind=1 AND dport IS NOT NULL" ;;
 			inbound-spt) historystatscolumn="sport"; historystatswhere="kind=1 AND sport IS NOT NULL" ;;
 			outbound-src) historystatscolumn="src"; historystatswhere="kind=2" ;;
-			outbound-dst) historystatscolumn="dst"; historystatswhere="kind=2 AND (dport IS NULL OR dport NOT IN (80,443))" ;;
-			outbound-all-dst) historystatscolumn="dst"; historystatswhere="kind=2" ;;
-			outbound-http-dst) historystatscolumn="dst"; historystatswhere="kind=2 AND dport IN (80,443)" ;;
 			invalid-src) historystatscolumn="src"; historystatswhere="kind=3" ;;
 			iot-dst) historystatscolumn="dst"; historystatswhere="kind=4" ;;
 			firewall-src) historystatscolumn="src"; historystatswhere="kind=5" ;;
@@ -6253,6 +6259,12 @@ History_Stats_Index() {
 		awk -F '\t' -v path="$statsindexpath" '
 			function ip(n) { return int(n/16777216) "." int(n/65536)%256 "." int(n/256)%256 "." n%256 }
 			NF==5 { value=($1 ~ /-(dpt|spt)$/ ? $2 : ip($2)); print value "\t" $3 "\t" $4 "\t" $5 > path "/" $1 ".txt" }
+			NF==11 && $1=="outbound-destinations" {
+				value=ip($2)
+				print value "\t" $3 "\t" $4 "\t" $5 > path "/outbound-all-dst.txt"
+				if ($6>0) print value "\t" $6 "\t" $7 "\t" $8 > path "/outbound-http-dst.txt"
+				if ($9>0) print value "\t" $9 "\t" $10 "\t" $11 > path "/outbound-dst.txt"
+			}
 		' || return 1
 	} < "$TMP_DIR/history-index.$$"
 	awk -F '~' '$3 != "" {print $3 " To " $4}' "$statsindexpath/summary.txt" > "$statsindexpath/span.txt" || return 1
@@ -7412,7 +7424,7 @@ Stats_Search_Connections() {
 }
 
 Run_Stats() {
-		Purge_Logs || return 1
+		case "$2" in reset|remove) Purge_Logs || return 1 ;; *) Refresh_History ;; esac
 		if ! History_Ready; then
 			Log error "Firewall History Is Unavailable - Existing Data Retained"
 			return 1
@@ -7463,7 +7475,7 @@ Run_Stats() {
 		fi
 		case "$2" in
 			reset)
-				History_Clear || exit 1
+				Reset_Statistics || exit 1
 				echo "[i] Stat Data Reset"
 			;;
 			remove)
@@ -7604,11 +7616,13 @@ Run_Stats() {
 				Display_Header "4"
 				Extract_Stats_Values "${statsindexpath}/outbound-src.txt" ".*" "" "" "top" "$counter" > "$TMP_DIR/statsclients.txt"
 				ip neigh > "$TMP_DIR/statsneighbors.txt" 2>/dev/null
+				Prepare_Client_Name_Data "$TMP_DIR/statsneighbors.txt" || :
 				while read -r hits ipaddr; do
 					macaddr="$(awk -v ip="$ipaddr" '$1 == ip { print $5; exit }' "$TMP_DIR/statsneighbors.txt")"
 					Resolve_Client_Name
 					printf '%-10s | %-16s | %-60s\n' "${hits}x" "${ipaddr}" "$localname"
 				done < "$TMP_DIR/statsclients.txt"
+				Clear_Client_Name_Data
 			;;
 		esac
 		rm -f "$TMP_DIR/skynetstats.txt"
@@ -7657,6 +7671,7 @@ Generate_WebUI_IOT_Data() {
 		&& mv -f "$iotrecords" "$iotinventory" || return 1
 
 	printf 'var SkynetIOTDevices = [' >> "$settingstmp" || return 1
+	Prepare_Client_Name_Data "$iotinventory" || return 1
 	iotfirst="1"
 	while IFS='~' read -r iotselected ipaddr macaddr iotstate iotlease; do
 		[ -n "$ipaddr" ] || continue
@@ -7682,6 +7697,7 @@ Generate_WebUI_IOT_Data() {
 			"$ipaddr" "$macaddr" "$iotnamejs" "$iotstate" "$([ "$iotselected" = "1" ] && printf true || printf false)" >> "$settingstmp" || return 1
 		iotfirst="0"
 	done < "$iotinventory"
+	Clear_Client_Name_Data
 	printf '\n];\n' >> "$settingstmp" || return 1
 	rm -f "$iotinventory" "$iotrecords" "$iotraw"
 }
@@ -8070,15 +8086,18 @@ Generate_WebUI_History_Data() {
 Apply_WebUI_History() {
 	settingsresult="error"
 	if ! Check_Lock webui history; then settingsresult="busy"; Publish_WebUI_Result; return 1; fi
+	historyrequeststale="0"
 	# Only refresh collection for the first page. Subsequent pages retain their ID boundary.
 	if [ "$(am_settings_get skynet_historysnapshot)" = "0" ] || [ -z "$(am_settings_get skynet_historysnapshot)" ]; then
-		if ! Archive_Block_Logs || ! Enforce_Log_Limit; then Publish_WebUI_Result; return 1; fi
+		Refresh_History
+		historyrequeststale="$historyrefreshfailed"
 	fi
 	if ! History_Ready; then settingsresult="unavailable"; Publish_WebUI_Result; return 1; fi
 	Build_History_Request "$(am_settings_get skynet_historyrange)" "$(am_settings_get skynet_historykind)" \
 		"$(am_settings_get skynet_historyip)" "$(am_settings_get skynet_historyproto)" "$(am_settings_get skynet_historyport)" \
 		"$(am_settings_get skynet_historycursor)" "$(am_settings_get skynet_historysnapshot)" "$(am_settings_get skynet_historyexport)" "$(am_settings_get skynet_historyuntil)"
 	case "$?" in 0) settingsresult="success"; webuihistoryrequest="1" ;; 2) settingsresult="validation" ;; 3) settingsresult="stale" ;; *) settingsresult="error" ;; esac
+	if [ "$settingsresult" = "success" ] && [ "$historyrequeststale" = "1" ]; then settingsresult="warning:history"; fi
 	Publish_WebUI_Result
 }
 
@@ -8670,48 +8689,115 @@ Swap_Path_Is_Valid() {
 	printf '%s\n' "$swaplocation" | grep -qE '^/tmp/mnt/[A-Za-z0-9_./ ()+-]+/myswap\.swp$'
 }
 
-Skynet_Owns_Swap() {
+Swap_File_Is_Manageable() {
 	Swap_Path_Is_Valid && [ -f "$swaplocation" ] && [ ! -L "$swaplocation" ] \
-		&& [ "$(readlink -f "$swaplocation" 2>/dev/null)" = "$swaplocation" ] \
-		&& awk -v path="$swaplocation" '
-			/^[[:space:]]*#/ {next}
-			/swapon / && (index($0,path) || index($0,"$1/myswap.swp")) {
-				if ($0 ~ /# Skynet[[:space:]]*$/) owned=1; else shared=1
+		&& [ "$(readlink -f "$swaplocation" 2>/dev/null)" = "$swaplocation" ] || return 1
+	# shellcheck disable=SC2012 # Fixed pathname; only its numeric size is read.
+	swapfilebytes="$(ls -ln "$swaplocation" | awk '{print $5}')"
+	case "$swapfilebytes" in ""|*[!0-9]*) return 1 ;; esac
+	[ "$swapfilebytes" -ge 1073741824 ] || return 1
+	swapactivekb="$(awk -v path="$swaplocation" '$2 == "file" {gsub(/\\040/, " ", $1); if ($1 == path) {print $3; exit}}' /proc/swaps)" || return 1
+	if [ -n "$swapactivekb" ]; then [ "$swapactivekb" -ge 1048512 ]; return "$?"; fi
+	# Inactive files remain manageable after a failed uninstall. Check the swap
+	# header at the supported page boundaries without reading the whole file.
+	for swappagesize in 4096 8192 16384 32768 65536; do
+		[ "$(dd if="$swaplocation" bs=1 skip="$((swappagesize-10))" count=10 2>/dev/null)" != "SWAPSPACE2" ] || return 0
+	done
+	return 1
+}
+
+Prepare_Swap_Hook_Removal() {
+	swapposttmp="$TMP_DIR/swap-post.$$"
+	swapunmounttmp="$TMP_DIR/swap-unmount.$$"
+	swapcreators="$TMP_DIR/swap-creators.$$"
+	: > "$swapcreators" || return 1
+	swapotheractive="$(awk -v path="$swaplocation" '$2 == "file" {gsub(/\\040/, " ", $1); if ($1 != path) other=1} END {print other+0}' /proc/swaps)" || return 1
+	for swaphookfile in /jffs/scripts/post-mount /jffs/scripts/unmount; do
+		[ ! -L "$swaphookfile" ] || return 1
+	done
+	if [ -f /jffs/scripts/post-mount ]; then
+		cp -p /jffs/scripts/post-mount "$swapposttmp" || return 1
+		awk -v path="$swaplocation" -v creators="$swapcreators" -v other="$swapotheractive" '
+			function trim(v) {sub(/^[[:space:]]+/,"",v); sub(/[[:space:]]+$/,"",v); return v}
+			{
+				comment=index($0,"#"); cmd=trim(comment ? substr($0,1,comment-1) : $0); owner=comment ? trim(substr($0,comment+1)) : ""
+				argument=cmd; sub(/^swapon[[:space:]]+/,"",argument)
+				matched=(argument==path || argument=="\"" path "\"" || cmd=="[ -f \"" path "\" ] && swapon \"" path "\"")
+				if(owner=="Skynet") {
+					mount=path; sub(/\/myswap\.swp$/,"",mount)
+					if(cmd=="[ \"$1\" != \"" mount "\" ] || [ ! -f \"" path "\" ] || swapon \"" path "\"") matched=1
+					if(!other && cmd=="[ -f \"$1/myswap.swp\" ] && swapon \"$1/myswap.swp\"") matched=1
+				}
+				if(matched) {if(owner!="") print owner >> creators; next}
+				print
 			}
-			END {exit !owned || shared}
-		' /jffs/scripts/post-mount
+		' /jffs/scripts/post-mount > "$swapposttmp" || return 1
+	else : > "$swapposttmp" || return 1; fi
+	if [ -f /jffs/scripts/unmount ]; then
+		cp -p /jffs/scripts/unmount "$swapunmounttmp" || return 1
+		awk -v path="$swaplocation" -v creators="$swapcreators" -v post="$swapposttmp" -v other="$swapotheractive" '
+			function trim(v) {sub(/^[[:space:]]+/,"",v); sub(/[[:space:]]+$/,"",v); return v}
+			BEGIN {
+				while((getline owner < creators)>0) removed[owner]=1
+				close(creators)
+				while((getline line < post)>0) {comment=index(line,"#"); cmd=trim(comment ? substr(line,1,comment-1) : line); if(cmd ~ /swapon[[:space:]]/ && comment) remaining[trim(substr(line,comment+1))]=1}
+				close(post)
+			}
+			{
+				comment=index($0,"#"); cmd=trim(comment ? substr($0,1,comment-1) : $0); owner=comment ? trim(substr($0,comment+1)) : ""
+				if(cmd=="swapoff " path || cmd=="swapoff \"" path "\"" || cmd=="swapoff " path " 2>/dev/null" || cmd=="swapoff \"" path "\" 2>/dev/null") next
+				if(!other && removed[owner] && !remaining[owner] && (cmd=="swapoff -a" || cmd=="swapoff -a 2>/dev/null")) next
+				print
+			}
+		' /jffs/scripts/unmount > "$swapunmounttmp" || return 1
+	fi
 }
 
 Maintain_Swap_Hook() {
-	if Skynet_Owns_Swap; then
-		# Only the configured mount can disable this swap; other devices and
-		# swap owners are unaffected when another USB partition is unmounted.
-		swaphook="[ \"\$1\" != \"${swaplocation%/*}\" ] || [ ! -f \"$swaplocation\" ] || swapoff \"$swaplocation\" 2>/dev/null # Skynet"
+	if awk '/^[[:space:]]*#/ {next} /swapon .*# Skynet[[:space:]]*$/ {found=1} END {exit !found}' /jffs/scripts/post-mount; then
+		# Use the mount argument so USB label changes need no path repair.
+		swaphook="[ -f \"\$1/myswap.swp\" ] && swapon \"\$1/myswap.swp\" # Skynet"
+		if ! Check_Skynet_Hook /jffs/scripts/post-mount "$swaphook"; then
+			Publish_Skynet_Hook /jffs/scripts/post-mount "$swaphook" || return 1
+		fi
+		swaphook='swapoff -a 2>/dev/null # Skynet'
 		if ! Check_Skynet_Hook /jffs/scripts/unmount "$swaphook"; then
 			Publish_Skynet_Hook /jffs/scripts/unmount "$swaphook" || return 1
 		fi
 	elif grep -q 'swapoff .*# Skynet' /jffs/scripts/unmount; then
-		# Remove the obsolete global swapoff hook even on amtm-managed installs.
+		# Leave swap management to the script owning the post-mount entry.
 		Publish_Skynet_Hook /jffs/scripts/unmount "" || return 1
 	fi
 	unset "swaphook"
 }
 
 Remove_Swap() {
-	# Refuse another addon's file and keep hooks/file intact if swapoff fails.
-	if ! Skynet_Owns_Swap; then
-		echo "[*] SWAP File May Be Managed By Another Script - Existing Swap Retained"
+	if ! Swap_File_Is_Manageable; then
+		echo "[*] Standard USB SWAP File Required (myswap.swp, 1GB Minimum) - Existing Swap Retained"
 		return 1
 	fi
-	if awk -v path="$swaplocation" '$1 == path && $2 == "file" {found=1} END {exit !found}' /proc/swaps \
+	Prepare_Swap_Hook_Removal || { echo "[*] Unable To Prepare SWAP Hook Cleanup - Existing Swap Retained"; return 1; }
+	if awk -v path="$swaplocation" '$2 == "file" {gsub(/\\040/, " ", $1); if ($1 == path) found=1} END {exit !found}' /proc/swaps \
 		&& ! swapoff "$swaplocation"; then
 		echo "[*] Unable To Disable SWAP File - Existing File And Hooks Retained"
 		return 1
 	fi
+	# Publish unmount first so a failed post-mount edit can be retried using its
+	# existing creator label. Shared mount-relative hooks remain in place.
+	for swaphookfile in /jffs/scripts/unmount /jffs/scripts/post-mount; do
+		[ -f "$swaphookfile" ] || continue
+		case "$swaphookfile" in */unmount) swaphooktmp="$swapunmounttmp" ;; *) swaphooktmp="$swapposttmp" ;; esac
+		if ! cmp -s "$swaphooktmp" "$swaphookfile"; then
+			swaphookpublish="${swaphookfile}.swap.$$"
+			if ! cp -p "$swaphooktmp" "$swaphookpublish" || ! mv -f "$swaphookpublish" "$swaphookfile"; then
+				rm -f "$swaphookpublish"
+				echo "[*] Unable To Clean SWAP Hooks - File Retained"
+				return 1
+			fi
+		fi
+	done
 	echo "[i] Removing SWAP File ($swaplocation)"
 	rm -f "$swaplocation" || return 1
-	sed -i '\~swapon .*# Skynet~d' /jffs/scripts/post-mount \
-		&& sed -i '\~swapoff .*# Skynet~d' /jffs/scripts/unmount || return 1
 	swaplocation=""
 	echo "[i] SWAP File Removed"
 }
@@ -8771,8 +8857,7 @@ Create_Swap() {
 		return 1
 	fi
 
-	# Restrict hook edits to Skynet and activation to the configured mount.
-	swaphook="[ \"\$1\" != \"${swaplocation%/*}\" ] || [ ! -f \"$swaplocation\" ] || swapon \"$swaplocation\" # Skynet"
+	swaphook="[ -f \"\$1/myswap.swp\" ] && swapon \"\$1/myswap.swp\" # Skynet"
 	if ! Publish_Skynet_Hook /jffs/scripts/post-mount "$swaphook"; then
 		echo "[*] SWAP Enabled But Post-Mount Hook Could Not Be Updated"
 		return 1
@@ -9140,6 +9225,11 @@ Publish_Actions() {
 	return 0
 }
 
+Record_Actions() {
+	Publish_Actions || Log info -s "Action History Unavailable - Change Applied"
+	return 0
+}
+
 Discard_Actions() {
 	[ -n "$actionqueue" ] && rm -f "$actionqueue"
 	actionqueue=""
@@ -9421,15 +9511,25 @@ History_Drain_Syslog_Cleanup() (
 	cleansource="$1"
 	cleandir="${cleansource}.skynet-cleanup"
 	[ -d "$cleandir" ] || return 0
-	[ ! -L "$cleandir" ] && [ -f "$cleandir/original" ] && [ ! -L "$cleandir/original" ] || return 1
+	[ ! -L "$cleandir" ] || return 1
+	# Finish an interrupted retirement after the original was already removed.
+	if [ ! -e "$cleandir/original" ] && [ ! -L "$cleandir/original" ]; then
+		rm -f "$cleandir/offset" "$cleandir/offset.tmp" "$cleandir/snapshot" "$cleandir/kept" "$cleandir/tail" "$cleandir/ready" || return 1
+		rmdir "$cleandir"
+		return "$?"
+	fi
+	[ -f "$cleandir/original" ] && [ ! -L "$cleandir/original" ] || return 1
 	# A failed/interrupted replacement left the original pathname intact.
 	if [ "$cleansource" -ef "$cleandir/original" ]; then
 		rm -f "$cleandir/original" "$cleandir/offset" "$cleandir/offset.tmp" "$cleandir/snapshot" "$cleandir/kept" "$cleandir/tail" "$cleandir/ready" || return 1
 		rmdir "$cleandir"
 		return "$?"
 	fi
-	IFS= read -r cleanoffset < "$cleandir/offset" || return 1
-	case "$cleanoffset" in ""|*[!0-9]*) return 1 ;; esac
+	cleanoffset=""
+	if [ -f "$cleandir/offset" ]; then IFS= read -r cleanoffset < "$cleandir/offset" || cleanoffset=""; fi
+	# A missing checkpoint must not strand the retained inode. Database cursors
+	# prevent duplicate block events; replay system messages rather than lose them.
+	case "$cleanoffset" in ""|*[!0-9]*) cleanoffset="0" ;; esac
 	if [ ! -f "$cleandir/ready" ] || [ -f "$cleandir/kept" ]; then
 		# Rotation won the race before replacement. No retained prefix was
 		# published, so preserve its system messages along with any late tail.
@@ -9570,22 +9670,25 @@ History_Collect() {
 		# An interrupted migration must not keep blocking new history collection.
 		History_Write "DELETE FROM meta WHERE key='legacy_pending';" || return 1
 	fi
+	historycollectstatus="0"
 	for historysource in "$syslog1loc" "$syslogloc"; do
 		if [ -e "$historysource" ] || [ -L "$historysource" ]; then
-			historysource="$(readlink -f "$historysource")" || return 1
+			historysource="$(readlink -f "$historysource")" || { historycollectstatus="1"; continue; }
 		else
 			# BusyBox readlink requires the final component to exist. A rotated
 			# log may not exist yet; still drain any retained cleanup beside it.
-			historysourcedir="$(readlink -f "${historysource%/*}")" || return 1
+			historysourcedir="$(readlink -f "${historysource%/*}")" || { historycollectstatus="1"; continue; }
 			historysource="$historysourcedir/${historysource##*/}"
 		fi
-		History_Drain_Syslog_Cleanup "$historysource" || { Log error "Failed To Collect Pending Syslog Cleanup - Original Retained"; return 1; }
+		History_Drain_Syslog_Cleanup "$historysource" \
+			|| { Log error "Failed To Collect Pending Syslog Cleanup ($historysource) - Original Retained"; historycollectstatus="1"; }
 		[ -f "$historysource" ] || continue
-		History_Import_File "$historysource" || { Log error "Failed To Collect Firewall History - Source Log Retained"; return 1; }
+		History_Import_File "$historysource" \
+			|| { Log error "Failed To Collect Firewall History ($historysource) - Source Log Retained"; historycollectstatus="1"; continue; }
 		History_Clean_Syslog_Source "$historysource" "$historyidentity" "$historyposition" "$historyanchorsize" "$historyanchor" \
-			|| { Log error "Failed To Clean Collected Syslog Records - Original Retained"; return 1; }
+			|| { Log error "Failed To Clean Collected Syslog Records ($historysource) - Original Retained"; historycollectstatus="1"; }
 	done
-	return 0
+	return "$historycollectstatus"
 }
 
 History_Prune() {
@@ -9619,6 +9722,9 @@ DELETE FROM events WHERE id IN (SELECT id FROM expired);
 COMMIT;" || return 1
 		historyprunepasses="$((historyprunepasses+1))"
 	done
+	if [ "$historyused" -gt "$historybudget" ]; then
+		historyused="$(History_Read 'SELECT (page_count-freelist_count)*page_size FROM pragma_page_count,pragma_freelist_count,pragma_page_size;')" || return 1
+	fi
 	[ "$historyused" -le "$historybudget" ] || { Log error "Firewall History Retention Pending - Storage Budget Not Yet Reached"; return 1; }
 	# Incremental vacuum releases only free pages; it does not rebuild the DB.
 	# Do this only after the file exceeds its budget, not on every collection.
@@ -9639,6 +9745,18 @@ History_Clear() {
 	if ! History_Ready || ! History_Write 'BEGIN IMMEDIATE; DELETE FROM events; DELETE FROM hours; COMMIT;'; then historyclearstatus="1"; fi
 	[ "$historyclearlock" = "1" ] || Release_Log_Lock
 	return "$historyclearstatus"
+}
+
+Reset_Statistics() {
+	if ! History_Clear; then
+		Queue_Action failed system remove statistics history "Block history" "Unable to clear recorded statistics" \
+			|| Log error -s "Failed To Queue Statistics Reset Failure"
+		Publish_Failed_Actions || Log error -s "Failed To Record Statistics Reset Failure"
+		return 1
+	fi
+	Queue_Action success system remove statistics history "Block history" "" \
+		|| Log error -s "Failed To Queue Statistics Reset Action"
+	Record_Actions
 }
 
 Archive_Block_Logs() {
@@ -9668,8 +9786,19 @@ Enforce_Log_Limit() {
 
 
 Purge_Logs() {
-	Archive_Block_Logs || return 1
-	Enforce_Log_Limit
+	purgehistorystatus="0"
+	Archive_Block_Logs || purgehistorystatus="1"
+	Enforce_Log_Limit || purgehistorystatus="1"
+	return "$purgehistorystatus"
+}
+
+Refresh_History() {
+	historyrefreshfailed="0"
+	if ! Purge_Logs "$@"; then
+		historyrefreshfailed="1"
+		Log info -s "History Refresh Deferred - Source Logs Retained"
+	fi
+	return 0
 }
 
 Drain_Uninstall_Syslog() (
@@ -10104,6 +10233,7 @@ Apply_WebUI_Stats() {
 	# so polling can finish without replacing the previous charts.
 	if Run_WebUI_Command debug genstats "$@" > "$webuistatsoutput" 2>&1; then
 		settingsresult="success"
+		if grep -qxF '[i] Statistics Generated From Saved History' "$webuistatsoutput"; then settingsresult="warning:history"; fi
 	elif grep -qE 'Lock File Detected|Lock file busy' "$webuistatsoutput"; then
 		settingsresult="busy"
 	fi
@@ -10636,7 +10766,7 @@ Apply_WebUI_Rules() {
 	Load_Config || settingsresult="error"
 	Queue_WebUI_Rule_Failure
 	case "$settingsresult" in
-		success|warning:whitelist|warning:permanent|warning:covered|degraded) Publish_Actions || { Log error -s "Failed To Record Committed Rule Action"; settingsresult="save"; } ;;
+		success|warning:whitelist|warning:permanent|warning:covered|degraded) Record_Actions ;;
 		apply|save|resolve|source|error) Publish_Failed_Actions || Log error -s "Failed To Record Rule Failure" ;;
 	esac
 	Publish_WebUI_Result
@@ -10815,8 +10945,8 @@ Apply_WebUI_IOT() {
 	settingsresult="success"
 	Queue_Action success iot update isolation "configuration" \
 		"${webuiiotentries:-no devices}" "Blocking $webuiiotblocked; logging $webuiiotlogging; ports ${webuiiotports:-UDP/123}; protocol $webuiiotproto" \
-		|| { Log error -s "Failed To Queue IoT Action"; settingsresult="save"; }
-	Publish_Actions || { Log error -s "Failed To Record Committed IoT Action"; settingsresult="save"; }
+		|| Log error -s "Failed To Queue IoT Action"
+	Record_Actions
 	Publish_WebUI_Result
 }
 
@@ -12390,7 +12520,7 @@ Dispatch_Save() {
 		nolog="2"
 	else
 		Whitelist_Blocked_Private_IPs || return 1
-		Purge_Logs || return 1
+		Refresh_History
 		echo "[i] Saving Changes"
 		Require_Save_IPSets
 		Enforce_Secure_Mode || return 1
@@ -12436,14 +12566,14 @@ Prune_Expired_Rules() {
 	done < "$rulepruneexpired"
 	rm -f "$rulepruneexpired"
 	# Keep committed expiry records even if a later maintenance check fails.
-	Publish_Actions
+	Record_Actions
 }
 
 Dispatch_Persist() {
 	nolog="2"
 	nocfg="1"
 	Wait_For_Lock "$@" || return 1
-	if Time_Is_Ready; then Archive_Block_Logs || return 1; fi
+	if Time_Is_Ready; then Archive_Block_Logs || Log info -s "History Collection Deferred - Source Logs Retained"; fi
 	Save_IPSets || return 1
 }
 
@@ -12470,6 +12600,7 @@ Dispatch_Maintenance() {
 	Wait_For_Lock "$@" || return 1
 	# A command that held the lock may have changed settings while we waited.
 	Load_Config || { Record_Maintenance_Status failed configuration; return 1; }
+	maintenancehistoryfailure=""
 	if Time_Is_Ready; then
 		if Time_Dependent_State_Pending; then
 			if ! { : > "$MAINTENANCE_WEBUI_PENDING"; } || ! chmod 600 "$MAINTENANCE_WEBUI_PENDING"; then
@@ -12477,8 +12608,8 @@ Dispatch_Maintenance() {
 			fi
 			Activate_Time_Dependent_State || { Record_Maintenance_Status failed activation; return 1; }
 		fi
-		Archive_Block_Logs || { Record_Maintenance_Status failed archival; return 1; }
-		Enforce_Log_Limit || { Record_Maintenance_Status failed log-limit; return 1; }
+		Archive_Block_Logs || maintenancehistoryfailure="archival"
+		Enforce_Log_Limit || maintenancehistoryfailure="${maintenancehistoryfailure:-log-limit}"
 		Prune_Expired_Rules || { Record_Maintenance_Status failed rule-prune; return 1; }
 	fi
 	Enforce_Secure_Mode || { Record_Maintenance_Status failed secure-mode; return 1; }
@@ -12492,11 +12623,19 @@ Dispatch_Maintenance() {
 	# Retain the RAM marker across failures after a committed rule or time-state
 	# change. A later run retries presentation without repeating the policy change.
 	if [ -f "$MAINTENANCE_WEBUI_PENDING" ]; then
-		if ! Generate_WebUI_Settings || ! rm -f "$MAINTENANCE_WEBUI_PENDING"; then
-			Record_Maintenance_Status failed webui; return 1
+		maintenancewebuistatus="0"
+		if Is_Enabled "$displaywebui"; then Install_WebUI_Page || maintenancewebuistatus="1"
+		else Uninstall_WebUI_Page || maintenancewebuistatus="1"; fi
+		Generate_WebUI_Settings || maintenancewebuistatus="1"
+		if [ "$maintenancewebuistatus" = "0" ]; then rm -f "$MAINTENANCE_WEBUI_PENDING" || maintenancewebuistatus="1"; fi
+		if [ "$maintenancewebuistatus" != "0" ]; then
+			Record_Maintenance_Status degraded webui
+			return 0
 		fi
 	fi
-	if Time_Is_Ready; then Record_Maintenance_Status success complete; else Record_Maintenance_Status degraded time-pending; fi
+	if [ -n "$maintenancehistoryfailure" ]; then Record_Maintenance_Status degraded "$maintenancehistoryfailure"
+	elif Time_Is_Ready; then Record_Maintenance_Status success complete
+	else Record_Maintenance_Status degraded time-pending; fi
 }
 
 Ensure_Startup_Stats() {
@@ -12530,13 +12669,23 @@ Ensure_Startup_Runtime() {
 	else Load_Cron checkupdate || return 1; fi
 	Load_Cron maintenance collect rules || return 1
 	if [ -n "$countrylist" ] && [ ! -s "$skynetloc/lists/countries/.manifest" ]; then startupcountryrefresh="1"; fi
+	startupwebuistatus="0"
 	if Is_Enabled "$displaywebui"; then
-		Install_WebUI_Page || { Log error -s "Failed To Install WebUI"; return 1; }
+		Install_WebUI_Page || startupwebuistatus="1"
 	else
-		Uninstall_WebUI_Page || { Log error -s "Failed To Remove WebUI"; return 1; }
+		Uninstall_WebUI_Page || startupwebuistatus="1"
 	fi
-	Generate_WebUI_Settings || return 1
+	Generate_WebUI_Settings || startupwebuistatus="1"
+	[ "$startupwebuistatus" = "0" ] || Defer_WebUI_Refresh
 	: > "$STARTUP_READY" && chmod 600 "$STARTUP_READY" || return 1
+}
+
+Defer_WebUI_Refresh() {
+	if ! : > "$MAINTENANCE_WEBUI_PENDING" || ! chmod 600 "$MAINTENANCE_WEBUI_PENDING"; then
+		Log error -s "Failed To Queue WebUI Refresh"
+	fi
+	Log info -s "WebUI Refresh Deferred - Protection Active"
+	return 0
 }
 
 Restore_Startup_Policy() {
@@ -12663,7 +12812,7 @@ Dispatch_Start() {
 	Wait_For_Lock "$@" || return 1
 	Activate_Time_Dependent_State || { Log error -s "Failed To Activate Time-Dependent Rules"; echo; return 1; }
 	startupcollect="1"
-	Generate_WebUI_Settings || { Log error -s "Failed To Generate WebUI Settings"; echo; return 1; }
+	Generate_WebUI_Settings || Defer_WebUI_Refresh
 	Queue_Action success system restore startup lifecycle "Skynet" "Protection and time-dependent services active" \
 		|| Log error -s "Failed To Queue Startup Action"
 	if Is_Enabled "$forcebanmalwareupdate"; then
@@ -12697,7 +12846,8 @@ Restart_Firewall_Confirmed() {
 		if [ -n "$restartcurrent" ] && [ "$restartcurrent" != "$restartgeneration" ] \
 			&& Load_Config fresh && Check_IPSets && Check_IPTables; then
 			if [ "$1" != "quiet" ]; then
-				Queue_Action success system refresh firewall lifecycle "Skynet" "Firewall rebuilt and protection verified" || return 1
+				Queue_Action success system refresh firewall lifecycle "Skynet" "Firewall rebuilt and protection verified" \
+					|| Log error -s "Failed To Queue Firewall Restart Action"
 			fi
 			return 0
 		fi
@@ -12719,7 +12869,7 @@ Dispatch_Disable() {
 	done
 	if [ "$disablecomplete" = "1" ]; then
 		# Collection may update policy. Finish it before saving and teardown.
-		Purge_Logs "all" || { echo "[*] Failed To Collect Logs Before Disabling Skynet"; return 1; }
+		Refresh_History "all"
 		echo "[i] Saving Changes"
 		Require_Save_IPSets
 	else
@@ -12985,7 +13135,7 @@ Settings_LogMode() {
 	esac
 	Check_Lock "$@" || return 1
 	Require_Running
-	Purge_Logs || return 1
+	Refresh_History
 	logmodeold="$logmode"
 	Acquire_Firewall_Lock || return 1
 	Unload_LogIPTables
@@ -13008,7 +13158,7 @@ Settings_LogMode() {
 	else
 		Unload_Cron genstats || { Log error -s "Failed To Update Statistics Schedule"; return 1; }
 	fi
-	Generate_WebUI_Settings || return 1
+	Generate_WebUI_Settings || Defer_WebUI_Refresh
 	echo "[i] $logmodemessage"
 }
 
@@ -13021,7 +13171,7 @@ Settings_Packet_Category() {
 	esac
 	Check_Lock "$@" || return 1
 	Require_Running
-	Purge_Logs || return 1
+	Refresh_History
 	Acquire_Firewall_Lock || return 1
 	Unload_LogIPTables
 	case "$2" in loginvalid) loginvalid="$categorynew" ;; logfirewall) logfirewall="$categorynew" ;; esac
@@ -13043,7 +13193,7 @@ Settings_LogSize() {
 	Check_Lock "$@" || return 1
 	Require_Running
 	logsize="$settingslogsize"
-	Purge_Logs || return 1
+	Refresh_History
 	echo "[i] Log Size Set To ${logsize}MB"
 }
 
@@ -13056,7 +13206,7 @@ Settings_TrafficFilter() {
 	esac
 	Check_Lock "$@" || return 1
 	Require_Running
-	Purge_Logs || return 1
+	Refresh_History
 	trafficfilterold="$filtertraffic"
 	Acquire_Firewall_Lock || exit 1
 	Unload_LogIPTables
@@ -13142,7 +13292,7 @@ Settings_Source_Policy() {
 	Check_Lock "$@" || return 1
 	Require_Running
 	case "$2:$3" in banaiprotect:enable) Require_Connection ;; esac
-	Purge_Logs || return 1
+	Refresh_History
 	policysettingname="$2"
 	case "$policysettingname" in
 		banaiprotect) policysettingold="$banaiprotect"; policysettingset="Skynet-Blacklist"; policysettinglabel="AiProtection Setting" ;;
@@ -13463,7 +13613,7 @@ Settings_WebUI() {
 	case "$3" in enable|disable) ;; *) Command_Not_Recognized ;; esac
 	Check_Lock "$@" || return 1
 	Require_Running
-	Purge_Logs || return 1
+	Refresh_History
 	webuiold="$displaywebui"
 	case "$3" in
 		enable)
@@ -13492,10 +13642,11 @@ Settings_WebUI() {
 	fi
 	nocfg="1"
 	if Is_Enabled "$displaywebui"; then
-		Generate_WebUI_Settings || return 1
+		Generate_WebUI_Settings || Defer_WebUI_Refresh
 		echo "[i] WebUI Enabled"
 		echo "[i] Generating Stats"
-		Generate_Stats
+		Generate_Stats || Log info -s "Statistics Generation Deferred - WebUI Enabled"
+		return 0
 	else
 		echo "[i] WebUI Disabled"
 	fi
@@ -14058,15 +14209,17 @@ Debug_Generate_Stats() {
 		return 2
 	fi
 	Check_Lock "$@" || return 1
-	Purge_Logs "all" || return 1
+	case "$3" in reset) Purge_Logs "all" || return 1 ;; *) Refresh_History "all" ;; esac
 	if Addon_API_Supported; then
 		if Is_Enabled "$displaywebui"; then
 			if [ "$3" = "reset" ]; then
-				History_Clear || return 1
+				Reset_Statistics || return 1
 				echo "[i] Stat Data Reset"
 			fi
 			echo "[i] Generating Stats For WebUI"
-			Generate_Stats
+			Generate_Stats || return 1
+			if [ "${historyrefreshfailed:-0}" = "1" ]; then echo "[i] Statistics Generated From Saved History"; fi
+			return 0
 		else
 			echo "[*] WebUI Is Currently Disabled - To Enable Use ( sh $0 settings webui enable )"
 			return 1
@@ -14096,7 +14249,7 @@ Debug_Swap() {
 		install)
 			Check_Lock "$@" || return 1
 			Maintain_Script_Hooks firewall-start services-stop service-event post-mount unmount || { echo "[*] Failed To Maintain Script Hooks"; echo; exit 1; }
-			swaplocation="$(awk 'NR==2 { print $1 }' /proc/swaps)"
+			swaplocation="$(Active_Swap_Path)"
 			if [ -z "$swaplocation" ] && ! Check_Swap; then
 				Manage_Device || return 1
 				Create_Swap || return 1
@@ -14107,6 +14260,7 @@ Debug_Swap() {
 		;;
 		uninstall)
 			Check_Lock "$@" || return 1
+			if [ -z "$swaplocation" ] || [ ! -e "$swaplocation" ]; then swaplocation="$(Active_Swap_Path)"; fi
 			Remove_Swap || return 1
 			nolog="2"
 		;;
@@ -14249,7 +14403,7 @@ Debug_Backup() {
 	Check_Lock "$@" || return 1
 	Require_Running
 	Require_Time
-	Purge_Logs || return 1
+	Refresh_History
 	echo "[i] Saving Changes"
 	Require_Save_IPSets
 	echo "[i] Backing Up Skynet Related Files"
@@ -14264,13 +14418,15 @@ Debug_Backup() {
 	for backupfile in "$@"; do
 		cp -a "${skynetloc}/$backupfile" "$TMP_DIR/backup/" || { Log error "Unable To Stage Backup Files"; return 1; }
 	done
-	if ! History_Ready || ! Backup_History_Database "$TMP_DIR/backup/history.db"; then
-		Log error "Unable To Prepare History Backup"; return 1
-	fi
-	set -- "$@" history.db
-	# Archive structure alone cannot prove that settings, rules and their data
-	# can be restored. Check the complete staged snapshot before touching points.
+	# Validate protection data independently of the optional history snapshot.
 	Validate_Backup_Data "$TMP_DIR/backup" || { Log error "Backup Data Failed Restore Validation - Existing Backups Retained"; return 1; }
+	if History_Ready && Backup_History_Database "$TMP_DIR/backup/history.db" \
+		&& Validate_History_Backup "$TMP_DIR/backup/history.db"; then
+		set -- "$@" history.db
+	else
+		rm -f "$TMP_DIR/backup/history.db" || return 1
+		Log info -s "History Backup Skipped - Backing Up Protection And Settings"
+	fi
 	backuptmp="${skynetloc}/Skynet-Backup.tar.gz.tmp.$$"
 	if [ -e "${skynetloc}/Skynet-Backup.tar.gz" ]; then
 		Preserve_Backup_Point "${skynetloc}/Skynet-Backup.tar.gz" || { Log error "Unable To Retain Previous Backup"; return 1; }
@@ -14289,11 +14445,13 @@ Debug_Backup() {
 		Log error "Failed To Create Backup"; echo; return 1
 	fi
 	Finish_Backup_Publication || return 1
-	Prune_Backup_Points || { Log error "Backup Saved But Old Restore Points Could Not Be Removed"; return 1; }
+	Prune_Backup_Points || Log info -s "Backup Saved - Old Restore Points Retained"
 	echo
 	echo "[i] Backup Saved To ${skynetloc}/Skynet-Backup.tar.gz"
 	echo "[i] Copy This File To A Safe Location"
-	Queue_Action success system update backup archive "Skynet-Backup-$backuppointid.tar.gz" "" || return 1
+	Queue_Action success system update backup archive "Skynet-Backup-$backuppointid.tar.gz" "" \
+		|| Log error -s "Failed To Queue Backup Action"
+	return 0
 }
 
 Validate_Backup_Archive() {
@@ -14542,7 +14700,7 @@ Debug_Restore() {
 		rm -rf "$backuprestoredir"
 		echo "[*] This Backup Disables The WebUI - Restore It Through SSH"; return 2
 	fi
-	Purge_Logs || { rm -rf "$backuprestoredir"; return 1; }
+	Refresh_History
 	backuprestorewasactive="0"
 	if Check_IPSets; then
 		backuprestorewasactive="1"
@@ -14601,7 +14759,8 @@ Debug_Restore() {
 	echo
 	echo "[i] Backup Restored"
 	Queue_Action success system restore backup archive "$backuprestorename" "Configuration and firewall data restored" \
-		|| { Log error -s "Failed To Queue Restore Action"; return 1; }
+		|| Log error -s "Failed To Queue Restore Action"
+	return 0
 }
 
 Debug_Run() {
@@ -14910,9 +15069,9 @@ Dispatch_Uninstall() {
 		Prompt_Input "1-2" uninstallconfirm
 		case "$uninstallconfirm" in
 			1)
-				if Skynet_Owns_Swap; then
+				if Swap_File_Is_Manageable; then
 					while true; do
-						Show_Menu "Would You Like To Remove Skynet Generated Swap File?" \
+						Show_Menu "Would You Like To Remove The SWAP File?" \
 							"Yes" \
 							"No" \
 							"Exit"
@@ -14944,6 +15103,8 @@ Dispatch_Uninstall() {
 				Unload_IPSets || { echo "[*] Failed To Unload Skynet IPSets"; return 1; }
 				Uninstall_WebUI_Page || { echo "[*] Failed To Remove Skynet WebUI"; return 1; }
 				if ! nvram set fw_log_x=none || ! nvram commit; then echo "[*] Failed To Restore Firewall Logging Setting"; return 1; fi
+				echo "[i] Removing Skynet Entries From Syslog"
+				Purge_Uninstall_Syslog || { echo "[*] Failed To Clean Syslog - Uninstaller Retained"; return 1; }
 				for uninstallhook in /jffs/scripts/firewall-start /jffs/scripts/services-stop /jffs/scripts/service-event /jffs/configs/profile.add /jffs/configs/dnsmasq.conf.add; do
 					[ -e "$uninstallhook" ] || continue
 					sed -i '\~# Skynet~d' "$uninstallhook" || { echo "[*] Failed To Remove Skynet Hook ($uninstallhook)"; return 1; }
@@ -14952,8 +15113,6 @@ Dispatch_Uninstall() {
 				[ ! -f "/opt/etc/syslog-ng.d/skynet" ] || echo "[i] Reconfigure Scribe To Restore Its Standard Firewall Log Handler"
 				echo "[i] Restarting Firewall Service"
 				Request_Service_Restart restart_firewall || { echo "[*] Failed To Restart Firewall Service"; return 1; }
-				echo "[i] Removing Skynet Entries From Syslog"
-				Purge_Uninstall_Syslog || { echo "[*] Failed To Clean Syslog - Uninstaller Retained"; return 1; }
 				echo "[i] Deleting Skynet Files"
 				# Retain the executable until data removal succeeds so a failed
 				# cleanup can be retried. Never unlink the active state-lock inode.
@@ -16353,7 +16512,7 @@ if [ "$restartfirewall" = "1" ]; then
 	fi
 fi
 if [ "$commandstatus" = "0" ]; then
-	Publish_Actions || commandstatus="1"
+	Record_Actions
 else
 	Publish_Failed_Actions || Log error -s "Failed To Record Action Failure"
 fi

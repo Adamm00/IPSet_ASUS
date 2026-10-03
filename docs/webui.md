@@ -21,7 +21,9 @@ The dashboard shows the latest generated ban totals, packet counters and a rolli
 
 Use **Refresh Stats** to collect pending events and regenerate the charts. Changing a setting does not necessarily rebuild chart statistics. If generation fails, the previous charts remain visible.
 
-Use **Reset Stats** to clear recorded block events and activity charts after confirmation. Bans, settings, action history and firewall packet counters are kept. New activity appears as it is collected.
+If new log collection fails, charts and History can still use saved events. A warning identifies this state; source logs remain available for a later collection. History problems do not prevent protection settings, saves or firewall maintenance.
+
+Use **Reset Stats** to clear recorded block events and activity charts after confirmation. Bans, settings, action history and firewall packet counters are kept. New activity appears as it is collected. Resets are recorded in Activity History for both WebUI and SSH commands.
 
 ### Understanding the numbers
 
@@ -29,10 +31,12 @@ Use **Reset Stats** to clear recorded block events and activity charts after con
 | --- | --- |
 | IPs / ranges banned | The blacklist totals captured when statistics were generated. |
 | Inbound / outbound headline counters | Packets since their firewall rules were installed; rebuilding rules or rebooting resets them. |
-| Log Size | Used history database space, excluding empty pages reserved for reuse. Refreshed with the charts; a reset retains a small amount of database metadata. |
+| Log Size | Current used history space / configured maximum. Excludes empty pages reserved for reuse. Usage refreshes with the charts; a reset retains a small amount of database metadata. |
 | Activity charts and history | Retained logged events; these survive restarts while their history is retained. |
 
 Logging can be disabled or rate-limited, so logged-event totals may differ from packet counters. History gaps indicate no recorded bucket, not confirmed zero traffic. Rule matches in IP details describe the saved policy snapshot, not necessarily the policy when an older event occurred.
+
+In **IP Details**, use **View Hits in History** to load the last seven days of retained events for that IP across all categories and protocols. **Threat Feed Sources → Check Sources** identifies matching cached feeds, including excluded sources; the saved rule matches above show policy coverage, and whitelist matches take precedence over bans.
 
 ## Updates
 
@@ -54,6 +58,8 @@ If an enabled source has no valid matching cache, the update fails and retains t
 
 Use **Create Backup** to create a dated restore point. Select a point to see its creation time and size, then download or restore it. Skynet retains the latest three points.
 
+Protection data and settings are backed up even when block history is unavailable. Skynet reports when history is omitted; restoring that backup starts new block history.
+
 Restoring replaces settings, rules, source caches and block history; current activity history is retained. The restore requires confirmation, and traffic may be interrupted briefly while rules are rebuilt. Backups that disable WebUI integration must be restored through SSH.
 
 Download older points before creating more if you want to keep them. Backup archives contain private network data. See [backup commands and recovery behaviour](user-guide.md#diagnostics-and-maintenance).
@@ -61,6 +67,8 @@ Download older points before creating more if you want to keep them. Backup arch
 ### Activity history
 
 Activity History records settings changes, policy operations and failures. It is separate from the packet events under **History**. Filter by category, result or text, and export matching entries to CSV.
+
+If an activity record cannot be saved, Skynet reports it in syslog and keeps the completed change.
 
 ## Protection
 
