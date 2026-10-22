@@ -109,6 +109,8 @@ Each source is reported as `current`, `cached`, `failed`, or `excluded`; `pendin
 - `firewall whitelist view` - Display automatic whitelist entries.
 - `firewall whitelist view ips|domains|asns|imported` - Display only the selected class of user whitelist rule.
 
+Skynet automatically exempts enabled feed endpoints and shared service hosts, including IPdeny. One shared whitelist refresh resolves their current public IPv4 addresses before country and malware-list downloads. These entries remain separate from user domain rules, so a rule refresh cannot erase them. Learned addresses expire after 24 hours unless renewed; a failed DNS lookup retains their remaining lifetime.
+
 VPN whitelisting uses Merlin's configured NVRAM values without scanning active routes or interfaces. Each enabled OpenVPN server pool uses its configured subnet and netmask. Configured OpenVPN and WireGuard client endpoints are whitelisted as `/24` networks. Server firewall rules are installed only while the corresponding OpenVPN or WireGuard server is enabled.
 
 ### Importing and Removing Lists
@@ -139,7 +141,7 @@ Automatic feeds, resolved domains, permanent user rules and temporary bans are c
 
 Replacement sets size their entry capacity from the prepared list, retaining the standard limits as minimums and allowing 25% headroom for larger inputs. Capacity is a ceiling, not preallocated storage; hash tables start small and grow as entries are loaded. Overlapping rule owners may produce a conservative capacity estimate. Available router RAM still limits usable list size, especially while old and replacement sets coexist. A failed replacement leaves the previous policy active. Existing compatible sets retain their capacity until replaced, and startup restores saved entries without replaying obsolete set-creation limits.
 
-Automatic addresses and ranges remain in `Skynet-Blacklist` and `Skynet-BlockedRanges`. Resolved domain bans use `Skynet-BlacklistDomains`, permanent user rules use `Skynet-UserBans`, and expiring rules use `Skynet-TemporaryBans`. Automatic, domain, and user whitelist entries are separated in the same way. `Skynet-IOT` remains independent.
+Automatic addresses and ranges remain in `Skynet-Blacklist` and `Skynet-BlockedRanges`. Resolved domain bans use `Skynet-BlacklistDomains`, permanent user rules use `Skynet-UserBans`, and expiring rules use `Skynet-TemporaryBans`. Automatic, domain, and user whitelist entries are separated in the same way. Automatic and shared hostname answers use `Skynet-SharedWhitelist`, independently of registered domain rules. `Skynet-IOT` remains independent.
 
 ### Updates
 

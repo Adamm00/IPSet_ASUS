@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                           03/10/2026 - v9.0.5                                             #
+#                                           22/10/2026 - v9.0.6                                             #
 #############################################################################################################
 
 
@@ -2708,7 +2708,7 @@ IPSet_Capacity() {
 	# Keep established capacity floors, or allow 25% growth above larger inputs.
 	case "$1" in
 		Skynet-Blacklist) ipsetsizefloor="1048576" ;;
-		Skynet-BlacklistDomains|Skynet-WhitelistDomains) ipsetsizefloor="524288" ;;
+		Skynet-BlacklistDomains|Skynet-WhitelistDomains|Skynet-SharedWhitelist) ipsetsizefloor="524288" ;;
 		Skynet-BlockedRanges|Skynet-Whitelist|Skynet-IOT|Skynet-UserBans|Skynet-UserWhitelist|Skynet-TemporaryBans) ipsetsizefloor="393216" ;;
 		*) return 2 ;;
 	esac
@@ -2732,7 +2732,7 @@ Create_Sized_IPSet() {
 	ipsetsizemax="$(IPSet_Capacity "$ipsetcreateprofile" "$3")" || return 2
 	case "$ipsetcreateprofile" in
 		Skynet-Blacklist) set -- hash:ip comment ;;
-		Skynet-BlacklistDomains|Skynet-WhitelistDomains) set -- hash:ip comment timeout 86400 ;;
+		Skynet-BlacklistDomains|Skynet-WhitelistDomains|Skynet-SharedWhitelist) set -- hash:ip comment timeout 86400 ;;
 		Skynet-BlockedRanges|Skynet-Whitelist|Skynet-IOT) set -- hash:net comment ;;
 		Skynet-UserBans|Skynet-UserWhitelist) set -- hash:net ;;
 		Skynet-TemporaryBans) set -- hash:net timeout 0 ;;
@@ -2771,7 +2771,7 @@ Update_IPSet() {
 		*) Log error -s "Invalid IPSet Action ($ipsetaction)"; return 1 ;;
 	esac
 	case "$ipsetname" in
-		Skynet-Whitelist|Skynet-WhitelistDomains|Skynet-UserWhitelist|Skynet-Blacklist|Skynet-BlacklistDomains|Skynet-BlockedRanges|Skynet-UserBans|Skynet-TemporaryBans|Skynet-IOT|Skynet-Master|Skynet-MasterWL) ;;
+		Skynet-Whitelist|Skynet-WhitelistDomains|Skynet-SharedWhitelist|Skynet-UserWhitelist|Skynet-Blacklist|Skynet-BlacklistDomains|Skynet-BlockedRanges|Skynet-UserBans|Skynet-TemporaryBans|Skynet-IOT|Skynet-Master|Skynet-MasterWL) ;;
 		*) Log error -s "Invalid IPSet ($ipsetname)"; return 1 ;;
 	esac
 	if [ -z "$ipsetentry" ]; then
@@ -2795,6 +2795,7 @@ Update_IPSet() {
 IP_Is_Whitelisted() {
 	ipset -q test Skynet-Whitelist "$1" 2>/dev/null \
 		|| ipset -q test Skynet-WhitelistDomains "$1" 2>/dev/null \
+		|| ipset -q test Skynet-SharedWhitelist "$1" 2>/dev/null \
 		|| ipset -q test Skynet-UserWhitelist "$1" 2>/dev/null
 }
 
@@ -3325,6 +3326,7 @@ Check_IPSets() {
 		$0 == "Skynet-UserBans" { found9 = 1 }
 		$0 == "Skynet-TemporaryBans" { found10 = 1 }
 		$0 == "Skynet-UserWhitelist" { found11 = 1 }
+		$0 == "Skynet-SharedWhitelist" { found12 = 1 }
 		END {
 			if (!found1) printf "#1 "
 			if (!found2) printf "#2 "
@@ -3337,18 +3339,19 @@ Check_IPSets() {
 			if (!found9) printf "#9 "
 			if (!found10) printf "#10 "
 			if (!found11) printf "#11 "
+			if (!found12) printf "#12 "
 		}
 	')"
 	[ -z "$fail" ] || return 1
 	for checkset in Skynet-Blacklist Skynet-BlockedRanges Skynet-Whitelist Skynet-IOT \
-		Skynet-BlacklistDomains Skynet-WhitelistDomains Skynet-UserBans Skynet-UserWhitelist \
+		Skynet-BlacklistDomains Skynet-WhitelistDomains Skynet-SharedWhitelist Skynet-UserBans Skynet-UserWhitelist \
 		Skynet-TemporaryBans Skynet-Master Skynet-MasterWL; do
 		Expected_IPSet_Schema_Is_Valid "$checkset" || { fail="#schema:$checkset "; return 1; }
 	done
 	for checkset in Skynet-Blacklist Skynet-BlockedRanges Skynet-BlacklistDomains Skynet-UserBans Skynet-TemporaryBans; do
 		ipset -q test Skynet-Master "$checkset" || { fail="#master:$checkset "; return 1; }
 	done
-	for checkset in Skynet-Whitelist Skynet-WhitelistDomains Skynet-UserWhitelist; do
+	for checkset in Skynet-Whitelist Skynet-WhitelistDomains Skynet-SharedWhitelist Skynet-UserWhitelist; do
 		ipset -q test Skynet-MasterWL "$checkset" || { fail="#master:$checkset "; return 1; }
 	done
 	return 0
@@ -3506,7 +3509,7 @@ Expected_IPSet_Schema_Is_Valid() {
 			case "$expectedpadded" in *" comment "*) ;; *) return 1 ;; esac
 			case "$expectedpadded" in *" timeout "*) return 1 ;; esac
 		;;
-		Skynet-WhitelistDomains:"create Skynet-WhitelistDomains hash:ip "*|Skynet-BlacklistDomains:"create Skynet-BlacklistDomains hash:ip "*)
+		Skynet-SharedWhitelist:"create Skynet-SharedWhitelist hash:ip "*|Skynet-WhitelistDomains:"create Skynet-WhitelistDomains hash:ip "*|Skynet-BlacklistDomains:"create Skynet-BlacklistDomains hash:ip "*)
 			case "$expectedpadded" in *" comment "*) ;; *) return 1 ;; esac
 			case "$expectedpadded" in *" timeout 86400 "*) ;; *) return 1 ;; esac
 		;;
@@ -3520,7 +3523,7 @@ Expected_IPSet_Schema_Is_Valid() {
 }
 
 Existing_IPSet_Schemas_Are_Compatible() {
-	for expectedset in Skynet-Whitelist Skynet-WhitelistDomains Skynet-Blacklist Skynet-BlacklistDomains \
+	for expectedset in Skynet-Whitelist Skynet-WhitelistDomains Skynet-SharedWhitelist Skynet-Blacklist Skynet-BlacklistDomains \
 		Skynet-BlockedRanges Skynet-Master Skynet-MasterWL Skynet-IOT \
 		Skynet-UserBans Skynet-TemporaryBans Skynet-UserWhitelist; do
 		ipset -n list 2>/dev/null | grep -qxF "$expectedset" || continue
@@ -3535,7 +3538,7 @@ Create_IPSet_Topology() {
 	if [ -f "$skynetipset" ]; then
 		topologycounts="$(awk '$1 == "add" {count[$2]++} END {for (name in count) print name, count[name]}' "$skynetipset")" || return 1
 	fi
-	for topologyset in Skynet-Whitelist Skynet-WhitelistDomains Skynet-Blacklist Skynet-BlacklistDomains \
+	for topologyset in Skynet-Whitelist Skynet-WhitelistDomains Skynet-SharedWhitelist Skynet-Blacklist Skynet-BlacklistDomains \
 		Skynet-BlockedRanges Skynet-Master Skynet-MasterWL Skynet-IOT; do
 		topologycount="$(printf '%s\n' "$topologycounts" | awk -v name="$topologyset" '$1 == name {print $2; exit}')"
 		Ensure_IPSet "$topologyset" "${topologycount:-0}" || return 1
@@ -3547,6 +3550,7 @@ Create_IPSet_Topology() {
 	Update_IPSet add Skynet-Master Skynet-BlockedRanges || return 1
 	Update_IPSet add Skynet-MasterWL Skynet-Whitelist || return 1
 	Update_IPSet add Skynet-MasterWL Skynet-WhitelistDomains || return 1
+	Update_IPSet add Skynet-MasterWL Skynet-SharedWhitelist || return 1
 }
 
 Restore_Previous_IPSet_Topology() {
@@ -3565,13 +3569,13 @@ Rebuild_IPSet_Topology() {
 	topologysnapshot="$TMP_DIR/ipset-topology-old.$$"
 	topologyrestore="$TMP_DIR/ipset-topology-base.$$"
 	true > "$topologysnapshot" || return 1
-	for topologyset in Skynet-Whitelist Skynet-WhitelistDomains Skynet-Blacklist Skynet-BlacklistDomains \
+	for topologyset in Skynet-Whitelist Skynet-WhitelistDomains Skynet-SharedWhitelist Skynet-Blacklist Skynet-BlacklistDomains \
 		Skynet-BlockedRanges Skynet-IOT Skynet-UserBans Skynet-TemporaryBans Skynet-UserWhitelist \
 		Skynet-Master Skynet-MasterWL; do
 		ipset -n list 2>/dev/null | grep -qxF "$topologyset" || continue
 		ipset save "$topologyset" >> "$topologysnapshot" 2>/dev/null || return 1
 	done
-	awk '$1 == "add" && ($2 == "Skynet-Whitelist" || $2 == "Skynet-Blacklist" || $2 == "Skynet-BlockedRanges" || $2 == "Skynet-IOT")' \
+	awk '$1 == "add" && ($2 == "Skynet-Whitelist" || $2 == "Skynet-Blacklist" || $2 == "Skynet-BlockedRanges" || $2 == "Skynet-IOT" || $2 == "Skynet-SharedWhitelist")' \
 		"$topologysnapshot" > "$topologyrestore" || return 1
 
 	Acquire_Firewall_Lock || return 1
@@ -3653,7 +3657,7 @@ Require_Running() {
 Unload_IPSets() {
 	Destroy_IPSets \
 		Skynet-Master Skynet-MasterWL Skynet-Blacklist Skynet-BlockedRanges \
-		Skynet-Whitelist Skynet-WhitelistDomains Skynet-BlacklistDomains \
+		Skynet-Whitelist Skynet-WhitelistDomains Skynet-SharedWhitelist Skynet-BlacklistDomains \
 		Skynet-UserBans Skynet-TemporaryBans Skynet-UserWhitelist Skynet-IOT
 }
 
@@ -5592,16 +5596,61 @@ Restore_IPSet_Snapshot() {
 	return 1
 }
 
+Shared_Whitelist_Hosts() {
+	for sharedhostfile in /jffs/addons/shared-whitelists/shared-*-whitelist; do
+		[ ! -f "$sharedhostfile" ] || cat "$sharedhostfile" || return 1
+	done | awk '{
+		value=tolower($0)
+		sub(/^[[:space:]]+/, "", value); sub(/[[:space:]]+$/, "", value)
+		if (value == "" || value ~ /^#/ || value ~ /[[:space:]]/) next
+		sub(/^https?:\/\//, "", value)
+		sub(/[\/?#].*$/, "", value)
+		sub(/^.*@/, "", value)
+		sub(/:[0-9]+$/, "", value)
+		if (value != "") print value
+	}' | Normalize_Domain_Input list
+}
+
+Refresh_Shared_Whitelist() (
+	ipset -q -t list Skynet-SharedWhitelist >/dev/null 2>&1 || return 0
+	sharedhosts="$TMP_DIR/shared-hosts.$$"
+	Shared_Whitelist_Hosts > "$sharedhosts" || return 1
+	Start_Background_Jobs
+	sharedindex="0"
+	while IFS= read -r sharedhost; do
+		sharedindex=$((sharedindex + 1))
+		(
+			# Cached DNS answers must be inserted explicitly too. Failed lookups
+			# leave existing addresses to expire at their original deadline.
+			if printf '%s\n' "$sharedhost" | Is_IP; then
+				sharedips="$sharedhost"
+			else
+				sharedips="$(Resolve_Normalized_Domain_IP_List "$sharedhost" public 127.0.0.1 "shared-$sharedindex")" || exit 0
+			fi
+			printf '%s\n' "$sharedips" | tr ' ' '\n' | Filter_IP | Filter_PrivateIP \
+				| awk 'NF {printf "add Skynet-SharedWhitelist %s timeout 86400 comment \"SharedHost\"\n", $1}' \
+				| ipset restore -! || Log error -s "Failed To Refresh Shared Whitelist ($sharedhost)"
+		) &
+		Wait_Background_Job_Slot 4
+	done < "$sharedhosts"
+	Wait_Background_Jobs
+)
+
 Whitelist_Extra() {
 	sharedwhitelist="/jffs/addons/shared-whitelists/shared-Skynet2-whitelist"
 	sharedwhitelisttmp="${sharedwhitelist}.tmp.$$"
 	{
 		printf '%s\n' \
 			"ipdeny.com" \
+			"www.ipdeny.com" \
 			"ipapi.co" \
 			"api.db-ip.com" \
 			"api.bgpview.io" \
 			"asn.ipinfo.app" \
+			"www.cloudflare.com" \
+			"ip-ranges.amazonaws.com" \
+			"api.github.com" \
+			"endpoints.office.com" \
 			"speedguide.net" \
 			"otx.alienvault.com" \
 			"github.com" \
@@ -5974,6 +6023,7 @@ Publish_Domain_Dnsmasq_Config() {
 	dnsmasqrestore="${dnsmasqfile}.restore.$$"
 	dnsmasqwhitelist="$TMP_DIR/dnsmasq-whitelist.$$"
 	dnsmasqblacklist="$TMP_DIR/dnsmasq-blacklist.$$"
+	dnsmasqsharedhosts="$TMP_DIR/dnsmasq-shared.$$"
 	dnsmasqcandidates="$TMP_DIR/dnsmasq-candidates.$$"
 	[ ! -L "$dnsmasqfile" ] || return 1
 	dnsmasqhadfile="0"
@@ -5984,14 +6034,8 @@ Publish_Domain_Dnsmasq_Config() {
 		true > "$dnsmasqtmp" || return 1
 	fi
 	true > "$dnsmasqcandidates" || return 1
-	for dnsmasqshared in /jffs/addons/shared-whitelists/shared-*-whitelist; do
-		[ -f "$dnsmasqshared" ] || continue
-		case "${dnsmasqshared##*/}" in shared-Skynet-whitelist|shared-Skynet2-whitelist) continue ;; esac
-		Strip_Domain "$dnsmasqshared" >> "$dnsmasqcandidates" 2>/dev/null || {
-			rm -f "$dnsmasqtmp" "$dnsmasqwhitelist" "$dnsmasqblacklist" "$dnsmasqcandidates"
-			return 1
-		}
-	done
+	Shared_Whitelist_Hosts > "$dnsmasqsharedhosts" || return 1
+
 	awk -F '\t' '$1 == "R2" && $3 == "whitelist" && $4 == "domain" && $7 == "enabled" {print $5}' "$skynetrules" >> "$dnsmasqcandidates" 2>/dev/null \
 		|| { rm -f "$dnsmasqtmp" "$dnsmasqwhitelist" "$dnsmasqblacklist" "$dnsmasqcandidates"; return 1; }
 	true > "$dnsmasqwhitelist" || return 1
@@ -6007,8 +6051,12 @@ Publish_Domain_Dnsmasq_Config() {
 	awk -F '\t' '$1 == "R2" && $3 == "ban" && $4 == "domain" && $7 == "enabled" {print $5}' "$skynetrules" 2>/dev/null \
 		| awk 'NF && !seen[tolower($0)]++ {print tolower($0)}' > "$dnsmasqblacklist" \
 		|| { rm -f "$dnsmasqtmp" "$dnsmasqwhitelist" "$dnsmasqblacklist" "$dnsmasqcandidates"; return 1; }
-	for dnsmasqset in Skynet-WhitelistDomains Skynet-BlacklistDomains; do
-		if [ "$dnsmasqset" = "Skynet-WhitelistDomains" ]; then dnsmasqsource="$dnsmasqwhitelist"; else dnsmasqsource="$dnsmasqblacklist"; fi
+	for dnsmasqset in Skynet-SharedWhitelist Skynet-WhitelistDomains Skynet-BlacklistDomains; do
+		case "$dnsmasqset" in
+			Skynet-SharedWhitelist) dnsmasqsource="$dnsmasqsharedhosts" ;;
+			Skynet-WhitelistDomains) dnsmasqsource="$dnsmasqwhitelist" ;;
+			*) dnsmasqsource="$dnsmasqblacklist" ;;
+		esac
 		awk -v setname="$dnsmasqset" '
 			NF {
 				line = line (count == 0 ? "ipset=/" : "/") $0
@@ -6023,7 +6071,7 @@ Publish_Domain_Dnsmasq_Config() {
 		' "$dnsmasqsource" >> "$dnsmasqtmp" \
 			|| { rm -f "$dnsmasqtmp" "$dnsmasqwhitelist" "$dnsmasqblacklist" "$dnsmasqcandidates"; return 1; }
 	done
-	rm -f "$dnsmasqwhitelist" "$dnsmasqblacklist" "$dnsmasqcandidates"
+	rm -f "$dnsmasqwhitelist" "$dnsmasqblacklist" "$dnsmasqcandidates" "$dnsmasqsharedhosts"
 	if [ -f "$dnsmasqfile" ] && cmp -s "$dnsmasqtmp" "$dnsmasqfile"; then
 		rm -f "$dnsmasqtmp"
 		# A previous failed recovery can leave these bytes on disk without a
@@ -6061,6 +6109,7 @@ Publish_Domain_Dnsmasq_Config() {
 }
 
 Whitelist_Shared() {
+	Whitelist_Extra || return 1
 	# NVRAM stores these as whitespace-separated resolver pairs.
 	# shellcheck disable=SC2046
 	set -- $(nvram get wan_dns)
@@ -6090,6 +6139,7 @@ Whitelist_Shared() {
 	add Skynet-Whitelist 127.0.0.0/8 comment \"nvram: Localhost\"" | tr -d "\t" | Filter_IPLine | ipset restore -! 2>/dev/null
 
 	Publish_Domain_Dnsmasq_Config || return 1
+	Refresh_Shared_Whitelist || return 1
 	if [ "$(uname -o)" = "ASUSWRT-Merlin" ]; then dotvar="dnspriv_rulelist"; else dotvar="stubby_dns"; fi
 	for ip in $(nvram get "$dotvar" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}'); do
 		echo "add Skynet-Whitelist $ip comment \"nvram: $dotvar\""
@@ -9912,8 +9962,8 @@ WebUI_Summary_Label() {
 }
 
 Print_Command_Summary() {
-	oldips="${webuisummaryoldips:-${blacklist1count:-0}}"
-	oldranges="${webuisummaryoldranges:-${blacklist2count:-0}}"
+	oldips="${summaryoldips:-${blacklist1count:-0}}"
+	oldranges="${summaryoldranges:-${blacklist2count:-0}}"
 	Update_Block_Counts
 	blacklist1count="${blacklist1count:-0}"
 	blacklist2count="${blacklist2count:-0}"
@@ -11049,6 +11099,7 @@ EOF
 
 Build_Country_Update() {
 	countryrequested="$1"
+	Whitelist_Shared || return 1
 	countrycachedir="${skynetloc}/lists/countries"
 	countrycachemanifest="${countrycachedir}/.manifest"
 	countrytmp="$TMP_DIR/country.restore.$$"
@@ -12084,10 +12135,9 @@ fi
 feedfilterpublished="1"
 Display_Result
 Display_Message "[i] Refreshing Whitelists"
-Whitelist_Extra
+	Whitelist_Shared || { Restore_Threat_Feed_Selection; return 1; }
 	Whitelist_VPN
 	Whitelist_CDN || cdnstatus="1"
-	Whitelist_Shared
 	Display_Result
 case "$cdnresult" in
 	current) echo "[i] CDN Whitelist Already Up To Date" ;;
@@ -12426,10 +12476,9 @@ Dispatch_Whitelist() {
 		refresh)
 			Require_Connection
 			echo "[i] Refreshing Shared Whitelist Files"
-			Whitelist_Extra || { echo "[*] Failed To Refresh Extra Whitelist"; echo; exit 1; }
+			Whitelist_Shared || { echo "[*] Failed To Refresh Shared Whitelist"; echo; exit 1; }
 			Whitelist_CDN || { echo "[*] Failed To Refresh CDN Whitelist"; echo; exit 1; }
 			Whitelist_VPN || { echo "[*] Failed To Refresh VPN Whitelist"; echo; exit 1; }
-			Whitelist_Shared || { echo "[*] Failed To Refresh Shared Whitelist"; echo; exit 1; }
 			Update_Domain_Rules "$skynetrules" refresh || { echo "[*] Failed To Refresh Domain Rules - Existing Rules Retained"; echo; exit 1; }
 			Require_Save_IPSets
 			Queue_Action success rules refresh all whitelist "whitelist sources" "" || Log error -s "Failed To Queue Rule Action"
@@ -12451,6 +12500,7 @@ Dispatch_Whitelist() {
 				;;
 				*)
 					sed '\~add Skynet-Whitelist ~!d;s~add Skynet-Whitelist ~~' "$skynetipset"
+					ipset save Skynet-SharedWhitelist | sed '\~^add Skynet-SharedWhitelist ~!d;s~^add Skynet-SharedWhitelist ~~'
 				;;
 			esac
 			echo
@@ -12863,7 +12913,7 @@ Dispatch_Disable() {
 	disableipsets="$(ipset -n list 2>/dev/null)" || { echo "[*] Failed To Inspect Skynet IPSets"; return 1; }
 	disablecomplete="1"
 	for disableset in Skynet-Master Skynet-MasterWL Skynet-Blacklist Skynet-BlockedRanges \
-		Skynet-Whitelist Skynet-WhitelistDomains Skynet-BlacklistDomains \
+		Skynet-Whitelist Skynet-WhitelistDomains Skynet-SharedWhitelist Skynet-BlacklistDomains \
 		Skynet-UserBans Skynet-TemporaryBans Skynet-UserWhitelist Skynet-IOT; do
 		if ! printf '%s\n' "$disableipsets" | grep -qxF "$disableset"; then disablecomplete="0"; break; fi
 	done
@@ -13808,8 +13858,6 @@ Dispatch_WebUI() {
 	case "$webuiaction" in
 		SkynetStats|SkynetStatsReset|SkynetSettings|apply|SkynetBackup|SkynetRestart|SkynetRestore|SkynetBanMalware|banmalware|SkynetCountries|countries|SkynetRules|rules|SkynetIOT|iot)
 			webuisummary="1"
-			webuisummaryoldips="${blacklist1count:-0}"
-			webuisummaryoldranges="${blacklist2count:-0}"
 		;;
 	esac
 	if ! Wait_For_Service_Idle; then
@@ -16493,6 +16541,8 @@ fi
 #- Commands -#
 ##############
 
+summaryoldips="${blacklist1count:-0}"
+summaryoldranges="${blacklist2count:-0}"
 Clean_Stale_Temp
 Dispatch_Command "$@"
 dispatchstatus="$?"
