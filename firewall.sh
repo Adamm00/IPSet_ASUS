@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                           22/10/2026 - v9.0.6                                             #
+#                                           23/10/2026 - v9.0.7                                             #
 #############################################################################################################
 
 
@@ -3803,15 +3803,18 @@ Normalize_IPSet_Entries() {
 			if (prefix !~ /^[0-9]+$/ || prefix < 0 || prefix > 32) exit 1
 			if (expected == "ip" && prefix != 32) exit 1
 			if (expected == "range" && (parts != 2 || prefix == 32)) exit 1
+			count++
+			if (prefix == 32) {
+				printf "%d.%d.%d.%d\n", octet[1]+0, octet[2]+0, octet[3]+0, octet[4]+0
+				next
+			}
 			value = (((octet[1] * 256) + octet[2]) * 256 + octet[3]) * 256 + octet[4]
 			block = blocks[prefix + 0]
 			value = int(value / block) * block
 			first = int(value / 16777216); value -= first * 16777216
 			second = int(value / 65536); value -= second * 65536
 			third = int(value / 256); fourth = value - third * 256
-			count++
-			if (prefix == 32) printf "%d.%d.%d.%d\n", first, second, third, fourth
-			else printf "%d.%d.%d.%d/%d\n", first, second, third, fourth, prefix
+			printf "%d.%d.%d.%d/%d\n", first, second, third, fourth, prefix
 		}
 		END { if (!count) exit 1 }'
 }
@@ -4531,7 +4534,12 @@ Domain_Lookup() {
 		fi
 	) &
 	lookuppid=$!
-	( sleep "$lookuptimeout"; kill "$lookuppid" 2>/dev/null ) &
+	(
+		trap 'kill "$lookupsleeppid" 2>/dev/null; wait "$lookupsleeppid" 2>/dev/null; exit' INT TERM
+		sleep "$lookuptimeout" &
+		lookupsleeppid=$!
+		wait "$lookupsleeppid" 2>/dev/null && kill "$lookuppid" 2>/dev/null
+	) >/dev/null 2>&1 &
 	lookupwatchdogpid=$!
 
 	wait "$lookuppid" 2>/dev/null
@@ -6138,8 +6146,6 @@ Whitelist_Shared() {
 	add Skynet-Whitelist 192.30.252.0/22 comment \"nvram: GitHub Content Server\"
 	add Skynet-Whitelist 127.0.0.0/8 comment \"nvram: Localhost\"" | tr -d "\t" | Filter_IPLine | ipset restore -! 2>/dev/null
 
-	Publish_Domain_Dnsmasq_Config || return 1
-	Refresh_Shared_Whitelist || return 1
 	if [ "$(uname -o)" = "ASUSWRT-Merlin" ]; then dotvar="dnspriv_rulelist"; else dotvar="stubby_dns"; fi
 	for ip in $(nvram get "$dotvar" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}'); do
 		echo "add Skynet-Whitelist $ip comment \"nvram: $dotvar\""
@@ -6153,6 +6159,8 @@ Whitelist_Shared() {
 		grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' /opt/var/lib/unbound/root.hints \
 			| awk '{printf "add Skynet-Whitelist %s comment \"nvram: Root DNS Server\"\n", $1 }' | ipset restore -!
 	fi
+	Publish_Domain_Dnsmasq_Config || return 1
+	Refresh_Shared_Whitelist || return 1
 }
 
 #############################
@@ -6925,8 +6933,8 @@ Is_Enabled() {
 
 Search_Ban_Reasons() {
 	# One case-insensitive fixed-substring scan covers both live blacklist sets.
-	# Malware source URLs are resolved from the local filter manifest only; this
-	# command intentionally performs no DNS, country or external lookups.
+	# Malware URLs use persisted cache bindings and managed source names without
+	# DNS, country or external lookups.
 	bansearchterm="$1"
 	bansearchlimit="${2:-25}"
 	bansearchdata="$TMP_DIR/ban-reasons.$$"
@@ -6943,20 +6951,24 @@ Search_Ban_Reasons() {
 	fi
 	{ ipset save Skynet-Blacklist 2>/dev/null \
 		&& ipset save Skynet-BlockedRanges 2>/dev/null; } > "$bansearchdata" || return 1
-	printf '#\n' > "$bansearchsources" || return 1
-	if [ -f /jffs/addons/shared-whitelists/shared-Skynet-whitelist ]; then
-		cat /jffs/addons/shared-whitelists/shared-Skynet-whitelist >> "$bansearchsources"
+	if ! Read_Managed_Feed_Selection "$bansearchsources"; then
+		: > "$bansearchsources" || { rm -f "$bansearchdata" "$bansearchsources"; return 1; }
 	fi
 
 	printf '%-20s | %-7s | %-48s | %s\n' "IP Address / Range" "Type" "Ban Reason" "Source"
 	printf '%-20s-+-%-7s-+-%-48s-+-%s\n' "--------------------" "-------" "------------------------------------------------" "------"
-	if ! awk -v term="$bansearchterm" -v limit="$bansearchlimit" -v countfile="$bansearchcount" '
-		NR == FNR {
-			url = $1
-			clean = url
-			sub(/[?#].*/, "", clean)
-			parts = split(clean, path, "/")
-			if (path[parts] != "") sources[tolower(path[parts])] = url
+	if ! awk -v term="$bansearchterm" -v limit="$bansearchlimit" -v countfile="$bansearchcount" \
+		-v bindings="$skynetloc/lists/.manifest" '
+		BEGIN {
+			while ((getline line < bindings) > 0) {
+				if (split(line, binding, " ") == 2 && binding[1] ~ /^https?:\/\// \
+					&& binding[2] ~ /^[A-Za-z0-9_-][A-Za-z0-9._-]*$/)
+					sources[tolower(binding[2])] = binding[1]
+			}
+			close(bindings)
+		}
+		FILENAME == ARGV[1] {
+			if (NF == 3 && !(tolower($1) in sources)) sources[tolower($1)] = $2
 			next
 		}
 		$1 == "add" && ($2 == "Skynet-Blacklist" || $2 == "Skynet-BlockedRanges") {
@@ -11084,10 +11096,13 @@ EOF
 				countryfetchchanged="$countryfetchnow"
 			fi
 			printf 'current\t%s\t%s\t%s\t%s\t%s\tok\n' "$countryfetchentries" "$countryfetchnow" "$countryfetchnow" "$countryfetchhash" "$countryfetchchanged" > "$countryfetchresult"
-		elif [ "$countryfetchvalid" = "1" ]; then
-			printf 'cached\t%s\t%s\t%s\t%s\t%s\tinvalid\n' "$countryfetchentries" "$countryfetchnow" "$countryfetcholdsuccess" "$countryfetchhash" "$countryfetcholdchanged" > "$countryfetchresult"
 		else
-			printf 'failed\t0\t%s\t0\t-\t0\tinvalid\n' "$countryfetchnow" > "$countryfetchresult"
+			rm -f "$countryfetchzone"
+			if [ "$countryfetchvalid" = "1" ]; then
+				printf 'cached\t%s\t%s\t%s\t%s\t%s\tinvalid\n' "$countryfetchentries" "$countryfetchnow" "$countryfetcholdsuccess" "$countryfetchhash" "$countryfetcholdchanged" > "$countryfetchresult"
+			else
+				printf 'failed\t0\t%s\t0\t-\t0\tinvalid\n' "$countryfetchnow" > "$countryfetchresult"
+			fi
 		fi
 	elif [ "$countryfetchvalid" = "1" ]; then
 		printf 'cached\t%s\t%s\t%s\t%s\t%s\tdownload\n' "$countryfetchentries" "$countryfetchnow" "$countryfetcholdsuccess" "$countryfetchhash" "$countryfetcholdchanged" > "$countryfetchresult"
@@ -11228,11 +11243,21 @@ Publish_Country_Cache() {
 		countrysuccess="0"
 		countryhash="-"
 		countrychanged="0"
-		[ -s "$TMP_DIR/country.${country}.result" ] && IFS="$(printf '\t')" read -r countryresult countryentries countrychecked countrysuccess countryhash countrychanged _countryreason < "$TMP_DIR/country.${country}.result"
-		if [ -s "$TMP_DIR/country.${country}.zone" ]; then
-			mv -f "$TMP_DIR/country.${country}.zone" "${countrycachedir}/${country}.zone" \
-				|| { rm -f "$countrymanifesttmp"; return 1; }
+		if [ ! -s "$TMP_DIR/country.${country}.result" ] \
+			|| ! IFS="$(printf '\t')" read -r countryresult countryentries countrychecked countrysuccess countryhash countrychanged _countryreason < "$TMP_DIR/country.${country}.result"; then
+			rm -f "$countrymanifesttmp"
+			return 1
 		fi
+		case "$countryresult" in
+			current)
+				if [ -s "$TMP_DIR/country.${country}.zone" ]; then
+					mv -f "$TMP_DIR/country.${country}.zone" "${countrycachedir}/${country}.zone" \
+						|| { rm -f "$countrymanifesttmp"; return 1; }
+				fi
+			;;
+			cached) ;;
+			*) rm -f "$countrymanifesttmp"; return 1 ;;
+		esac
 		[ -s "${countrycachedir}/${country}.zone" ] || { rm -f "$countrymanifesttmp"; return 1; }
 		printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$country" "https://www.ipdeny.com/ipblocks/data/aggregated/${country}-aggregated.zone" "$countryresult" "$countryentries" "$countrychecked" "$countrysuccess" "$countryhash" "$countrychanged" >> "$countrymanifesttmp" \
 			|| { rm -f "$countrymanifesttmp"; return 1; }
@@ -12702,6 +12727,16 @@ Ensure_Startup_Stats() {
 	Generate_Stats || true
 }
 
+Confirm_Firewall_Ready() {
+	[ "${firewallconfirmed:-0}" != "1" ] || return 0
+	Check_IPSets && Check_IPTables || return 1
+	if ! printf '%s.%s\n' "$(Uptime_Seconds)" "$$" > "$TMP_DIR/firewall.ready" \
+		|| ! chmod 600 "$TMP_DIR/firewall.ready" || ! mv -f "$TMP_DIR/firewall.ready" "$FIREWALL_READY"; then
+		return 1
+	fi
+	firewallconfirmed="1"
+}
+
 Ensure_Startup_Runtime() {
 	# Volatile completion state is published only after all per-boot integration
 	# succeeds. Retrying this phase must not reload an already active policy.
@@ -12766,7 +12801,10 @@ Restore_Startup_Policy() {
 	else
 		: > "$skynetipset" && chmod 600 "$skynetipset" || return 1
 	fi
-	if ! Time_Is_Ready; then Mark_Time_Dependent_State_Pending || return 1; fi
+	startuprestoretime="0"
+	if Time_Is_Ready; then startuprestoretime="1"
+	else Mark_Time_Dependent_State_Pending || return 1; fi
+	Whitelist_Extra || { Log error -s "Failed To Prepare Shared Whitelist"; return 1; }
 	Apply_Rule_Registry_Candidate "$skynetrules" startup || { Log error -s "Failed To Compile User Rules"; return 1; }
 	Update_Domain_Rules "$skynetrules" startup || { Log error -s "Failed To Restore Cached Domain Rules"; return 1; }
 	Whitelist_Blocked_Private_IPs || { Log error -s "Failed To Whitelist Private Networks"; return 1; }
@@ -12776,6 +12814,7 @@ Restore_Startup_Policy() {
 	Reconcile_Firewall_Rules || return 1
 	Check_IPSets || { Log error -s "Restored IPSet Integrity Check Failed ($fail)"; return 1; }
 	Revalidate_IOT_Connections || return 1
+	if [ "$startuprestoretime" = "1" ] && Time_Is_Ready; then rm -f "$TIME_PENDING" || return 1; fi
 	# Rule compilation suppresses the command footer's config write. Commit the
 	# migration marker only after the restored policy has passed verification.
 	if [ -n "$upgradefrom" ] || [ "$configchanged" = "1" ]; then
@@ -12807,8 +12846,9 @@ Dispatch_Start() {
 		else
 			Reconcile_Firewall_Rules || return 1
 		fi
+		Time_Is_Ready || Mark_Time_Dependent_State_Pending || return 1
+		Confirm_Firewall_Ready || return 1
 		if ! Time_Is_Ready; then
-			Mark_Time_Dependent_State_Pending || return 1
 			if Wait_For_Time; then
 				Wait_For_Lock "$@" || return 1
 				if Time_Dependent_State_Pending; then
@@ -12838,6 +12878,7 @@ Dispatch_Start() {
 			Reconcile_Firewall_Rules || return 1
 			Time_Is_Ready || Mark_Time_Dependent_State_Pending || return 1
 		fi
+		Confirm_Firewall_Ready || return 1
 		Ensure_Startup_Runtime || return 1
 		nocfg="1"
 		nolog="2"
@@ -12850,6 +12891,10 @@ Dispatch_Start() {
 	rm -f "$STARTUP_READY" || return 1
 	Check_Settings || { echo; return 1; }
 	Restore_Startup_Policy || { echo; return 1; }
+	if Time_Is_Ready && Time_Dependent_State_Pending; then
+		Activate_Time_Dependent_State || { Log error -s "Failed To Activate Time-Dependent Rules"; echo; return 1; }
+	fi
+	Confirm_Firewall_Ready || return 1
 	Ensure_Startup_Runtime || return 1
 	Release_Lock
 
@@ -12860,7 +12905,9 @@ Dispatch_Start() {
 		return 0
 	fi
 	Wait_For_Lock "$@" || return 1
-	Activate_Time_Dependent_State || { Log error -s "Failed To Activate Time-Dependent Rules"; echo; return 1; }
+	if Time_Dependent_State_Pending; then
+		Activate_Time_Dependent_State || { Log error -s "Failed To Activate Time-Dependent Rules"; echo; return 1; }
+	fi
 	startupcollect="1"
 	Generate_WebUI_Settings || Defer_WebUI_Refresh
 	Queue_Action success system restore startup lifecycle "Skynet" "Protection and time-dependent services active" \
@@ -12891,7 +12938,7 @@ Restart_Firewall_Confirmed() {
 	Request_Service_Restart restart_firewall || { Log error -s "Firewall Restart Request Failed"; return 1; }
 	[ "${installwaiting:-0}" != "1" ] || echo "[i] Waiting For Skynet Startup..."
 	restartattempt="0"
-	while [ "$restartattempt" -lt 90 ]; do
+	while [ "$restartattempt" -lt 300 ]; do
 		restartcurrent="$(cat "$FIREWALL_READY" 2>/dev/null)"
 		if [ -n "$restartcurrent" ] && [ "$restartcurrent" != "$restartgeneration" ] \
 			&& Load_Config fresh && Check_IPSets && Check_IPTables; then
@@ -16569,10 +16616,7 @@ fi
 if [ "$1" = "start" ] && [ "$commandstatus" = "0" ]; then
 	# Confirm protection before optional history migration, charts and downloads.
 	# Large legacy logs on slower routers must not exhaust the updater's wait.
-	if ! printf '%s.%s\n' "$(Uptime_Seconds)" "$$" > "$TMP_DIR/firewall.ready" \
-		|| ! chmod 600 "$TMP_DIR/firewall.ready" || ! mv -f "$TMP_DIR/firewall.ready" "$FIREWALL_READY"; then
-		commandstatus="1"
-	fi
+	Confirm_Firewall_Ready || commandstatus="1"
 fi
 if [ "$1" = "start" ] && [ "$commandstatus" = "0" ]; then
 	if [ "${startupcollect:-0}" = "1" ]; then Purge_Logs "all" || true; fi
