@@ -5749,17 +5749,9 @@ Fetch_CDN_Whitelist() {
 					"$cdnworkerraw" > "$cdnworkervalues"
 			;;
 			embedded)
-				# POSIX AWK has no RT variable. Repeatedly consume each matched IPv4
-				# token so JSON providers retain the old embedded-data behaviour.
-				awk -v label="$cdnworkerlabel" '{
-					line = $0
-					pattern = "(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(/(1?[0-9]|2?[0-9]|3?[0-2]))?)"
-					while (match(line, pattern)) {
-						value = substr(line, RSTART, RLENGTH)
-						print value
-						line = substr(line, RSTART + RLENGTH)
-					}
-				}' "$cdnworkerraw" > "$cdnworkervalues"
+				# Extract all embedded IPv4 tokens with one compiled expression.
+				grep -oE '(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(/(1?[0-9]|2?[0-9]|3?[0-2]))?)' \
+					"$cdnworkerraw" > "$cdnworkervalues"
 			;;
 		esac
 		if [ -s "$cdnworkervalues" ]; then
@@ -5788,8 +5780,6 @@ Whitelist_CDN() {
 		cdnsnapshot="${cdnlist}.old"
 		cdnrestore="${cdnlist}.restore"
 		cdntransaction="${cdnlist}.transaction"
-		cdncurrent="${cdnlist}.current"
-		cdnwanted="${cdnlist}.wanted"
 		cdnstatus="0"
 		cdnresult="updated"
 		cdnfailedsource=""
@@ -5838,16 +5828,32 @@ Whitelist_CDN() {
 			if ipset save Skynet-Whitelist > "$cdnsnapshot" 2>/dev/null \
 				&& awk '!x[$3]++' "$cdnlist" > "$cdnrestore" \
 				&& [ -s "$cdnrestore" ]; then
-				# Compare canonical entry keys rather than IPSet hash order or comments.
+				# Retain existing ownership and update only the membership difference.
 				# A /32 and its host form are equivalent once loaded into hash:net.
-				awk '/CDN-Whitelist:/ { entry=$3; sub(/\/32$/, "", entry); print entry }' "$cdnsnapshot" | sort -u > "$cdncurrent"
-				awk '{ entry=$3; sub(/\/32$/, "", entry); print entry }' "$cdnrestore" | sort -u > "$cdnwanted"
-				if cmp -s "$cdncurrent" "$cdnwanted"; then
+				if ! awk '
+					function key(value) { sub(/\/32$/, "", value); return value }
+					FILENAME == ARGV[1] {
+						entry = key($3)
+						if (!(entry in wanted)) { wanted[entry] = $0; ordered[++count] = entry }
+						next
+					}
+					$1 == "add" && $2 == "Skynet-Whitelist" {
+						entry = key($3)
+						present[entry] = 1
+						if (index($0, "CDN-Whitelist:") && !(entry in wanted))
+							print "del Skynet-Whitelist " $3
+					}
+					END {
+						for (i = 1; i <= count; i++)
+							if (!(ordered[i] in present)) print wanted[ordered[i]]
+					}
+				' "$cdnrestore" "$cdnsnapshot" > "$cdntransaction"; then
+					cdnstatus="1"
+					cdnresult="apply"
+				elif [ ! -s "$cdntransaction" ]; then
 					cdnresult="current"
 				else
-					if sed '\~^add Skynet-Whitelist ~!d;\~CDN-Whitelist~!d;s~ comment.*~~;s~add~del~' "$cdnsnapshot" > "$cdntransaction" \
-						&& cat "$cdnrestore" >> "$cdntransaction" \
-						&& Apply_IPSet_File "$cdntransaction" "$cdnsnapshot"; then
+					if Apply_IPSet_File "$cdntransaction" "$cdnsnapshot"; then
 						cdnresult="updated"
 					else
 						cdnstatus="1"
