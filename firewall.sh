@@ -1939,8 +1939,9 @@ Require_Rule_Registry() {
 Ensure_User_IPSets() {
 	# User sets are disposable outputs of the registry. Repair incompatible sets
 	# before compiling the current policy.
+	useripsetnames="$(ipset -n list 2>/dev/null)" || return 1
 	for useripset in Skynet-UserBans Skynet-TemporaryBans Skynet-UserWhitelist; do
-		if ipset -n list 2>/dev/null | grep -qxF "$useripset"; then
+		if printf '%s\n' "$useripsetnames" | grep -qxF "$useripset"; then
 			if [ "$useripset" = "Skynet-TemporaryBans" ]; then useripsetmode="temporary"; else useripsetmode="permanent"; fi
 			if ! Compiled_IPSet_Schema_Is_Valid "$useripset" "$useripsetmode"; then
 				ipset -q del Skynet-Master "$useripset" 2>/dev/null
@@ -2691,8 +2692,8 @@ Clean_Stale_Temp() {
 Ensure_IPSet() {
 	# Capacity is a creation attribute, not a schema change. Retain compatible
 	# live sets; their next transactional replacement publishes the new capacity.
-	if Read_IPSet_Schema "$1" >/dev/null; then
-		Expected_IPSet_Schema_Is_Valid "$1" && return 0
+	if ensureipsetcreate="$(Read_IPSet_Schema "$1")"; then
+		Expected_IPSet_Schema_Is_Valid "$1" "$ensureipsetcreate" && return 0
 	else
 		case "$1" in
 			Skynet-Master|Skynet-MasterWL) ipset -q create "$1" list:set && return 0 ;;
@@ -3498,7 +3499,10 @@ Read_IPSet_Schema() {
 
 Expected_IPSet_Schema_Is_Valid() {
 	expectedset="$1"
-	expectedcreate="$(Read_IPSet_Schema "$expectedset")" || return 1
+	expectedcreate="${2:-}"
+	if [ -z "$expectedcreate" ]; then
+		expectedcreate="$(Read_IPSet_Schema "$expectedset")" || return 1
+	fi
 	expectedpadded=" $expectedcreate "
 	case "$expectedset:$expectedcreate" in
 		Skynet-Whitelist:"create Skynet-Whitelist hash:net "*|Skynet-BlockedRanges:"create Skynet-BlockedRanges hash:net "*|Skynet-IOT:"create Skynet-IOT hash:net "*)
@@ -3523,10 +3527,11 @@ Expected_IPSet_Schema_Is_Valid() {
 }
 
 Existing_IPSet_Schemas_Are_Compatible() {
+	existingipsetnames="$(ipset -n list 2>/dev/null)" || return 1
 	for expectedset in Skynet-Whitelist Skynet-WhitelistDomains Skynet-SharedWhitelist Skynet-Blacklist Skynet-BlacklistDomains \
 		Skynet-BlockedRanges Skynet-Master Skynet-MasterWL Skynet-IOT \
 		Skynet-UserBans Skynet-TemporaryBans Skynet-UserWhitelist; do
-		ipset -n list 2>/dev/null | grep -qxF "$expectedset" || continue
+		printf '%s\n' "$existingipsetnames" | grep -qxF "$expectedset" || continue
 		Expected_IPSet_Schema_Is_Valid "$expectedset" || return 1
 	done
 }
@@ -3568,11 +3573,12 @@ Rebuild_IPSet_Topology() {
 	# base members; compiled and domain sets are populated from R2 immediately after.
 	topologysnapshot="$TMP_DIR/ipset-topology-old.$$"
 	topologyrestore="$TMP_DIR/ipset-topology-base.$$"
+	topologysetnames="$(ipset -n list 2>/dev/null)" || return 1
 	true > "$topologysnapshot" || return 1
 	for topologyset in Skynet-Whitelist Skynet-WhitelistDomains Skynet-SharedWhitelist Skynet-Blacklist Skynet-BlacklistDomains \
 		Skynet-BlockedRanges Skynet-IOT Skynet-UserBans Skynet-TemporaryBans Skynet-UserWhitelist \
 		Skynet-Master Skynet-MasterWL; do
-		ipset -n list 2>/dev/null | grep -qxF "$topologyset" || continue
+		printf '%s\n' "$topologysetnames" | grep -qxF "$topologyset" || continue
 		ipset save "$topologyset" >> "$topologysnapshot" 2>/dev/null || return 1
 	done
 	awk '$1 == "add" && ($2 == "Skynet-Whitelist" || $2 == "Skynet-Blacklist" || $2 == "Skynet-BlockedRanges" || $2 == "Skynet-IOT" || $2 == "Skynet-SharedWhitelist")' \
@@ -4397,13 +4403,11 @@ Normalize_Domain_List() {
 }
 
 LAN_CIDR_Lookup() {
-	if [ "$(echo "$1" | cut -c1-8)" = "192.168." ]; then
-		echo "192.168.0.0/16"
-	elif [ "$(echo "$1" | cut -c1-4)" = "172." ]; then
-		echo "172.16.0.0/12"
-	elif [ "$(echo "$1" | cut -c1-3)" = "10." ]; then
-		echo "10.0.0.0/8"
-	fi
+	case "$1" in
+		192.168.*) printf '%s\n' "192.168.0.0/16" ;;
+		172.*) printf '%s\n' "172.16.0.0/12" ;;
+		10.*) printf '%s\n' "10.0.0.0/8" ;;
+	esac
 }
 
 ########################
@@ -4596,11 +4600,11 @@ Domain_Lookup() {
 			# Address records outside the query section belong to the DNS server block.
 			in_query && /Address/ {
 				for (i = 1; i <= NF; i++) {
-					if ($i ~ /^([0-9]{1,3}\.){3}[0-9]{1,3}$/)
+					if ($i ~ /^((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])$/ && !seen[$i]++)
 						print $i
 				}
 			}
-		' "$lookupresultfile" | Filter_IP | awk '!seen[$0]++' > "$lookupanswerfile"
+		' "$lookupresultfile" > "$lookupanswerfile"
 	fi
 
 	if [ -s "$lookupanswerfile" ]; then
@@ -4769,7 +4773,11 @@ Validate_Rule_Status_Manifest() {
 	domainvalidatefile="$1"
 	domainvalidatecache="$2"
 	[ -f "$domainvalidatefile" ] || return 1
-	awk -F '\t' '
+	domainvalidatevalues="$TMP_DIR/manifest-domains.$$"
+	domainvalidatenormalized="$TMP_DIR/manifest-normalized.$$"
+	: > "$domainvalidatevalues" || return 1
+	domainvalidatestatus="0"
+	awk -F '\t' -v domains="$domainvalidatevalues" '
 		$1 == "D2" {
 			if (NF != 11 || ($2 != "ban" && $2 != "whitelist") || $3 == "" \
 				|| $4 !~ /^(current|cached|empty|expired|failed)$/ \
@@ -4783,11 +4791,22 @@ Validate_Rule_Status_Manifest() {
 			} else if ($5 != 0 || $10 != "-" || $11 != "-") exit 1
 		}
 		$1 != "D2" { exit 1 }
-		{ key = $2 SUBSEP tolower($3); if (seen[key]++) exit 1 }
-	' "$domainvalidatefile" || return 1
-	while IFS="$(printf '\t')" read -r _domainversion domainvalidatetarget domainvalidatedomain domainvalidatestate domainvalidatecount _domainchecked _domainsuccess _domainchanged _domainmisses domainvalidatehash domainvalidatecachefile; do
-		[ "$(Normalize_Domain "$domainvalidatedomain" 2>/dev/null)" = "$domainvalidatedomain" ] || return 1
-		[ -n "$domainvalidatecache" ] || continue
+		{
+			key = $2 SUBSEP tolower($3)
+			if (seen[key]++) exit 1
+			print $3 > domains
+		}
+		END { if (NR && close(domains)) exit 1 }
+	' "$domainvalidatefile" || domainvalidatestatus="1"
+	if [ "$domainvalidatestatus" = "0" ] && [ -s "$domainvalidatevalues" ]; then
+		Normalize_Domain_Input canonical < "$domainvalidatevalues" > "$domainvalidatenormalized" \
+			&& cmp -s "$domainvalidatevalues" "$domainvalidatenormalized" || domainvalidatestatus="1"
+	fi
+	rm -f "$domainvalidatevalues" "$domainvalidatenormalized"
+	[ "$domainvalidatestatus" = "0" ] || return 1
+	[ -n "$domainvalidatecache" ] || return 0
+	domainvalidatetab="$(printf '\t')"
+	while IFS="$domainvalidatetab" read -r _domainversion domainvalidatetarget domainvalidatedomain domainvalidatestate domainvalidatecount _domainchecked _domainsuccess _domainchanged _domainmisses domainvalidatehash domainvalidatecachefile; do
 		case "$domainvalidatestate" in empty|expired|failed) continue ;; esac
 		domainvalidatekey="$(printf '%s:%s\n' "$domainvalidatetarget" "$domainvalidatedomain" | SHA256_Hash | awk '{print substr($1, 1, 16)}')"
 		[ "$domainvalidatecachefile" = "domain.$domainvalidatekey.$domainvalidatehash.list" ] || return 1
@@ -5657,13 +5676,14 @@ Refresh_Shared_Whitelist() (
 			# Cached DNS answers must be inserted explicitly too. Failed lookups
 			# leave existing addresses to expire at their original deadline.
 			if printf '%s\n' "$sharedhost" | Is_IP; then
-				sharedips="$sharedhost"
+				sharedips="$(printf '%s\n' "$sharedhost" | Filter_PrivateIP)" || exit 0
 			else
 				sharedips="$(Resolve_Normalized_Domain_IP_List "$sharedhost" public 127.0.0.1 "shared-$sharedindex")" || exit 0
 			fi
-			printf '%s\n' "$sharedips" | tr ' ' '\n' | Filter_IP | Filter_PrivateIP \
-				| awk 'NF {printf "add Skynet-SharedWhitelist %s timeout 86400 comment \"SharedHost\"\n", $1}' \
-				| ipset restore -! || Log error -s "Failed To Refresh Shared Whitelist ($sharedhost)"
+			# Both paths return validated public IPv4 addresses; format them directly.
+			for sharedip in $sharedips; do
+				printf 'add Skynet-SharedWhitelist %s timeout 86400 comment "SharedHost"\n' "$sharedip"
+			done | ipset restore -! || Log error -s "Failed To Refresh Shared Whitelist ($sharedhost)"
 		) &
 		Wait_Background_Job_Slot 4
 	done < "$sharedhosts"
@@ -6072,11 +6092,7 @@ Publish_Domain_Dnsmasq_Config() {
 
 	awk -F '\t' '$1 == "R2" && $3 == "whitelist" && $4 == "domain" && $7 == "enabled" {print $5}' "$skynetrules" >> "$dnsmasqcandidates" 2>/dev/null \
 		|| { rm -f "$dnsmasqtmp" "$dnsmasqwhitelist" "$dnsmasqblacklist" "$dnsmasqcandidates"; return 1; }
-	true > "$dnsmasqwhitelist" || return 1
-	while IFS= read -r dnsmasqdomain; do
-		dnsmasqdomain="$(Normalize_Domain "$dnsmasqdomain" 2>/dev/null)" || continue
-		printf '%s\n' "$dnsmasqdomain" >> "$dnsmasqwhitelist" || return 1
-	done < "$dnsmasqcandidates"
+	Normalize_Domain_List "$dnsmasqcandidates" > "$dnsmasqwhitelist" || return 1
 	if ! sort -u "$dnsmasqwhitelist" > "${dnsmasqwhitelist}.sorted" \
 		|| ! mv -f "${dnsmasqwhitelist}.sorted" "$dnsmasqwhitelist"; then
 		rm -f "$dnsmasqtmp" "$dnsmasqwhitelist" "${dnsmasqwhitelist}.sorted" "$dnsmasqblacklist" "$dnsmasqcandidates"
@@ -6178,7 +6194,13 @@ Whitelist_Shared() {
 	done | ipset restore -!
 	if [ -f "/jffs/dnscrypt/public-resolvers.md" ] && [ -f "/jffs/dnscrypt/relays.md" ]; then
 		grep -hoE '^sdns:.*' /jffs/dnscrypt/public-resolvers.md /jffs/dnscrypt/relays.md | sed "s~'~~g;s~sdns://~~g;s~-~+~g;s~_~/~g" | while read -r stamp; do
-			echo "${stamp}$(echo '====' | cut -c-$(($(printf '%s' "${stamp}" | wc -m) % 4)))" | openssl enc -base64 -d -A
+			case "$((${#stamp} % 4))" in
+				0) stamppadding="" ;;
+				2) stamppadding="==" ;;
+				3) stamppadding="=" ;;
+				*) continue ;;
+			esac
+			printf '%s%s\n' "$stamp" "$stamppadding" | openssl enc -base64 -d -A
 		done | strings | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{printf "add Skynet-Whitelist %s comment \"nvram: DNSCrypt Stamp\"\n", $1 }' | ipset restore -!
 	fi
 	if [ -f "/opt/var/lib/unbound/root.hints" ]; then
@@ -6316,6 +6338,14 @@ History_Stats_Index() {
 	# for HTTP and other traffic as well as the complete destination totals.
 	historystatsquery="$historystatsquery SELECT 'outbound-destinations',dst,count(*),min(id),max(id),count(CASE WHEN dport IN (80,443) THEN 1 END),min(CASE WHEN dport IN (80,443) THEN id END),max(CASE WHEN dport IN (80,443) THEN id END),count(CASE WHEN dport IS NULL OR dport NOT IN (80,443) THEN 1 END),min(CASE WHEN dport IS NULL OR dport NOT IN (80,443) THEN id END),max(CASE WHEN dport IS NULL OR dport NOT IN (80,443) THEN id END) FROM events NOT INDEXED WHERE kind=2$historystatsprotocol GROUP BY dst;"
 	for historystatsdataset in inbound-src inbound-dpt inbound-spt outbound-src invalid-src iot-dst firewall-src; do
+		# CLI reports retain disabled categories for historical searches.
+		if [ "$1" = "webui" ]; then
+			case "$historystatsdataset" in
+				invalid-src) Is_Enabled "$loginvalid" || continue ;;
+				iot-dst) Is_Enabled "$iotblocked" || continue ;;
+				firewall-src) Is_Enabled "$logfirewall" || continue ;;
+			esac
+		fi
 		case "$historystatsdataset" in
 			inbound-src) historystatscolumn="src"; historystatswhere="kind=1" ;;
 			inbound-dpt) historystatscolumn="dport"; historystatswhere="kind=1 AND dport IS NOT NULL" ;;
@@ -6366,7 +6396,7 @@ Build_Stats_Log_Index() {
 	done
 	rm -f "${statsindexpath}/.history-index"
 	History_Ready || return 1
-	History_Stats_Index
+	History_Stats_Index "$4"
 }
 
 Extract_Stats_Values() {
@@ -7723,8 +7753,10 @@ Generate_WebUI_IOT_Data() {
 	iotinventory="$TMP_DIR/iot-inventory.$$"
 	iotrecords="$TMP_DIR/iot-records.$$"
 	iotraw="$TMP_DIR/iot-raw.$$"
-	ipset save Skynet-IOT > "$iotraw" 2>/dev/null || return 1
-	awk '$1 == "add" { print "B~" $3 }' "$iotraw" > "$iotrecords" || return 1
+	# Share the settings snapshot so its saved count and device list agree.
+	iotsetsource="${1:-$iotraw}"
+	if [ -z "$1" ]; then ipset save Skynet-IOT > "$iotraw" 2>/dev/null || return 1; fi
+	awk '$1 == "add" { print "B~" $3 }' "$iotsetsource" > "$iotrecords" || return 1
 	if [ -e /var/lib/misc/dnsmasq.leases ] || [ -L /var/lib/misc/dnsmasq.leases ]; then
 		awk 'NF >= 4 { print "L~" $3 "~" $2 "~" $4 }' /var/lib/misc/dnsmasq.leases >> "$iotrecords" || return 1
 	fi
@@ -8211,11 +8243,11 @@ Generate_WebUI_Settings() {
 	syslog1locjs="$(printf '%s' "$syslog1loc" | Escape_JS)" || settingspreparestatus="1"
 	settingsiotraw="$TMP_DIR/settings-iot.$$"
 	if ipset save Skynet-IOT > "$settingsiotraw" 2>/dev/null; then
-		iotentries="$(awk '$1 == "add" { if (output != "") output = output " "; output = output $3 } END { print output }' "$settingsiotraw")" || settingspreparestatus="1"
-		iotcount="$(awk '$1 == "add" {count++} END {print count + 0}' "$settingsiotraw")" || settingspreparestatus="1"
+		settingsiotdata="$(awk '$1 == "add" { if (output != "") output = output " "; output = output $3; count++ } END { print count + 0, output }' "$settingsiotraw")" || settingspreparestatus="1"
+		iotcount="${settingsiotdata%% *}"
+		iotentries="${settingsiotdata#* }"
 	else settingspreparestatus="1"
 	fi
-	rm -f "$settingsiotraw"
 	if [ "$settingspreparestatus" = "0" ] && printf 'var SkynetSettings = {"autoupdate":"%s","banmalwareupdate":"%s","banmalwarelastupdated":"%s","blacklist1count":"%s","blacklist2count":"%s","countrylist":"%s","customlisturl":"%s","excludelists":"%s","filtertraffic":"%s","unbanprivateip":"%s","banaiprotect":"%s","securemode":"%s","loginvalid":"%s","logfirewall":"%s","logsize":"%s","extendedstats":"%s","lookupcountry":"%s","cdnwhitelist":"%s","iotblocked":"%s","iotlogging":"%s","iotports":"%s","iotproto":"%s","iotentries":"%s","iotcount":"%s"};\n' "$autoupdate" "$banmalwareupdate" "$banmalwarelastupdated" "$blacklist1count" "$blacklist2count" "$countrylist" "$customlistjs" "$excludelistsjs" "$filtertraffic" "$unbanprivateip" "$banaiprotect" "$securemode" "$loginvalid" "$logfirewall" "$logsize" "$extendedstats" "$lookupcountry" "$cdnwhitelist" "$iotblocked" "$iotlogging" "$iotports" "$iotproto" "$iotentries" "$iotcount" > "$settingstmp" \
 		&& printf 'SkynetSettings.logmode = "%s";\n' "$logmode" >> "$settingstmp" \
 		&& printf 'SkynetSettings.version = "%s";\n' "$(Filter_Version < "$0")" >> "$settingstmp" \
@@ -8224,7 +8256,7 @@ Generate_WebUI_Settings() {
 		&& printf 'SkynetSettings.syslogmode = "%s";\n' "$syslogmode" >> "$settingstmp" \
 		&& printf "SkynetSettings.syslogloc = '%s';\nSkynetSettings.syslog1loc = '%s';\n" \
 			"$sysloglocjs" "$syslog1locjs" >> "$settingstmp" \
-		&& Generate_WebUI_IOT_Data \
+		&& Generate_WebUI_IOT_Data "$settingsiotraw" \
 		&& Generate_WebUI_Source_Matches \
 		&& Generate_WebUI_Feed_Data \
 		&& Generate_WebUI_Country_Data \
@@ -8236,9 +8268,10 @@ Generate_WebUI_Settings() {
 		&& printf 'var SkynetSettingsResult = "%s";\n' "${settingsresult:-ready}" >> "$settingstmp" \
 		&& printf 'var SkynetSettingsRequest = "%s";\n' "${webuirequestid:-}" >> "$settingstmp" \
 		&& [ -s "$settingstmp" ] && mv -f "$settingstmp" "$settingsfile"; then
+		rm -f "$settingsiotraw"
 		return 0
 	fi
-	rm -f "$settingstmp"
+	rm -f "$settingstmp" "$settingsiotraw"
 	Log error "Failed To Generate WebUI Settings - Existing File Retained"
 	return 1
 }
@@ -8299,7 +8332,7 @@ Generate_Stats() {
 	case "${SKYNET_WEBUI_REQUEST:-}" in *[!0-9]*) statsstatus="1" ;; esac
 	printf 'var SkynetStatsRequest = "%s";\n' "${SKYNET_WEBUI_REQUEST:-}" >> "$statstmp" || statsstatus="1"
 
-	Build_Stats_Log_Index "$skynetlog" "$statsworkspace" || statsstatus="1"
+	Build_Stats_Log_Index "$skynetlog" "$statsworkspace" "" webui || statsstatus="1"
 	statsspan=""
 	IFS= read -r statsspan < "${statsworkspace}/span.txt"
 	Write_Stats_ToJS "${statsspan:-N/A}" "$statstmp" "SetStatsDate" "statsdate" || statsstatus="1"
@@ -12925,6 +12958,8 @@ Dispatch_Start() {
 		Activate_Time_Dependent_State || { Log error -s "Failed To Activate Time-Dependent Rules"; echo; return 1; }
 	fi
 	Confirm_Firewall_Ready || return 1
+	startupsettingspending="0"
+	if Time_Dependent_State_Pending; then startupsettingspending="1"; fi
 	Ensure_Startup_Runtime || return 1
 	Release_Lock
 
@@ -12937,9 +12972,12 @@ Dispatch_Start() {
 	Wait_For_Lock "$@" || return 1
 	if Time_Dependent_State_Pending; then
 		Activate_Time_Dependent_State || { Log error -s "Failed To Activate Time-Dependent Rules"; echo; return 1; }
+		startupsettingspending="1"
 	fi
 	startupcollect="1"
-	Generate_WebUI_Settings || Defer_WebUI_Refresh
+	if [ "$startupsettingspending" = "1" ] || [ -f "$MAINTENANCE_WEBUI_PENDING" ]; then
+		Generate_WebUI_Settings || Defer_WebUI_Refresh
+	fi
 	Queue_Action success system restore startup lifecycle "Skynet" "Protection and time-dependent services active" \
 		|| Log error -s "Failed To Queue Startup Action"
 	if Is_Enabled "$forcebanmalwareupdate"; then
