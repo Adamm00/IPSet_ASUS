@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                           23/10/2026 - v9.0.7                                             #
+#                                           24/10/2026 - v9.0.7                                             #
 #############################################################################################################
 
 
@@ -3664,7 +3664,7 @@ Unload_IPSets() {
 Unload_Cron() {
 	# If no argument or "all", reset $@ to the full list
 	if [ -z "$1" ] || [ "$1" = "all" ]; then
-		set -- "save" "maintenance" "collect" "banmalware" "autoupdate" "checkupdate" "genstats" "rules"
+		set -- "save" "maintenance" "collect" "banmalware" "autoupdate" "checkupdate" "genstats" "rules" "countries"
 	fi
 
 	cronstatus="0"
@@ -3693,6 +3693,9 @@ Unload_Cron() {
 			;;
 			rules)
 				cru d Skynet_rules || cronstatus="1"
+			;;
+			countries)
+				cru d Skynet_countries || cronstatus="1"
 			;;
 			*)
 				echo "[*] Warning: Unknown Cron Job '$job'"
@@ -3744,12 +3747,35 @@ Load_Cron() {
 				min=$(Generate_Random_Number 0 59)
 				cru a Skynet_rules "$min 0,6,12,18 * * * SKYNET_ACTION_ORIGIN=cron sh /jffs/scripts/firewall rules refresh" || cronstatus="1"
 			;;
+			countries)
+				countrycron="$(cru l)" || { cronstatus="1"; continue; }
+				if [ -n "$countrylist" ]; then
+					# Keep the existing time when refreshing so it cannot run twice on Sunday.
+					if ! printf '%s\n' "$countrycron" | grep -qE '^[0-9]+ [0-9]+ \* \* Sun SKYNET_ACTION_ORIGIN=cron sh /jffs/scripts/firewall ban country refresh #Skynet_countries#$'; then
+						min=$(Generate_Random_Number 0 59)
+						hour=$(Generate_Random_Number 1 23)
+						cru a Skynet_countries "$min $hour * * Sun SKYNET_ACTION_ORIGIN=cron sh /jffs/scripts/firewall ban country refresh" || cronstatus="1"
+					fi
+				elif printf '%s\n' "$countrycron" | grep -qF '#Skynet_countries#'; then
+					cru d Skynet_countries || cronstatus="1"
+				fi
+			;;
 			*)
 				echo "[*] Warning: Unknown Cron Job '$job'"
 			;;
 		esac
 		done
 	[ "$cronstatus" = "0" ]
+}
+
+Check_Cron() {
+	checkcronjobs="$(cru l)" || return 1
+	[ "$(printf '%s\n' "$checkcronjobs" | grep -c "Skynet")" -ge "2" ] || return 1
+	if [ -n "$countrylist" ]; then
+		printf '%s\n' "$checkcronjobs" | grep -qE '^[0-9]+ [0-9]+ \* \* Sun SKYNET_ACTION_ORIGIN=cron sh /jffs/scripts/firewall ban country refresh #Skynet_countries#$'
+	else
+		! printf '%s\n' "$checkcronjobs" | grep -qF '#Skynet_countries#'
+	fi
 }
 
 Generate_Random_Number() {
@@ -11226,7 +11252,9 @@ Commit_Country_Policy() {
 	countrypolicyactive="0"
 	nocfg="1"
 	Set_Cleanup_Traps
-	rm -rf "$countrypolicydir"
+	rm -rf "$countrypolicydir" || return 1
+	Load_Cron countries || Log error -s "Failed To Update Country Refresh Schedule"
+	return 0
 }
 
 Publish_Country_Cache() {
@@ -12675,6 +12703,7 @@ Dispatch_Maintenance() {
 	Wait_For_Lock "$@" || return 1
 	# A command that held the lock may have changed settings while we waited.
 	Load_Config || { Record_Maintenance_Status failed configuration; return 1; }
+	Load_Cron countries || Log error -s "Failed To Update Country Refresh Schedule"
 	maintenancehistoryfailure=""
 	if Time_Is_Ready; then
 		if Time_Dependent_State_Pending; then
@@ -12753,6 +12782,7 @@ Ensure_Startup_Runtime() {
 	if Is_Enabled "$autoupdate"; then Load_Cron autoupdate || return 1
 	else Load_Cron checkupdate || return 1; fi
 	Load_Cron maintenance collect rules || return 1
+	Load_Cron countries || Log error -s "Failed To Update Country Refresh Schedule"
 	if [ -n "$countrylist" ] && [ ! -s "$skynetloc/lists/countries/.manifest" ]; then startupcountryrefresh="1"; fi
 	startupwebuistatus="0"
 	if Is_Enabled "$displaywebui"; then
@@ -14197,7 +14227,7 @@ Debug_Info() {
 	else result="$(Red "[Failed]")"; fi
 	printf '%-80s ║\n' "$result"
 	printf "║ %-33s ║ " "Cron Jobs"
-	if [ "$(cru l | grep -c "Skynet")" -ge "2" ]; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
+	if Check_Cron; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
 	printf '%-80s ║\n' "$result"
 	printf "║ %-33s ║ " "NTP Sync"
 	if [ "$(nvram get ntp_ready)" = "1" ]; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
@@ -16362,7 +16392,7 @@ Load_Menu() {
 	if Swap_Required && ! Check_Swap; then
 		printf '%-35s | %-8s\n' "SWAP" "$(Red "[Failed]")"
 	fi
-	if [ "$(cru l | grep -c "Skynet")" -lt "2" ]; then
+	if ! Check_Cron; then
 		printf '%-35s | %-8s\n' "Cron Jobs" "$(Red "[Failed]")"
 	fi
 	if ! Check_IPSets; then

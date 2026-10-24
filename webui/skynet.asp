@@ -1116,14 +1116,222 @@
             gap: 8px;
         }
 
-        .skynet-country-row th {
-            padding-top: 10px !important;
-            vertical-align: top;
+        #FormTitle .skynet-settings-table tr.skynet-country-row > th {
+            padding-top: 12px !important;
+            vertical-align: top !important;
         }
 
         .skynet-country-picker {
             width: 100% !important;
             max-width: 360px !important;
+        }
+
+        .skynet-country-chooser {
+            width: 100%;
+            max-width: 360px;
+        }
+
+        #FormTitle .skynet-country-chooser span {
+            margin: 0 !important;
+            padding: 0 !important;
+            border: 0 !important;
+            background: transparent !important;
+            color: inherit !important;
+            box-shadow: none !important;
+        }
+
+        #skynetCountryChooser [hidden] {
+            display: none !important;
+        }
+
+        #skynetCountryPicker {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-height: 32px;
+            padding: 0 10px;
+            border: 1px solid var(--skynet-border);
+            border-radius: 4px;
+            background: linear-gradient(180deg,#435a63,#3a4e56);
+            color: var(--skynet-text);
+            font: var(--skynet-font-body)/20px Arial, sans-serif;
+            text-align: left;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+            cursor: pointer;
+            transition: border-color 120ms ease,background-color 120ms ease;
+        }
+
+        #skynetCountryPicker:hover,
+        #skynetCountryPicker[aria-expanded="true"] {
+            border-color: #83b3c7;
+            background: linear-gradient(180deg,#48636e,#3c555f);
+        }
+
+        #skynetCountryPickerLabel {
+            flex: 1;
+        }
+
+        #FormTitle #skynetCountryPickerCount {
+            min-width: 18px;
+            padding: 0 5px !important;
+            border: 1px solid rgba(150,204,225,0.32) !important;
+            border-radius: 4px;
+            background: rgba(116,191,220,0.12) !important;
+            color: var(--skynet-accent-muted) !important;
+            font-size: 11px;
+            line-height: 18px;
+            text-align: center;
+        }
+
+        #skynetCountryPicker::after {
+            content: "▾";
+            color: var(--skynet-accent-muted);
+        }
+
+        #skynetCountryPicker[aria-expanded="true"]::after {
+            content: "▴";
+        }
+
+        #skynetCountryPicker:focus-visible {
+            outline: 2px solid var(--skynet-link);
+            outline-offset: 2px;
+        }
+
+        #skynetCountryPicker:disabled {
+            opacity: 0.55;
+            cursor: default;
+        }
+
+        .skynet-country-options-panel {
+            margin-top: 5px;
+            padding: 8px;
+            border: 1px solid var(--skynet-border);
+            border-radius: 4px;
+            background: var(--skynet-surface-2);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        .skynet-country-search-wrap {
+            position: relative;
+            margin-bottom: 7px;
+        }
+
+        #FormTitle #skynetCountrySearch {
+            width: 100%;
+            height: 31px;
+            margin: 0;
+            padding: 0 33px 0 9px !important;
+            border: 1px solid var(--skynet-border-soft) !important;
+            border-radius: 4px;
+            background: #26363c !important;
+            color: var(--skynet-text) !important;
+            font: var(--skynet-font-body) Arial, sans-serif;
+            box-sizing: border-box;
+        }
+
+        #FormTitle #skynetCountrySearch:focus {
+            outline: none;
+            border-color: #83b3c7 !important;
+            box-shadow: 0 0 0 2px rgba(143,209,245,0.12);
+        }
+
+        #skynetCountrySearch::-webkit-search-cancel-button {
+            display: none;
+        }
+
+        #skynetCountrySearch::placeholder {
+            color: var(--skynet-muted);
+            opacity: 1;
+        }
+
+        #skynetCountrySearchClear {
+            position: absolute;
+            top: 3px;
+            right: 4px;
+            width: 26px;
+            height: 25px;
+            padding: 0;
+            border: 0;
+            border-radius: 3px;
+            background: transparent;
+            color: var(--skynet-muted);
+            font: 18px/25px Arial, sans-serif;
+            cursor: pointer;
+        }
+
+        #skynetCountrySearchClear:hover,
+        #skynetCountrySearchClear:focus-visible {
+            background: rgba(121,183,211,0.14);
+            color: var(--skynet-text);
+        }
+
+        .skynet-country-options {
+            max-height: 200px;
+            padding: 1px;
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            scrollbar-width: thin;
+            scrollbar-color: #647e89 transparent;
+        }
+
+        #FormTitle .skynet-country-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-height: 31px;
+            margin: 1px 0;
+            padding: 0 7px;
+            border: 1px solid transparent;
+            border-radius: 3px;
+            color: var(--skynet-text);
+            font-size: var(--skynet-font-body);
+            line-height: var(--skynet-line-body);
+            cursor: pointer;
+        }
+
+        #FormTitle .skynet-country-option.is-selected {
+            border-color: rgba(121,183,211,0.2);
+            background: rgba(121,183,211,0.1);
+        }
+
+        #FormTitle .skynet-country-option:hover,
+        #FormTitle .skynet-country-option:focus-within {
+            background: rgba(121,183,211,0.14);
+        }
+
+        .skynet-country-option input {
+            flex: 0 0 auto;
+            margin: 0;
+            accent-color: #74bfdc;
+        }
+
+        .skynet-country-no-match {
+            padding: 12px 7px;
+            color: var(--skynet-muted);
+            font-size: var(--skynet-font-body);
+        }
+
+        .skynet-country-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-top: 7px;
+            padding-top: 7px;
+            border-top: 1px solid var(--skynet-border-faint);
+        }
+
+        #FormTitle #skynetCountryMatchCount {
+            color: var(--skynet-muted) !important;
+            font-size: var(--skynet-font-body);
+            line-height: var(--skynet-line-body);
+        }
+
+        .skynet-country-footer .skynet-country-done {
+            min-width: 58px;
+            height: 27px;
+            padding: 0 12px !important;
+            line-height: 25px !important;
         }
 
         #FormTitle .skynet-country-tag {
@@ -6113,41 +6321,83 @@
             return this.countrySelection.join(" ") !== this.countryOriginal;
         };
 
+        SkynetUI.normaliseCountrySearch = function(value) {
+            return String(value || "").normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "").toLowerCase();
+        };
+
         SkynetUI.populateCountryPicker = function() {
             const picker = this.getElement(this.selectors.countryPicker);
+            const options = this.getElement("skynetCountryOptions");
 
-            if (!picker) {
+            if (!picker || !options) {
                 return;
             }
 
-            while (picker.firstChild) {
-                picker.removeChild(picker.firstChild);
+            if (!options.firstChild) {
+                this.countryCodes.slice().sort(function(first, second) {
+                    return SkynetUI.getCountryName(first).localeCompare(
+                        SkynetUI.getCountryName(second)
+                    );
+                }).forEach(function(code) {
+                    const option = document.createElement("label");
+                    const checkbox = document.createElement("input");
+                    const name = document.createElement("span");
+
+                    option.className = "skynet-country-option";
+                    option.dataset.search = SkynetUI.normaliseCountrySearch(
+                        SkynetUI.getCountryName(code) + " " + code
+                    );
+                    checkbox.type = "checkbox";
+                    checkbox.value = code.toLowerCase();
+                    name.textContent = SkynetUI.getCountryName(code) + " (" + code + ")";
+                    option.appendChild(checkbox);
+                    option.appendChild(name);
+                    options.appendChild(option);
+                });
             }
 
-            const placeholder = document.createElement("option");
-            placeholder.value = "";
-            placeholder.textContent = "Add a country...";
-            picker.appendChild(placeholder);
-
-            this.countryCodes.slice().sort(function(first, second) {
-                return SkynetUI.getCountryName(first).localeCompare(
-                    SkynetUI.getCountryName(second)
-                );
-            }).forEach(function(code) {
-                const option = document.createElement("option");
-
-                option.value = code.toLowerCase();
-                option.textContent = SkynetUI.getCountryName(code) + " (" + code + ")";
-                option.disabled = SkynetUI.countrySelection.indexOf(option.value) !== -1;
-                picker.appendChild(option);
+            options.querySelectorAll("input").forEach(function(checkbox) {
+                checkbox.checked = SkynetUI.countrySelection.indexOf(checkbox.value) !== -1;
+                checkbox.parentElement.classList.toggle("is-selected", checkbox.checked);
             });
-
-            picker.value = "";
+            const count = this.getElement("skynetCountryPickerCount");
+            count.textContent = this.countrySelection.length + " selected";
+            count.hidden = !this.countrySelection.length;
+            this.filterCountryPicker();
         };
 
-        SkynetUI.updateCountryControls = function() {
+        SkynetUI.filterCountryPicker = function() {
+            const search = this.getElement("skynetCountrySearch");
+            const query = this.normaliseCountrySearch(search.value.trim());
+            let matches = 0;
+
+            this.getElement("skynetCountryOptions").querySelectorAll("label").forEach(function(option) {
+                option.hidden = option.dataset.search.indexOf(query) === -1;
+                if (!option.hidden) matches++;
+            });
+            this.getElement("skynetCountryNoMatch").hidden = matches !== 0;
+            this.getElement("skynetCountrySearchClear").hidden = !search.value;
+            this.getElement("skynetCountryMatchCount").textContent = matches +
+                (query ? (matches === 1 ? " match" : " matches")
+                    : (matches === 1 ? " country" : " countries"));
+        };
+
+        SkynetUI.toggleCountryPicker = function(open, restoreFocus) {
+            const picker = this.getElement(this.selectors.countryPicker);
+            const panel = this.getElement("skynetCountryPanel");
+
+            if (!picker || !panel) return;
+            open = Boolean(open && !picker.disabled);
+            panel.hidden = !open;
+            picker.setAttribute("aria-expanded", String(open));
+            if (open) this.getElement("skynetCountrySearch").focus();
+            else if (restoreFocus) picker.focus();
+        };
+
+        SkynetUI.updateCountryControls = function(active) {
             const supported = this.canManageCountries();
-            const busy = this.refreshInProgress;
+            const busy = Boolean(active || this.refreshInProgress);
             const picker = this.getElement(this.selectors.countryPicker);
             const apply = this.getElement(this.selectors.countryButton);
             const refresh = this.getElement(this.selectors.countryRefresh);
@@ -6156,6 +6406,10 @@
             if (picker) {
                 picker.disabled = busy || !supported;
             }
+            document.querySelectorAll("#skynetCountryPanel input, #skynetCountryPanel button").forEach(function(control) {
+                control.disabled = busy || !supported;
+            });
+            if (busy || !supported) this.toggleCountryPicker(false);
             if (apply) {
                 apply.disabled = busy || !supported || !this.isCountryDirty();
             }
@@ -6216,7 +6470,8 @@
         SkynetUI.addCountry = function(code) {
             code = String(code || "").toLowerCase();
 
-            if (!/^[a-z]{2}$/.test(code) ||
+            if (this.refreshInProgress || !this.canManageCountries() ||
+                !/^[a-z]{2}$/.test(code) ||
                 this.countrySelection.indexOf(code) !== -1) {
                 return;
             }
@@ -8031,13 +8286,7 @@
                 }
             });
 
-            const picker = this.getElement(this.selectors.countryPicker);
-            if (picker) {
-                picker.disabled = active || !this.canManageCountries();
-            }
-            document.querySelectorAll(".skynet-country-remove:not(.skynet-iot-remove):not(.skynet-iot-port-remove):not(.skynet-rule-tag-remove)").forEach(function(remove) {
-                remove.disabled = active || !SkynetUI.canManageCountries();
-            });
+            this.updateCountryControls(active);
 
             [this.selectors.iotPicker, this.selectors.iotManual, this.selectors.iotPortInput].forEach(function(id) {
                 const control = SkynetUI.getElement(id);
@@ -8926,8 +9175,60 @@
             const countryPicker = this.getElement(this.selectors.countryPicker);
 
             if (countryPicker) {
-                countryPicker.addEventListener("change", function() {
-                    SkynetUI.addCountry(this.value);
+                countryPicker.addEventListener("click", function() {
+                    SkynetUI.toggleCountryPicker(this.getAttribute("aria-expanded") !== "true");
+                });
+                countryPicker.addEventListener("keydown", function(event) {
+                    if (event.key === "ArrowDown") {
+                        event.preventDefault();
+                        SkynetUI.toggleCountryPicker(true);
+                    }
+                });
+                const chooser = this.getElement("skynetCountryChooser");
+                chooser.addEventListener("change", function(event) {
+                    if (event.target.type !== "checkbox") return;
+                    if (event.target.checked) SkynetUI.addCountry(event.target.value);
+                    else SkynetUI.removeCountry(event.target.value);
+                });
+                chooser.addEventListener("keydown", function(event) {
+                    if (event.key === "Escape" && countryPicker.getAttribute("aria-expanded") === "true") {
+                        event.preventDefault();
+                        SkynetUI.toggleCountryPicker(false, true);
+                    } else if (event.key === "Enter" &&
+                        (event.target.id === "skynetCountrySearch" || event.target.type === "checkbox")) {
+                        event.preventDefault();
+                        if (event.target.type === "checkbox") event.target.click();
+                    } else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+                        const choices = Array.from(chooser.querySelectorAll(
+                            ".skynet-country-option:not([hidden]) input:not(:disabled)"
+                        ));
+                        const index = choices.indexOf(event.target);
+                        if (event.target.id === "skynetCountrySearch" && event.key === "ArrowDown") {
+                            event.preventDefault();
+                            if (choices.length) choices[0].focus();
+                        } else if (index !== -1) {
+                            event.preventDefault();
+                            if (event.key === "ArrowUp" && index === 0) {
+                                SkynetUI.getElement("skynetCountrySearch").focus();
+                            } else {
+                                const next = Math.min(choices.length - 1,
+                                    Math.max(0, index + (event.key === "ArrowDown" ? 1 : -1)));
+                                choices[next].focus();
+                            }
+                        }
+                    }
+                });
+                this.getElement("skynetCountrySearch").addEventListener("input", function() {
+                    SkynetUI.filterCountryPicker();
+                });
+                this.getElement("skynetCountrySearchClear").addEventListener("click", function() {
+                    const search = SkynetUI.getElement("skynetCountrySearch");
+                    search.value = "";
+                    SkynetUI.filterCountryPicker();
+                    search.focus();
+                });
+                this.getElement("skynetCountryDone").addEventListener("click", function() {
+                    SkynetUI.toggleCountryPicker(false, true);
                 });
             }
 
@@ -9913,16 +10214,37 @@
                                                             <tr class="skynet-country-row">
                                                                 <th>
                                                                     <span class="skynet-setting-name">Blocked Countries</span>
-                                                                    <span class="skynet-setting-help">Blocks known IPv4 ranges assigned to the selected countries.</span>
+                                                                    <span class="skynet-setting-help">Blocks known IPv4 ranges assigned to the selected countries. Sources refresh weekly.</span>
                                                                 </th>
                                                                 <td>
                                                                     <div class="skynet-country-editor">
-                                                                        <select class="input_option skynet-country-picker"
-                                                                            id="skynetCountryPicker"
-                                                                            aria-label="Add a country"
-                                                                            disabled="disabled">
-                                                                            <option value="">Add a country...</option>
-                                                                        </select>
+                                                                        <div class="skynet-country-chooser" id="skynetCountryChooser">
+                                                                            <button type="button" class="skynet-country-picker"
+                                                                                id="skynetCountryPicker"
+                                                                                aria-expanded="false"
+                                                                                aria-controls="skynetCountryPanel"
+                                                                                disabled="disabled">
+                                                                                <span id="skynetCountryPickerLabel">Select countries</span>
+                                                                                <span id="skynetCountryPickerCount" hidden></span>
+                                                                            </button>
+                                                                            <div class="skynet-country-options-panel" id="skynetCountryPanel"
+                                                                                role="group" aria-label="Countries to block" hidden>
+                                                                                <div class="skynet-country-search-wrap">
+                                                                                    <input type="search" class="input_32_table" id="skynetCountrySearch"
+                                                                                        aria-label="Search countries" placeholder="Search countries..."
+                                                                                        autocomplete="off" disabled="disabled" />
+                                                                                    <button type="button" id="skynetCountrySearchClear"
+                                                                                        aria-label="Clear country search" title="Clear search" hidden>×</button>
+                                                                                </div>
+                                                                                <div class="skynet-country-options" id="skynetCountryOptions"></div>
+                                                                                <div class="skynet-country-no-match" id="skynetCountryNoMatch" hidden>No matching countries.</div>
+                                                                                <div class="skynet-country-footer">
+                                                                                    <span id="skynetCountryMatchCount" aria-live="polite"></span>
+                                                                                    <button type="button" id="skynetCountryDone"
+                                                                                        class="button_gen skynet-update-button skynet-settings-reload skynet-country-done">Done</button>
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
                                                                     </div>
                                                                 </td>
                                                             </tr>

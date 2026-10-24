@@ -97,7 +97,7 @@ Pausing blocking retains the list. Clearing devices changes the saved selection.
 
 ## Countries
 
-Select the countries whose IPv4 ranges you want to block, then use **Apply Countries**. Applying a selection replaces the previous country selection. **Refresh Sources** updates the sources for the saved selection.
+Open the country picker and select as many countries as you need. Search by name or country code; the selected count and highlighted rows track your changes. **Done** closes the picker without saving; **Apply Countries** saves the selection. Outside clicks leave the picker open, and you can also close it with its button or Escape. Applying a selection replaces the previous country selection. Saved country sources refresh automatically once a week; **Refresh Sources** updates them immediately.
 
 Country lists describe address allocation and are not a guarantee of a person's physical location. If a selected source is unavailable, Skynet uses its validated cache where possible; without a matching cache, the previous complete selection is retained.
 
