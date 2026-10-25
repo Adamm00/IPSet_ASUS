@@ -5946,6 +5946,7 @@
                     window[functionName]();
                 }
             });
+            this.populateBlacklistCounts(window.SkynetSettings || {});
 
             ["blcount1", "blcount2", "hits1", "hits2"].forEach(function(id) {
                 const counter = SkynetUI.getElement(id);
@@ -6250,8 +6251,37 @@
             ];
         };
 
-        SkynetUI.getSettingsOptions = function() {
+        SkynetUI.getSettingsValues = function(settings) {
+            return {
+                skynetAutoUpdate: settings.autoupdate,
+                skynetMalwareUpdates: settings.banmalwareupdate,
+                skynetMalwareHour: settings.banmalwarehour || "auto",
+                skynetMalwareUrl: settings.customlisturl,
+                skynetFilterTraffic: settings.filtertraffic,
+                skynetUnbanPrivate: settings.unbanprivateip,
+                skynetAiProtect: settings.banaiprotect,
+                skynetSecureMode: settings.securemode,
+                skynetLogMode: settings.logmode,
+                skynetSyslogMode: settings.syslogmode || "custom",
+                skynetSyslog: settings.syslogloc,
+                skynetSyslogArchive: settings.syslog1loc,
+                skynetLogInvalid: settings.loginvalid,
+                skynetLogFirewall: settings.logfirewall || "disabled",
+                skynetLogSize: settings.logsize,
+                skynetExtendedStats: settings.extendedstats,
+                skynetCountryLookup: settings.lookupcountry,
+                skynetCdnWhitelist: settings.cdnwhitelist,
+                skynetIotBlocking: settings.iotblocked,
+                skynetIotLogging: settings.iotlogging
+            };
+        };
+
+        SkynetUI.getSettingsOptions = function(settings) {
+            const values = settings ? this.getSettingsValues(settings) : null;
             return this.getSettingsFields().map(function(id) {
+                if (values && values[id] !== undefined && values[id] !== null) {
+                    return String(values[id]);
+                }
                 return (SkynetUI.getElement(id) || {}).value || "";
             }).join("|");
         };
@@ -6283,6 +6313,12 @@
         };
 
         SkynetUI.populateBlacklistCounts = function(settings) {
+            const settingsGenerated = Number(String(window.SkynetSettingsGenerated || "").split(".")[0]);
+            const statsGenerated = Number(String(window.SkynetStatsGenerated || "").split(".")[0]);
+            if (Number.isFinite(statsGenerated) && statsGenerated > 0 &&
+                (!Number.isFinite(settingsGenerated) || settingsGenerated < statsGenerated)) {
+                return;
+            }
             const counters = {
                 blcount1: settings.blacklist1count,
                 blcount2: settings.blacklist2count
@@ -8097,9 +8133,7 @@
             });
         };
 
-        SkynetUI.populateSettings = function() {
-            this.populateBackup();
-            this.updateBlockHistoryControls();
+        SkynetUI.populateSettingsMetadata = function() {
             const settings = window.SkynetSettings || {};
             const statsLimit = this.getElement("statslimit");
             if (statsLimit) {
@@ -8113,31 +8147,17 @@
             }
             const scriptHash = this.getElement("skynetScriptHash");
             if (scriptHash) scriptHash.textContent = settings.scriptsha256 || "Unavailable";
+        };
+
+        SkynetUI.populateSettings = function(preserveEditors, preserveSettings) {
+            this.populateBackup();
+            this.updateBlockHistoryControls();
+            this.populateSettingsMetadata();
+            const settings = window.SkynetSettings || {};
             this.updateLoggingState();
             const apply = this.getElement(this.selectors.settingsButton);
             const malware = this.getElement(this.selectors.malwareButton);
-            const fields = {
-                skynetAutoUpdate: settings.autoupdate,
-                skynetMalwareUpdates: settings.banmalwareupdate,
-                skynetMalwareHour: settings.banmalwarehour || "auto",
-                skynetMalwareUrl: settings.customlisturl,
-                skynetFilterTraffic: settings.filtertraffic,
-                skynetUnbanPrivate: settings.unbanprivateip,
-                skynetAiProtect: settings.banaiprotect,
-                skynetSecureMode: settings.securemode,
-                skynetLogMode: settings.logmode,
-                skynetSyslogMode: settings.syslogmode || "custom",
-                skynetSyslog: settings.syslogloc,
-                skynetSyslogArchive: settings.syslog1loc,
-                skynetLogInvalid: settings.loginvalid,
-                skynetLogFirewall: settings.logfirewall || "disabled",
-                skynetLogSize: settings.logsize,
-                skynetExtendedStats: settings.extendedstats,
-                skynetCountryLookup: settings.lookupcountry,
-                skynetCdnWhitelist: settings.cdnwhitelist,
-                skynetIotBlocking: settings.iotblocked,
-                skynetIotLogging: settings.iotlogging
-            };
+            const fields = this.getSettingsValues(settings);
 
             if (!window.SkynetSettings || !window.SkynetSettingsGenerated) {
                 if (apply) {
@@ -8159,6 +8179,10 @@
             }
 
             Object.keys(fields).forEach(function(id) {
+                if (preserveSettings || (preserveEditors &&
+                    (id === "skynetIotBlocking" || id === "skynetIotLogging"))) {
+                    return;
+                }
                 const field = SkynetUI.getElement(id);
 
                 if (field && fields[id] !== undefined && fields[id] !== null) {
@@ -8166,14 +8190,22 @@
                 }
             });
 
-            this.settingsOriginal = this.getSettingsOptions();
+            this.settingsOriginal = this.getSettingsOptions(preserveSettings ? settings : null);
 
             this.populateMalwareStatus();
             this.populateBlacklistCounts(settings);
-            this.populateIOT();
-            this.populateCountries();
-            this.populateFeeds();
-            this.populateRules();
+            if (preserveEditors) {
+                this.renderIOT();
+                this.renderIOTPorts();
+                this.renderCountries();
+                this.renderFeeds();
+                this.renderRules();
+            } else {
+                this.populateIOT();
+                this.populateCountries();
+                this.populateFeeds();
+                this.populateRules();
+            }
 
             this.updateSettingsControls();
             if (malware && !this.refreshInProgress) {
@@ -8459,21 +8491,53 @@
 
 		SkynetUI.populateUpdatedSettings = function(requestType, preserveInput) {
 			const settings = window.SkynetSettings || {};
+			this.populateSettingsMetadata();
 			this.populateBlacklistCounts(settings);
-			if (preserveInput) return;
 			switch (requestType) {
 				case "sources": this.renderSourceMatches(); return;
-				case "history": this.populateBlockHistory(); return;
+				case "history":
+					if (preserveInput) {
+						this.blockHistoryPending = null;
+						this.blockHistoryExportMessage = "";
+					} else this.populateBlockHistory();
+					return;
 				case "restart": return;
-				case "backup": this.getElement("skynetBackupSelect").value = ""; this.populateBackup(); break;
-				case "rules": this.populateRules(); break;
+				case "backup":
+					if (!preserveInput) this.getElement("skynetBackupSelect").value = "";
+					this.populateBackup();
+					break;
+				case "rules":
+					if (preserveInput || custom_settings.skynet_ruleoperation === "remove") {
+						this.renderRules();
+						this.renderRuleOverview();
+					} else this.populateRules();
+					break;
 				case "ruleRefresh": this.renderRules(); this.renderRuleOverview(); break;
 				case "countries":
-				case "countryRefresh": this.populateCountries(); break;
-				case "feeds": this.populateFeeds(); this.populateMalwareStatus(); break;
-				case "malware": this.populateFeeds(); this.populateMalwareStatus(); break;
-				case "iot": this.populateIOT(); this.refreshRenderedStats(); break;
-				default: this.populateSettings(); this.refreshRenderedStats();
+				case "countryRefresh":
+					if (preserveInput) {
+						this.countryOriginal = this.normaliseCountries(settings.countrylist).join(" ");
+						this.renderCountries();
+					} else this.populateCountries();
+					break;
+				case "feeds":
+					if (preserveInput) {
+						this.feedOriginal = this.getFeedSignature(this.normaliseFeedExclusions(settings.excludelists));
+						this.renderFeeds();
+					} else this.populateFeeds();
+					this.populateMalwareStatus();
+					break;
+				case "malware": this.renderFeeds(); this.populateMalwareStatus(); break;
+				case "iot":
+					if (preserveInput) {
+						this.populateIOTPicker();
+						this.renderIOT();
+						this.renderIOTPorts();
+					} else this.populateIOT();
+					this.refreshRenderedStats();
+					break;
+				case "settings": this.populateSettings(true, preserveInput); this.refreshRenderedStats(); break;
+				default: this.populateSettings(preserveInput, preserveInput); this.refreshRenderedStats();
 			}
 			/* Rules actions already refresh the shared activity journal. */
 			if (requestType !== "rules" && requestType !== "ruleRefresh") {
@@ -8559,6 +8623,8 @@
 
                     self.refreshInProgress = false;
                     if (statsRequest) {
+                        self.populateSettingsMetadata();
+                        self.populateBlacklistCounts(window.SkynetSettings || {});
                         self.renderRuleOverview();
                         if (!failed) {
                             self.refreshRenderedStats();
@@ -8576,11 +8642,7 @@
                             }
                         }
                     } else if (loadSettings) {
-                        const preserveFailedInput = failed &&
-                            (requestType === "countries" || requestType === "countryRefresh" ||
-                                requestType === "iot" ||
-                                (requestType === "rules" && custom_settings.skynet_ruleoperation === "add"));
-						self.populateUpdatedSettings(requestType, preserveFailedInput);
+						self.populateUpdatedSettings(requestType, failed);
                     } else {
                         self.refreshRenderedStats();
                     }

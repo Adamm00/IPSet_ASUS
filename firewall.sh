@@ -112,7 +112,24 @@ Cleanup_Runtime() {
 			if [ "${feedrollbackpreserve:-0}" != "1" ] && [ "${malwarerollbackpreserve:-0}" != "1" ] \
 				&& [ "${policysettingpreserve:-0}" != "1" ] && [ "${countrypolicypreserve:-0}" != "1" ] \
 				&& [ "${domainrollbackpreserve:-0}" != "1" ] && [ "${userrollbackpreserve:-0}" != "1" ] \
-				&& [ "${dnsmasqpreserve:-0}" != "1" ] && [ "${iotwebpreserve:-0}" != "1" ]; then rm -rf "$TMP_DIR"; fi
+				&& [ "${dnsmasqpreserve:-0}" != "1" ] && [ "${iotwebpreserve:-0}" != "1" ]; then
+				rm -rf "$TMP_DIR"
+			else
+				cleanuprecoverybase="/tmp/skynet/recovery.$$"
+				cleanuprecoverydir="$cleanuprecoverybase"
+				cleanuprecoverysuffix="0"
+				while [ -e "$cleanuprecoverydir" ] || [ -L "$cleanuprecoverydir" ]; do
+					cleanuprecoverysuffix=$((cleanuprecoverysuffix + 1))
+					cleanuprecoverydir="${cleanuprecoverybase}.${cleanuprecoverysuffix}"
+				done
+				if mv "$TMP_DIR" "$cleanuprecoverydir"; then
+					TMP_DIR="$cleanuprecoverydir"
+					Log error -s "Recovery Files Retained ($TMP_DIR)"
+				else
+					cleanupstatus="1"
+					Log error -s "Failed To Move Recovery Files - Workspace Retained ($TMP_DIR)"
+				fi
+			fi
 		;;
 	esac
 	case "$backuprestoredir" in
@@ -1420,12 +1437,12 @@ Search_Threat_Feed_Caches() {
 }
 
 Generate_WebUI_Source_Matches() {
-	sourcequeryjs=""
+	printf "var SkynetSourceMatches = '" >> "$settingstmp" || return 1
 	if [ -n "$webuisourcequery" ] && [ -f "$webuisourcequery" ]; then
-		sourcequeryjs="$(Escape_JS < "$webuisourcequery")" || return 1
+		Escape_JS < "$webuisourcequery" >> "$settingstmp" || return 1
 	fi
-	printf "var SkynetSourceMatches = '%s';\nvar SkynetSourceIP = '%s';\nvar SkynetSourceSummary = {checked:%s,missing:%s};\n" \
-		"$sourcequeryjs" "${sourcequeryip:-}" "${sourcequerychecked:-0}" "${sourcequerymissing:-0}" >> "$settingstmp"
+	printf "';\nvar SkynetSourceIP = '%s';\nvar SkynetSourceSummary = {checked:%s,missing:%s};\n" \
+		"${sourcequeryip:-}" "${sourcequerychecked:-0}" "${sourcequerymissing:-0}" >> "$settingstmp"
 }
 
 Apply_WebUI_Source_Search() {
@@ -2670,7 +2687,7 @@ Clean_Stale_Temp() {
 		[ -d "/proc/$temppid" ] || rm -rf "$tempdir"
 	done
 	if [ -n "$skynetloc" ]; then
-		for tempfile in "${skynetloc}/lists/"*.tmp.* "${skynetloc}/lists/".*.tmp.* "${skynetloc}/lists/countries/.manifest.tmp."* "${skynetloc}/lists/rules/"*.tmp.* "${skynetloc}/lists/rules/".*.tmp.* "${skynetloc}/skynet.cfg.tmp."* "${skynetloc}/skynet.ipset.tmp."* "${skynetloc}/skynet.rules.tmp."* "${skynetloc}/events.log.tmp."* "${skynetloc}/events.log.compact."* "${skynetloc}/events.log.trim."* "${skynetloc}/webui/settings.js.tmp."* "${skynetloc}/webui/skynet.asp.tmp."* "${skynetloc}/webui/skynet.asp.old."* "${skynetloc}/webui/stats.js.tmp."* "$0.tmp."* "$0.old."*; do
+		for tempfile in "${skynetloc}/lists/"*.tmp.* "${skynetloc}/lists/".*.tmp.* "${skynetloc}/lists/countries/.manifest.tmp."* "${skynetloc}/lists/rules/"*.tmp.* "${skynetloc}/lists/rules/".*.tmp.* "${skynetloc}/skynet.cfg.tmp."* "${skynetloc}/skynet.ipset.tmp."* "${skynetloc}/skynet.rules.tmp."* "${skynetloc}/events.log.tmp."* "${skynetloc}/events.log.compact."* "${skynetloc}/events.log.trim."* "${skynetloc}/webui/settings.js.tmp."* "${skynetloc}/webui/skynet.asp.tmp."* "${skynetloc}/webui/stats.js.tmp."* "$0.tmp."*; do
 			[ -f "$tempfile" ] || continue
 			temppid="${tempfile##*.}"
 			[ "$temppid" = "$$" ] && continue
@@ -4180,26 +4197,26 @@ Update_IPSet_Batch() {
 		Log error -s "Failed To Snapshot IPSet ($batchset)"
 		return 1
 	fi
-	if ! true > "$batchfile"; then
+	# Keep membership only for requested values and emit changes in request order.
+	if ! awk -v setname="$batchset" -v action="$batchaction" \
+		-v entries="$batchlist" -v comment="$batchcomment" '
+		BEGIN {
+			count = split(entries, requested, " ")
+			for (i = 1; i <= count; i++) wanted[requested[i]] = 1
+		}
+		$1 == "add" && $2 == setname && ($3 in wanted) { present[$3] = 1 }
+		END {
+			for (i = 1; i <= count; i++) {
+				entry = requested[i]
+				if (action == "add" && !(entry in present))
+					printf "add %s %s comment \"%s\"\n", setname, entry, comment
+				else if (action == "del" && entry in present)
+					printf "del %s %s\n", setname, entry
+			}
+		}' "$batchsnapshot" > "$batchfile"; then
 		rm -f "$batchfile" "$batchsnapshot"
 		return 1
 	fi
-	# Entries have already been restricted to atomic IPSet values.
-	# shellcheck disable=SC2086
-	set -- $batchlist
-	for batchentry in "$@"; do
-		if awk -v setname="$batchset" -v entry="$batchentry" \
-			'$1 == "add" && $2 == setname && $3 == entry { found = 1; exit } END { exit !found }' "$batchsnapshot"; then
-			[ "$batchaction" = "add" ] && continue
-		else
-			[ "$batchaction" = "del" ] && continue
-		fi
-		if [ "$batchaction" = "add" ]; then
-			printf 'add %s %s comment "%s"\n' "$batchset" "$batchentry" "$batchcomment" >> "$batchfile"
-		else
-			printf 'del %s %s\n' "$batchset" "$batchentry" >> "$batchfile"
-		fi
-	done
 
 	if [ ! -s "$batchfile" ]; then
 		rm -f "$batchfile" "$batchsnapshot"
@@ -4580,9 +4597,10 @@ Domain_Lookup() {
 	# Some BusyBox builds return a failure status after printing usable answers.
 	# Parsed IPv4 output is authoritative; an empty answer set still fails below.
 	if [ -s "$lookupresultfile" ]; then
-		awk -v q="$lookupdomain" '
+		if ! awk -v q="$lookupdomain" '
 			BEGIN {
 				# normalise query: strip trailing dot if present
+				q = tolower(q)
 				gsub(/\.$/, "", q)
 				in_query = 0
 			}
@@ -4590,7 +4608,7 @@ Domain_Lookup() {
 			# A matching Name section owns its following Address records,
 			# including CNAME target blocks.
 			/^Name:[[:space:]]*/ {
-				name = $2
+				name = tolower($2)
 				gsub(/\.$/, "", name)
 				if (!in_query && name == q)
 					in_query = 1
@@ -4604,7 +4622,10 @@ Domain_Lookup() {
 						print $i
 				}
 			}
-		' "$lookupresultfile" > "$lookupanswerfile"
+		' "$lookupresultfile" > "$lookupanswerfile"; then
+			rm -f "$lookupresultfile" "$lookupanswerfile"
+			return 1
+		fi
 	fi
 
 	if [ -s "$lookupanswerfile" ]; then
@@ -5749,15 +5770,18 @@ Fetch_CDN_Whitelist() {
 					"$cdnworkerraw" > "$cdnworkervalues"
 			;;
 			embedded)
-				# Extract all embedded IPv4 tokens with one compiled expression.
-				grep -oE '(((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(/(1?[0-9]|2?[0-9]|3?[0-2]))?)' \
+				# Keep complete tokens so invalid octets, prefixes and IPv6 cannot
+				# become a shorter valid IPv4 match during extraction.
+				grep -oE '[A-Za-z0-9_:./-]*([0-9]{1,3}\.){3}[0-9]{1,3}(/[0-9]+)?[A-Za-z0-9_:./-]*' \
 					"$cdnworkerraw" > "$cdnworkervalues"
 			;;
 		esac
-		if [ -s "$cdnworkervalues" ]; then
-			Filter_PrivateIP < "$cdnworkervalues" | awk -v label="$cdnworkerlabel" '!seen[$1]++ {
+		if [ -s "$cdnworkervalues" ] \
+			&& Normalize_Public_IPList "$cdnworkervalues" "$cdnworkerraw" \
+			&& [ -s "$cdnworkerraw" ]; then
+			awk -v label="$cdnworkerlabel" '{
 				printf "add Skynet-Whitelist %s comment \"CDN-Whitelist: %s\"\n", $1, label
-			}' > "$cdnworkeroutput" && [ -s "$cdnworkeroutput" ] && cdnworkerparsed="1"
+			}' "$cdnworkerraw" > "$cdnworkeroutput" && [ -s "$cdnworkeroutput" ] && cdnworkerparsed="1"
 		fi
 	fi
 	rm -f "$cdnworkerraw" "$cdnworkervalues"
@@ -7801,7 +7825,7 @@ Generate_WebUI_IOT_Data() {
 	iotfirst="1"
 	while IFS='~' read -r iotselected ipaddr macaddr iotstate iotlease; do
 		[ -n "$ipaddr" ] || continue
-		if printf '%s\n' "$ipaddr" | Is_Range; then
+		if [ "${ipaddr#*/}" != "$ipaddr" ] && printf '%s\n' "$ipaddr" | Is_Range; then
 			localname="IP Range"
 			macaddr="Unknown"
 			iotstate="offline"
@@ -7810,7 +7834,8 @@ Generate_WebUI_IOT_Data() {
 			if [ "$localname" = "Unknown" ] && [ -n "$iotlease" ] && [ "$iotlease" != "*" ]; then
 				localname="$iotlease"
 			fi
-			if ! printf '%s\n' "$macaddr" | Is_MAC; then
+			if [ "${#macaddr}" -lt 11 ] || [ "${#macaddr}" -gt 17 ] \
+				|| ! printf '%s\n' "$macaddr" | Is_MAC; then
 				macaddr="Unknown"
 				iotstate="offline"
 			else
@@ -7819,8 +7844,9 @@ Generate_WebUI_IOT_Data() {
 		fi
 		iotnamejs="$(printf '%s\n' "$localname" | Escape_JS)" || return 1
 		if [ "$iotfirst" != "1" ]; then printf ',' >> "$settingstmp" || return 1; fi
+		if [ "$iotselected" = "1" ]; then iotselectedjs="true"; else iotselectedjs="false"; fi
 		printf '\n\t{ip:\x27%s\x27,mac:\x27%s\x27,name:\x27%s\x27,state:\x27%s\x27,blocked:%s}' \
-			"$ipaddr" "$macaddr" "$iotnamejs" "$iotstate" "$([ "$iotselected" = "1" ] && printf true || printf false)" >> "$settingstmp" || return 1
+			"$ipaddr" "$macaddr" "$iotnamejs" "$iotstate" "$iotselectedjs" >> "$settingstmp" || return 1
 		iotfirst="0"
 	done < "$iotinventory"
 	Clear_Client_Name_Data
@@ -10142,7 +10168,7 @@ Load_Config() {
 	case "$cdnwhitelist" in enabled|disabled) ;; *) cdnwhitelist="disabled"; configchanged="1" ;; esac
 	case "$displaywebui" in enabled|disabled) ;; *) displaywebui="disabled"; configchanged="1" ;; esac
 	configlogsize="$(Normalize_Log_Size "$logsize")" \
-		|| configlogsize="$(printf '%s\n' "$logsize" | awk 'END {print NR == 1 && $0 ~ /^[0-9]+$/ && $0+0 > 200 ? 200 : 10}')"
+		|| configlogsize="$(printf '%s\n' "$logsize" | awk 'END {print (NR == 1 && $0 ~ /^[0-9]+$/ && $0+0 > 200 ? 200 : 10)}')"
 	if [ "$logsize" != "$configlogsize" ]; then logsize="$configlogsize"; configchanged="1"; fi
 	[ -n "$syslogloc" ] || { syslogloc="/tmp/syslog.log"; configchanged="1"; }
 	[ -n "$syslog1loc" ] || { syslog1loc="/tmp/syslog.log-1"; configchanged="1"; }
@@ -10284,6 +10310,7 @@ Write_Config() {
 		Log error "Failed To Stage Config - Existing File Retained"
 		return 1
 	fi
+	configram="$TMP_DIR/config-write.$$"
 	if configstamp=$(date +"%b %e %T") &&
 	config_model="$model" config_localver="${upgradefrom:-$localver}" config_swaplocation="$swaplocation" \
 	config_blacklist1count="$blacklist1count" config_blacklist2count="$blacklist2count" \
@@ -10326,12 +10353,30 @@ Write_Config() {
 			section("Integration & Advanced", "displaywebui")
 			print "\n################################################"
 		}
-	' > "$configtmp" && [ -s "$configtmp" ] && mv -f "$configtmp" "$skynetcfg"; then
-		unset "configtmp" "configstamp"
-		return 0
+	' > "$configram" && [ -s "$configram" ]; then
+		# Keep the existing timestamp and avoid a persistent write for unchanged data.
+		if [ ! -L "$skynetcfg" ] && [ -f "$skynetcfg" ] && awk '
+			FILENAME == ARGV[1] {
+				oldlines = FNR
+				if (FNR != 3) previous[FNR] = $0
+				next
+			}
+			{ newlines = FNR }
+			FNR != 3 && (!(FNR in previous) || previous[FNR] != $0) { changed = 1; exit }
+			END { exit changed || oldlines != newlines }
+		' "$skynetcfg" "$configram"; then
+			rm -f "$configram"
+			unset "configtmp" "configram" "configstamp"
+			return 0
+		fi
+		if cp -f "$configram" "$configtmp" && mv -f "$configtmp" "$skynetcfg"; then
+			rm -f "$configram"
+			unset "configtmp" "configram" "configstamp"
+			return 0
+		fi
 	fi
-	rm -f "$configtmp"
-	unset "configtmp" "configstamp"
+	rm -f "$configtmp" "$configram"
+	unset "configtmp" "configram" "configstamp"
 	Log error "Failed To Write Config - Existing File Retained"
 	return 1
 }
@@ -10369,7 +10414,7 @@ Apply_WebUI_Stats() {
 }
 
 Apply_WebUI_Toggle() {
-	if [ "$1" != "$2" ]; then
+	if [ "$1" != "$2" ] || { [ "$3" = "logmode" ] && [ -f "$MAINTENANCE_WEBUI_PENDING" ]; }; then
 		case "$1" in
 			enabled) Run_WebUI_Command settings "$3" enable >/dev/null 2>&1 ;;
 			disabled) Run_WebUI_Command settings "$3" disable >/dev/null 2>&1 ;;
@@ -11084,31 +11129,46 @@ Normalize_Country_Zone() {
 	# Country files must contain complete public IPv4 CIDRs. Rejecting the whole
 	# payload prevents a truncated or changed provider response being applied.
 	awk '
-		function usable(value, count, prefix, i, first, second, third) {
+		function ipv4(a, b, c, d) { return (((a * 256) + b) * 256 + c) * 256 + d }
+		function reserve(start, end) { blocked_start[++blocked_count] = start; blocked_end[blocked_count] = end }
+		BEGIN {
+			reserve(ipv4(0,0,0,0), ipv4(0,255,255,255))
+			reserve(ipv4(10,0,0,0), ipv4(10,255,255,255))
+			reserve(ipv4(100,64,0,0), ipv4(100,127,255,255))
+			reserve(ipv4(127,0,0,0), ipv4(127,255,255,255))
+			reserve(ipv4(169,254,0,0), ipv4(169,254,255,255))
+			reserve(ipv4(172,16,0,0), ipv4(172,31,255,255))
+			reserve(ipv4(192,0,0,0), ipv4(192,0,0,255))
+			reserve(ipv4(192,0,2,0), ipv4(192,0,2,255))
+			reserve(ipv4(192,168,0,0), ipv4(192,168,255,255))
+			reserve(ipv4(198,18,0,0), ipv4(198,19,255,255))
+			reserve(ipv4(198,51,100,0), ipv4(198,51,100,255))
+			reserve(ipv4(203,0,113,0), ipv4(203,0,113,255))
+			reserve(ipv4(224,0,0,0), ipv4(255,255,255,255))
+		}
+		function normalize(value, count, prefix, i, block, start, end, first, second, third, fourth) {
 			count = split(value, part, "/")
-			if (count != 2 || part[2] !~ /^[0-9]+$/ || part[2] < 0 || part[2] > 32) return 0
-			if (split(part[1], octet, ".") != 4) return 0
+			if (count != 2 || part[2] !~ /^[0-9]+$/ || part[2] < 1 || part[2] > 32) return ""
+			if (split(part[1], octet, ".") != 4) return ""
 			for (i = 1; i <= 4; i++)
-				if (octet[i] !~ /^[0-9]+$/ || octet[i] < 0 || octet[i] > 255) return 0
-			first = octet[1] + 0
-			second = octet[2] + 0
-			third = octet[3] + 0
-			if (first == 0 || first == 10 || first == 127 || first >= 224) return 0
-			if (first == 100 && second >= 64 && second <= 127) return 0
-			if (first == 169 && second == 254) return 0
-			if (first == 172 && second >= 16 && second <= 31) return 0
-			if (first == 192 && second == 168) return 0
-			if (first == 192 && second == 0 && (third == 0 || third == 2)) return 0
-			if (first == 198 && (second == 18 || second == 19)) return 0
-			if (first == 198 && second == 51 && third == 100) return 0
-			if (first == 203 && second == 0 && third == 113) return 0
-			return 1
+				if (octet[i] !~ /^[0-9]+$/ || octet[i] < 0 || octet[i] > 255) return ""
+			prefix = part[2] + 0
+			block = 2 ^ (32 - prefix)
+			start = int(ipv4(octet[1], octet[2], octet[3], octet[4]) / block) * block
+			end = start + block - 1
+			for (i = 1; i <= blocked_count; i++)
+				if (start <= blocked_end[i] && end >= blocked_start[i]) return ""
+			first = int(start / 16777216); start -= first * 16777216
+			second = int(start / 65536); start -= second * 65536
+			third = int(start / 256); fourth = start - third * 256
+			return sprintf("%d.%d.%d.%d/%d", first, second, third, fourth, prefix)
 		}
 		{
 			sub(/\r$/, "")
 			if ($0 == "" || $0 ~ /^#/) next
-			if (NF != 1 || !usable($1)) invalid = 1
-			else if (!seen[$1]++) { print $1; entries++ }
+			value = normalize($1)
+			if (NF != 1 || value == "") invalid = 1
+			else if (!seen[value]++) { print value; entries++ }
 		}
 		END { if (invalid || entries == 0) exit 1 }
 	' "$1" > "$2"
@@ -12767,6 +12827,7 @@ Dispatch_Maintenance() {
 	# change. A later run retries presentation without repeating the policy change.
 	if [ -f "$MAINTENANCE_WEBUI_PENDING" ]; then
 		maintenancewebuistatus="0"
+		Load_Cron collect || maintenancewebuistatus="1"
 		if Is_Enabled "$displaywebui"; then Install_WebUI_Page || maintenancewebuistatus="1"
 		else Uninstall_WebUI_Page || maintenancewebuistatus="1"; fi
 		Generate_WebUI_Settings || maintenancewebuistatus="1"
@@ -12808,9 +12869,16 @@ Confirm_Firewall_Ready() {
 Ensure_Startup_Runtime() {
 	# Volatile completion state is published only after all per-boot integration
 	# succeeds. Retrying this phase must not reload an already active policy.
-	[ -f "$STARTUP_READY" ] && return 0
-	Wait_For_Lock start || return 1
-	[ -f "$STARTUP_READY" ] && return 0
+	if [ -f "$STARTUP_READY" ] && [ "$1" != "1" ] && [ ! -f "$MAINTENANCE_WEBUI_PENDING" ]; then return 0; fi
+	if ! Wait_For_Lock start; then
+		[ -f "$STARTUP_READY" ] || return 1
+		Defer_WebUI_Refresh
+		return 0
+	fi
+	if [ -f "$STARTUP_READY" ]; then
+		if [ "$1" = "1" ] || [ -f "$MAINTENANCE_WEBUI_PENDING" ]; then Generate_WebUI_Settings || Defer_WebUI_Refresh; fi
+		return 0
+	fi
 	Maintain_Script_Hooks firewall-start services-stop service-event post-mount unmount \
 		|| { Log error -s "Failed To Maintain Script Hooks"; return 1; }
 	Unload_Cron save banmalware autoupdate checkupdate || return 1
@@ -12904,11 +12972,13 @@ Dispatch_Start() {
 	# Most firewall-start events need only restore Skynet rules after Merlin has
 	# rebuilt its base firewall. The complete initialization path is entered only
 	# when persistent sets or the R2 registry are unavailable.
+	startupsettingspending="0"
 	if [ ! -f "$STARTUP_PENDING" ] && Check_IPSets && Validate_Rule_Registry "$skynetrules" && ! V8_Upgrade_Pending; then
 		if Time_Is_Ready && Time_Dependent_State_Pending; then
 			Wait_For_Lock "$@" || return 1
 			if Time_Dependent_State_Pending; then
 				Activate_Time_Dependent_State || { Log error -s "Failed To Activate Time-Dependent Rules"; echo; return 1; }
+				startupsettingspending="1"
 			else
 				Reconcile_Firewall_Rules || return 1
 			fi
@@ -12922,7 +12992,7 @@ Dispatch_Start() {
 				Wait_For_Lock "$@" || return 1
 				if Time_Dependent_State_Pending; then
 					Activate_Time_Dependent_State || { Log error -s "Failed To Activate Time-Dependent Rules"; echo; return 1; }
-					Generate_WebUI_Settings || true
+					startupsettingspending="1"
 				else
 					Reconcile_Firewall_Rules || return 1
 				fi
@@ -12930,7 +13000,7 @@ Dispatch_Start() {
 				echo "[!] Router Time Is Not Synchronized - Logging And Temporary Rules Remain Pending"
 			fi
 		fi
-		Ensure_Startup_Runtime || return 1
+		Ensure_Startup_Runtime "$startupsettingspending" || return 1
 		nocfg="1"
 		nolog="2"
 		return 0
@@ -12943,12 +13013,13 @@ Dispatch_Start() {
 	if [ ! -f "$STARTUP_PENDING" ] && Check_IPSets && Validate_Rule_Registry "$skynetrules" && ! V8_Upgrade_Pending; then
 		if Time_Is_Ready && Time_Dependent_State_Pending; then
 			Activate_Time_Dependent_State || return 1
+			startupsettingspending="1"
 		else
 			Reconcile_Firewall_Rules || return 1
 			Time_Is_Ready || Mark_Time_Dependent_State_Pending || return 1
 		fi
 		Confirm_Firewall_Ready || return 1
-		Ensure_Startup_Runtime || return 1
+		Ensure_Startup_Runtime "$startupsettingspending" || return 1
 		nocfg="1"
 		nolog="2"
 		return 0
@@ -13088,7 +13159,11 @@ Rollback_Update() {
 	trap '' INT TERM
 	updateactive="0"
 	updaterollbackstatus="0"
-	Wait_For_Lock update || return 1
+	if ! Wait_For_Lock update; then
+		updaterecoverypreserve="1"
+		Log error "Skynet Update Recovery Lock Failed - Backup Files Retained ($updatefirewallbackup)"
+		return 1
+	fi
 	if ! Restore_Update_Files; then
 		updaterecoverypreserve="1"
 		updaterollbackstatus="1"
@@ -13323,11 +13398,11 @@ Settings_LogMode() {
 	# Persist enforcement before presentation work. A later failure is reported
 	# without discarding the mode already installed in the firewall.
 	nocfg="1"
-	Load_Cron collect || { Log error -s "Failed To Update Packet Collection Schedule"; return 1; }
+	Load_Cron collect || { Defer_WebUI_Refresh; Log error -s "Failed To Update Packet Collection Schedule"; return 1; }
 	if Is_Enabled "$logmode" && Is_Enabled "$displaywebui"; then
-		Load_Cron genstats || { Log error -s "Failed To Update Statistics Schedule"; return 1; }
+		Load_Cron genstats || { Defer_WebUI_Refresh; Log error -s "Failed To Update Statistics Schedule"; return 1; }
 	else
-		Unload_Cron genstats || { Log error -s "Failed To Update Statistics Schedule"; return 1; }
+		Unload_Cron genstats || { Defer_WebUI_Refresh; Log error -s "Failed To Update Statistics Schedule"; return 1; }
 	fi
 	Generate_WebUI_Settings || Defer_WebUI_Refresh
 	echo "[i] $logmodemessage"
@@ -13605,6 +13680,7 @@ Settings_IOT() {
 			for iotentry in $iotlist; do
 				if ! printf '%s\n' "$iotentry" | Is_IPRange; then echo "[*] $iotentry Is Not A Valid IP/Range"; echo; exit 2; fi
 			done
+			Mark_Durable_State_Pending || { echo "[*] Failed To Prepare IoT Device List Save"; echo; exit 1; }
 			Update_IPSet_Batch del Skynet-IOT "" "$iotlist" || { echo; exit 1; }
 			echo "[i] IoT Device List Updated"
 		;;
@@ -13614,6 +13690,7 @@ Settings_IOT() {
 				if ! printf '%s\n' "$iotentry" | Is_IPRange; then echo "[*] $iotentry Is Not A Valid IP/Range"; echo; exit 2; fi
 			done
 			desc="$(date +"%b %e %T")"
+			Mark_Durable_State_Pending || { echo "[*] Failed To Prepare IoT Device List Save"; echo; exit 1; }
 			Update_IPSet_Batch add Skynet-IOT "IOTBan: $desc" "$iotlist" || { echo; exit 1; }
 			echo "[i] IoT Device List Updated"
 		;;
