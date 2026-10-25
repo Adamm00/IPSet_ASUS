@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                           24/10/2026 - v9.0.7                                             #
+#                                           25/10/2026 - v9.0.7                                             #
 #############################################################################################################
 
 
@@ -1385,15 +1385,29 @@ Normalize_Public_IPList() {
 			if (invalid) next
 			prefix = parts == 2 ? address[2] : 32
 			if (prefix !~ /^[0-9]+$/ || prefix < 1 || prefix > 32) next
-			value = ipv4(octet[1], octet[2], octet[3], octet[4])
-			block = 2 ^ (32 - prefix); start = int(value / block) * block; end = start + block - 1
-			if (query!="" && (start>querystart || end<queryend)) next
-			blocked = 0
-			for (i = 1; i <= blocked_count; i++) if (start <= blocked_end[i] && end >= blocked_start[i]) { blocked = 1; break }
-			if (blocked) next
-			first = int(start / 16777216); start -= first * 16777216
-			second = int(start / 65536); start -= second * 65536
-			third = int(start / 256); fourth = start - third * 256
+			if (prefix == 32) {
+				first = octet[1]+0; second = octet[2]+0; third = octet[3]+0; fourth = octet[4]+0
+				if (first == 0 || first == 10 || first == 127 || first >= 224 ||
+					(first == 100 && second >= 64 && second <= 127) || (first == 169 && second == 254) ||
+					(first == 172 && second >= 16 && second <= 31) || (first == 192 && second == 168) ||
+					(first == 192 && second == 0 && (third == 0 || third == 2)) ||
+					(first == 198 && (second == 18 || second == 19)) ||
+					(first == 198 && second == 51 && third == 100) || (first == 203 && second == 0 && third == 113)) next
+				if (query != "") {
+					value = ipv4(first, second, third, fourth)
+					if (value > querystart || value < queryend) next
+				}
+			} else {
+				value = ipv4(octet[1], octet[2], octet[3], octet[4])
+				block = 2 ^ (32 - prefix); start = int(value / block) * block; end = start + block - 1
+				if (query!="" && (start>querystart || end<queryend)) next
+				blocked = 0
+				for (i = 1; i <= blocked_count && blocked_start[i] <= end; i++) if (start <= blocked_end[i]) { blocked = 1; break }
+				if (blocked) next
+				first = int(start / 16777216); start -= first * 16777216
+				second = int(start / 65536); start -= second * 65536
+				third = int(start / 256); fourth = start - third * 256
+			}
 			result = sprintf("%d.%d.%d.%d", first, second, third, fourth)
 			if (parts == 2 && (comments != "import" || prefix != 32)) result = result "/" prefix
 			if (comments == "import" && (length(label) > 242 || label ~ /[[:cntrl:]]/)) exit 2
@@ -1807,7 +1821,9 @@ Stage_Rule_Registry_Request() {
 		rulerequestdata="${rulerequestdata:--}"
 		rulerequestcomment="${rulerequestcomment:-$rulestagecomment}"
 		case "$rulerequestcomment" in C*) ;; *) return 2 ;; esac
-		Validate_IPSet_Comment "${rulerequestcomment#C}" 242 || return 2
+		if [ "$rulerequestcomment" != "$rulestagecomment" ]; then
+			Validate_IPSet_Comment "${rulerequestcomment#C}" 242 || return 2
+		fi
 		rulerequestid="$(awk -F '\t' -v target="$rulestagetarget" -v type="$rulerequesttype" -v value="$rulerequestvalue" \
 			'$1 == "R2" && $3 == target && $4 == type && tolower($5) == tolower(value) {print $2; exit}' "$skynetrules")"
 		if [ -z "$rulerequestid" ]; then
@@ -1889,9 +1905,11 @@ Stage_Rule_Registry() {
 	rulestagevalues="$4"
 	rulestagerequest="$TMP_DIR/rules-request.$$"
 	case "$rulestagetype" in ip|range|domain|asn) ;; *) return 2 ;; esac
-	[ -n "$rulestagevalues" ] || return 2
-	# shellcheck disable=SC2086 # Values are validated atomic list members.
-	printf '%s\n' $rulestagevalues | awk -v type="$rulestagetype" 'NF && !seen[tolower($0)]++ {print type "\t" $0 "\t-"}' > "$rulestagerequest" || return 1
+	[ "${#rulestagevalues}" -gt "0" ] || return 2
+	awk -v type="$rulestagetype" '{for (i = 1; i <= NF; i++) if (!seen[tolower($i)]++) print type "\t" $i "\t-"}' \
+		> "$rulestagerequest" <<EOF || return 1
+$rulestagevalues
+EOF
 	Stage_Rule_Registry_Request "$1" "$2" "$rulestagerequest" "$5" "${6:-0}"
 	rulestagestatus="$?"
 	rm -f "$rulestagerequest"
@@ -1931,6 +1949,34 @@ Remove_Registered_Rule_ID() {
 	else
 		Apply_Rule_Registry_Candidate "$rulestagefile" remove
 	fi
+}
+
+Remove_Registered_Comment_Rules() {
+	case "$1" in ban|whitelist) ;; *) return 2 ;; esac
+	registeredcommentmatches="$TMP_DIR/rules-comment-matches.$$"
+	rulestagefile="${skynetrules}.tmp.$$"
+	SKYNET_COMMENT_SEARCH="$2" awk -F '\t' -v target="$1" -v matches="$registeredcommentmatches" '
+		BEGIN { text = ENVIRON["SKYNET_COMMENT_SEARCH"]; printf "%s", "" > matches }
+		$1 == "R2" && $3 == target && ($4 == "ip" || $4 == "range") && index(substr($6, 2), text) {
+			print $5 > matches
+			count++
+			next
+		}
+		{ print }
+		END { if (close(matches)) exit 1; if (!count) exit 2 }
+	' "$skynetrules" > "$rulestagefile"
+	registeredcommentstatus="$?"
+	if [ "$registeredcommentstatus" != "0" ]; then
+		rm -f "$rulestagefile" "$registeredcommentmatches"
+		return "$registeredcommentstatus"
+	fi
+	if ! Validate_Rule_Registry "$rulestagefile" \
+		|| ! registeredcommententries="$(Sanitize_Action_Field 8192 < "$registeredcommentmatches")"; then
+		rm -f "$rulestagefile" "$registeredcommentmatches"
+		return 1
+	fi
+	rm -f "$registeredcommentmatches"
+	Apply_Rule_Registry_Candidate "$rulestagefile" remove
 }
 
 Publish_Staged_Rule_Registry() {
@@ -1995,27 +2041,36 @@ Compiled_IPSet_Schema_Is_Valid() {
 
 Validate_Rule_Data_File() {
 	[ -s "$1" ] && [ ! -L "$1" ] || return 1
-	# Validate the complete sidecar in one pass. Comparing canonical output also
-	# rejects host bits, leading zeroes and whitespace without a process per entry.
-	ruledatanormalized="$TMP_DIR/rule-data-normalized.$$"
-	ruledatacompare="$TMP_DIR/rule-data-compare.$$"
 	# Only import data may carry a bounded inline label. Treat it as text, never
 	# as restore syntax. Plain v8 membership files remain valid without migration.
 	awk -v type="${2:-}" '
+		BEGIN {
+			blocks[32] = 1
+			for (i = 31; i >= 0; i--) blocks[i] = blocks[i + 1] * 2
+		}
 		/^$/ {next}
 		{
-			if (type == "import" && index($0, " # ")) {
-				position = index($0, " # "); label = substr($0, position + 3)
+			line = $0
+			if (type == "import" && (position = index(line, " # "))) {
+				label = substr(line, position + 3)
 				if (label == "" || length(label) > 242 || label ~ /[[:cntrl:]]/ || label ~ /^ | $/) exit 1
-				$0 = substr($0, 1, position - 1)
+				line = substr(line, 1, position - 1)
 			}
-			sub(/\/32$/, ""); print
-		}' "$1" > "$ruledatacompare" \
-		&& Normalize_IPSet_Entries any < "$ruledatacompare" > "$ruledatanormalized" \
-		&& cmp -s "$ruledatanormalized" "$ruledatacompare"
-	ruledatastatus="$?"
-	rm -f "$ruledatanormalized" "$ruledatacompare"
-	return "$ruledatastatus"
+			sub(/\/32$/, "", line)
+			slash = index(line, "/")
+			ip = slash ? substr(line, 1, slash - 1) : line
+			if (ip !~ /^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])[.]){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])$/) exit 1
+			if (slash) {
+				prefix = substr(line, slash + 1)
+				if (prefix !~ /^(0|[1-9][0-9]?)$/ || prefix + 0 > 31) exit 1
+				split(ip, octet, ".")
+				value = (((octet[1] * 256) + octet[2]) * 256 + octet[3]) * 256 + octet[4]
+				if (value % blocks[prefix + 0]) exit 1
+			}
+			count++
+		}
+		END {if (!count) exit 1}
+	' "$1"
 }
 
 Validate_Rule_Data_Reference() {
@@ -2085,33 +2140,36 @@ Build_Rule_Reason_Index() {
 	ruleindexhash="$(Rule_Reason_Index_Hash "$ruleindexregistry")"
 	[ -n "$ruleindexhash" ] || return 1
 	printf 'R2I\t%s\n' "$ruleindexhash" > "$ruleindexstage" || return 1
-	while IFS="$(printf '\t')" read -r _ruleindexversion ruleindexid ruleindextarget ruleindextype ruleindexvalue \
-		ruleindexcomment ruleindexstate _ruleindexcreated ruleindexexpires ruleindexdata; do
-		[ "$ruleindexstate" = "enabled" ] || continue
-		ruleindexreason="${ruleindexcomment#C}"
-		case "$ruleindextype" in
-			ip|range)
-				[ -n "$ruleindexreason" ] || ruleindexreason="Manual Rule"
-				printf 'R2I\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$ruleindextarget" "$ruleindextype" \
-					"$ruleindexvalue" "$ruleindexreason" "$ruleindexid" "$ruleindexexpires" "$ruleindexvalue" >> "$ruleindexstage" || return 1
-			;;
-			asn|import)
-				ruleindexfile="$rulesdatadir/$ruleindexdata"
-				Validate_Compiled_Rule_Data "$ruleindextype" "$ruleindexdata" "$ruleindexfile" || return 1
-				if [ -z "$ruleindexreason" ]; then
-					if [ "$ruleindextype" = "asn" ]; then ruleindexreason="ASN: $ruleindexvalue"; else ruleindexreason="Imported Rule"; fi
-				fi
-				awk -v target="$ruleindextarget" -v reason="$ruleindexreason" -v id="$ruleindexid" \
-					-v expires="$ruleindexexpires" -v value="$ruleindexvalue" 'NF {
-						entry = $1; sub(/\/32$/, "", entry)
-						position = index($0, " # ")
-						label = position ? substr($0, position + 3) : reason
-						type = index(entry, "/") ? "range" : "ip"
-						printf "R2I\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", target, type, entry, label, id, expires, value
-					}' "$ruleindexfile" >> "$ruleindexstage" || return 1
-			;;
-		esac
-	done < "$ruleindexregistry"
+	ruleindexgroups="$TMP_DIR/rule-reason-groups.$$"
+	awk -F '\t' '$7 == "enabled" && ($4 == "asn" || $4 == "import") {print $4 "\t" $10}' \
+		"$ruleindexregistry" > "$ruleindexgroups" || return 1
+	while IFS="$(printf '\t')" read -r ruleindextype ruleindexdata; do
+		Validate_Compiled_Rule_Data "$ruleindextype" "$ruleindexdata" "$rulesdatadir/$ruleindexdata" \
+			|| { rm -f "$ruleindexgroups"; return 1; }
+	done < "$ruleindexgroups"
+	rm -f "$ruleindexgroups"
+	# Stream registry order and sidecar provenance without a process per direct rule.
+	skynet_rule_data_dir="$rulesdatadir" awk -F '\t' '
+		$7 != "enabled" {next}
+		$4 == "ip" || $4 == "range" {
+			reason = substr($6, 2); if (reason == "") reason = "Manual Rule"
+			printf "R2I\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", $3, $4, $5, reason, $2, $9, $5
+			next
+		}
+		$4 == "asn" || $4 == "import" {
+			reason = substr($6, 2)
+			if (reason == "") reason = $4 == "asn" ? "ASN: " $5 : "Imported Rule"
+			file = ENVIRON["skynet_rule_data_dir"] "/" $10
+			while ((status = getline row < file) > 0) {
+				if (row !~ /[^[:space:]]/) continue
+				split(row, fields, " "); entry = fields[1]; sub(/\/32$/, "", entry)
+				position = index(row, " # "); label = position ? substr(row, position + 3) : reason
+				type = index(entry, "/") ? "range" : "ip"
+				printf "R2I\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", $3, type, entry, label, $2, $9, $5
+			}
+			if (status < 0 || close(file)) exit 1
+		}
+	' "$ruleindexregistry" >> "$ruleindexstage"
 }
 
 Rule_Reason_Index_Hash() {
@@ -2138,38 +2196,63 @@ Prepare_User_Rule_Sets() {
 	rulecompilewhitelistset="Skynet-UserWhitelist-Tmp"
 	rulecompilerestore="$TMP_DIR/rules-compile.$$"
 	rulecompiledeadlines="$TMP_DIR/rules-deadlines.$$"
+	rulecompilecountfile="$TMP_DIR/rules-counts.$$"
 	cleanupipsets="${cleanupipsets}${cleanupipsets:+ }$rulecompilebanset $rulecompiletempset $rulecompilewhitelistset"
 	Destroy_IPSets "$rulecompilebanset" "$rulecompiletempset" "$rulecompilewhitelistset"
 	true > "$rulecompilerestore" && true > "$rulecompiledeadlines" || return 1
-	while IFS="$(printf '\t')" read -r _ruleversion _ruleid ruletarget ruletype rulevalue _rulecomment rulestate _rulecreated ruleexpires ruledateref; do
-		[ "$rulestate" = "enabled" ] || continue
-		case "$ruletype" in
-			ip|range)
-				if [ "$ruletarget" = "whitelist" ]; then
-					printf 'add %s %s\n' "$rulecompilewhitelistset" "$rulevalue" >> "$rulecompilerestore" || return 1
-			elif [ "$ruleexpires" = "0" ]; then
-					printf 'add %s %s\n' "$rulecompilebanset" "$rulevalue" >> "$rulecompilerestore" || return 1
-			elif [ "$rulecompilenow" -gt "0" ] && [ "$ruleexpires" -gt "$rulecompilenow" ]; then
-				printf '%s\t%s\n' "$rulevalue" "$ruleexpires" >> "$rulecompiledeadlines" || return 1
-			fi
-			;;
-			asn|import)
-				[ "$ruleexpires" = "0" ] || { [ "$rulecompilenow" -gt "0" ] && [ "$ruleexpires" -gt "$rulecompilenow" ]; } || continue
-				ruledatafile="$rulesdatadir/$ruledateref"
-				Validate_Compiled_Rule_Data "$ruletype" "$ruledateref" "$ruledatafile" || return 1
-				if [ "$ruleexpires" -gt "0" ]; then
-					awk -v deadline="$ruleexpires" 'NF {print $0 "\t" deadline}' "$ruledatafile" >> "$rulecompiledeadlines" || return 1
-					continue
-				fi
-				if [ "$ruletarget" = "ban" ]; then rulecompiledataset="$rulecompilebanset"; else rulecompiledataset="$rulecompilewhitelistset"; fi
-				# Restore -! already tolerates duplicate owners; stream validated data
-				# without holding another full copy of the import in an AWK table.
-				awk -v setname="$rulecompiledataset" 'NF {printf "add %s %s\n", setname, $1}' "$ruledatafile" >> "$rulecompilerestore" || return 1
-			;;
-		esac
-	done < "$rulecompilefile"
-	rulecompilecounts="$(awk -v ban="$rulecompilebanset" -v whitelist="$rulecompilewhitelistset" \
-		'$1 == "add" {count[$2]++} END {print count[ban]+0, count[whitelist]+0}' "$rulecompilerestore")" || return 1
+	rulecompilegroups="$TMP_DIR/rule-compile-groups.$$"
+	awk -F '\t' -v now="$rulecompilenow" '
+		$7 == "enabled" && ($4 == "asn" || $4 == "import") && ($9 == "0" || (now > 0 && $9 > now)) {print $4 "\t" $10}
+	' "$rulecompilefile" > "$rulecompilegroups" || return 1
+	while IFS="$(printf '\t')" read -r ruletype ruledateref; do
+		Validate_Compiled_Rule_Data "$ruletype" "$ruledateref" "$rulesdatadir/$ruledateref" \
+			|| { rm -f "$rulecompilegroups"; return 1; }
+	done < "$rulecompilegroups"
+	rm -f "$rulecompilegroups"
+	# Keep direct and grouped owners in registry order while streaming each sidecar.
+	if ! skynet_rule_data_dir="$rulesdatadir" awk -F '\t' -v now="$rulecompilenow" \
+		-v bans="$rulecompilebanset" -v whitelist="$rulecompilewhitelistset" \
+		-v restore="$rulecompilerestore" -v deadlines="$rulecompiledeadlines" -v counts="$rulecompilecountfile" '
+		function emit(entry, expires, target) {
+			if (target == "whitelist" || expires == "0") {
+				printf "add %s %s\n", target == "whitelist" ? whitelist : bans, entry > restore
+				if (target == "whitelist") whitelist_count++; else ban_count++
+				wrote_restore = 1
+			} else if (now > 0 && expires > now) {
+				printf "%s\t%s\n", entry, expires > deadlines
+				wrote_deadlines = 1
+			}
+		}
+		$7 != "enabled" {next}
+		$4 == "ip" || $4 == "range" {emit($5, $9, $3); next}
+		($4 == "asn" || $4 == "import") && ($9 == "0" || (now > 0 && $9 > now)) {
+			file = ENVIRON["skynet_rule_data_dir"] "/" $10
+			group_target = $3; group_expires = $9
+			if (group_expires > 0) {
+				while ((status = getline row < file) > 0) {
+					if (row != "") emit(row, group_expires, group_target)
+				}
+			} else {
+				group_set = group_target == "whitelist" ? whitelist : bans; group_count = 0
+				while ((status = getline row < file) > 0) {
+					if (row == "") continue
+					position = index(row, " # ")
+					printf "add %s %s\n", group_set, position ? substr(row, 1, position - 1) : row > restore
+					group_count++
+				}
+				if (group_target == "whitelist") whitelist_count += group_count; else ban_count += group_count
+				if (group_count) wrote_restore = 1
+			}
+			if (status < 0 || close(file)) exit 1
+		}
+		END {
+			if ((wrote_restore && close(restore)) || (wrote_deadlines && close(deadlines))) exit 1
+			printf "%.0f %.0f\n", ban_count, whitelist_count > counts
+			if (close(counts)) exit 1
+		}
+	' "$rulecompilefile"; then return 1; fi
+	if ! read -r rulecompilecounts < "$rulecompilecountfile"; then rm -f "$rulecompilecountfile"; return 1; fi
+	rm -f "$rulecompilecountfile"
 	if ! Create_Sized_IPSet "$rulecompilebanset" Skynet-UserBans "${rulecompilecounts%% *}" \
 		|| ! Create_Sized_IPSet "$rulecompilewhitelistset" Skynet-UserWhitelist "${rulecompilecounts#* }" \
 		|| ! ipset restore -! < "$rulecompilerestore"; then
@@ -3935,20 +4018,25 @@ Normalize_List() {
 			""|,*|\|*|*,|*\||*,,*|*\|\|*) return 1 ;;
 		esac
 	done
-	printf '%s\n' "$@" | awk '
+	(
+		IFS=' '
+		awk '
 		{
 			gsub(/[|,]/, " ")
 			for (i = 1; i <= NF; i++) {
 				if (!seen[$i]++) {
-					if (output != "") output = output " "
-					output = output $i
+					if (count++) printf " "
+					printf "%s", $i
 				}
 			}
 		}
 		END {
-			if (output == "") exit 1
-			print output
-		}'
+			if (!count) exit 1
+			print ""
+		}' <<EOF
+$*
+EOF
+	)
 }
 
 Normalize_Arguments_From() {
@@ -4769,19 +4857,24 @@ Migrate_V8_Domain_Caches() {
 
 Validate_Domain_Rule_Cache() {
 	[ -s "$1" ] && [ ! -L "$1" ] || return 1
-	domaincachevalidated="$TMP_DIR/domain-cache-validate.$$"
-	Normalize_Domain_Rule_IPs "$2" < "$1" > "$domaincachevalidated" || { rm -f "$domaincachevalidated"; return 1; }
-	cmp -s "$domaincachevalidated" "$1"
-	domaincachestatus="$?"
-	rm -f "$domaincachevalidated"
-	return "$domaincachestatus"
+	# Match the canonical cache bytes, including its final newline, without
+	# rewriting and sorting each small file during every manifest check.
+	domaincachemeasure="$(wc -lc < "$1")" || return 1
+	domaincachecount="$(awk -v target="$2" -v measured="$domaincachemeasure" '
+		BEGIN {split(measured, actual)}
+		$0 !~ /^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])[.]){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])$/ {exit 1}
+		target == "ban" && $0 ~ /^(0\.|10\.|100\.(6[4-9]|[7-9][0-9]|1[0-1][0-9]|12[0-7])\.|127\.|169\.254\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|192\.0\.0\.|192\.0\.2\.|192\.168\.|198\.(1[8-9])\.|198\.51\.100\.|203\.0\.113\.|2(2[4-9]|[3-4][0-9]|5[0-5])\.)/ {exit 1}
+		NR > 1 && ("x" $0 <= "x" previous) {exit 1}
+		{previous = $0; bytes += length($0) + 1}
+		END {if (!NR || NR != actual[1] + 0 || bytes != actual[2] + 0) exit 1; print NR}
+	' "$1")"
 }
 
 Validate_Bound_Domain_Rule_Cache() {
 	# Fallback data must still match the count and checksum recorded for the same
 	# logical rule. A merely well-formed but replaced cache is never trusted.
 	Validate_Domain_Rule_Cache "$1" "$2" || return 1
-	[ "$(wc -l < "$1" | tr -d ' ')" = "$3" ] || return 1
+	[ "$domaincachecount" = "$3" ] || return 1
 	[ "${#4}" = "64" ] || return 1
 	case "$4" in *[!0-9a-f]*) return 1 ;; esac
 	[ "$(SHA256_Hash "$1" 2>/dev/null)" = "$4" ]
@@ -6138,16 +6231,23 @@ Publish_Domain_Dnsmasq_Config() {
 			*) dnsmasqsource="$dnsmasqblacklist" ;;
 		esac
 		awk -v setname="$dnsmasqset" '
+			BEGIN { suffix = "/" setname " # Skynet" }
 			NF {
+				# Keep grouped directives within the 1 KiB dnsmasq line buffer.
+				if (count && length(line) + 1 + length($0) + length(suffix) > 1023) {
+					print line suffix
+					line = ""
+					count = 0
+				}
 				line = line (count == 0 ? "ipset=/" : "/") $0
 				count++
 				if (count == 20) {
-					print line "/" setname " # Skynet"
+					print line suffix
 					line = ""
 					count = 0
 				}
 			}
-			END { if (count) print line "/" setname " # Skynet" }
+			END { if (count) print line suffix }
 		' "$dnsmasqsource" >> "$dnsmasqtmp" \
 			|| { rm -f "$dnsmasqtmp" "$dnsmasqwhitelist" "$dnsmasqblacklist" "$dnsmasqcandidates"; return 1; }
 	done
@@ -9147,12 +9247,18 @@ Show_Menu() {
 Sanitize_Action_Field() {
 	# Action records are tab-separated. Flatten line breaks and control characters
 	# so user comments cannot create extra fields or forged journal records.
-	awk '
+	awk -v limit="${1:-0}" '
 		BEGIN { ORS = "" }
+		function emit(value) {
+			if (limit > 0) value = substr(value, 1, limit - written)
+			printf "%s", value
+			written += length(value)
+			if (limit > 0 && written >= limit) exit
+		}
 		{
-			if (NR > 1) printf " "
+			if (NR > 1) emit(" ")
 			gsub(/[[:cntrl:]]/, " ")
-			printf "%s", $0
+			emit($0)
 		}
 	'
 }
@@ -9187,12 +9293,19 @@ Append_Action_Record() {
 	actionepoch="$(date +%s)" || return 1
 	actiontimestamp="$(date '+%Y-%m-%d %H:%M:%S %z')" || return 1
 	actiontransaction="${SKYNET_ACTION_TRANSACTION:-${actionepoch}.$$}"
-	actionentries="$(printf '%s\n' "$actionentries" | Sanitize_Action_Field)" || return 1
-	actiondetail="$(printf '%s\n' "$actiondetail" | Sanitize_Action_Field)" || return 1
-	actiontransaction="$(printf '%s\n' "$actiontransaction" | Sanitize_Action_Field)" || return 1
+	actionentries="$(Sanitize_Action_Field 8192 <<EOF
+$actionentries
+EOF
+)" || return 1
+	actiondetail="$(Sanitize_Action_Field 512 <<EOF
+$actiondetail
+EOF
+)" || return 1
+	actiontransaction="$(Sanitize_Action_Field 129 <<EOF
+$actiontransaction
+EOF
+)" || return 1
 	[ -n "$actionentries" ] || return 1
-	[ "${#actionentries}" -le "8192" ] || actionentries="$(printf '%s' "$actionentries" | cut -c 1-8192)" || return 1
-	[ "${#actiondetail}" -le "512" ] || actiondetail="$(printf '%s' "$actiondetail" | cut -c 1-512)" || return 1
 	[ "${#actiontransaction}" -le "128" ] || return 1
 	actionqueue="${actionqueue:-$TMP_DIR/actions.$$}"
 	[ -e "$actionqueue" ] || { printf '' > "$actionqueue" && chmod 600 "$actionqueue"; } || return 1
@@ -10814,11 +10927,13 @@ Apply_WebUI_Rules() {
 				# One-line tab-separated address/comment pairs fit Merlin custom settings;
 				# comments reject tabs/newlines and are validated again during staging.
 				webuirulecommentfile="$TMP_DIR/webui-rule-comments.$$"
-				printf '%s\n' "$webuirulecomments" | awk -F '\t' '
+				awk -F '\t' '
 					NR != 1 || NF % 2 {invalid=1}
 					{for (i=1; i<NF; i+=2) print $i "\t" $(i+1)}
 					END {exit invalid ? 2 : 0}
-				' > "$webuirulecommentfile" || settingsresult="validation"
+				' > "$webuirulecommentfile" <<EOF || settingsresult="validation"
+$webuirulecomments
+EOF
 			fi
 			webuiruleexpires="0"
 			if [ "$webuiruleaction" = "whitelist" ] && [ -n "$webuiruletimeout" ]; then settingsresult="validation"; fi
@@ -11670,10 +11785,11 @@ Dispatch_Unban() {
 		comment)
 			[ "$#" -eq "3" ] && [ -n "$3" ] || { echo "[*] Syntax: firewall unban comment \"text\""; echo; exit 2; }
 			echo "[i] Removing Bans With Comment Containing ($3)"
-			unbancommentlist="$(SKYNET_COMMENT_SEARCH="$3" awk -F '\t' 'BEGIN {text=ENVIRON["SKYNET_COMMENT_SEARCH"]} $1 == "R2" && $3 == "ban" && ($4 == "ip" || $4 == "range") && index(substr($6, 2), text) {print $5}' "$skynetrules" | awk 'NF {output = output (output == "" ? "" : " ") $1} END {print output}')"
-			[ -n "$unbancommentlist" ] || { echo "[*] No Manual Ban Comments Matched"; echo; exit 2; }
-			Apply_Registered_Address_Rules remove ban "$unbancommentlist" "" || { echo; exit 1; }
-			Queue_Action success rules remove ban comment "$unbancommentlist" "$3" || Log error -s "Failed To Queue Rule Action"
+			Remove_Registered_Comment_Rules ban "$3"
+			unbancommentstatus="$?"
+			[ "$unbancommentstatus" != "2" ] || { echo "[*] No Manual Ban Comments Matched"; echo; exit 2; }
+			[ "$unbancommentstatus" = "0" ] || { echo; exit 1; }
+			Queue_Action success rules remove ban comment "$registeredcommententries" "$3" || Log error -s "Failed To Queue Rule Action"
 			return 0
 		;;
 		country)
@@ -12292,9 +12408,9 @@ Display_Message "[i] Refreshing Whitelists"
 	Whitelist_CDN || cdnstatus="1"
 	Display_Result
 case "$cdnresult" in
-	current) echo "[i] CDN Whitelist Already Up To Date" ;;
-	source) echo "[!] CDN Whitelist Source Unavailable ($cdnfailedsource) - Existing Entries Retained" ;;
-	apply) echo "[!] Unable To Apply CDN Whitelist - Existing Entries Retained" ;;
+	current) printf '%-35s |\n' "[i] CDN Whitelist Up To Date" ;;
+	source) printf '%-35s | %s\n' "[!] CDN Source Unavailable" "($cdnfailedsource) - Existing Entries Retained" ;;
+	apply) printf '%-35s | %s\n' "[!] CDN Whitelist Apply Failed" "Existing Entries Retained" ;;
 esac
 Display_Message "[i] Start Blacklist Consolidation"
 echo
@@ -12356,7 +12472,7 @@ if [ "$feedfailed" = "1" ] || [ "$buildstatus" != "0" ]; then
 	return 1
 fi
 if [ "$feeddegraded" = "1" ]; then
-	echo "[!] Validated Cached Malware Sources Retained ($feedcachedsources)"
+	printf '%-35s | %s\n' "[!] Cached Malware Sources Retained" "($feedcachedsources)"
 fi
 }
 
@@ -12398,7 +12514,7 @@ fi
 printf "%-35s | " "[i] Finish Blacklist Consolidation"
 Display_Result
 if [ "$malwareunchanged" = "1" ]; then
-	echo "[i] Malware Policy Unchanged"
+	printf '%-35s |\n' "[i] Malware Policy Unchanged"
 else
 	Display_Message "[i] Applying New Blacklist"
 	if Apply_Blacklist_File "$malwareipsettmp"; then
@@ -12607,10 +12723,11 @@ Dispatch_Whitelist() {
 				comment)
 					[ "$#" -eq "4" ] && [ -n "$4" ] || { echo "[*] Syntax: firewall whitelist remove comment \"text\""; echo; exit 2; }
 					echo "[i] Removing All Entries With Comment Matching \"$4\" From Whitelist"
-					whitelistcommentlist="$(SKYNET_COMMENT_SEARCH="$4" awk -F '\t' 'BEGIN {text=ENVIRON["SKYNET_COMMENT_SEARCH"]} $1 == "R2" && $3 == "whitelist" && ($4 == "ip" || $4 == "range") && index(substr($6, 2), text) {print $5}' "$skynetrules" | awk 'NF {output = output (output == "" ? "" : " ") $1} END {print output}')"
-					[ -n "$whitelistcommentlist" ] || { echo "[*] No Manual Whitelist Comments Matched"; echo; exit 2; }
-					Apply_Registered_Address_Rules remove whitelist "$whitelistcommentlist" "" || { echo; exit 1; }
-					Queue_Action success rules remove whitelist comment "$whitelistcommentlist" "$4" || Log error -s "Failed To Queue Rule Action"
+					Remove_Registered_Comment_Rules whitelist "$4"
+					whitelistcommentstatus="$?"
+					[ "$whitelistcommentstatus" != "2" ] || { echo "[*] No Manual Whitelist Comments Matched"; echo; exit 2; }
+					[ "$whitelistcommentstatus" = "0" ] || { echo; exit 1; }
+					Queue_Action success rules remove whitelist comment "$registeredcommententries" "$4" || Log error -s "Failed To Queue Rule Action"
 					return 0
 				;;
 				all)
@@ -12700,7 +12817,11 @@ Dispatch_Import() {
 	Normalize_Public_IPList "$importinput" "$importentries" "" import
 	importstatus="$?"
 	if [ "$importstatus" != "0" ]; then
-		echo "[*] Import Failed - Check File And Inline Comments (242 Bytes Max, No Control Characters)"
+		if [ "$importstatus" = "2" ]; then
+			echo "[*] Import Failed - Check File And Inline Comments (242 Bytes Max, No Control Characters)"
+		else
+			echo "[*] Import Processing Failed - Previous Rules Retained (Check Memory And Storage)"
+		fi
 		echo; exit "$importstatus"
 	fi
 	if [ ! -s "$importentries" ]; then echo "[*] No Public IPs Detected - Stopping Import"; echo; exit 1; fi

@@ -2023,6 +2023,8 @@
             min-width: 0;
         }
 
+        #skynetRulePager[hidden],
+        #skynetRuleDraftPager[hidden],
         .skynet-backup-controls[hidden],
         .skynet-backup-controls [hidden] {
             display: none !important;
@@ -3390,6 +3392,10 @@
             countryOriginal: "",
             ruleEntries: [],
             ruleComments: {},
+            rulePage: 0,
+            ruleDraftPage: 0,
+            rulePageSize: 100,
+            ruleFilteredCount: 0,
             ruleFilter: "all",
             ruleConfirm: "",
             ruleCountdown: 0,
@@ -6752,13 +6758,16 @@
             const list = this.getElement(this.selectors.ruleTags);
             if (!list) return;
             list.textContent = "";
+            this.ruleDraftPage = Math.min(Math.max(0, this.ruleDraftPage || 0),
+                Math.max(0, Math.ceil(this.ruleEntries.length / this.rulePageSize) - 1));
             if (!this.ruleEntries.length) {
                 const empty = document.createElement("span");
                 empty.className = "skynet-country-empty";
                 empty.textContent = "Add entries with their comment, then select Apply Rules.";
                 list.appendChild(empty);
             } else {
-                this.ruleEntries.forEach(function(entry) {
+                this.ruleEntries.slice(this.ruleDraftPage * this.rulePageSize,
+                    (this.ruleDraftPage + 1) * this.rulePageSize).forEach(function(entry) {
                     const tag = document.createElement("span");
                     const remove = document.createElement("button");
                     tag.className = "skynet-rule-tag";
@@ -6802,12 +6811,15 @@
                 );
                 return;
             }
+            const known = new Set(this.ruleEntries);
             parsed.forEach(function(entry) {
                 SkynetUI.ruleComments[entry] = comment;
-                if (SkynetUI.ruleEntries.indexOf(entry) === -1) {
+                if (!known.has(entry)) {
+                    known.add(entry);
                     SkynetUI.ruleEntries.push(entry);
                 }
             });
+            this.ruleDraftPage = Math.max(0, Math.ceil(this.ruleEntries.length / this.rulePageSize) - 1);
             if (input) input.value = "";
             this.setUpdateResult("", false, this.selectors.ruleResult);
             this.renderRuleTags();
@@ -6820,6 +6832,19 @@
                 delete this.ruleComments[entry];
                 this.renderRuleTags();
             }
+        };
+
+        SkynetUI.updateRulePager = function(prefix, count, page) {
+            const pager = this.getElement(prefix + "Pager");
+            const label = this.getElement(prefix + "PageCount");
+            const previous = this.getElement(prefix + "Previous");
+            const next = this.getElement(prefix + "Next");
+            const pages = Math.max(1, Math.ceil(count / this.rulePageSize));
+            if (pager) pager.hidden = count <= this.rulePageSize;
+            if (label) label.textContent = count.toLocaleString() + (count === 1 ? " entry" : " entries") +
+                " · Page " + (page + 1) + " of " + pages.toLocaleString();
+            if (previous) previous.disabled = this.refreshInProgress || page <= 0;
+            if (next) next.disabled = this.refreshInProgress || page + 1 >= pages;
         };
 
         SkynetUI.updateRuleControls = function() {
@@ -6866,6 +6891,8 @@
             if (refresh) refresh.disabled = busy || !this.canRefreshRules() || !timeReady;
             document.querySelectorAll(".skynet-rule-remove, .skynet-rule-tag-remove")
                 .forEach(function(button) { button.disabled = busy || !supported; });
+            this.updateRulePager("skynetRule", this.ruleFilteredCount, this.rulePage);
+            this.updateRulePager("skynetRuleDraft", this.ruleEntries.length, this.ruleDraftPage);
         };
 
         SkynetUI.renderRules = function() {
@@ -6892,6 +6919,9 @@
                 return (!expires || expires > now) && filterMatch &&
                     (!query || searchText.indexOf(query) !== -1);
             });
+            this.ruleFilteredCount = visible.length;
+            this.rulePage = Math.min(Math.max(0, this.rulePage || 0),
+                Math.max(0, Math.ceil(visible.length / this.rulePageSize) - 1));
             if (!this.canManageRules() || !visible.length) {
                 const empty = document.createElement("div");
                 empty.className = "skynet-feed-empty";
@@ -6903,7 +6933,8 @@
                 this.updateRuleControls();
                 return;
             }
-			visible.forEach(function(item) {
+			visible.slice(this.rulePage * this.rulePageSize,
+                (this.rulePage + 1) * this.rulePageSize).forEach(function(item) {
 				const rule = item.rule;
                 const row = document.createElement("div");
                 const type = document.createElement("span");
@@ -7436,6 +7467,7 @@
             const summary = window.SkynetRuleSummary || {};
             this.ruleEntries = [];
             this.ruleComments = {};
+            this.ruleDraftPage = 0;
             this.ruleConfirm = "";
             this.ruleClockBase = Number(summary.now || 0);
             this.ruleClockStarted = this.ruleClockBase ? Date.now() : 0;
@@ -7448,6 +7480,21 @@
             if (this.refreshInProgress || !this.canManageRules()) return;
             const action = rule ? rule.action : this.getElement(this.selectors.ruleAction).value;
             const mode = rule ? rule.type : this.getElement(this.selectors.ruleMode).value;
+            const encoder = new TextEncoder();
+            const rejectSize = () => this.setUpdateResult("This request exceeds the router form limits." +
+                (!rule && (action === "ban" || action === "whitelist")
+                    ? " Use smaller batches, or import a large IPv4 list over SSH: firewall import " +
+                        (action === "ban" ? "blacklist" : "whitelist") + " /path/list.txt"
+                    : " Use a smaller batch or reload the page before retrying."),
+                true, this.selectors.ruleResult);
+            if (!rule) {
+                let bytes = 0;
+                let count = 0;
+                for (const entry of this.ruleEntries) {
+                    bytes += encoder.encode(entry).length + (count++ ? 1 : 0);
+                    if (bytes > 2999) { rejectSize(); return; }
+                }
+            }
             const entries = rule ? this.getRuleValue(rule) : this.ruleEntries.join(" ");
             const lifetime = rule ? "" : this.getElement(this.selectors.ruleLifetime).value;
 			if (!entries) {
@@ -7458,28 +7505,38 @@
                 this.setUpdateResult("Adding rules requires synchronized router time.", true, this.selectors.ruleResult);
                 return;
             }
-            custom_settings.skynet_ruleoperation = operation;
-            custom_settings.skynet_ruleaction = action;
-            custom_settings.skynet_rulemode = rule
+            const payload = Object.assign({}, custom_settings);
+            payload.skynet_ruleoperation = operation;
+            payload.skynet_ruleaction = action;
+            payload.skynet_rulemode = rule
                 ? (rule.id ? "id" : (rule.kind === "manual" || rule.kind === "import" ? rule.kind : rule.type))
                 : mode;
-            custom_settings.skynet_ruleentries = entries;
-            custom_settings.skynet_rulecomment = "";
-            custom_settings.skynet_rulecomments = !rule && mode === "ip" && action !== "unban"
+            payload.skynet_ruleentries = entries;
+            payload.skynet_rulecomment = "";
+            payload.skynet_rulecomments = !rule && mode === "ip" && action !== "unban"
                 ? this.ruleEntries.map(function(entry) {
                     return entry + "\tC" + (SkynetUI.ruleComments[entry] || "");
                 }).join("\t") : "";
-            custom_settings.skynet_ruletimeout = action === "ban" && (mode === "ip" || mode === "asn")
+            payload.skynet_ruletimeout = action === "ban" && (mode === "ip" || mode === "asn")
                 ? lifetime : "";
-            custom_settings.skynet_ruleid = rule ? String(rule.id || "") : "";
-            custom_settings.skynet_ruletarget = rule ? rule.target : "";
-            custom_settings.skynet_rulesavedcomment = rule ? rule.comment : "";
+            payload.skynet_ruleid = rule ? String(rule.id || "") : "";
+            payload.skynet_ruletarget = rule ? rule.target : "";
+            payload.skynet_rulesavedcomment = rule ? rule.comment : "";
+            const request = this.createRequestID();
+            payload.skynet_request = request;
+            if (Object.keys(payload).some(function(key) {
+                return encoder.encode(String(payload[key])).length > 2999;
+            }) || this.getEncodedFormLength(payload, "start_SkynetRules_" + request) > 65534) {
+                rejectSize();
+                return;
+            }
+            Object.assign(custom_settings, payload);
             this.refreshInProgress = true;
             const removing = operation === "remove" || action === "unban";
             this.setUpdateResult(removing ? (rule ? "Removing rule..." : "Removing rules...") : "Applying rules...", false, this.selectors.ruleResult);
             this.setActionState(true, this.selectors.ruleButton, removing ? "Removing..." : "Applying...");
             document.form.amng_custom.value = JSON.stringify(custom_settings);
-            this.submitBackgroundAction("start_SkynetRules");
+            this.submitBackgroundAction("start_SkynetRules", request);
             this.waitForUpdate(window.SkynetSettingsGenerated, 600, "rules");
         };
 
@@ -8869,7 +8926,23 @@
             this.waitForUpdate(window.SkynetSettingsGenerated, 600, "countryRefresh");
         };
 
-        SkynetUI.submitBackgroundAction = function(action) {
+        SkynetUI.createRequestID = function() {
+            return String(Date.now()) + String(Math.floor(Math.random() * 1000000000)).padStart(9, "0");
+        };
+
+        SkynetUI.getEncodedFormLength = function(payload, action) {
+            const fields = new FormData(document.form);
+            fields.set("amng_custom", JSON.stringify(payload));
+            fields.set("action_script", action);
+            const encoded = new URLSearchParams();
+            fields.forEach(function(value, name) {
+                encoded.append(String(name).replace(/\r\n|\r|\n/g, "\r\n"),
+                    String(value).replace(/\r\n|\r|\n/g, "\r\n"));
+            });
+            return encoded.toString().length;
+        };
+
+        SkynetUI.submitBackgroundAction = function(action, request) {
             /*
              * action_script is dispatched by Merlin after the hidden form is
              * submitted. Clear amng_custom afterwards to prevent stale edits
@@ -8877,7 +8950,7 @@
              */
             const settings = this.getElement("amng_custom");
             const payload = settings && settings.value ? JSON.parse(settings.value) : {};
-            this.activeRequest = String(Date.now()) + String(Math.floor(Math.random() * 1000000000)).padStart(9, "0");
+            this.activeRequest = request || this.createRequestID();
             payload.skynet_request = this.activeRequest;
             document.form.amng_custom.value = JSON.stringify(payload);
             document.form.action_script.value = action + "_" + this.activeRequest;
@@ -9348,6 +9421,7 @@
             if (ruleMode) ruleMode.addEventListener("change", function() {
                 SkynetUI.ruleEntries = [];
                 SkynetUI.ruleComments = {};
+                SkynetUI.ruleDraftPage = 0;
                 SkynetUI.renderRuleTags();
             });
             const ruleAction = this.getElement(this.selectors.ruleAction);
@@ -9364,13 +9438,27 @@
             if (ruleFilter) ruleFilter.addEventListener("change", function() {
                 SkynetUI.ruleFilter = this.value;
                 SkynetUI.ruleConfirm = "";
+                SkynetUI.rulePage = 0;
                 SkynetUI.renderRules();
             });
             const ruleSearch = this.getElement(this.selectors.ruleSearch);
             if (ruleSearch) ruleSearch.addEventListener("input", function() {
                 SkynetUI.ruleConfirm = "";
+                SkynetUI.rulePage = 0;
                 SkynetUI.renderRules();
             });
+            [["skynetRule", "rulePage", "renderRules"], ["skynetRuleDraft", "ruleDraftPage", "renderRuleTags"]]
+                .forEach(function(pager) {
+                    ["Previous", "Next"].forEach(function(direction) {
+                        const button = SkynetUI.getElement(pager[0] + direction);
+                        if (button) button.addEventListener("click", function() {
+                            if (SkynetUI.refreshInProgress || button.disabled) return;
+                            SkynetUI[pager[1]] = Math.max(0, (SkynetUI[pager[1]] || 0) + (direction === "Next" ? 1 : -1));
+                            SkynetUI.ruleConfirm = "";
+                            SkynetUI[pager[2]]();
+                        });
+                    });
+                });
             const ruleList = this.getElement(this.selectors.ruleList);
             ["skynetHistoryArea", "skynetHistoryResult", "skynetHistorySearch"].forEach(function(id) {
                 const control = SkynetUI.getElement(id);
@@ -10087,6 +10175,11 @@
                                                                         <div class="skynet-rule-tags" id="skynetRuleTags">
                                                                             <span class="skynet-country-empty">Add entries with their comment, then select Apply Rules.</span>
                                                                         </div>
+                                                                        <div class="skynet-history-footer" id="skynetRuleDraftPager" hidden>
+                                                                            <span id="skynetRuleDraftPageCount" aria-live="polite"></span>
+                                                                            <input type="button" id="skynetRuleDraftPrevious" class="button_gen skynet-update-button skynet-settings-reload" value="Previous" disabled />
+                                                                            <input type="button" id="skynetRuleDraftNext" class="button_gen skynet-update-button skynet-settings-reload" value="Next" disabled />
+                                                                        </div>
                                                                         <div class="skynet-rule-time-status" id="skynetRuleTimeStatus" aria-live="polite"></div>
                                                                         <div class="skynet-rule-scope" id="skynetRuleScope" hidden>
                                                                             <strong>Applies to all clients</strong>
@@ -10125,6 +10218,11 @@
                                                                         </div>
                                                                         <div id="skynetRuleList">
                                                                             <div class="skynet-feed-empty">Loading firewall rules...</div>
+                                                                        </div>
+                                                                        <div class="skynet-history-footer" id="skynetRulePager" hidden>
+                                                                            <span id="skynetRulePageCount" aria-live="polite"></span>
+                                                                            <input type="button" id="skynetRulePrevious" class="button_gen skynet-update-button skynet-settings-reload" value="Previous" disabled />
+                                                                            <input type="button" id="skynetRuleNext" class="button_gen skynet-update-button skynet-settings-reload" value="Next" disabled />
                                                                         </div>
                                                                     </div>
                                                                 </td>
