@@ -109,6 +109,8 @@ Configure Packet Logging, Invalid Packet Logging, Firewall Drop Logging, storage
 
 Automatic log-source detection follows the running system logger or Scribe's installed Skynet handler. Custom mode keeps the paths you supply. The storage budget accepts **10–200MB**.
 
+**Log Size** shows used history storage against the configured budget and updates with the charts. Unused database space is excluded. Older detailed events are removed as needed to stay within the budget.
+
 Disabling Packet Logging pauses collection and scheduled chart generation. It leaves protection, the WebUI and retained history available.
 
 ## History
