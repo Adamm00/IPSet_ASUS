@@ -8,7 +8,7 @@
 
 </div>
 
-Welcome to the Skynet v9 documentation. Use the router's **Firewall → Skynet** page for everyday management, or run `firewall` over SSH for the interactive menu. Both interfaces manage the same settings and policy.
+Welcome to the Skynet v9 documentation. Use **Firewall → Skynet** in the classic router interface, or **Settings → Firewall → Skynet** on AsusWRT 6, for everyday management. Run `firewall` over SSH for the interactive menu. Both interfaces manage the same settings and policy.
 
 ## Start here
 
@@ -16,6 +16,7 @@ Welcome to the Skynet v9 documentation. Use the router's **Firewall → Skynet**
 | --- | --- |
 | **[Getting started](getting-started.md)** | Requirements, installation, updating from v8 and your first visit. |
 | **[Using the WebUI](webui.md)** | A tour of every tab, with practical steps for rules, feeds, history and IoT devices. |
+| **[WebUI compatibility](webui-platforms.md)** | Menu locations, themes and updates for the classic interface and AsusWRT 6. |
 | **[Command reference](user-guide.md)** | All CLI commands, rule behaviour, storage, retention and maintenance details. |
 | **[Troubleshooting](troubleshooting.md)** | Missing charts, blocked services, source failures, clock issues and useful diagnostics. |
 

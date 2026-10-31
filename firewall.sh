@@ -10,7 +10,7 @@
 #                                                                                                           #
 #                                 Router Firewall And Security Enhancements                                 #
 #                             By Adamm -  https://github.com/Adamm00/IPSet_ASUS                             #
-#                                           25/10/2026 - v9.0.7                                             #
+#                                           31/10/2026 - v9.1.0                                             #
 #############################################################################################################
 
 
@@ -142,7 +142,7 @@ Cleanup_Runtime() {
 	fi
 	[ -z "$backuppointtmp" ] || rm -f "$backuppointtmp"
 	[ -z "$iotlogtmp" ] || rm -f "$iotlogtmp"
-	for tempfile in "$settingstmp" "$statstmp" "$downloadtmp" "$configtmp" "$saveipsettmp" "$malwareipsettmp" "$hooktmp" "$listmanifesttmp" "$feedstatustmp" "$countrymanifesttmp" "$countryfailedtmp" "$filterpublishtmp" "$dnsmasqtmp" "$dnsmasqrestore" "$sharedwhitelisttmp" "$clientouifile" "$debugneighbors" "$iotviewneighbors" "$updatetmp" "$updatewebuitmp" "$updatefirewallbackup" "$updatewebuibackup" "$actionqueue" "$actionpublishtmp" "$actioncompacttmp" "$actiontrimtmp" "$actionfailedtmp" "$ruleregistrytmp" "$ruleregistryrestore" "$rulestagefile" "$rulerecords" "$rulerecordssorted" "$ruleindexstage" "$ruleindextmp" "$maintenancestatustmp" "$domainmanifeststage" "$domaincachetmp"; do
+	for tempfile in "$settingstmp" "$statstmp" "$downloadtmp" "$configtmp" "$saveipsettmp" "$malwareipsettmp" "$hooktmp" "$listmanifesttmp" "$feedstatustmp" "$countrymanifesttmp" "$countryfailedtmp" "$filterpublishtmp" "$dnsmasqtmp" "$dnsmasqrestore" "$sharedwhitelisttmp" "$clientouifile" "$debugneighbors" "$iotviewneighbors" "$updatetmp" "$updatewebuitmp" "$updatefirewallbackup" "$updatewebuibackup" "$actionqueue" "$actionpublishtmp" "$actioncompacttmp" "$actiontrimtmp" "$actionfailedtmp" "$ruleregistrytmp" "$ruleregistryrestore" "$rulestagefile" "$rulerecords" "$rulerecordssorted" "$ruleindexstage" "$ruleindextmp" "$maintenancestatustmp" "$domainmanifeststage" "$domaincachetmp" "$webuimenutmp"; do
 		if [ "${updaterecoverypreserve:-0}" = "1" ]; then
 			case "$tempfile" in "$updatefirewallbackup"|"$updatewebuibackup") continue ;; esac
 		fi
@@ -2143,6 +2143,8 @@ Build_Rule_Reason_Index() {
 	ruleindexgroups="$TMP_DIR/rule-reason-groups.$$"
 	awk -F '\t' '$7 == "enabled" && ($4 == "asn" || $4 == "import") {print $4 "\t" $10}' \
 		"$ruleindexregistry" > "$ruleindexgroups" || return 1
+	# Unlinking the input only occurs on immediate return; no further read follows.
+	# shellcheck disable=SC2094
 	while IFS="$(printf '\t')" read -r ruleindextype ruleindexdata; do
 		Validate_Compiled_Rule_Data "$ruleindextype" "$ruleindexdata" "$rulesdatadir/$ruleindexdata" \
 			|| { rm -f "$ruleindexgroups"; return 1; }
@@ -2204,6 +2206,8 @@ Prepare_User_Rule_Sets() {
 	awk -F '\t' -v now="$rulecompilenow" '
 		$7 == "enabled" && ($4 == "asn" || $4 == "import") && ($9 == "0" || (now > 0 && $9 > now)) {print $4 "\t" $10}
 	' "$rulecompilefile" > "$rulecompilegroups" || return 1
+	# Unlinking the input only occurs on immediate return; no further read follows.
+	# shellcheck disable=SC2094
 	while IFS="$(printf '\t')" read -r ruletype ruledateref; do
 		Validate_Compiled_Rule_Data "$ruletype" "$ruledateref" "$rulesdatadir/$ruledateref" \
 			|| { rm -f "$rulecompilegroups"; return 1; }
@@ -2649,7 +2653,8 @@ Publish_Skynet_Hook() {
 }
 
 Check_Skynet_Hook() {
-	grep -Fxq "$2" "$1" 2>/dev/null
+	[ "$(grep -Fc '# Skynet' "$1" 2>/dev/null)" = "1" ] \
+		&& grep -Fxq "$2" "$1" 2>/dev/null
 }
 
 Maintain_Script_Hooks() {
@@ -2783,6 +2788,7 @@ Clean_Stale_Temp() {
 		[ "$temppid" = "$$" ] && continue
 		[ -d "/proc/$temppid" ] || rm -f "$tempfile"
 	done
+	Prune_WebUI_Result_Cache || Log error "Unable To Prune Retained WebUI Responses"
 }
 
 ############################
@@ -3752,8 +3758,26 @@ Activate_Time_Dependent_State() {
 	rm -f "$TIME_PENDING"
 }
 
+Check_Running_State() {
+	Check_IPSets || return 1
+	Check_IPTables && return 0
+	# Reconcile VPN-specific rules only after successful startup.
+	[ -f "$STARTUP_READY" ] && [ ! -f "$STARTUP_PENDING" ] || return 1
+	vpnruntimedrift="0"
+	for vpnruntimefailure in $fail; do
+		case "$vpnruntimefailure" in
+			\#6|\#7|\#11|\#12|\#18|\#19) vpnruntimedrift="1" ;;
+			\#25|\#26) ;;
+			*) return 1 ;;
+		esac
+	done
+	[ "$vpnruntimedrift" = "1" ] || return 1
+	Log info -s "Native VPN State Changed - Updating Skynet Firewall Rules"
+	Reconcile_Firewall_Rules
+}
+
 Require_Running() {
-	if ! Check_IPSets || ! Check_IPTables; then
+	if ! Check_Running_State; then
 		Log error -s "Skynet Not Running - Exiting"
 		echo
 		exit 1
@@ -4199,7 +4223,7 @@ Validate_IPSet_Comment() {
 	case "$1" in
 		*\\*|*\"*) return 1 ;;
 	esac
-	[ "${#1}" -le "$2" ] || return 1
+	[ "$(printf '%s' "$1" | wc -c)" -le "$2" ] || return 1
 	printf '%s\n' "$1" | awk 'NR > 1 || /[[:cntrl:]]/ { invalid = 1 } END { exit invalid }'
 }
 
@@ -6169,13 +6193,53 @@ Restore_Domain_Dnsmasq_Config() {
 	dnsmasqactive="0"
 	dnsmasqrestartpending="1"
 	dnsmasqrecoverystatus="0"
-	if [ "$dnsmasqhadfile" = "1" ]; then
-		cp -f "$dnsmasqbackup" "$dnsmasqrestore" && chmod 644 "$dnsmasqrestore" \
-			&& mv -f "$dnsmasqrestore" "$dnsmasqfile" || dnsmasqrecoverystatus="1"
+	dnsmasqrestorepath="${dnsmasqrestore:-${dnsmasqfile}.restore.$$}"
+	dnsmasqrestore=""
+	dnsmasqrollbackcount=$((${dnsmasqrollbackcount:-0} + 1))
+	dnsmasqcurrent="$dnsmasqrecoverydir/current.$dnsmasqrollbackcount"
+	dnsmasqcurrenthadfile="0"
+	# Roll back tagged Skynet lines only; retain other add-ons' current contents.
+	if [ -L "$dnsmasqrecoverydir" ] || [ ! -d "$dnsmasqrecoverydir" ] \
+		|| [ "$dnsmasqrestorepath" != "${dnsmasqfile}.restore.$$" ] \
+		|| [ -L "$dnsmasqfile" ] || { [ -e "$dnsmasqfile" ] && [ ! -f "$dnsmasqfile" ]; } \
+		|| { [ "$dnsmasqhadfile" = "1" ] && { [ -L "$dnsmasqbackup" ] || [ ! -f "$dnsmasqbackup" ]; }; }; then
+		dnsmasqrecoverystatus="1"
+	elif [ -e "$dnsmasqrestorepath" ] || [ -L "$dnsmasqrestorepath" ] \
+		|| ! (umask 077; set -C; : > "$dnsmasqrestorepath") 2>/dev/null; then
+		dnsmasqrecoverystatus="1"
 	else
-		rm -f "$dnsmasqfile" || dnsmasqrecoverystatus="1"
+		dnsmasqrestore="$dnsmasqrestorepath"
+		if [ -f "$dnsmasqfile" ]; then
+			dnsmasqcurrenthadfile="1"
+			[ ! -e "$dnsmasqcurrent" ] && [ ! -L "$dnsmasqcurrent" ] \
+				&& (umask 077; set -C; : > "$dnsmasqcurrent") \
+				&& cp -p "$dnsmasqfile" "$dnsmasqcurrent" && cp -p "$dnsmasqcurrent" "$dnsmasqrestore" \
+				&& sed '\~# Skynet~d' "$dnsmasqcurrent" > "$dnsmasqrestore" || dnsmasqrecoverystatus="1"
+		elif [ "$dnsmasqhadfile" = "1" ]; then
+			cp -p "$dnsmasqbackup" "$dnsmasqrestore" && : > "$dnsmasqrestore" || dnsmasqrecoverystatus="1"
+		fi
+		if [ "$dnsmasqrecoverystatus" = "0" ] && [ "$dnsmasqhadfile" = "1" ]; then
+			sed -n '/# Skynet/p' "$dnsmasqbackup" >> "$dnsmasqrestore" || dnsmasqrecoverystatus="1"
+		fi
 	fi
-	# Restart only after the original file state has been recovered.
+	if [ "$dnsmasqrecoverystatus" = "0" ]; then
+		if [ "$dnsmasqcurrenthadfile" = "1" ]; then
+			[ ! -L "$dnsmasqfile" ] && cmp -s "$dnsmasqfile" "$dnsmasqcurrent" || dnsmasqrecoverystatus="1"
+		else
+			[ ! -e "$dnsmasqfile" ] && [ ! -L "$dnsmasqfile" ] || dnsmasqrecoverystatus="1"
+		fi
+	fi
+	if [ "$dnsmasqrecoverystatus" = "0" ]; then
+		if [ "$dnsmasqhadfile" != "1" ] && [ ! -s "$dnsmasqrestore" ]; then
+			rm -f "$dnsmasqfile" "$dnsmasqrestore" || dnsmasqrecoverystatus="1"
+		else
+			mv -f "$dnsmasqrestore" "$dnsmasqfile" || dnsmasqrecoverystatus="1"
+		fi
+	fi
+	if [ -n "$dnsmasqrestore" ]; then
+		if rm -f "$dnsmasqrestore"; then dnsmasqrestore=""; else dnsmasqrecoverystatus="1"; fi
+	fi
+	# Restart only after the merged configuration has been recovered.
 	if [ "$dnsmasqrecoverystatus" = "0" ]; then
 		Restart_Domain_Dnsmasq || dnsmasqrecoverystatus="1"
 	fi
@@ -6262,7 +6326,7 @@ Publish_Domain_Dnsmasq_Config() {
 		return 0
 	fi
 	# Validate the complete candidate before replacing the live custom file. If
-	# dnsmasq rejects the published file, restore its exact previous contents.
+	# dnsmasq rejects the published file, restore Skynet's previous directives.
 	if ! dnsmasq --test --conf-file="$dnsmasqtmp" >/dev/null 2>&1 \
 		|| ! chmod 644 "$dnsmasqtmp" || ! mkdir -m 700 "$dnsmasqrecoverydir"; then return 1; fi
 	if [ "$dnsmasqhadfile" = "1" ]; then
@@ -7526,7 +7590,7 @@ Stats_Search_Device() {
 	echo "[i] $statssearchtotal Blocks Total"
 	echo;echo
 	Red "Device Name;"
-	if grep -qF " $4 " "/var/lib/misc/dnsmasq.leases"; then grep -F " $4 " "/var/lib/misc/dnsmasq.leases" | awk '{print $4}'; else echo "Unknown"; fi
+	Read_Client_Leases | awk -v ip="$4" '$3 == ip {print $4; found=1; exit} END {if (!found) print "Unknown"}'
 	echo;echo
 	Red "First Block Tracked From $4;"
 	sed -n '1p' "${statssearchprefix}.matches"
@@ -7887,16 +7951,21 @@ Generate_WebUI_IOT_Data() {
 	iotsetsource="${1:-$iotraw}"
 	if [ -z "$1" ]; then ipset save Skynet-IOT > "$iotraw" 2>/dev/null || return 1; fi
 	awk '$1 == "add" { print "B~" $3 }' "$iotsetsource" > "$iotrecords" || return 1
-	if [ -e /var/lib/misc/dnsmasq.leases ] || [ -L /var/lib/misc/dnsmasq.leases ]; then
-		awk 'NF >= 4 { print "L~" $3 "~" $2 "~" $4 }' /var/lib/misc/dnsmasq.leases >> "$iotrecords" || return 1
-	fi
+	# AsusWRT 6 uses separate native leases for guest/SDN dnsmasq instances.
+	Read_Client_Leases > "$iotraw" \
+		&& awk 'NF >= 4 { print "L~" $3 "~" $2 "~" $4 }' "$iotraw" >> "$iotrecords" || return 1
 	# Neighbour discovery is optional enrichment. Discard partial command output
 	# on failure; saved devices and lease names remain available without it.
 	if ip neigh > "$iotraw" 2>/dev/null; then
 		awk '
 			/^([0-9]{1,3}\.){3}[0-9]{1,3} / {
-				mac = ""
-				for (i = 1; i <= NF; i++) if ($i == "lladdr") mac = $(i + 1)
+				mac = ""; device = ""
+				for (i = 1; i <= NF; i++) {
+					if ($i == "lladdr") mac = $(i + 1)
+					if ($i == "dev") device = $(i + 1)
+				}
+				# Restrict neighbour discovery to LAN and guest bridges.
+				if (device !~ /^br/) next
 				print "N~" $1 "~" mac "~" $NF
 			}' "$iotraw" >> "$iotrecords" || return 1
 	fi
@@ -8255,7 +8324,11 @@ EOF
 	fi
 	historyportwhere=""
 	if [ -n "$historyqueryport" ]; then
-		printf '%s\n' "$historyqueryport" | Is_Port || return 2
+		# Packet history includes port zero.
+		printf '%s\n' "$historyqueryport" | awk '
+			NR == 1 && $0 ~ /^[0-9]{1,5}$/ && $0 >= 0 && $0 <= 65535 { valid = 1 }
+			END { exit valid && NR == 1 ? 0 : 1 }
+		' || return 2
 		historyqueryport="$(printf '%s\n' "$historyqueryport" | awk '{print $0+0}')"
 		historyportwhere=" AND (sport=$historyqueryport OR dport=$historyqueryport)"
 	fi
@@ -8353,13 +8426,65 @@ Apply_WebUI_History() {
 	Publish_WebUI_Result
 }
 
+Get_WebUI_Protection_Status() (
+	# Check current enforcement with diagnostic variables isolated.
+	webuiprotectionnames="$(ipset -n list 2>/dev/null)" || { printf 'unavailable\n'; return 0; }
+	webuiprotectionsets="0"
+	Check_IPSets || webuiprotectionsets="1"
+	webuiprotectionrules="0"
+	Check_IPTables || webuiprotectionrules="1"
+	case "$fail" in
+		*'#iptables-save '*|*'#iptables-check '*) printf 'unavailable\n'; return 0 ;;
+	esac
+	if [ "$webuiprotectionsets:$webuiprotectionrules" = "0:0" ]; then
+		printf 'active\n'
+	elif printf '%s\n' "$webuiprotectionnames" | grep -q '^Skynet-'; then
+		printf 'partial\n'
+	else
+		printf 'inactive\n'
+	fi
+)
+
+Get_WebUI_Block_Counts() (
+	# Missing sets count as empty; unreadable sets return unavailable.
+	webuicountnames="$(ipset -n list 2>/dev/null)" || return 1
+	webuicountips="0"; webuicountranges="0"
+	for webuicountset in Skynet-Blacklist Skynet-BlacklistDomains Skynet-BlockedRanges; do
+		printf '%s\n' "$webuicountnames" | grep -qxF "$webuicountset" || continue
+		webuicount="$(IPSet_Entry_Count "$webuicountset" strict)" || return 1
+		case "$webuicountset" in
+			Skynet-BlockedRanges) webuicountranges="$webuicount" ;;
+			*) webuicountips="$((webuicountips + webuicount))" ;;
+		esac
+	done
+	webuicountfile="$TMP_DIR/webui-counts.$$"
+	: > "$webuicountfile" || return 1
+	for webuicountset in Skynet-UserBans Skynet-TemporaryBans; do
+		printf '%s\n' "$webuicountnames" | grep -qxF "$webuicountset" || continue
+		if ! ipset save "$webuicountset" >> "$webuicountfile" 2>/dev/null; then rm -f "$webuicountfile"; return 1; fi
+	done
+	webuicountuser="$(awk '
+		$1 == "add" { if (index($3,"/") && $3 !~ /\/32$/) ranges++; else ips++ }
+		END { print ips+0, ranges+0 }
+	' "$webuicountfile")" || { rm -f "$webuicountfile"; return 1; }
+	rm -f "$webuicountfile"
+	printf '%s %s\n' "$((webuicountips + ${webuicountuser%% *}))" "$((webuicountranges + ${webuicountuser#* }))"
+)
+
 Generate_WebUI_Settings() {
 	# Publish one complete payload. The final generation and request fields let
 	# the browser distinguish completed actions from a cached previous response.
-	Update_Block_Counts strict || { Log error "Failed To Read IPSet Counters - Existing WebUI Settings Retained"; return 1; }
 	settingsfile="${skynetloc}/webui/settings.js"
 	settingstmp="${settingsfile}.tmp.$$"
 	settingspreparestatus="0"
+	settingsprotectionstatus="$(Get_WebUI_Protection_Status)" || settingsprotectionstatus="unavailable"
+	settingscountavailable="true"
+	if settingsblockcounts="$(Get_WebUI_Block_Counts)"; then
+		blacklist1count="${settingsblockcounts%% *}"; blacklist2count="${settingsblockcounts#* }"
+		settingsblacklist1count="$blacklist1count"; settingsblacklist2count="$blacklist2count"
+	else
+		settingscountavailable="false"; settingsblacklist1count="null"; settingsblacklist2count="null"
+	fi
 	settingsscripthash="$(SHA256_Hash "$0")" || settingspreparestatus="1"
 	customlistjs="$(settings_template="$customlisturl" awk 'BEGIN {
 		value = ENVIRON["settings_template"]
@@ -8374,14 +8499,19 @@ Generate_WebUI_Settings() {
 	sysloglocjs="$(printf '%s' "$syslogloc" | Escape_JS)" || settingspreparestatus="1"
 	syslog1locjs="$(printf '%s' "$syslog1loc" | Escape_JS)" || settingspreparestatus="1"
 	settingsiotraw="$TMP_DIR/settings-iot.$$"
+	settingsiotavailable="true"
 	if ipset save Skynet-IOT > "$settingsiotraw" 2>/dev/null; then
 		settingsiotdata="$(awk '$1 == "add" { if (output != "") output = output " "; output = output $3; count++ } END { print count + 0, output }' "$settingsiotraw")" || settingspreparestatus="1"
 		iotcount="${settingsiotdata%% *}"
 		iotentries="${settingsiotdata#* }"
-	else settingspreparestatus="1"
+	else
+		settingsiotavailable="false"; iotcount="null"; iotentries=""
+		: > "$settingsiotraw" || settingspreparestatus="1"
 	fi
-	if [ "$settingspreparestatus" = "0" ] && printf 'var SkynetSettings = {"autoupdate":"%s","banmalwareupdate":"%s","banmalwarelastupdated":"%s","blacklist1count":"%s","blacklist2count":"%s","countrylist":"%s","customlisturl":"%s","excludelists":"%s","filtertraffic":"%s","unbanprivateip":"%s","banaiprotect":"%s","securemode":"%s","loginvalid":"%s","logfirewall":"%s","logsize":"%s","extendedstats":"%s","lookupcountry":"%s","cdnwhitelist":"%s","iotblocked":"%s","iotlogging":"%s","iotports":"%s","iotproto":"%s","iotentries":"%s","iotcount":"%s"};\n' "$autoupdate" "$banmalwareupdate" "$banmalwarelastupdated" "$blacklist1count" "$blacklist2count" "$countrylist" "$customlistjs" "$excludelistsjs" "$filtertraffic" "$unbanprivateip" "$banaiprotect" "$securemode" "$loginvalid" "$logfirewall" "$logsize" "$extendedstats" "$lookupcountry" "$cdnwhitelist" "$iotblocked" "$iotlogging" "$iotports" "$iotproto" "$iotentries" "$iotcount" > "$settingstmp" \
+	if [ "$settingspreparestatus" = "0" ] && printf 'var SkynetSettings = {"autoupdate":"%s","banmalwareupdate":"%s","banmalwarelastupdated":"%s","blacklist1count":%s,"blacklist2count":%s,"countrylist":"%s","customlisturl":"%s","excludelists":"%s","filtertraffic":"%s","unbanprivateip":"%s","banaiprotect":"%s","securemode":"%s","loginvalid":"%s","logfirewall":"%s","logsize":"%s","extendedstats":"%s","lookupcountry":"%s","cdnwhitelist":"%s","iotblocked":"%s","iotlogging":"%s","iotports":"%s","iotproto":"%s","iotentries":"%s","iotcount":%s};\n' "$autoupdate" "$banmalwareupdate" "$banmalwarelastupdated" "$settingsblacklist1count" "$settingsblacklist2count" "$countrylist" "$customlistjs" "$excludelistsjs" "$filtertraffic" "$unbanprivateip" "$banaiprotect" "$securemode" "$loginvalid" "$logfirewall" "$logsize" "$extendedstats" "$lookupcountry" "$cdnwhitelist" "$iotblocked" "$iotlogging" "$iotports" "$iotproto" "$iotentries" "$iotcount" > "$settingstmp" \
 		&& printf 'SkynetSettings.logmode = "%s";\n' "$logmode" >> "$settingstmp" \
+		&& printf 'SkynetSettings.protectionstatus = "%s";\n' "$settingsprotectionstatus" >> "$settingstmp" \
+		&& printf 'SkynetSettings.blacklistcountavailable = %s;\nSkynetSettings.iotavailable = %s;\n' "$settingscountavailable" "$settingsiotavailable" >> "$settingstmp" \
 		&& printf 'SkynetSettings.version = "%s";\n' "$(Filter_Version < "$0")" >> "$settingstmp" \
 		&& printf 'SkynetSettings.scriptsha256 = "%s";\n' "$settingsscripthash" >> "$settingstmp" \
 		&& printf 'SkynetSettings.banmalwarehour = "%s";\nSkynetSettings.webuirestart = true;\n' "${banmalwarehour:-auto}" >> "$settingstmp" \
@@ -8399,9 +8529,14 @@ Generate_WebUI_Settings() {
 		&& printf 'var SkynetSettingsGenerated = "%s.%s";\n' "$(date +%s)" "$$" >> "$settingstmp" \
 		&& printf 'var SkynetSettingsResult = "%s";\n' "${settingsresult:-ready}" >> "$settingstmp" \
 		&& printf 'var SkynetSettingsRequest = "%s";\n' "${webuirequestid:-}" >> "$settingstmp" \
-		&& [ -s "$settingstmp" ] && mv -f "$settingstmp" "$settingsfile"; then
-		rm -f "$settingsiotraw"
-		return 0
+		&& [ -s "$settingstmp" ]; then
+		# Retain the completed request before replacing shared settings.js.
+		Save_WebUI_Terminal_Result "$settingstmp" \
+			|| Log error "WebUI Response Retention Failed - Publishing Canonical Response Only"
+		if mv -f "$settingstmp" "$settingsfile"; then
+			rm -f "$settingsiotraw"
+			return 0
+		fi
 	fi
 	rm -f "$settingstmp" "$settingsiotraw"
 	Log error "Failed To Generate WebUI Settings - Existing File Retained"
@@ -8578,10 +8713,16 @@ Generate_Stats() {
 	Write_Data_ToJS "${statsworkspace}/tcconn.txt" "$statstmp" "DataTCConnHits" "LabelTCConnHits" "LabelTCConnHits_MAC" || statsstatus="1"
 
 	if [ "$statsstatus" = "0" ] && printf 'var SkynetStatsComplete = true;\n' >> "$statstmp" \
-		&& [ -s "$statstmp" ] && mv -f "$statstmp" "$statsfile"; then
-		rm -rf "$statsworkspace"
-		Generate_WebUI_Settings
-		return "$?"
+		&& [ -s "$statstmp" ]; then
+		if [ -n "${SKYNET_WEBUI_REQUEST:-}" ]; then
+			Save_WebUI_Stats_Result "$statstmp" "$SKYNET_WEBUI_REQUEST" \
+				|| Log error "WebUI Chart Retention Failed - Publishing Canonical Charts Only"
+		fi
+		if mv -f "$statstmp" "$statsfile"; then
+			rm -rf "$statsworkspace"
+			Generate_WebUI_Settings
+			return "$?"
+		fi
 	fi
 
 	rm -f "$statstmp"
@@ -8608,13 +8749,205 @@ Generate_Blocked_Events() {
 #- WebUI Installation -#
 ########################
 
+Valid_WebUI_Request_ID() {
+	case "$1" in ""|*[!0-9]*) return 1 ;; esac
+	[ "${#1}" -le 32 ]
+}
+
+Prepare_WebUI_Result_Cache() {
+	webuiresultdir="/tmp/skynet/webui-results"
+	[ ! -L "$webuiresultdir" ] && { [ ! -e "$webuiresultdir" ] || [ -d "$webuiresultdir" ]; } || return 1
+	(umask 077; mkdir -p "$webuiresultdir") && chmod 700 "$webuiresultdir" || return 1
+	mkdir -p /www/user/skynet || return 1
+	if [ "$(readlink /www/user/skynet/results)" != "$webuiresultdir" ]; then
+		# Never replace an unmanaged directory with the authenticated cache route.
+		[ ! -e /www/user/skynet/results ] || [ -L /www/user/skynet/results ] || return 1
+		ln -sfn "$webuiresultdir" /www/user/skynet/results || return 1
+	fi
+}
+
+Prune_WebUI_Result_Cache() (
+	webuiresultprunedir="/tmp/skynet/webui-results"
+	[ ! -L "$webuiresultprunedir" ] || return 1
+	[ -d "$webuiresultprunedir" ] || return 0
+	webuiresultnow="$(date +%s)" || return 1
+	case "$webuiresultnow" in ""|*[!0-9]*) return 1 ;; esac
+	webuiresultindex="$TMP_DIR/webui-result-index.$$"
+	: > "$webuiresultindex" || return 1
+	for webuiresultfile in "$webuiresultprunedir/"*.js; do
+		[ -f "$webuiresultfile" ] && [ ! -L "$webuiresultfile" ] || continue
+		webuiresultid="${webuiresultfile##*/}"
+		case "$webuiresultid" in *.stats.js) webuiresultid="${webuiresultid%.stats.js}" ;; *) webuiresultid="${webuiresultid%.js}" ;; esac
+		Valid_WebUI_Request_ID "$webuiresultid" || continue
+		webuiresultepoch="$(date -r "$webuiresultfile" +%s)" || { rm -f "$webuiresultindex"; return 1; }
+		case "$webuiresultepoch" in ""|*[!0-9]*) rm -f "$webuiresultindex"; return 1 ;; esac
+		printf '%s %s\n' "$webuiresultepoch" "$webuiresultid" >> "$webuiresultindex" \
+			|| { rm -f "$webuiresultindex"; return 1; }
+	done
+	# Keep the newest twenty requests, counting paired charts only once.
+	if ! awk '{if ($1 > latest[$2]) latest[$2]=$1} END {for (id in latest) print latest[id],id}' "$webuiresultindex" > "$webuiresultindex.unique" \
+		|| ! sort -k1,1nr -k2,2 "$webuiresultindex.unique" > "$webuiresultindex.sorted"; then
+		rm -f "$webuiresultindex" "$webuiresultindex.unique" "$webuiresultindex.sorted"; return 1
+	fi
+	webuiresultcount="0"
+	# Unlinking the sorted input only occurs on immediate return; no read follows.
+	# shellcheck disable=SC2094
+	while read -r webuiresultepoch webuiresultid; do
+		webuiresultcount="$((webuiresultcount + 1))"
+		[ "$webuiresultcount" -gt 20 ] || [ "$((webuiresultnow - webuiresultepoch))" -gt 1800 ] || continue
+		rm -f "$webuiresultprunedir/$webuiresultid.js" "$webuiresultprunedir/$webuiresultid.stats.js" \
+			|| { rm -f "$webuiresultindex" "$webuiresultindex.unique" "$webuiresultindex.sorted"; return 1; }
+	done < "$webuiresultindex.sorted"
+	rm -f "$webuiresultindex" "$webuiresultindex.unique" "$webuiresultindex.sorted"
+)
+
+Save_WebUI_Stats_Result() (
+	Valid_WebUI_Request_ID "$2" || return 1
+	Prepare_WebUI_Result_Cache || return 1
+	webuistatsfile="$webuiresultdir/$2.stats.js"
+	if [ -e "$webuistatsfile" ] || [ -L "$webuistatsfile" ]; then
+		[ ! -L "$webuistatsfile" ] && [ -f "$webuistatsfile" ] \
+			&& grep -qxF "var SkynetStatsRequest = \"$2\";" "$webuistatsfile" \
+			&& grep -qxF 'var SkynetStatsComplete = true;' "$webuistatsfile"
+		return "$?"
+	fi
+	webuistatssnapshot="$TMP_DIR/webui-result-stats.$2.$$"
+	# Validate the copied inode: canonical stats may be replaced between reads.
+	if ! (umask 077; cat "$1" > "$webuistatssnapshot") \
+		|| ! grep -qxF "var SkynetStatsRequest = \"$2\";" "$webuistatssnapshot" \
+		|| ! grep -qxF 'var SkynetStatsComplete = true;' "$webuistatssnapshot" \
+		|| ! chmod 600 "$webuistatssnapshot"; then
+		rm -f "$webuistatssnapshot"; return 1
+	fi
+	# A hard link publishes atomically without replacing a completed same-ID job.
+	if ! ln "$webuistatssnapshot" "$webuistatsfile" 2>/dev/null; then
+		if [ -L "$webuistatsfile" ] || [ ! -f "$webuistatsfile" ] \
+			|| ! grep -qxF "var SkynetStatsRequest = \"$2\";" "$webuistatsfile" \
+			|| ! grep -qxF 'var SkynetStatsComplete = true;' "$webuistatsfile"; then
+			rm -f "$webuistatssnapshot"; return 1
+		fi
+	fi
+	rm -f "$webuistatssnapshot"
+	Prune_WebUI_Result_Cache
+)
+
+Save_WebUI_Terminal_Result() (
+	[ -n "${webuirequestid:-}" ] || return 0
+	case "${settingsresult:-ready}" in ready|"") return 0 ;; esac
+	Valid_WebUI_Request_ID "$webuirequestid" || return 1
+	Prepare_WebUI_Result_Cache || return 1
+	webuiterminalfile="$webuiresultdir/$webuirequestid.js"
+	if [ -e "$webuiterminalfile" ] || [ -L "$webuiterminalfile" ]; then
+		[ ! -L "$webuiterminalfile" ] && [ -f "$webuiterminalfile" ] \
+			&& grep -qxF "var SkynetResponseRequest = \"$webuirequestid\";" "$webuiterminalfile" \
+			&& grep -qxF 'var SkynetResponseComplete = true;' "$webuiterminalfile"
+		return "$?"
+	fi
+	webuiterminalsnapshot="$TMP_DIR/webui-result-terminal.$webuirequestid.$$"
+	webuiterminalstats="false"
+	if ! (umask 077; cat "$1" > "$webuiterminalsnapshot") \
+		|| ! grep -qxF "var SkynetSettingsRequest = \"$webuirequestid\";" "$webuiterminalsnapshot"; then
+		rm -f "$webuiterminalsnapshot"; return 1
+	fi
+	case "${webuiaction:-}:$settingsresult" in
+		SkynetStats:success|SkynetStats:warning:history|SkynetStatsReset:success|SkynetStatsReset:warning:history)
+			Save_WebUI_Stats_Result "${skynetloc}/webui/stats.js" "$webuirequestid" \
+				|| { rm -f "$webuiterminalsnapshot"; return 1; }
+			if ! cat "$webuiresultdir/$webuirequestid.stats.js" >> "$webuiterminalsnapshot"; then
+				rm -f "$webuiterminalsnapshot"; return 1
+			fi
+			webuiterminalstats="true"
+		;;
+	esac
+	if ! printf '\nvar SkynetResponseRequest = "%s";\nvar SkynetResponseStats = %s;\nvar SkynetResponseComplete = true;\n' \
+		"$webuirequestid" "$webuiterminalstats" >> "$webuiterminalsnapshot" \
+		|| ! chmod 600 "$webuiterminalsnapshot"; then
+		rm -f "$webuiterminalsnapshot"; return 1
+	fi
+	if ! ln "$webuiterminalsnapshot" "$webuiterminalfile" 2>/dev/null; then
+		if [ -L "$webuiterminalfile" ] || [ ! -f "$webuiterminalfile" ] \
+			|| ! grep -qxF 'var SkynetResponseComplete = true;' "$webuiterminalfile"; then
+			rm -f "$webuiterminalsnapshot"; return 1
+		fi
+	fi
+	rm -f "$webuiterminalsnapshot"
+	Prune_WebUI_Result_Cache
+)
+
+Check_WebUI_Menu() {
+	case "$MyPage" in user[1-9].asp|user1[0-9].asp|user20.asp) ;; *) return 1 ;; esac
+	if [ "$(uname -o)" != "ASUSWRT-Merlin" ]; then
+		[ "$(cat "/www/user/${MyPage%.asp}.title" 2>/dev/null)" = "Skynet" ]
+		return "$?"
+	fi
+	awk -v page="$MyPage" '
+		BEGIN {
+			gsub(/[.]/, "[.]", page)
+			entry = "[{][ \t]*url[ \t]*:[ \t]*\"" page "\"[ \t]*,[ \t]*tabName[ \t]*:[ \t]*\"Skynet\"[ \t]*[}]"
+		}
+		{ while (match($0, entry)) { found++; $0 = substr($0, RSTART + RLENGTH) } }
+		END { exit (found != 1) }
+	' /www/require/modules/menuTree.js
+}
+
+Update_WebUI_Menu() {
+	case "$1" in install|uninstall) ;; *) return 2 ;; esac
+	case "$MyPage" in user[1-9].asp|user1[0-9].asp|user20.asp) ;; *) return 1 ;; esac
+	webuimenusource="/www/require/modules/menuTree.js"
+	[ ! -f /tmp/menuTree.js ] || webuimenusource="/tmp/menuTree.js"
+	webuimenutmp="/tmp/menuTree.js.tmp.$$"
+	webuimenubackup="/tmp/menuTree.js.backup.$$"
+	# Require one Firewall anchor and preserve other addon menu entries.
+	if ! awk -v action="$1" -v page="$MyPage" '
+		BEGIN {
+			pagepattern = page; gsub(/[.]/, "[.]", pagepattern)
+			owned = "[{][ \t]*url[ \t]*:[ \t]*\"" pagepattern "\"[ \t]*,[ \t]*tabName[ \t]*:[ \t]*\"Skynet\"[ \t]*[}][ \t]*,?"
+			anchor = "[{][ \t]*url[ \t]*:[ \t]*\"Advanced_Firewall_Content[.]asp\"[ \t]*,[ \t]*tabName[ \t]*:[ \t]*\"[^\"]*\"[ \t]*[}][ \t]*,"
+			entry = "{url: \"" page "\", tabName: \"Skynet\"},"
+		}
+		{
+			removed = gsub(owned, "")
+			if (removed && $0 ~ /^[ \t]*$/) next
+			if (action == "install") {
+				remainder = $0
+				while (match(remainder, anchor)) { anchors++; remainder = substr(remainder, RSTART + RLENGTH) }
+				sub(anchor, "&\n" entry)
+			}
+			print
+		}
+		END { if (action == "install" && anchors != 1) exit 1 }
+	' "$webuimenusource" > "$webuimenutmp"; then
+		rm -f "$webuimenutmp"
+		Log error "Unable To Update Skynet Navigation - Menu Unreadable Or Firewall Tab Not Unique"
+		return 1
+	fi
+	if ! cp -f "$webuimenusource" "$webuimenubackup" || ! mv -f "$webuimenutmp" /tmp/menuTree.js; then
+		rm -f "$webuimenutmp" "$webuimenubackup"
+		Log error "Unable To Publish Skynet Navigation"
+		return 1
+	fi
+	umount /www/require/modules/menuTree.js 2>/dev/null
+	if ! mount -o bind /tmp/menuTree.js /www/require/modules/menuTree.js; then
+		if mv -f "$webuimenubackup" /tmp/menuTree.js; then
+			mount -o bind /tmp/menuTree.js /www/require/modules/menuTree.js \
+				|| Log error "Unable To Restore Previous WebUI Menu Mount"
+		else
+			Log error "Previous WebUI Menu Retained At $webuimenubackup"
+		fi
+		Log error "Unable To Mount Skynet Navigation"
+		return 1
+	fi
+	rm -f "$webuimenubackup"
+}
+
 Find_WebUI_Page() {
 	# Prefer an exact source match, then reclaim an older Skynet page by its
 	# unique title. This avoids consuming a second Merlin user-page slot.
 	# Restoring disabled settings must still find and remove an existing page.
 	MyPage="none"
 	if Addon_API_Supported; then
-		webuipagemd5="$(md5sum < "$1")"
+		webuipagemd5=""
+		[ ! -f "$1" ] || webuipagemd5="$(md5sum < "$1")"
 		for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
 			page="/www/user/user$i.asp"
 			if [ -f "$page" ] && [ "$webuipagemd5" = "$(md5sum < "$page")" ]; then
@@ -8623,11 +8956,33 @@ Find_WebUI_Page() {
 			elif [ -f "$page" ] && grep -qF '<title>Skynet Statistics</title>' "$page"; then
 				MyPage="user$i.asp"
 				return
-			elif [ "$MyPage" = "none" ] && [ ! -f "$page" ]; then
+			elif [ "$2" != "existing" ] && [ "$MyPage" = "none" ] \
+				&& [ ! -e "$page" ] && [ ! -L "$page" ] \
+				&& [ ! -e "${page%.asp}.title" ] && [ ! -L "${page%.asp}.title" ]; then
 				MyPage="user$i.asp"
 			fi
 		done
 	fi
+}
+
+Prepare_Shared_Settings_Export() {
+	[ ! -L /www/user/skynet ] && { [ ! -e /www/user/skynet ] || [ -d /www/user/skynet ]; } || return 1
+	mkdir -p /www/user/skynet || return 1
+	if [ -e /www/user/skynet/shared-settings.cab ] || [ -L /www/user/skynet/shared-settings.cab ]; then
+		[ -L /www/user/skynet/shared-settings.cab ] \
+			&& [ "$(readlink /www/user/skynet/shared-settings.cab)" = /jffs/addons/custom_settings.txt ] || return 1
+	fi
+	if [ ! -e /jffs/addons/custom_settings.txt ] && [ ! -L /jffs/addons/custom_settings.txt ]; then
+		mkdir -p /jffs/addons || return 1
+		(umask 077; set -C; : > /jffs/addons/custom_settings.txt) 2>/dev/null \
+			|| { [ -f /jffs/addons/custom_settings.txt ] && [ -r /jffs/addons/custom_settings.txt ] || return 1; }
+	fi
+	[ -f /jffs/addons/custom_settings.txt ] && [ -r /jffs/addons/custom_settings.txt ] || return 1
+	if [ -L /www/user/skynet/shared-settings.cab ] \
+		&& [ "$(readlink /www/user/skynet/shared-settings.cab)" = /jffs/addons/custom_settings.txt ]; then
+		return 0
+	fi
+	ln -snT /jffs/addons/custom_settings.txt /www/user/skynet/shared-settings.cab
 }
 
 Install_WebUI_Page() {
@@ -8643,37 +8998,30 @@ Install_WebUI_Page() {
 		Log error "Unable To Mount Skynet Web Page - No Mount Points Available"
 		return 1
 	fi
+	Prepare_Shared_Settings_Export || { Log error "Unable To Mount Shared WebUI Settings"; return 1; }
 	Log info "Mounting Skynet Web Page As $MyPage"
-	ln -sf "${skynetloc}/webui/skynet.asp" "/www/user/$MyPage" || return 1
 	if [ "$(uname -o)" = "ASUSWRT-Merlin" ]; then
-		if [ ! -f "/tmp/menuTree.js" ]; then
-			cp -f "/www/require/modules/menuTree.js" "/tmp/" || return 1
-		fi
-		sed -i "\\~$MyPage~d" /tmp/menuTree.js \
-			&& sed -i "/url: \"Advanced_Firewall_Content.asp\", tabName:/a {url: \"$MyPage\", tabName: \"Skynet\"}," /tmp/menuTree.js \
-			|| return 1
-		umount /www/require/modules/menuTree.js 2>/dev/null
-		mount -o bind /tmp/menuTree.js /www/require/modules/menuTree.js || return 1
+		Update_WebUI_Menu install || return 1
 	else
 		MyPageTitle="${MyPage%.asp}.title"
 		echo "Skynet" > "/www/user/$MyPageTitle" || return 1
 	fi
+	ln -sf "${skynetloc}/webui/skynet.asp" "/www/user/$MyPage" || return 1
 	mkdir -p "/www/user/skynet" \
 		&& ln -sf "${skynetloc}/webui/stats.js" "/www/user/skynet/stats.js" \
 		&& ln -sf "${skynetloc}/webui/settings.js" "/www/user/skynet/settings.js" \
 		&& ln -sf "${skynetloc}/Skynet-Backup.tar.gz" /www/user/skynet/backup.cab \
 		|| return 1
+	Prepare_WebUI_Result_Cache || Log error "Retained WebUI Responses Could Not Be Mounted"
 	Unload_Cron "genstats" || return 1
 	Load_Cron "genstats"
 }
 
 Uninstall_WebUI_Page() {
-	Find_WebUI_Page "${skynetloc}/webui/skynet.asp"
+	Find_WebUI_Page "${skynetloc}/webui/skynet.asp" existing
 	if [ -n "$MyPage" ] && [ "$MyPage" != "none" ]; then
-		if [ -f "/tmp/menuTree.js" ]; then
-			sed -i "\\~$MyPage~d" /tmp/menuTree.js || return 1
-			umount /www/require/modules/menuTree.js
-			mount -o bind /tmp/menuTree.js /www/require/modules/menuTree.js || return 1
+		if [ "$(uname -o)" = "ASUSWRT-Merlin" ]; then
+			Update_WebUI_Menu uninstall || return 1
 		else
 			MyPageTitle="${MyPage%.asp}.title"
 			rm -f "/www/user/$MyPageTitle" || return 1
@@ -8750,6 +9098,17 @@ Download_File() {
 #- Devices And Storage -#
 ########################
 
+Read_Client_Leases() {
+	# Read available primary LAN and guest/SDN DHCP lease files.
+	set --
+	for clientleasefile in /var/lib/misc/dnsmasq*.leases; do
+		[ -e "$clientleasefile" ] || [ -L "$clientleasefile" ] || continue
+		set -- "$@" "$clientleasefile"
+	done
+	[ "$#" -gt 0 ] || return 0
+	awk 'NF >= 4 {print}' "$@"
+}
+
 Prepare_Client_Name_Data() {
 	# Resolve only the OUI prefixes present in the supplied device data. The
 	# 1.3MB Merlin database is then scanned once instead of once per device.
@@ -8817,7 +9176,7 @@ Resolve_Client_Name() {
 	
 	# Fallback to dnsmasq leases
 	if [ -z "$localname" ]; then
-		localname="$(awk -v ip="$ipaddr" '$3 == ip { print $4; exit }' /var/lib/misc/dnsmasq.leases)" 2>/dev/null || localname=""
+		localname="$(Read_Client_Leases | awk -v ip="$ipaddr" '$3 == ip { print $4; exit }')" 2>/dev/null || localname=""
 	fi
 	
 	# If no name found, check OUI DB for MAC address
@@ -9142,7 +9501,7 @@ Invalid_Option() {
 }
 
 Menu_Require_Running() {
-	if ! Check_IPSets || ! Check_IPTables; then
+	if ! Check_Running_State; then
 		echo "[*] Skynet Not Running - Exiting"
 		echo
 		Return_To_Menu
@@ -9869,7 +10228,7 @@ History_Clean_Syslog_Source() (
 	esac
 	touch "$cleandir/ready" || return 1
 	# Stop logger rotation only for the final identity check and rename, not for
-	# parsing or database work. A watchdog also resumes writers if we are killed.
+	# parsing or database work. A watchdog resumes writers if collection exits.
 	cleanwriters="$(pidof syslogd syslog-ng)" || cleanwriters=""
 	cleanwatchdog=""
 	trap '[ -z "$cleanwriters" ] || Signal_Syslog_Writers CONT "$cleanwriters" 2>/dev/null; [ -z "$cleanwatchdog" ] || kill "$cleanwatchdog" 2>/dev/null; :' 0
@@ -10417,12 +10776,7 @@ Prepare_V8_Upgrade() {
 
 Write_Config() {
 	# Pass values through the environment without AWK -v escape interpretation.
-	configtmp="${skynetcfg}.tmp.$$"
-	if [ -e "$configtmp" ] || [ -L "$configtmp" ]; then
-		unset "configtmp"
-		Log error "Failed To Stage Config - Existing File Retained"
-		return 1
-	fi
+	unset "configtmp"
 	configram="$TMP_DIR/config-write.$$"
 	if configstamp=$(date +"%b %e %T") &&
 	config_model="$model" config_localver="${upgradefrom:-$localver}" config_swaplocation="$swaplocation" \
@@ -10481,6 +10835,13 @@ Write_Config() {
 			rm -f "$configram"
 			unset "configtmp" "configram" "configstamp"
 			return 0
+		fi
+		configtmp="${skynetcfg}.tmp.$$"
+		if [ -e "$configtmp" ] || [ -L "$configtmp" ]; then
+			rm -f "$configram"
+			unset "configtmp" "configram" "configstamp"
+			Log error "Failed To Stage Config - Existing File Retained"
+			return 1
 		fi
 		if cp -f "$configram" "$configtmp" && mv -f "$configtmp" "$skynetcfg"; then
 			rm -f "$configram"
@@ -12921,7 +13282,7 @@ Dispatch_Maintenance() {
 	nolog="2"
 	nocfg="1"
 	Wait_For_Lock "$@" || return 1
-	# A command that held the lock may have changed settings while we waited.
+	# Reload settings after acquiring the lock.
 	Load_Config || { Record_Maintenance_Status failed configuration; return 1; }
 	Load_Cron countries || Log error -s "Failed To Update Country Refresh Schedule"
 	maintenancehistoryfailure=""
@@ -14501,14 +14862,14 @@ Debug_Info() {
 		if [ -z "$localfail" ]; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
 		printf '%-80s ║\n' "$result"
 		printf "║ %-33s ║ " "Mounted WebUI Files"
-		Find_WebUI_Page "${skynetloc}/webui/skynet.asp" 2>/dev/null
+		Find_WebUI_Page "${skynetloc}/webui/skynet.asp" existing 2>/dev/null
 		[ -f "/www/user/${MyPage}" ] || mountedfail="${mountedfail}skynet.asp "
 		if Is_Enabled "$logmode" && [ -f "${skynetloc}/webui/stats.js" ] && [ ! -f "/www/user/skynet/stats.js" ]; then mountedfail="${mountedfail}stats.js "; fi
 		[ -f "/www/user/skynet/settings.js" ] || mountedfail="${mountedfail}settings.js "
 		if [ -z "$mountedfail" ]; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
 		printf '%-80s ║\n' "$result"
-		printf "║ %-33s ║ " "MenuTree.js Entry"
-		if grep -qF "Skynet" "/www/require/modules/menuTree.js"; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
+		printf "║ %-33s ║ " "WebUI Navigation"
+		if Check_WebUI_Menu; then result="$(Grn "[Passed]")"; passedtests="$((passedtests + 1))"; else result="$(Red "[Failed]")"; fi
 		printf '%-80s ║\n' "$result"
 	else
 		totaltests="$((totaltests - 3))"
@@ -15675,7 +16036,7 @@ Menu_Ban() {
 					if ! Menu_Validate_Entry_List ip "$option3"; then echo "[*] One Or More Entries Are Not Valid IPs"; echo; unset "option2" "option3"; continue; fi
 					option3="$menuentrylist"; option3list="1"
 					Prompt_Typed "option5" "Comment" "Input Comment For Ban:"
-					if [ "${#option5}" -gt "242" ]; then echo "[*] $option5 Is Not A Valid Comment. 242 Chars Max"; echo; unset "option2" "option3" "option5"; continue; fi
+					if ! Validate_IPSet_Comment "$option5" 242; then echo "[*] Comment Contains Invalid Characters Or Exceeds 242 Bytes"; echo; unset "option2" "option3" "option5"; continue; fi
 					[ -z "$option5" ] || option4="comment"
 					break
 				;;
@@ -15685,7 +16046,7 @@ Menu_Ban() {
 					if ! Menu_Validate_Entry_List range "$option3"; then echo "[*] One Or More Entries Are Not Valid Ranges"; echo; unset "option2" "option3"; continue; fi
 					option3="$menuentrylist"; option3list="1"
 					Prompt_Typed "option5" "Comment" "Input Comment For Ban:"
-					if [ "${#option5}" -gt "242" ]; then echo "[*] $option5 Is Not A Valid Comment. 242 Chars Max"; echo; unset "option2" "option3" "option5"; continue; fi
+					if ! Validate_IPSet_Comment "$option5" 242; then echo "[*] Comment Contains Invalid Characters Or Exceeds 242 Bytes"; echo; unset "option2" "option3" "option5"; continue; fi
 					[ -z "$option5" ] || option4="comment"
 					break
 				;;
@@ -15837,7 +16198,7 @@ Menu_Whitelist() {
 					if ! Menu_Validate_Homogeneous_IPSet_List "$option3"; then echo "[*] Entries Must Be Valid And All Use The Same IP Or Range Type"; echo; unset "option2" "option3"; continue; fi
 					option2="$menuentrytype"; option3="$menuentrylist"; option3list="1"
 					Prompt_Typed "option5" "Comment" "Input Comment For Whitelist:"
-					if [ "${#option5}" -gt "242" ]; then echo "[*] $option5 Is Not A Valid Comment. 242 Chars Max"; echo; unset "option2" "option3" "option5"; continue; fi
+					if ! Validate_IPSet_Comment "$option5" 242; then echo "[*] Comment Contains Invalid Characters Or Exceeds 242 Bytes"; echo; unset "option2" "option3" "option5"; continue; fi
 					[ -z "$option5" ] || option4="comment"
 					break
 				;;

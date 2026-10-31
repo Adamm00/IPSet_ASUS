@@ -16,6 +16,8 @@ Skynet adds configurable IPv4 blocking, threat feeds and traffic visibility to y
 
 *Screenshots use fictional statistics, addresses, devices and feed sources. Click an image for the full-size view.*
 
+[Compare AsusWRT 6 themes](docs/webui-platforms.md#appearance).
+
 ## Features
 
 | Capability | What you can do |
@@ -100,7 +102,7 @@ Run `firewall` over SSH to open the interactive menu. Manage bans, whitelists, t
 
 Swap is optional on 2GB-class routers with at least 1.5GiB of usable RAM. Smaller routers require a **swap file**: 1GB minimum, 2GB recommended. The installer can create it for you; swap partitions are not supported.
 
-Skynet's blocklists apply to **IPv4**. WebUI integration uses Merlin's Addons API. Block History uses the router's native SQLite support, with no additional packages required.
+Skynet's blocklists apply to **IPv4**. WebUI integration uses Merlin's Addons API and supports both the classic interface and AsusWRT 6, including the GT-BE19000AI. Block History uses the router's native SQLite support, with no additional packages required.
 
 ## Installation
 
@@ -116,7 +118,7 @@ The installer guides you through USB storage, swap, traffic direction, logging a
 
 ### Your first visit
 
-1. Open **Firewall → Skynet** in the router's WebUI when integration is enabled.
+1. Open **Firewall → Skynet** in the router's WebUI when integration is enabled. On AsusWRT 6, open **Settings → Firewall → Skynet**.
 2. Visit **Updates** to review your threat feeds and refresh schedule.
 3. Use **Overview** for statistics, **Rules** for bans and whitelists, and **IoT** for device restrictions.
 4. Enable **Packet Logging** under **Statistics** to populate traffic charts. After activity has been collected, select **Refresh Stats** to update the dashboard.

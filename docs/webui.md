@@ -2,7 +2,9 @@
 
 [← User guide](README.md) · [Getting started](getting-started.md) · [Command reference](user-guide.md) · [Troubleshooting](troubleshooting.md)
 
-Open **Firewall → Skynet** in the router's WebUI. Settings, rules and feed management remain available with packet logging disabled.
+Open **Firewall → Skynet** in the router's classic WebUI, or **Settings → Firewall → Skynet** on AsusWRT 6. Both interfaces use the same Skynet settings, rules and data. Settings, rules and feed management remain available with packet logging disabled.
+
+On AsusWRT 6, Skynet follows the router's **Configuration → Mode** (Light/Dark) and **Theme** (Normal/Fancy) choices. Panels, controls and charts update with the native theme; saved chart selections are retained.
 
 | Tab | Use it for |
 | --- | --- |
@@ -18,6 +20,8 @@ Open **Firewall → Skynet** in the router's WebUI. Settings, rules and feed man
 ## Overview
 
 The dashboard shows the latest generated ban totals, packet counters and a rolling 24-hour activity chart. Below it, explore traffic by device, address, country and port. Select chart entries for IP, device or port details where available.
+
+The protection badge reports the firewall state verified when settings were refreshed. If the router cannot read its current firewall or IoT state, Skynet reports it as unavailable; unknown counts appear as **—** and unavailable IoT controls are disabled.
 
 Use **Refresh Stats** to collect pending events and regenerate the charts. Changing a setting does not necessarily rebuild chart statistics. If generation fails, the previous charts remain visible.
 
@@ -109,11 +113,15 @@ Configure Packet Logging, Invalid Packet Logging, Firewall Drop Logging, storage
 
 Automatic log-source detection follows the running system logger or Scribe's installed Skynet handler. Custom mode keeps the paths you supply. The storage budget accepts **10–200MB**.
 
+**Log Size** shows used history storage against the configured budget and updates with the charts. Unused database space is excluded. Older detailed events are removed as needed to stay within the budget.
+
 Disabling Packet Logging pauses collection and scheduled chart generation. It leaves protection, the WebUI and retained history available.
 
 ## History
 
 Choose Today, Last 7 Days or Last 90 Days. Set any category, IP/CIDR, protocol or port filters, then select **Refresh History**. Expand an event for packet details, or use **Export CSV**.
+
+History port filters accept **0–65535**, including port zero recorded in traffic logs. IoT allowed ports remain **1–65535**.
 
 - Trends show recorded category totals. IP, protocol and port filters apply to detailed events below the chart.
 - Detailed events are retained for **up to seven days** within the storage budget; category totals are retained for **90 days**.

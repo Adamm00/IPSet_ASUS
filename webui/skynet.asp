@@ -12,3165 +12,3229 @@
     <link rel="stylesheet" type="text/css" href="index_style.css" />
     <link rel="stylesheet" type="text/css" href="form_style.css" />
     <style>
-        /* Theme. */
-        :root {
-            --skynet-bg: #2f3e44;
-            --skynet-panel: #354247;
-            --skynet-panel-alt: #39484e;
-            --skynet-border: #607780;
-            --skynet-border-soft: #53666d;
-            --skynet-text: #eef2f3;
-            --skynet-muted: #b8c4c8;
-            --skynet-heading: #dfe7ea;
-            --skynet-link: #8fd1f5;
-            --skynet-accent-muted: #9fc9d8;
-            --skynet-title: #ffffff;
-            --skynet-body: #d7e0e3;
-            --skynet-muted-2: #aebcc1;
-            --skynet-border-faint: rgba(155, 177, 185, 0.18);
-            --skynet-border-medium: rgba(155, 177, 185, 0.34);
-            --skynet-surface: #34464c;
-            --skynet-surface-2: #2d3d43;
-            --skynet-success: #a9e5bf;
-            --skynet-warning: #f4d97b;
-            --skynet-error: #f2afb5;
-            --skynet-font-caption: 12px;
-            --skynet-font-body: 12px;
-            --skynet-font-label: 13px;
-            --skynet-line-caption: 17px;
-            --skynet-line-body: 17px;
-        }
-
-        /* Merlin page integration. */
-        html,
-        #FormTitle {
-            scrollbar-color: #718b95 #293a41;
-            scrollbar-width: thin;
-        }
-
-        html::-webkit-scrollbar,
-        #FormTitle ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-
-        html::-webkit-scrollbar-track,
-        #FormTitle ::-webkit-scrollbar-track,
-        #FormTitle ::-webkit-scrollbar-corner {
-            background: #293a41;
-        }
-
-        html::-webkit-scrollbar-thumb,
-        #FormTitle ::-webkit-scrollbar-thumb {
-            border: 2px solid #293a41;
-            border-radius: 8px;
-            background: #718b95;
-        }
-
-        html::-webkit-scrollbar-thumb:hover,
-        #FormTitle ::-webkit-scrollbar-thumb:hover {
-            background: #9fc9d8;
-        }
-
-        thead.collapsible {
-            color: white;
-            padding: 0px;
-            width: 100%;
-            border: none;
-            text-align: left;
-            outline: none;
-            cursor: pointer;
-        }
-
-        .StatsTable {
-            table-layout: fixed !important;
-            width: 100% !important;
-        }
-        
-        .StatsTable th {
-            background-color: #1F2D35 !important;
-            background: #2F3A3E !important;
-            border-bottom: none !important;
-            border-top: none !important;
-            font-size: 12px !important;
-            color: white !important;
-            padding: 4px !important;
-        }
-        
-        .StatsTable td {
-            padding: 2px !important;
-            word-wrap: break-word !important;
-            overflow-wrap: break-word !important;
-        }
-        
-        .StatsTable a {
-            font-weight: bold !important;
-            text-decoration: underline !important;
-        }
-        
-        .StatsTable th:first-child,
-        .StatsTable td:first-child {
-            border-left: none !important;
-        }
-        
-        .StatsTable th:last-child,
-        .StatsTable td:last-child {
-            border-right: none !important;
-        }
-
-        #FormTitle,
-        #FormTitle > tbody > tr > td {
-            width: 100% !important;
-            max-width: 760px !important;
-            min-width: 0 !important;
-            box-sizing: border-box !important;
-        }
-
-        #FormTitle #skynet_dashboard,
-        #FormTitle .skynet-section {
-            width: 100% !important;
-            max-width: 760px !important;
-            min-width: 0 !important;
-            box-sizing: border-box !important;
-        }
-
-        #FormTitle .skynet-chart-shell,
-        #FormTitle .skynet-controls,
-        #FormTitle .skynet-table-shell {
-            max-width: 760px !important;
-            min-width: 0 !important;
-            box-sizing: border-box !important;
-        }
-
-        #FormTitle .skynet-chart-shell canvas {
-            max-width: 100% !important;
-        }
-
-        #FormTitle table {
-            box-sizing: border-box;
-        }
-
-        /* Header and summary. */
-        #skynet_dashboard { margin:0 0 10px 0; }
-        .skynet-hero {
-            position:relative;
-            overflow:hidden;
-            background:
-                radial-gradient(circle at 50% 130%,rgba(73,171,207,0.18),transparent 55%),
-                repeating-linear-gradient(90deg,rgba(121,183,211,0.025) 0,rgba(121,183,211,0.025) 1px,transparent 1px,transparent 24px),
-                linear-gradient(180deg,#35454b 0%,#28363b 100%);
-            border:1px solid #63879a;
-            border-radius:6px;
-            padding:16px 110px 14px 110px;
-            margin-bottom:10px;
-            box-shadow:
-                inset 0 1px 0 rgba(255,255,255,0.08),
-                inset 0 -1px 0 rgba(48,120,151,0.12),
-                0 1px 2px rgba(0,0,0,0.18);
-            text-align:center;
-        }
-
-        .skynet-hero::before {
-            content:"";
-            position:absolute;
-            top:0;
-            right:0;
-            bottom:0;
-            left:0;
-            background:repeating-linear-gradient(0deg,transparent 0,transparent 4px,rgba(0,0,0,0.045) 5px);
-            pointer-events:none;
-        }
-
-        .skynet-hero::after {
-            content:"";
-            position:absolute;
-            right:14%;
-            bottom:0;
-            left:14%;
-            height:1px;
-            background:linear-gradient(90deg,transparent,#78c6e7,transparent);
-            opacity:0.75;
-        }
-
-        .skynet-hero-core {
-            position:relative;
-            z-index:1;
-        }
-
-        .skynet-hero-title {
-            display:inline-block;
-            position:relative;
-            color:#ffffff !important;
-            font-family:monospace;
-            font-size:23px;
-            font-weight:bold;
-            letter-spacing:4px;
-            line-height:27px;
-            text-shadow:0 0 10px rgba(121,198,231,0.22),0 1px 1px rgba(0,0,0,0.3);
-            padding-bottom:4px;
-        }
-
-        .skynet-hero-title::after {
-            content:"";
-            display:block;
-            width:48px;
-            height:1px;
-            margin:3px auto 0 auto;
-            background:linear-gradient(90deg,transparent,#78c6e7,transparent);
-            box-shadow:0 0 5px rgba(120,198,231,0.45);
-        }
-
-        .skynet-hero-sub {
-            margin-top:1px;
-            color:#bfcacd !important;
-            font-family:monospace;
-            font-size:var(--skynet-font-body);
-            letter-spacing:0.45px;
-            line-height:var(--skynet-line-body);
-        }
-
-        .skynet-guidance-row {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr) auto;
-            gap: 6px 12px;
-            padding: 12px 0;
-            border-bottom: 1px solid rgba(180, 210, 220, 0.12);
-            font-size: 13px;
-        }
-
-        .skynet-guidance-row:last-child { border-bottom: 0; }
-        .skynet-guidance-label { align-self: center; font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
-        .skynet-guidance-detail { grid-column: 1 / -1; color: #b8cbd1; line-height: 1.45; overflow-wrap: anywhere; }
-        .skynet-guidance-state { align-self: center; white-space: nowrap; padding: 3px 10px; border: 1px solid #66818a; border-radius: 20px; color: #cfdee3; }
-
-        .skynet-status {
-            position:absolute;
-            top:11px;
-            right:12px;
-            margin:0;
-            padding:5px 10px;
-            border-radius:12px;
-            background:linear-gradient(180deg,#385344 0%,#2d4337 100%);
-            color:#a9e5bf;
-            border:1px solid #4c8061;
-            font-weight:bold;
-            font-size:var(--skynet-font-body);
-            box-shadow:inset 0 1px 0 rgba(255,255,255,0.08),0 1px 3px rgba(0,0,0,0.24);
-            z-index:2;
-        }
-        .skynet-status-dot {
-            display:inline-block; width:7px; height:7px; border-radius:50%;
-            background:#65c18c; margin-right:5px;
-            box-shadow:0 0 5px rgba(101,193,140,0.5);
-        }
-
-        .skynet-project-link {
-            position:absolute;
-            top:11px;
-            left:12px;
-            padding:5px 10px;
-            border:1px solid #547d93;
-            border-radius:12px;
-            background:linear-gradient(180deg,#354f5b 0%,#2b4049 100%);
-            color:#9fd5f1 !important;
-            font-size:var(--skynet-font-body);
-            font-weight:bold;
-            text-decoration:none;
-            box-shadow:inset 0 1px 0 rgba(255,255,255,0.06),0 1px 3px rgba(0,0,0,0.22);
-            z-index:2;
-        }
-
-        .skynet-project-link:hover,
-        .skynet-project-link:focus-visible {
-            border-color:#79b7d3;
-            background:#344e5a;
-            color:#d1efff !important;
-            outline:none;
-        }
-        .skynet-kpis {
-            width:100%; border-collapse:separate !important;
-            border-spacing:6px !important; margin:-6px 0 4px -6px;
-        }
-        .skynet-kpi {
-            background:linear-gradient(180deg,#39484e 0%,#344247 100%) !important;
-            border:1px solid #607780 !important;
-            border-radius:5px; text-align:center; padding:9px 5px !important;
-            width:25%;
-            box-shadow:inset 0 1px 0 rgba(255,255,255,0.035),0 1px 2px rgba(0,0,0,0.12);
-            transition:border-color 140ms ease,transform 140ms ease;
-        }
-        .skynet-kpi:hover {
-            border-color:#7594a0 !important;
-            transform:translateY(-1px);
-        }
-        .skynet-kpi-label {
-            display:block; color:var(--skynet-muted-2) !important; font-size:var(--skynet-font-body); font-weight:bold;
-        }
-        .skynet-kpi-value {
-            display:block; color:var(--skynet-title) !important; font-size:22px; line-height:25px;
-            font-weight:bold; margin-top:3px;
-        }
-        .skynet-meta {
-            display:flex;
-            flex:1 1 auto;
-            flex-wrap:nowrap;
-            align-items:center;
-            gap:18px;
-            min-width:0;
-            margin:0;
-            color:var(--skynet-muted-2) !important;
-        }
-        .skynet-meta-item {
-            display:flex;
-            flex-direction:column;
-            align-items:flex-start;
-            gap:3px;
-            min-width:0;
-            padding:0;
-        }
-        .skynet-meta-label {
-            color:var(--skynet-accent-muted) !important;
-            font-size:var(--skynet-font-caption);
-            font-weight:bold;
-            letter-spacing:0.35px;
-            line-height:var(--skynet-line-caption);
-            text-transform:uppercase;
-            white-space:nowrap;
-        }
-        .skynet-meta-value {
-            overflow:hidden;
-            color:#c5d0d4 !important;
-            font-family:Arial,sans-serif;
-            font-size:var(--skynet-font-caption);
-            line-height:var(--skynet-line-caption);
-            text-overflow:ellipsis;
-            white-space:nowrap;
-        }
-        .skynet-meta-period {
-            flex:1 1 auto;
-        }
-        .skynet-meta-period .skynet-meta-value {
-            color:#e1edf1 !important;
-            font-size:var(--skynet-font-caption);
-            font-weight:bold;
-            letter-spacing:0.1px;
-        }
-        .skynet-meta-log {
-            flex:0 0 auto;
-            padding-left:18px;
-            border-left:1px solid rgba(126,153,163,0.28);
-        }
-        .skynet-meta-log .skynet-meta-value {
-            color:#d3e0e4 !important;
-            font-size:var(--skynet-font-caption);
-            font-weight:bold;
-            letter-spacing:0.1px;
-        }
-        .skynet-update-result {
-            grid-column:1 / -1;
-            min-width:0;
-            overflow:hidden;
-            min-height:0;
-            margin:0;
-            padding-top:8px;
-            border-top:1px solid rgba(126,153,163,0.22);
-            color:#b8c4c8;
-            font-size:var(--skynet-font-body);
-            line-height:16px;
-            overflow-wrap:anywhere;
-            white-space:normal;
-        }
-        .skynet-update-result:empty { display:none; }
-        .skynet-update-result.error { color:var(--skynet-error); }
-        .skynet-actionbar {
-            padding:0 !important;
-            border:0 !important;
-            background:transparent !important;
-        }
-
-        /* Navigation and settings. */
-        .skynet-tabs {
-            display: flex;
-            gap: 3px;
-            margin: 0 0 10px 0;
-            padding: 4px;
-            border: 1px solid var(--skynet-border-soft);
-            border-radius: 6px;
-            background: #2c3b40;
-            box-shadow: inset 0 1px 2px rgba(0,0,0,0.24);
-        }
-
-        .skynet-tab {
-            flex: 1 1 0;
-            min-width: 0;
-            min-height: 32px;
-            padding: 6px;
-            border: 1px solid transparent;
-            border-bottom: 2px solid transparent;
-            border-radius: 4px;
-            background: transparent !important;
-            color: var(--skynet-muted) !important;
-            font-size: var(--skynet-font-body);
-            font-weight: bold;
-            line-height: 16px;
-            cursor: pointer;
-            transition: background-color 140ms ease,border-color 140ms ease,
-                        color 140ms ease,box-shadow 140ms ease;
-        }
-
-        .skynet-tab:hover,
-        .skynet-tab.active {
-            color: var(--skynet-text) !important;
-            background: rgba(255,255,255,0.045) !important;
-        }
-
-        .skynet-tab.active {
-            border-color: #526d78;
-            border-bottom-color: var(--skynet-link);
-            background: linear-gradient(180deg,#3b5058 0%,#34474e 100%) !important;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.05),
-                        0 1px 2px rgba(0,0,0,0.18);
-        }
-
-        .skynet-tab:focus-visible {
-            outline: 2px solid var(--skynet-link);
-            outline-offset: -2px;
-        }
-
-        .skynet-view-hidden {
-            display: none;
-        }
-
-        .skynet-build {
-            display:flex;
-            flex-direction:column;
-            gap:4px;
-            min-width:0;
-        }
-
-        .skynet-build-heading {
-            display:flex;
-            align-items:baseline;
-            gap:10px;
-        }
-
-        #FormTitle .skynet-version {
-            background:transparent;
-            color:var(--skynet-text);
-            font-size:13px;
-            font-weight:600;
-            line-height:18px;
-        }
-
-        #FormTitle .skynet-build-algorithm {
-            background:transparent;
-            color:var(--skynet-muted-2);
-            font-size:10px;
-            letter-spacing:0.3px;
-        }
-
-        #FormTitle .skynet-build-hash {
-            display:block;
-            color:var(--skynet-muted-2);
-            font-family:monospace;
-            font-size:10px;
-            letter-spacing:0;
-            line-height:16px;
-            overflow-wrap:anywhere;
-            word-break:break-all;
-            user-select:all;
-        }
-
-
-        .skynet-update-bar {
-            display:grid;
-            grid-template-columns:minmax(0,1fr) auto;
-            align-items: center;
-            gap:8px 20px;
-            min-height:58px;
-            margin:8px 0 10px;
-            padding:11px 14px;
-            background:#34464c;
-            border:1px solid #566d76;
-            border-radius:5px;
-            box-shadow:inset 0 1px 0 rgba(255,255,255,0.025);
-            box-sizing: border-box;
-            width: 100%;
-            max-width: 760px;
-        }
-
-        .skynet-update-info {
-            display:flex;
-            align-items:center;
-            gap:10px;
-            min-width: 0;
-            color: var(--skynet-muted-2) !important;
-            font-size: var(--skynet-font-body);
-            line-height: var(--skynet-line-body);
-        }
-
-        .skynet-update-control {
-            position:relative;
-            display:flex;
-            align-items:center;
-            gap:8px;
-            flex:none;
-        }
-
-        .skynet-update-control .skynet-update-button {
-            width:auto;
-            min-width:0;
-            height:30px;
-            padding:0 12px !important;
-            border-color:#667f89 !important;
-            border-radius:4px !important;
-            background:linear-gradient(180deg,#4a626b 0%,#40565e 100%) !important;
-            color:#e4edf0 !important;
-            font-family:Arial,sans-serif !important;
-            font-size:var(--skynet-font-body) !important;
-            line-height:28px !important;
-            text-shadow:none;
-            box-shadow:inset 0 1px 0 rgba(255,255,255,0.055);
-            white-space:nowrap;
-        }
-
-        .skynet-update-control .skynet-update-button:not(:disabled):hover {
-            border-color:#7d9aa6 !important;
-            background:linear-gradient(180deg,#526d77 0%,#465e67 100%) !important;
-        }
-
-        .skynet-update-control .skynet-reset-button {
-            background:transparent !important;
-            border-color:transparent !important;
-            color:var(--skynet-muted-2) !important;
-            font-weight:normal !important;
-            box-shadow:none;
-        }
-
-        .skynet-update-control .skynet-reset-button:not(:disabled):hover {
-            background:rgba(255,255,255,0.04) !important;
-            border-color:var(--skynet-border-soft) !important;
-            color:var(--skynet-text) !important;
-        }
-
-        .skynet-update-button {
-            min-width: 112px;
-            height: 32px;
-            padding: 0 14px !important;
-            border: 1px solid #8ab0c2 !important;
-            border-radius: 5px !important;
-            background: linear-gradient(180deg, #6ea6bf 0%, #4f7f95 100%) !important;
-            color: #fff !important;
-            font-weight: bold !important;
-            line-height: 30px !important;
-            text-align: center !important;
-            vertical-align: middle;
-            text-shadow: 0 1px 1px rgba(0,0,0,0.35);
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.12),
-                        0 1px 2px rgba(0,0,0,0.20);
-            cursor: pointer;
-            transition: transform 120ms ease, filter 120ms ease;
-        }
-
-        .skynet-update-button:disabled {
-            opacity: 0.72;
-            cursor: default;
-            filter: saturate(0.75);
-        }
-
-        .skynet-update-button.skynet-update-busy {
-            cursor: wait;
-        }
-
-        .skynet-update-button:not(:disabled):hover {
-            filter: brightness(1.08);
-        }
-
-        .skynet-update-button:not(:disabled):active {
-            transform: translateY(1px);
-        }
-
-        .skynet-update-button:focus-visible {
-            outline: 2px solid #8fd1f5;
-            outline-offset: 2px;
-        }
-
-        .skynet-settings-reload {
-            border-color: var(--skynet-border) !important;
-            background: var(--skynet-panel-alt) !important;
-            color: var(--skynet-heading) !important;
-            box-shadow: none;
-            text-shadow: none;
-        }
-
-        .skynet-settings {
-            margin: 10px 0;
-            overflow: hidden;
-            border: 1px solid var(--skynet-border-medium);
-            border-radius: 6px;
-            background: var(--skynet-surface);
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.025),
-                        0 1px 3px rgba(0,0,0,0.14);
-        }
-
-        .skynet-settings-section-hidden {
-            display: none;
-        }
-
-        .skynet-settings-table {
-            margin: 0 !important;
-            border: 0 !important;
-        }
-
-        .skynet-settings-table th {
-            width: 42%;
-        }
-
-        .skynet-settings-table tr:not(.skynet-settings-group) > th,
-        .skynet-settings-table tr:not(.skynet-settings-group) > td {
-            padding: 6px 10px !important;
-            border-color: var(--skynet-border-soft) !important;
-            vertical-align: middle;
-            transition: background-color 120ms ease;
-        }
-
-        .skynet-settings-table tr:not(.skynet-settings-group) > th {
-            background: #2f3e44 !important;
-        }
-
-        .skynet-settings-table tr:not(.skynet-settings-group) > td {
-            background: #35474d !important;
-        }
-
-        .skynet-settings-table tr:not(.skynet-settings-group):hover > th {
-            background: #33454b !important;
-        }
-
-        .skynet-settings-table tr:not(.skynet-settings-group):hover > td {
-            background: #3a4d54 !important;
-        }
-
-        #FormTitle .skynet-settings-group th {
-            width: auto;
-            padding: 8px 10px;
-            border-color: var(--skynet-border-soft) !important;
-            border-left: 3px solid #6da7be !important;
-            background: linear-gradient(90deg,#38505a 0%,#35464d 62%,#34444b 100%);
-            color: var(--skynet-accent-muted) !important;
-            font-size: var(--skynet-font-body);
-            line-height: 15px;
-            letter-spacing: 0.6px;
-            text-transform: uppercase;
-        }
-
-        #FormTitle .skynet-setting-name,
-        #FormTitle .skynet-setting-help {
-            display: block;
-        }
-
-        #FormTitle .skynet-setting-name {
-            color: var(--skynet-heading) !important;
-            font-size: var(--skynet-font-label);
-            font-weight: bold;
-            line-height: var(--skynet-line-body);
-        }
-
-        #FormTitle .skynet-setting-help {
-            margin-top: 3px;
-            color: var(--skynet-muted) !important;
-            font-size: var(--skynet-font-body);
-            font-weight: normal;
-            line-height: 15px;
-        }
-
-        .skynet-settings-table select {
-            width: 280px;
-            max-width: 100%;
-            height: 30px;
-            padding: 0 24px 0 8px;
-            border: 1px solid #70858d;
-            border-radius: 4px;
-            background-color: #536970;
-            color: #ffffff;
-            font-family: Arial, sans-serif;
-            font-size: var(--skynet-font-body);
-            text-align: center;
-            text-align-last: center;
-            box-shadow: inset 0 1px 2px rgba(0,0,0,0.22);
-            box-sizing: border-box;
-            transition: border-color 120ms ease,box-shadow 120ms ease;
-        }
-
-        .skynet-settings-table select:hover {
-            border-color: #8aa4ae;
-        }
-
-        .skynet-settings-table select:focus {
-            outline: none;
-            border-color: var(--skynet-link);
-            box-shadow: 0 0 0 2px rgba(143,209,245,0.15),
-                        inset 0 1px 2px rgba(0,0,0,0.18);
-        }
-
-        .skynet-malware-controls {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .skynet-malware-status {
-            display: block;
-            margin-top: 5px;
-            padding: 0 !important;
-            border: 0 !important;
-            background: transparent !important;
-            color: var(--skynet-muted) !important;
-            font-size: var(--skynet-font-body);
-            line-height: 15px;
-        }
-
-        .skynet-malware-update {
-            min-width: 96px;
-            height: 30px;
-        }
-
-        .skynet-feed-manager {
-            overflow: hidden;
-            border: 1px solid var(--skynet-border-soft);
-            border-radius: 5px;
-            background: linear-gradient(180deg, #304148 0%, #2d3d43 100%);
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.03),
-                        0 1px 2px rgba(0,0,0,0.16);
-        }
-
-        .skynet-feed-container > td {
-            padding: 6px 10px !important;
-        }
-
-        .skynet-feed-intro {
-            padding: 10px 10px 9px;
-            border-bottom: 1px solid var(--skynet-border-soft);
-            background: rgba(255,255,255,0.025);
-        }
-
-        .skynet-feed-title,
-        .skynet-feed-help {
-            display: block;
-        }
-
-        .skynet-feed-title {
-            padding: 0 !important;
-            border: 0 !important;
-            background: transparent !important;
-            color: var(--skynet-title) !important;
-            font-size: var(--skynet-font-label);
-            font-weight: bold;
-            line-height: var(--skynet-line-body);
-        }
-
-        .skynet-feed-help {
-            margin-top: 2px;
-            padding: 0 !important;
-            border: 0 !important;
-            background: transparent !important;
-            color: var(--skynet-muted) !important;
-            font-size: var(--skynet-font-body);
-            line-height: 15px;
-        }
-
-        .skynet-feed-header,
-        .skynet-feed-row {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr) 64px 140px 68px 112px;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .skynet-feed-header {
-            padding: 7px 10px;
-            border-bottom: 1px solid var(--skynet-border-soft);
-            background: #29383e;
-            color: var(--skynet-accent-muted);
-            font-size: var(--skynet-font-caption);
-            letter-spacing: 0.4px;
-            line-height: var(--skynet-line-caption);
-            text-transform: uppercase;
-        }
-
-        .skynet-feed-controls,
-        .skynet-template-controls,
-        .skynet-feed-add {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .skynet-feed-controls { justify-content: flex-end; }
-        .skynet-feed-add { padding: 10px; }
-        .skynet-feed-add .skynet-update-button { flex-shrink: 0; width: auto; }
-        #FormTitle .skynet-feed-add input[type="text"],
-        #FormTitle .skynet-template-controls input[type="url"] { flex: 1; min-width: 0; width: auto; max-width: none; }
-        .skynet-template-controls { flex-wrap: wrap; }
-        .skynet-feed-controls .skynet-feed-toggle { flex-shrink: 0; }
-
-        .skynet-feed-header > span {
-            display: block;
-            padding: 0 !important;
-            border: 0 !important;
-            background: transparent !important;
-            color: inherit !important;
-        }
-
-        .skynet-feed-row {
-            min-height: 36px;
-            padding: 7px 10px;
-            border-top: 1px solid var(--skynet-border-soft);
-            box-sizing: border-box;
-            line-height: 16px;
-            transition: background-color 120ms ease;
-        }
-
-        .skynet-feed-row:first-child {
-            border-top: 0;
-        }
-
-        .skynet-feed-row:nth-child(even) {
-            background: rgba(255,255,255,0.018);
-        }
-
-        .skynet-feed-row:hover {
-            background: rgba(112,181,212,0.07);
-        }
-
-        #FormTitle .skynet-feed-source {
-            min-width: 0;
-            overflow: hidden;
-            color: var(--skynet-text) !important;
-            font-family: monospace;
-            font-size: var(--skynet-font-body);
-            line-height: var(--skynet-line-body);
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        #FormTitle .skynet-feed-entries,
-        #FormTitle .skynet-feed-success,
-        #FormTitle .skynet-feed-success > span {
-            color: var(--skynet-muted-2) !important;
-            font-size: var(--skynet-font-body);
-            font-variant-numeric: tabular-nums;
-            line-height: var(--skynet-line-body);
-        }
-
-        #FormTitle .skynet-feed-change {
-            display: block;
-            color: var(--skynet-muted) !important;
-            font-size: var(--skynet-font-caption);
-            line-height: var(--skynet-line-caption);
-        }
-
-        .skynet-feed-header > span:nth-child(2),
-        .skynet-feed-entries {
-            text-align: right;
-        }
-
-        .skynet-feed-header > span:nth-child(3),
-        .skynet-feed-success {
-            text-align: center;
-        }
-
-        .skynet-feed-header > span:nth-child(4),
-        .skynet-feed-header > span:nth-child(5) {
-            text-align: center;
-        }
-
-        .skynet-feed-state {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .skynet-feed-pill {
-            display: inline-block;
-            min-width: 48px;
-            padding: 3px 6px;
-            border: 1px solid var(--skynet-border);
-            border-radius: 10px;
-            background: var(--skynet-panel-alt);
-            color: var(--skynet-muted-2);
-            font-size: var(--skynet-font-caption);
-            font-weight: bold;
-            line-height: var(--skynet-line-caption);
-            text-align: center;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.07),
-                        0 1px 2px rgba(0,0,0,0.24);
-        }
-
-        .skynet-feed-pill.current {
-            border-color: #4c8061;
-            background: linear-gradient(180deg,#385344 0%,#2d4337 100%);
-            color: var(--skynet-success);
-        }
-
-        .skynet-feed-pill.cached {
-            border-color: #8b7841;
-            background: linear-gradient(180deg,#554d36 0%,#443e2d 100%);
-            color: var(--skynet-warning);
-        }
-
-        .skynet-feed-pill.empty,
-        .skynet-feed-pill.pending {
-            border-color: #58727d;
-            background: linear-gradient(180deg,#3d5058 0%,#33434a 100%);
-            color: #aac7d2;
-        }
-
-        .skynet-feed-pill.expired {
-            border-color: #8a6654;
-            background: linear-gradient(180deg,#57463d 0%,#473a34 100%);
-            color: #e3ad8f;
-        }
-
-        .skynet-feed-pill.failed {
-            border-color: #8a5057;
-            background: linear-gradient(180deg,#583c41 0%,#473136 100%);
-            color: var(--skynet-error);
-        }
-
-        .skynet-feed-toggle {
-            position: relative;
-            display: flex;
-            justify-content: center;
-            width: 36px;
-            height: 20px;
-            margin: 0 auto;
-            cursor: pointer;
-        }
-
-        .skynet-feed-toggle input {
-            position: absolute;
-            width: 1px;
-            height: 1px;
-            opacity: 0;
-        }
-
-        .skynet-feed-switch {
-            position: absolute;
-            top: 0;
-            right: 0;
-            bottom: 0;
-            left: 0;
-            border: 1px solid #667980;
-            border-radius: 10px;
-            background: #25343a;
-            box-shadow: inset 0 1px 2px rgba(0,0,0,0.35);
-            transition: background-color 140ms ease, border-color 140ms ease;
-        }
-
-        .skynet-feed-switch::after {
-            content: "";
-            position: absolute;
-            top: 2px;
-            left: 2px;
-            width: 14px;
-            height: 14px;
-            border-radius: 50%;
-            background: #a8b5ba;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.35);
-            transition: left 140ms ease, background-color 140ms ease;
-        }
-
-        .skynet-feed-toggle input:checked + .skynet-feed-switch {
-            border-color: #70aec8;
-            background: #477d94;
-        }
-
-        .skynet-feed-toggle input:checked + .skynet-feed-switch::after {
-            left: 18px;
-            background: #e9f7fc;
-        }
-
-        .skynet-feed-toggle input:focus-visible + .skynet-feed-switch {
-            outline: 2px solid var(--skynet-link);
-            outline-offset: 2px;
-        }
-
-        .skynet-feed-toggle input:disabled + .skynet-feed-switch {
-            opacity: 0.55;
-            cursor: default;
-        }
-
-        .skynet-feed-empty,
-        .skynet-feed-status {
-            color: var(--skynet-muted);
-            font-size: var(--skynet-font-body);
-            line-height: 15px;
-        }
-
-        .skynet-feed-empty {
-            padding: 8px 10px;
-        }
-
-        .skynet-feed-actions {
-            display: flex;
-            align-items: center;
-            justify-content: flex-end;
-            gap: 8px;
-            padding: 8px 10px;
-            border-top: 1px solid var(--skynet-border-soft);
-            background: rgba(0,0,0,0.08);
-        }
-
-        .skynet-feed-status {
-            flex: 1;
-            padding: 0 !important;
-            border: 0 !important;
-            background: transparent !important;
-            color: var(--skynet-muted) !important;
-        }
-
-        .skynet-feed-status.error {
-            color: var(--skynet-error) !important;
-        }
-
-        .skynet-feed-status.warning {
-            color: var(--skynet-warning) !important;
-        }
-
-        .skynet-settings-result.warning {
-            color: var(--skynet-warning);
-        }
-
-        #FormTitle .skynet-country-status.warning {
-            color: var(--skynet-warning) !important;
-        }
-
-        .skynet-settings-table input[type="number"] {
-            width: 82px;
-        }
-
-        .skynet-settings-table input[type="url"] {
-            width: 100%;
-            max-width: 360px;
-        }
-
-        .skynet-settings-table input[type="text"] {
-            width: 100%;
-            max-width: 360px;
-        }
-
-        .skynet-settings-table input[type="number"],
-        .skynet-settings-table input[type="url"],
-        .skynet-settings-table input[type="text"] {
-            height: 30px;
-            padding: 5px 9px;
-            border: 1px solid var(--skynet-border);
-            border-radius: 4px;
-            background: var(--skynet-bg);
-            color: var(--skynet-text);
-            box-shadow: inset 0 1px 2px rgba(0,0,0,0.28);
-            box-sizing: border-box;
-            transition: border-color 0.15s ease, box-shadow 0.15s ease;
-        }
-
-        .skynet-settings-table input[type="number"]::placeholder,
-        .skynet-settings-table input[type="url"]::placeholder,
-        .skynet-settings-table input[type="text"]::placeholder {
-            color: var(--skynet-muted);
-            opacity: 0.9;
-        }
-
-        .skynet-settings-table input[type="number"]:hover,
-        .skynet-settings-table input[type="url"]:hover,
-        .skynet-settings-table input[type="text"]:hover {
-            border-color: var(--skynet-heading);
-        }
-
-        .skynet-settings-table input[type="number"]:focus,
-        .skynet-settings-table input[type="url"]:focus,
-        .skynet-settings-table input[type="text"]:focus {
-            outline: none;
-            border-color: var(--skynet-link);
-            box-shadow: 0 0 0 2px rgba(143,209,245,0.18),
-                inset 0 1px 2px rgba(0,0,0,0.2);
-        }
-
-        .skynet-number-control {
-            display: flex;
-            align-items: center;
-            gap: 7px;
-        }
-
-        .skynet-input-note {
-            padding: 0 !important;
-            border: 0 !important;
-            background: transparent !important;
-            color: var(--skynet-muted) !important;
-            font-size: var(--skynet-font-body);
-            line-height: 15px;
-        }
-
-        .skynet-country-editor {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        #FormTitle .skynet-settings-table tr.skynet-country-row > th {
-            padding-top: 12px !important;
-            vertical-align: top !important;
-        }
-
-        .skynet-country-picker {
-            width: 100% !important;
-            max-width: 360px !important;
-        }
-
-        .skynet-country-chooser {
-            width: 100%;
-            max-width: 360px;
-        }
-
-        #FormTitle .skynet-country-chooser span {
-            margin: 0 !important;
-            padding: 0 !important;
-            border: 0 !important;
-            background: transparent !important;
-            color: inherit !important;
-            box-shadow: none !important;
-        }
-
-        #skynetCountryChooser [hidden] {
-            display: none !important;
-        }
-
-        #skynetCountryPicker {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            min-height: 32px;
-            padding: 0 10px;
-            border: 1px solid var(--skynet-border);
-            border-radius: 4px;
-            background: linear-gradient(180deg,#435a63,#3a4e56);
-            color: var(--skynet-text);
-            font: var(--skynet-font-body)/20px Arial, sans-serif;
-            text-align: left;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
-            cursor: pointer;
-            transition: border-color 120ms ease,background-color 120ms ease;
-        }
-
-        #skynetCountryPicker:hover,
-        #skynetCountryPicker[aria-expanded="true"] {
-            border-color: #83b3c7;
-            background: linear-gradient(180deg,#48636e,#3c555f);
-        }
-
-        #skynetCountryPickerLabel {
-            flex: 1;
-        }
-
-        #FormTitle #skynetCountryPickerCount {
-            min-width: 18px;
-            padding: 0 5px !important;
-            border: 1px solid rgba(150,204,225,0.32) !important;
-            border-radius: 4px;
-            background: rgba(116,191,220,0.12) !important;
-            color: var(--skynet-accent-muted) !important;
-            font-size: 11px;
-            line-height: 18px;
-            text-align: center;
-        }
-
-        #skynetCountryPicker::after {
-            content: "▾";
-            color: var(--skynet-accent-muted);
-        }
-
-        #skynetCountryPicker[aria-expanded="true"]::after {
-            content: "▴";
-        }
-
-        #skynetCountryPicker:focus-visible {
-            outline: 2px solid var(--skynet-link);
-            outline-offset: 2px;
-        }
-
-        #skynetCountryPicker:disabled {
-            opacity: 0.55;
-            cursor: default;
-        }
-
-        .skynet-country-options-panel {
-            margin-top: 5px;
-            padding: 8px;
-            border: 1px solid var(--skynet-border);
-            border-radius: 4px;
-            background: var(--skynet-surface-2);
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-        }
-
-        .skynet-country-search-wrap {
-            position: relative;
-            margin-bottom: 7px;
-        }
-
-        #FormTitle #skynetCountrySearch {
-            width: 100%;
-            height: 31px;
-            margin: 0;
-            padding: 0 33px 0 9px !important;
-            border: 1px solid var(--skynet-border-soft) !important;
-            border-radius: 4px;
-            background: #26363c !important;
-            color: var(--skynet-text) !important;
-            font: var(--skynet-font-body) Arial, sans-serif;
-            box-sizing: border-box;
-        }
-
-        #FormTitle #skynetCountrySearch:focus {
-            outline: none;
-            border-color: #83b3c7 !important;
-            box-shadow: 0 0 0 2px rgba(143,209,245,0.12);
-        }
-
-        #skynetCountrySearch::-webkit-search-cancel-button {
-            display: none;
-        }
-
-        #skynetCountrySearch::placeholder {
-            color: var(--skynet-muted);
-            opacity: 1;
-        }
-
-        #skynetCountrySearchClear {
-            position: absolute;
-            top: 3px;
-            right: 4px;
-            width: 26px;
-            height: 25px;
-            padding: 0;
-            border: 0;
-            border-radius: 3px;
-            background: transparent;
-            color: var(--skynet-muted);
-            font: 18px/25px Arial, sans-serif;
-            cursor: pointer;
-        }
-
-        #skynetCountrySearchClear:hover,
-        #skynetCountrySearchClear:focus-visible {
-            background: rgba(121,183,211,0.14);
-            color: var(--skynet-text);
-        }
-
-        .skynet-country-options {
-            max-height: 200px;
-            padding: 1px;
-            overflow-y: auto;
-            overscroll-behavior: contain;
-            scrollbar-width: thin;
-            scrollbar-color: #647e89 transparent;
-        }
-
-        #FormTitle .skynet-country-option {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            min-height: 31px;
-            margin: 1px 0;
-            padding: 0 7px;
-            border: 1px solid transparent;
-            border-radius: 3px;
-            color: var(--skynet-text);
-            font-size: var(--skynet-font-body);
-            line-height: var(--skynet-line-body);
-            cursor: pointer;
-        }
-
-        #FormTitle .skynet-country-option.is-selected {
-            border-color: rgba(121,183,211,0.2);
-            background: rgba(121,183,211,0.1);
-        }
-
-        #FormTitle .skynet-country-option:hover,
-        #FormTitle .skynet-country-option:focus-within {
-            background: rgba(121,183,211,0.14);
-        }
-
-        .skynet-country-option input {
-            flex: 0 0 auto;
-            margin: 0;
-            accent-color: #74bfdc;
-        }
-
-        .skynet-country-no-match {
-            padding: 12px 7px;
-            color: var(--skynet-muted);
-            font-size: var(--skynet-font-body);
-        }
-
-        .skynet-country-footer {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 8px;
-            margin-top: 7px;
-            padding-top: 7px;
-            border-top: 1px solid var(--skynet-border-faint);
-        }
-
-        #FormTitle #skynetCountryMatchCount {
-            color: var(--skynet-muted) !important;
-            font-size: var(--skynet-font-body);
-            line-height: var(--skynet-line-body);
-        }
-
-        .skynet-country-footer .skynet-country-done {
-            min-width: 58px;
-            height: 27px;
-            padding: 0 12px !important;
-            line-height: 25px !important;
-        }
-
-        #FormTitle .skynet-country-tag {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            min-height: 25px;
-            padding: 0 5px 0 8px;
-            border: 1px solid #5d7f8c;
-            border-radius: 13px;
-            background: linear-gradient(180deg,#3c5964 0%,#304750 100%);
-            color: var(--skynet-text) !important;
-            font-size: var(--skynet-font-body);
-            line-height: 15px;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.07),
-                        0 1px 2px rgba(0,0,0,0.24);
-            transition: transform 120ms ease,border-color 120ms ease,
-                        box-shadow 120ms ease;
-        }
-
-        #FormTitle .skynet-country-tag:hover {
-            border-color: #79aabd;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.09),
-                        0 2px 4px rgba(0,0,0,0.28);
-            transform: translateY(-1px);
-        }
-
-        #FormTitle .skynet-country-tag::before,
-        .skynet-rule-tag::before {
-            content: "";
-            flex: 0 0 auto;
-            width: 5px;
-            height: 5px;
-            border-radius: 50%;
-            background: #74bfdc;
-            box-shadow: 0 0 5px rgba(116,191,220,0.48);
-        }
-
-        #FormTitle .skynet-country-tag > span {
-            color: var(--skynet-text) !important;
-        }
-
-        .skynet-country-remove {
-            width: 22px;
-            height: 22px;
-            padding: 0;
-            border: 0;
-            border-radius: 50%;
-            background: transparent;
-            color: var(--skynet-muted);
-            font-size: 15px;
-            line-height: 22px;
-            cursor: pointer;
-        }
-
-        .skynet-country-remove:hover,
-        .skynet-country-remove:focus-visible {
-            background: rgba(255,95,109,0.18);
-            color: #ff9ca6;
-            outline: none;
-        }
-
-        .skynet-country-empty,
-        #FormTitle .skynet-country-status {
-            color: var(--skynet-muted) !important;
-            font-size: var(--skynet-font-body);
-            line-height: 15px;
-        }
-
-        .skynet-country-empty {
-            padding: 0 !important;
-            border: 0 !important;
-            background: transparent !important;
-            color: var(--skynet-muted) !important;
-        }
-
-        #FormTitle .skynet-country-status.error {
-            color: var(--skynet-error) !important;
-        }
-
-        .skynet-country-health,
-        .skynet-rules-manager {
-            overflow: hidden;
-            border: 1px solid var(--skynet-border-soft);
-            border-radius: 5px;
-            background: linear-gradient(180deg, #304148 0%, #2d3d43 100%);
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.03),
-                        0 1px 2px rgba(0,0,0,0.16);
-        }
-
-        .skynet-country-health-header,
-        .skynet-country-health-row {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr) 72px 140px 68px 52px;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .skynet-country-health-header {
-            padding: 7px 10px;
-            border-bottom: 1px solid var(--skynet-border-soft);
-            background: #29383e;
-            color: var(--skynet-accent-muted);
-            font-size: var(--skynet-font-caption);
-            letter-spacing: 0.4px;
-            line-height: var(--skynet-line-caption);
-            text-transform: uppercase;
-        }
-
-        .skynet-country-health-header[hidden] {
-            display: none;
-        }
-
-        .skynet-country-health-row {
-            min-height: 34px;
-            padding: 6px 10px;
-            border-top: 1px solid var(--skynet-border-soft);
-            color: var(--skynet-muted-2);
-            font-size: var(--skynet-font-body);
-            line-height: var(--skynet-line-body);
-        }
-
-        .skynet-country-health-row:first-child {
-            border-top: 0;
-        }
-
-        .skynet-country-health-row:nth-child(even) {
-            background: rgba(255,255,255,0.018);
-        }
-
-        .skynet-country-health-row:hover,
-        .skynet-rule-row:hover {
-            background: rgba(112,181,212,0.07);
-        }
-
-        #FormTitle .skynet-country-health-header > span {
-            color: inherit !important;
-            padding: 0 !important;
-        }
-
-        #FormTitle .skynet-country-health-row > span {
-            color: var(--skynet-muted-2) !important;
-            padding: 0 !important;
-        }
-
-        #FormTitle .skynet-country-health-row > .skynet-country-health-name {
-            min-width: 0;
-            overflow: hidden;
-            color: var(--skynet-text) !important;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        .skynet-country-health-count,
-        .skynet-country-health-date {
-            font-variant-numeric: tabular-nums;
-        }
-
-        .skynet-country-health-date {
-            min-width: 0;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        .skynet-country-health-header > span:nth-child(2),
-        .skynet-country-health-header > span:nth-child(4),
-        .skynet-country-health-header > span:nth-child(5),
-        .skynet-country-health-count,
-        .skynet-country-health-state,
-        .skynet-country-health-remove {
-            text-align: center;
-        }
-
-        .skynet-country-health-remove {
-            justify-self: center;
-        }
-
-        .skynet-rules-container > td,
-        .skynet-country-health-container > td {
-            padding: 6px 10px !important;
-        }
-
-        .skynet-rules-toolbar,
-        .skynet-rules-filterbar,
-        .skynet-rules-actions {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 10px;
-        }
-
-        .skynet-rules-toolbar {
-            align-items: flex-end;
-            flex-wrap: wrap;
-            column-gap: 10px;
-            row-gap: 8px;
-        }
-
-        .skynet-rule-field {
-            display: flex;
-            flex: 1 1 130px;
-            flex-direction: column;
-            gap: 4px;
-            min-width: 110px;
-        }
-
-        .skynet-rule-field-entries {
-            flex-basis: 240px;
-        }
-
-        .skynet-rule-field-lifetime {
-            flex: 0 1 150px;
-        }
-
-        .skynet-rule-field[hidden] {
-            display: none;
-        }
-
-        #FormTitle .skynet-rule-scope {
-            margin: 0 10px 10px;
-            padding: 8px 10px;
-            border: 1px solid var(--skynet-border-faint);
-            border-left: 2px solid var(--skynet-accent-muted);
-            border-radius: 4px;
-            background: rgba(143, 209, 245, 0.04);
-            color: var(--skynet-muted);
-            font-size: var(--skynet-font-caption);
-            line-height: var(--skynet-line-caption);
-        }
-
-        #FormTitle .skynet-rule-scope strong {
-            display: block;
-            margin-bottom: 2px;
-            color: var(--skynet-accent-muted);
-            font-weight: 600;
-        }
-
-        #FormTitle .skynet-rule-scope span {
-            color: inherit;
-            background: transparent;
-        }
-
-        #FormTitle .skynet-rule-scope[hidden] {
-            display: none;
-        }
-
-        #FormTitle .skynet-rule-label {
-            box-sizing: border-box;
-            color: var(--skynet-accent-muted) !important;
-            font-size: var(--skynet-font-caption);
-            line-height: var(--skynet-line-caption);
-            letter-spacing: 0.3px;
-            padding: 0 6px !important;
-            border: 0 !important;
-            background: transparent !important;
-            text-transform: uppercase;
-        }
-
-        .skynet-rule-field input,
-        .skynet-rule-field select,
-        .skynet-rules-search {
-            width: 100% !important;
-            max-width: none !important;
-        }
-
-        .skynet-rule-tags {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 5px;
-            min-height: 25px;
-            padding: 0 10px 8px;
-        }
-
-        .skynet-rule-tag {
-            display: inline-flex;
-            max-width: 100%;
-            align-items: center;
-            gap: 4px;
-            min-height: 24px;
-            padding: 0 5px 0 8px;
-            border: 1px solid #5d7f8c;
-            border-radius: 12px;
-            background: linear-gradient(180deg,#3c5964 0%,#304750 100%);
-            color: var(--skynet-text);
-            font-family: monospace;
-            font-size: var(--skynet-font-body);
-            line-height: 15px;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.07),
-                        0 1px 2px rgba(0,0,0,0.24);
-            transition: transform 120ms ease,border-color 120ms ease,
-                        box-shadow 120ms ease;
-        }
-
-        #FormTitle .skynet-rule-tag-text {
-            min-width: 0;
-            overflow-wrap: anywhere;
-            color: inherit !important;
-            background: transparent !important;
-            padding: 0 !important;
-        }
-
-        .skynet-rule-tag:hover {
-            border-color: #79aabd;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.09),
-                        0 2px 4px rgba(0,0,0,0.28);
-            transform: translateY(-1px);
-        }
-
-        .skynet-rules-filterbar {
-            border-top: 1px solid var(--skynet-border-soft);
-            border-bottom: 1px solid var(--skynet-border-soft);
-            background: rgba(0,0,0,0.08);
-        }
-
-        #FormTitle .skynet-rule-section-label {
-            flex: 0 0 auto;
-            padding: 0 6px !important;
-            border: 0 !important;
-            background: transparent !important;
-            color: var(--skynet-accent-muted) !important;
-            font-size: var(--skynet-font-caption);
-            font-weight: 600;
-            letter-spacing: 0.35px;
-            line-height: var(--skynet-line-caption);
-            text-transform: uppercase;
-        }
-
-        .skynet-rule-filter {
-            min-width: 92px;
-        }
-
-        .skynet-rules-search {
-            margin-left: auto;
-        }
-
-        .skynet-rule-header,
-        .skynet-rule-row {
-            display: grid;
-            grid-template-columns: 108px minmax(0, 1fr) minmax(110px, 0.8fr) 62px 70px;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .skynet-rule-header {
-            padding: 7px 10px;
-            background: #29383e;
-            color: var(--skynet-accent-muted);
-            font-size: var(--skynet-font-caption);
-            letter-spacing: 0.4px;
-            line-height: var(--skynet-line-caption);
-            text-transform: uppercase;
-        }
-
-        #FormTitle .skynet-rule-header > span {
-            color: inherit !important;
-            padding: 0 !important;
-        }
-
-        #FormTitle .skynet-rule-header > span:nth-child(4),
-        #FormTitle .skynet-rule-header > span:nth-child(5) {
-            text-align: center;
-        }
-
-        .skynet-rule-row {
-            min-height: 36px;
-            padding: 7px 10px;
-            border-top: 1px solid var(--skynet-border-soft);
-            color: var(--skynet-muted-2);
-            font-size: var(--skynet-font-body);
-            line-height: var(--skynet-line-body);
-        }
-
-        #FormTitle .skynet-rule-row > span {
-            color: var(--skynet-muted-2) !important;
-            padding: 0 !important;
-        }
-
-        /* Keep grid text aligned while removing Merlin's default span tiles. */
-        #FormTitle .skynet-feed-header > span,
-        #FormTitle .skynet-feed-row > span,
-        #FormTitle .skynet-country-health-header > span,
-        #FormTitle .skynet-country-health-row > span,
-        #FormTitle .skynet-rule-header > span,
-        #FormTitle .skynet-rule-row > span {
-            box-sizing: border-box;
-            padding: 0 6px !important;
-            border: 0 !important;
-            background: transparent !important;
-        }
-
-        /* Parent components provide the visual treatment for nested text. */
-        #FormTitle .skynet-context-link > span,
-        #FormTitle .skynet-table-domains > span,
-        #FormTitle .skynet-feed-success > span,
-        #FormTitle .skynet-rule-detail-text,
-        #FormTitle .skynet-rule-remaining,
-        #FormTitle .skynet-country-tag > span,
-        #FormTitle .skynet-rules-actions > .skynet-country-status {
-            padding: 0 !important;
-            border: 0 !important;
-            background: transparent !important;
-            box-shadow: none !important;
-        }
-
-        .skynet-rule-row:nth-child(even) {
-            background: rgba(255,255,255,0.018);
-        }
-
-        #FormTitle .skynet-rule-row > .skynet-rule-type {
-            color: var(--skynet-heading) !important;
-        }
-
-        #FormTitle .skynet-rule-row > .skynet-rule-type.ban {
-            color: var(--skynet-error) !important;
-        }
-
-        #FormTitle .skynet-rule-row > .skynet-rule-type.whitelist {
-            color: var(--skynet-success) !important;
-        }
-
-        .skynet-rule-entry,
-        .skynet-rule-comment {
-            min-width: 0;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        .skynet-rule-comment.temporary {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        #FormTitle .skynet-rule-detail-text {
-            color: var(--skynet-text) !important;
-            min-width: 0;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        #FormTitle .skynet-rule-remaining {
-            flex: 0 0 auto;
-            color: var(--skynet-accent-muted) !important;
-            font-variant-numeric: tabular-nums;
-            white-space: nowrap;
-        }
-
-        .skynet-rule-time-status {
-            flex: 1 0 100%;
-            padding: 0 10px 8px;
-            color: var(--skynet-warning);
-            font-size: var(--skynet-font-body);
-            line-height: var(--skynet-line-body);
-        }
-
-        .skynet-rule-time-status:empty {
-            display: none;
-        }
-
-        #FormTitle .skynet-rule-row > .skynet-rule-entry {
-            color: var(--skynet-text) !important;
-            font-family: monospace;
-        }
-
-        .skynet-rule-count {
-            text-align: center;
-        }
-
-        .skynet-rule-remove {
-            min-width: 62px !important;
-            padding-right: 6px !important;
-            padding-left: 6px !important;
-            font-size: var(--skynet-font-body) !important;
-            white-space: nowrap;
-        }
-
-        .skynet-rules-actions {
-            justify-content: flex-end;
-            border-top: 1px solid var(--skynet-border-soft);
-            border-bottom: 1px solid var(--skynet-border-soft);
-            background: rgba(0,0,0,0.08);
-        }
-
-        .skynet-rules-actions .skynet-country-status {
-            flex: 1;
-        }
-
-        .skynet-rule-overview {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 8px 10px;
-            border-top: 1px solid var(--skynet-border-soft);
-            border-bottom: 1px solid var(--skynet-border-soft);
-            background: rgba(0,0,0,0.08);
-        }
-
-        .skynet-rule-overview[hidden] {
-            display: none;
-        }
-
-        .skynet-rule-health {
-            display: flex;
-            flex: 1;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 6px;
-            min-width: 0;
-            color: var(--skynet-muted-2);
-            font-size: var(--skynet-font-body);
-        }
-
-        #FormTitle .skynet-rule-health > span {
-            padding: 0 !important;
-            border: 0 !important;
-            background: transparent !important;
-            box-shadow: none !important;
-        }
-
-        #FormTitle .skynet-rule-freshness > span,
-        #FormTitle .skynet-action-header > span,
-        #FormTitle .skynet-action-row > span {
-            padding: 0 !important;
-            border: 0 !important;
-            background: transparent !important;
-            box-shadow: none !important;
-        }
-
-        .skynet-rule-freshness {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            min-width: 0;
-        }
-
-        .skynet-rule-age {
-            min-width: 0;
-            overflow: hidden;
-            color: var(--skynet-muted) !important;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        .skynet-rule-health-time {
-            color: var(--skynet-muted) !important;
-            font-variant-numeric: tabular-nums;
-        }
-
-        #FormTitle .skynet-rule-health-label {
-            color: var(--skynet-accent-muted) !important;
-            font-weight: bold;
-        }
-
-        .skynet-action-header,
-        .skynet-action-row {
-            display: grid;
-            grid-template-columns: 120px 84px 150px minmax(0, 1fr);
-            align-items: center;
-            gap: 10px;
-            padding: 8px 12px;
-        }
-
-        .skynet-action-panel {
-            overflow: hidden;
-            margin-top: 10px;
-            border: 1px solid var(--skynet-border-soft);
-            border-radius: 5px;
-            background: rgba(25,39,44,0.34);
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.025);
-        }
-
-        .skynet-action-intro {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            list-style: none;
-            cursor: pointer;
-            padding: 10px 12px !important;
-            border: 0 !important;
-            border-bottom: 1px solid var(--skynet-border-soft) !important;
-            background: linear-gradient(180deg,rgba(69,91,99,0.30),rgba(38,53,59,0.18));
-        }
-
-        .skynet-action-intro::-webkit-details-marker {
-            display: none;
-        }
-
-        .skynet-action-intro::after {
-            content: "\25B8";
-            flex: 0 0 auto;
-            margin-left: auto;
-            color: var(--skynet-link);
-            font-size: 15px;
-            line-height: 15px;
-        }
-
-        .skynet-action-panel[open] .skynet-action-intro::after {
-            content: "\25BE";
-        }
-
-        .skynet-action-panel:not([open]) .skynet-action-intro {
-            border-bottom: 0 !important;
-        }
-
-        #FormTitle .skynet-action-intro .skynet-feed-title {
-            display: flex;
-            align-items: center;
-            gap: 7px;
-            color: var(--skynet-heading) !important;
-        }
-
-        .skynet-action-intro .skynet-feed-title::before {
-            content: "";
-            width: 7px;
-            height: 7px;
-            flex: 0 0 7px;
-            border-radius: 50%;
-            background: #79c6e7;
-            box-shadow: 0 0 6px rgba(121,198,231,0.5);
-        }
-
-        .skynet-action-header {
-            background: rgba(29,44,50,0.82);
-            border-bottom: 1px solid var(--skynet-border-soft);
-            font-size: var(--skynet-font-caption);
-            line-height: var(--skynet-line-caption);
-            letter-spacing: 0.35px;
-            text-transform: uppercase;
-        }
-
-        #FormTitle .skynet-action-header > span {
-            color: var(--skynet-accent-muted) !important;
-            font-weight: 600;
-            text-align: left;
-        }
-
-        .skynet-action-row {
-            position: relative;
-            min-height: 38px;
-            border-top: 1px solid var(--skynet-border-faint);
-            color: var(--skynet-muted-2);
-            font-size: var(--skynet-font-body);
-            line-height: var(--skynet-line-body);
-            transition: background-color 0.15s ease;
-        }
-
-        .skynet-action-row:first-child { border-top: 0; }
-
-        .skynet-action-row:nth-child(odd) {
-            background: rgba(255,255,255,0.015);
-        }
-
-        .skynet-action-row:hover {
-            background: rgba(121,198,231,0.055);
-        }
-
-        .skynet-action-time {
-            min-width: 0;
-            white-space: normal;
-        }
-
-        .skynet-action-summary,
-        .skynet-action-detail {
-            min-width: 0;
-            overflow-wrap: anywhere;
-            white-space: normal;
-        }
-
-        .skynet-action-time {
-            color: var(--skynet-muted) !important;
-            font-variant-numeric: tabular-nums;
-        }
-
-        .skynet-history-tools,
-        .skynet-history-footer,
-        .skynet-backup-controls {
-            display: flex;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 8px;
-            padding: 10px;
-        }
-
-        .skynet-history-tools input[type="text"] {
-            flex: 1 1 160px;
-            min-width: 0;
-        }
-
-        #skynetRulePager[hidden],
-        #skynetRuleDraftPager[hidden],
-        .skynet-backup-controls[hidden],
-        .skynet-backup-controls [hidden] {
-            display: none !important;
-        }
-
-        #skynetBackupConfirmText {
-            flex-basis: 100%;
-            line-height: 1.5;
-        }
-
-        #skynetBackupConfirmation {
-            justify-content: flex-end;
-            border-top: 1px solid var(--skynet-border-soft);
-        }
-
-        .skynet-settings-table #skynetBackupSelect {
-            flex: 0 1 280px;
-            width: 280px;
-            max-width: 100%;
-            min-width: 0;
-            text-align: left;
-            text-align-last: left;
-        }
-
-        .skynet-backup-buttons {
-            justify-content: flex-end;
-            padding-top: 0;
-        }
-
-        #FormTitle #skynetBackupResult {
-            padding: 0 10px 10px !important;
-        }
-
-        #skynetBackupResult:empty {
-            display: none;
-        }
-
-        .skynet-settings-table .skynet-history-tools select {
-            width: 145px;
-            max-width: 100%;
-        }
-
-        .skynet-history-footer > span,
-        .skynet-backup-controls > span {
-            flex: 1 1 200px;
-        }
-
-        #FormTitle .skynet-history-footer > span,
-        #FormTitle .skynet-backup-controls > span,
-        #FormTitle .skynet-domain-note {
-            padding: 0 !important;
-            border: 0 !important;
-            background: transparent !important;
-            color: var(--skynet-muted) !important;
-        }
-
-        .skynet-domain-details {
-            margin-top: 6px;
-            font-weight: normal;
-            font-family: Arial, sans-serif;
-            white-space: normal;
-            overflow-wrap: anywhere;
-        }
-
-        .skynet-block-filters {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-            gap: 10px;
-            padding: 12px;
-        }
-
-        .skynet-block-filters label {
-            display: grid;
-            gap: 6px;
-            min-width: 0;
-            color: var(--skynet-muted);
-        }
-
-        .skynet-settings-table .skynet-block-filters select,
-        .skynet-settings-table .skynet-block-filters input {
-            width: 100%;
-            min-width: 0;
-            box-sizing: border-box;
-        }
-
-        .skynet-block-chart {
-            position: relative;
-            height: 220px;
-            margin: 8px 12px;
-        }
-
-        .skynet-block-row {
-            padding: 10px 12px;
-            border-top: 1px solid var(--skynet-border);
-            overflow-wrap: anywhere;
-        }
-
-        .skynet-block-row:nth-child(even) {
-            background: rgba(255, 255, 255, 0.025);
-        }
-
-        .skynet-block-row > summary {
-            display: grid;
-            grid-template-columns: minmax(145px, 1.2fr) minmax(70px, .6fr) repeat(2, minmax(115px, 1fr));
-            align-items: center;
-            gap: 10px;
-            cursor: pointer;
-            list-style: none;
-        }
-
-        .skynet-block-row > summary::-webkit-details-marker { display: none; }
-
-        #FormTitle .skynet-block-row span,
-        #FormTitle .skynet-block-note {
-            padding: 0 !important;
-            border: 0 !important;
-            background: transparent !important;
-            color: inherit !important;
-        }
-
-        .skynet-block-row time,
-        .skynet-block-row small,
-        .skynet-block-note {
-            display: block;
-            color: var(--skynet-muted);
-            font-size: 12px;
-            line-height: 1.5;
-        }
-
-        .skynet-block-row > p { margin: 10px 0 0; line-height: 1.6; }
-
-        @media (max-width: 700px) {
-            .skynet-block-row > summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-        }
-
-        .skynet-domain-details > summary {
-            cursor: pointer;
-            color: var(--skynet-accent-muted);
-        }
-
-        .skynet-domain-addresses {
-            margin: 8px 0;
-            line-height: 1.6;
-            font-family: monospace;
-            white-space: pre-line;
-            overflow-wrap: anywhere;
-        }
-
-        .skynet-domain-note {
-            display: block;
-            margin: 6px 0;
-            color: var(--skynet-muted);
-        }
-
-        .skynet-action-timestamp {
-            display: block;
-            margin-top: 2px;
-            white-space: pre-line;
-            color: var(--skynet-muted);
-        }
-
-        .skynet-action-relative {
-            display: block;
-            color: var(--skynet-accent-muted);
-        }
-
-        #skynetLoggingDisabled {
-            padding: 22px 16px;
-            border: 1px solid var(--skynet-border-soft);
-            border-radius: 5px;
-            background: var(--skynet-panel);
-            color: var(--skynet-muted);
-            line-height: 1.7;
-        }
-
-        #skynetLoggingDisabled strong {
-            display: block;
-            color: var(--skynet-heading);
-            font-size: var(--skynet-font-label);
-        }
-
-        .skynet-action-result {
-            justify-self: start;
-            min-width: 54px;
-            padding: 2px 8px !important;
-            border: 1px solid transparent !important;
-            border-radius: 10px;
-            font-size: var(--skynet-font-caption);
-            font-weight: 600;
-            line-height: 15px;
-            text-align: center;
-        }
-
-        #FormTitle .skynet-action-result.success {
-            color: var(--skynet-success) !important;
-            border-color: rgba(105,190,137,0.42) !important;
-            background: rgba(65,126,87,0.18) !important;
-        }
-
-        #FormTitle .skynet-action-result.degraded {
-            color: var(--skynet-warning) !important;
-            border-color: rgba(210,177,80,0.42) !important;
-            background: rgba(145,111,31,0.17) !important;
-        }
-
-        #FormTitle .skynet-action-result.failed {
-            color: var(--skynet-error) !important;
-            border-color: rgba(205,103,113,0.42) !important;
-            background: rgba(135,58,68,0.17) !important;
-        }
-
-        #FormTitle .skynet-action-summary {
-            color: var(--skynet-text) !important;
-            font-weight: 600;
-        }
-
-        #FormTitle .skynet-action-detail {
-            color: var(--skynet-muted) !important;
-        }
-
-        #skynetRuleList {
-            max-height: 180px;
-            overflow-y: auto;
-        }
-
-        #skynetCountryHealthList {
-            max-height: 380px;
-            overflow-y: auto;
-        }
-
-        #skynetRuleActivity .skynet-feed-empty {
-            padding: 16px 12px;
-            color: var(--skynet-muted) !important;
-            text-align: center;
-        }
-
-        .skynet-iot-add {
-            display: flex;
-            align-items: center;
-            gap: 7px;
-        }
-
-        .skynet-iot-add .skynet-update-button {
-            min-width: 62px;
-        }
-
-        .skynet-iot-tag-main,
-        .skynet-iot-tag-meta {
-            display: inline-block;
-        }
-
-        .skynet-iot-tag-meta {
-            color: var(--skynet-muted);
-            font-size: var(--skynet-font-caption);
-            line-height: var(--skynet-line-caption);
-        }
-
-        .skynet-settings-actions {
-            display: flex;
-            align-items: center;
-            justify-content: flex-end;
-            gap: 8px;
-            padding: 8px 10px;
-            border-top: 1px solid var(--skynet-border-soft);
-            background: rgba(0,0,0,0.09);
-        }
-
-        .skynet-settings-result {
-            flex: 1;
-            color: var(--skynet-muted);
-            font-size: var(--skynet-font-body);
-            line-height: 15px;
-        }
-
-        .skynet-settings-actions .skynet-country-status {
-            flex:1;
-            min-width:0;
-        }
-
-        .skynet-settings-actions[data-active-section="countries"] {
-            flex-wrap: wrap;
-        }
-
-        .skynet-settings-actions[data-active-section="rules"] {
-            display: none;
-        }
-
-        .skynet-settings-actions[data-active-section="countries"]
-        #skynetCountryStatus:not(:empty) {
-            flex: 1 0 100%;
-            order: -1;
-            line-height: var(--skynet-line-body);
-        }
-
-        .skynet-settings-action-hidden {
-            display:none !important;
-        }
-
-        .skynet-settings-result.error {
-            color: var(--skynet-error);
-        }
-
-        /* Details. */
-        .skynet-detail {
-            display: none;
-            width: 100% !important;
-            max-width: 760px !important;
-            margin: 8px 0 10px 0;
-            background: var(--skynet-surface);
-            border: 1px solid var(--skynet-border-medium);
-            border-radius: 6px;
-            box-sizing: border-box;
-            overflow: hidden;
-            box-shadow:
-                0 2px 6px rgba(0,0,0,0.18),
-                inset 0 1px 0 rgba(255,255,255,0.03);
-        }
-
-        .skynet-detail.visible {
-            display: block;
-        }
-
-        .skynet-detail-head {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            min-height: 38px;
-            box-sizing: border-box;
-            background: linear-gradient(180deg, #66767b 0%, #536267 100%);
-            border-bottom: 1px solid #75858a;
-            color: #fff;
-            padding: 6px 10px;
-            font-size: 13px;
-            font-weight: bold;
-            text-shadow: 0 1px 1px rgba(0,0,0,0.24);
-        }
-
-        .skynet-detail-close {
-            min-width: 58px;
-            height: 28px;
-            margin: 0 !important;
-        }
-
-        .skynet-detail-identity {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 10px;
-            margin: 10px;
-            padding: 9px 11px;
-            background: var(--skynet-surface-2);
-            border: 1px solid var(--skynet-border-medium);
-            border-radius: 5px;
-            box-sizing: border-box;
-        }
-
-        .skynet-detail-identity-text {
-            min-width: 0;
-        }
-
-        .skynet-detail-identity-label {
-            color: var(--skynet-muted-2);
-            font-size: var(--skynet-font-caption);
-            line-height: var(--skynet-line-caption);
-            font-weight: bold;
-            text-transform: uppercase;
-            letter-spacing: 0.35px;
-        }
-
-        .skynet-detail-identity-value {
-            margin-top: 2px;
-            color: var(--skynet-title);
-            font-size: 17px;
-            line-height: 21px;
-            font-weight: bold;
-            letter-spacing: 0.15px;
-            word-break: break-word;
-        }
-
-        .skynet-detail-copy-primary {
-            flex: 0 0 auto;
-        }
-
-        .skynet-detail-body {
-            padding: 0 10px 10px 10px;
-        }
-
-        .skynet-detail-grid {
-            width: 100%;
-            border-collapse: collapse;
-            table-layout: fixed;
-            background: var(--skynet-surface);
-        }
-
-        .skynet-detail-grid td {
-            padding: 7px 8px;
-            border-bottom: 1px solid var(--skynet-border-faint);
-            color: var(--skynet-body);
-            vertical-align: middle;
-        }
-
-        .skynet-detail-grid tr:last-child td {
-            border-bottom: 0;
-        }
-
-        .skynet-detail-grid td:first-child {
-            width: 150px;
-            color: var(--skynet-muted-2);
-            font-size: var(--skynet-font-body);
-            line-height: var(--skynet-line-body);
-            font-weight: bold;
-            letter-spacing: 0.2px;
-            text-transform: uppercase;
-            white-space: nowrap;
-        }
-
-        .skynet-detail-grid td + td {
-            border-left: 1px solid var(--skynet-border-faint);
-            color: var(--skynet-body);
-        }
-
-        .skynet-detail-grid td:nth-child(2) {
-            text-align: left !important;
-        }
-
-        .skynet-detail-grid td:nth-child(2) .skynet-detail-value-wrap {
-            min-height: 20px;
-        }
-
-        .skynet-detail-value-wrap {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 8px;
-            min-width: 0;
-        }
-
-        .skynet-detail-value {
-            min-width: 0;
-            color: var(--skynet-title);
-            font-weight: bold;
-            word-break: break-word;
-        }
-
-        .skynet-rule-matches {
-            white-space: pre-line;
-        }
-
-        .skynet-detail-copy,
-        .skynet-detail-domain-toggle {
-            flex: 0 0 auto;
-            min-width: 48px;
-            height: 28px;
-            padding: 0 7px !important;
-            font-size: var(--skynet-font-body) !important;
-        }
-
-        .skynet-detail-copy.copied {
-            border-color: #6dbb8d !important;
-            background: linear-gradient(#6fae87, #4e8063) !important;
-        }
-
-        .skynet-domain-list {
-            white-space: pre-line;
-        }
-
-        #FormTitle .skynet-domain-list.collapsed {
-            color: var(--skynet-muted-2) !important;
-        }
-
-        #FormTitle .skynet-detail-value-actions {
-            display: flex;
-            flex-shrink: 0;
-            gap: 6px;
-            padding: 0 !important;
-            border: 0 !important;
-            background: transparent !important;
-        }
-
-        .skynet-detail-actions {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: flex-end;
-            gap: 6px;
-            margin-top: 10px;
-        }
-        .skynet-detail-sources {
-            margin-top: 14px;
-            padding-top: 12px;
-            border-top: 1px solid var(--skynet-border-soft);
-        }
-        .skynet-detail-sources-head {
-            display: flex;
-            flex-wrap: wrap;
-            align-items: center;
-            justify-content: space-between;
-            gap: 8px;
-        }
-        .skynet-detail-sources-title {
-            color: var(--skynet-heading);
-            font-weight: bold;
-        }
-        .skynet-detail-sources-help {
-            margin-top: 6px;
-            color: var(--skynet-muted);
-            font-size: var(--skynet-font-body);
-            line-height: var(--skynet-line-body);
-        }
-        .skynet-detail-lookup {
-            min-width: 108px;
-            height: 28px;
-            padding: 0 9px !important;
-            border-color: #668a9e !important;
-            background: #405b67 !important;
-            color: #e4f3f8 !important;
-            font-size: var(--skynet-font-body) !important;
-            font-weight: bold;
-            letter-spacing: 0.1px;
-        }
-        .skynet-detail-lookup:hover {
-            background: #4b6a77 !important;
-            border-color: #7eacbf !important;
-        }
-
-        .skynet-context-link {
-            cursor: pointer;
-            color: var(--skynet-link) !important;
-            font-weight: bold !important;
-            text-decoration: none !important;
-        }
-
-        .skynet-context-link:hover {
-            text-decoration: underline !important;
-        }
-
-        .skynet-context-selected {
-            text-decoration: underline !important;
-        }
-
-
-        /* Statistics. */
-        .skynet-section {
-            width: 100% !important;
-            max-width: 760px !important;
-            margin-top: 8px;
-        }
-
-        .skynet-section > table {
-            width: 100% !important;
-            max-width: 760px !important;
-            table-layout: fixed !important;
-            border-collapse: collapse !important;
-        }
-
-        .skynet-section-head,
-        .skynet-section-head tr,
-        .skynet-section-head td {
-            width: 100% !important;
-            box-sizing: border-box;
-        }
-
-        .skynet-section-head td:first-child {
-            width: auto !important;
-            text-align: left;
-        }
-
-        .skynet-section-head td:last-child {
-            width: 34px !important;
-            text-align: center !important;
-            padding-left: 0 !important;
-            padding-right: 0 !important;
-        }
-
-        .skynet-section-body-row > td {
-            width: 100% !important;
-            box-sizing: border-box !important;
-        }
-
-        .skynet-controls-table {
-            width: 100% !important;
-            table-layout: fixed !important;
-            border-collapse: collapse !important;
-        }
-
-        .skynet-controls-table td {
-            vertical-align: middle;
-        }
-
-        .skynet-controls-table .skynet-control-cell {
-            width: 50% !important;
-            box-sizing: border-box !important;
-        }
-
-        .skynet-controls-table .skynet-control-cell + .skynet-control-cell {
-            border-left: 1px solid var(--skynet-border-soft) !important;
-        }
-
-        .StatsTable.skynet-modern-table th + th,
-        .StatsTable.skynet-modern-table td + td {
-            border-left: 1px solid var(--skynet-border-faint) !important;
-        }
-
-        .skynet-modern-table thead th {
-            border-right: 1px solid var(--skynet-border-soft) !important;
-        }
-
-        .skynet-modern-table thead th:last-child {
-            border-right: 0 !important;
-        }
-
-        .skynet-modern-table tr:not(:last-child) td {
-            box-shadow: inset 0 -1px 0 rgba(115, 137, 145, 0.14);
-        }
-
-        .skynet-modern-table th:first-child,
-        .skynet-modern-table td:first-child {
-            border-left: 0 !important;
-        }
-
-        .skynet-modern-table th,
-        .skynet-modern-table td {
-            box-sizing: border-box !important;
-            font-family: inherit !important;
-            line-height: var(--skynet-line-body) !important;
-        }
-
-        .skynet-section-head {
-            background: linear-gradient(180deg,#405158 0%,#35454b 100%) !important;
-            color: #fff !important;
-            border: 1px solid #607780 !important;
-            border-radius: 6px 6px 0 0;
-            height: 36px;
-            box-sizing: border-box;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.055),
-                        0 1px 2px rgba(0,0,0,0.12);
-            transition: background 140ms ease,border-color 140ms ease;
-        }
-
-        .skynet-section-head:hover,
-        .skynet-section-head:focus-visible {
-            background: linear-gradient(180deg,#485d65 0%,#3b4e55 100%) !important;
-            border-color: #748e98 !important;
-            outline: none;
-        }
-
-        .skynet-section-head.collapsed {
-            border-radius: 6px;
-        }
-
-        .skynet-section-head td {
-            color: var(--skynet-title) !important;
-            font-size: 13px !important;
-            font-weight: bold !important;
-            line-height: 18px !important;
-            padding: 7px 10px !important;
-        }
-
-        .skynet-section-head td:first-child {
-            letter-spacing: 0.1px;
-        }
-
-        .skynet-section-head td:last-child {
-            text-align: right;
-            width: 30px;
-            color: #dce4e7 !important;
-        }
-
-        .skynet-section-toggle {
-            font-size: 15px;
-            line-height: 12px;
-            opacity: 0.9;
-            transition: color 140ms ease,opacity 140ms ease;
-        }
-
-        .skynet-empty-badge {
-            display: inline-block;
-            margin-left: 8px;
-            padding: 1px 6px;
-            border: 1px solid var(--skynet-border);
-            border-radius: 8px;
-            color: var(--skynet-muted);
-            font-size: var(--skynet-font-caption);
-            line-height: var(--skynet-line-caption);
-            font-weight: normal;
-            letter-spacing: 0.2px;
-            vertical-align: 1px;
-        }
-
-        .skynet-controls {
-            background: var(--skynet-panel) !important;
-            border-top-color: var(--skynet-border-medium) !important;
-            border-left: 1px solid var(--skynet-border) !important;
-            border-right: 1px solid var(--skynet-border) !important;
-            border-bottom: 1px solid var(--skynet-border) !important;
-            padding: 7px 10px !important;
-        }
-
-        .skynet-control-label {
-            color: var(--skynet-body) !important;
-            font-size: var(--skynet-font-caption);
-            line-height: var(--skynet-line-caption);
-            font-weight: bold;
-            letter-spacing: 0.25px;
-            margin-right: 5px;
-            text-transform: uppercase;
-        }
-        .skynet-chart-shell {
-            position: relative;
-            width: 100%;
-            height: 360px;
-            overflow: hidden;
-            background:
-                radial-gradient(circle at 50% 0, rgba(53, 216, 255, 0.07), transparent 58%),
-                #11191c;
-            border: 1px solid #43565d;
-            border-radius: 0 0 7px 7px;
-            box-sizing: border-box;
-            padding: 8px;
-            box-shadow: inset 0 0 28px rgba(57, 239, 157, 0.035);
-        }
-
-        .skynet-chart-shell.skynet-activity-shell {
-            height: 285px;
-            overflow: hidden;
-            background:
-                radial-gradient(circle at 50% 0, rgba(53, 216, 255, 0.08), transparent 58%),
-                #11191c;
-            box-shadow: inset 0 0 28px rgba(57, 239, 157, 0.04);
-        }
-
-        .skynet-activity-period {
-            margin-left: 10px;
-            color: var(--skynet-muted-2);
-            font-weight: normal;
-            white-space: nowrap;
-        }
-
-        .skynet-activity-shell::before {
-            opacity: 0.3;
-        }
-
-        .skynet-chart-shell::before {
-            content: "";
-            position: absolute;
-            inset: 0;
-            z-index: 0;
-            pointer-events: none;
-            background: repeating-linear-gradient(
-                0deg,
-                rgba(255, 255, 255, 0.018) 0,
-                rgba(255, 255, 255, 0.018) 1px,
-                transparent 1px,
-                transparent 4px
-            );
-        }
-
-
-        .skynet-chart-shell canvas {
-            display: block;
-            position: relative;
-            z-index: 1;
-            width: 100% !important;
-            height: 100% !important;
-            max-width: 100%;
-        }
-
-        .skynet-table-shell {
-            background: var(--skynet-panel);
-            border-left: 1px solid var(--skynet-border);
-            border-right: 1px solid var(--skynet-border);
-            border-bottom: 1px solid var(--skynet-border);
-            border-radius: 0 0 5px 5px;
-            padding: 0;
-            overflow: hidden;
-        }
-
-        .StatsTable.skynet-modern-table {
-            width: 100% !important;
-            max-width: 760px !important;
-            table-layout: fixed !important;
-            border: 0 !important;
-            background: var(--skynet-panel) !important;
-        }
-
-        .StatsTable.skynet-modern-table td,
-        .StatsTable.skynet-modern-table th {
-            overflow-wrap: anywhere;
-        }
-
-        .StatsTable.skynet-modern-table th {
-            background: var(--skynet-bg) !important;
-            color: var(--skynet-heading) !important;
-            border: 0 !important;
-            border-bottom: 1px solid #52656c !important;
-            font-size: var(--skynet-font-caption) !important;
-            line-height: var(--skynet-line-caption) !important;
-            padding: 7px 8px !important;
-            text-align: left !important;
-            text-transform: uppercase;
-            vertical-align: middle !important;
-        }
-
-        .StatsTable.skynet-modern-table td {
-            border: 0 !important;
-            border-bottom: 1px solid #4b5b61 !important;
-            padding: 7px 8px !important;
-            color: var(--skynet-text) !important;
-            font-size: var(--skynet-font-body) !important;
-            vertical-align: middle !important;
-            text-align: left !important;
-        }
-
-        .StatsTable.skynet-modern-table th:nth-child(1),
-        .StatsTable.skynet-modern-table td:nth-child(1) {
-            text-align: left !important;
-        }
-
-        .StatsTable.skynet-modern-table th:nth-child(2),
-        .StatsTable.skynet-modern-table td:nth-child(2) {
-            text-align: left !important;
-        }
-
-        .StatsTable.skynet-modern-table th:nth-child(3),
-        .StatsTable.skynet-modern-table td:nth-child(3) {
-            text-align: center !important;
-        }
-
-        .StatsTable.skynet-modern-table th:nth-child(4),
-        .StatsTable.skynet-modern-table td:nth-child(4) {
-            text-align: center !important;
-        }
-
-        .StatsTable.skynet-modern-table th:nth-child(5),
-        .StatsTable.skynet-modern-table td:nth-child(5) {
-            text-align: left !important;
-        }
-
-        .StatsTable.skynet-modern-table .skynet-table-details,
-        .StatsTable.skynet-modern-table .skynet-table-country {
-            text-align: center !important;
-        }
-
-        .StatsTable.skynet-modern-table .skynet-table-country {
-            overflow-wrap: normal;
-            white-space: nowrap;
-        }
-
-        .StatsTable.skynet-modern-table th.skynet-table-domains,
-        .StatsTable.skynet-modern-table td.skynet-table-domains {
-            text-align: left !important;
-        }
-
-        #FormTitle .skynet-domain-preview {
-            display: block;
-            color: var(--skynet-text) !important;
-            line-height: var(--skynet-line-body);
-            word-break: break-word;
-        }
-
-        #FormTitle .skynet-domain-more {
-            display: inline-block;
-            margin-top: 3px;
-            color: var(--skynet-accent-muted) !important;
-            font-size: var(--skynet-font-caption);
-            font-weight: bold;
-            line-height: var(--skynet-line-caption);
-        }
-
-        .StatsTable.skynet-modern-table tr:nth-child(even) td {
-            background: var(--skynet-panel-alt) !important;
-        }
-
-        .StatsTable.skynet-modern-table tr:hover td {
-            background: #42545b !important;
-        }
-
-        .StatsTable.skynet-modern-table tr:last-child td {
-            border-bottom: 0 !important;
-        }
-
-        #FormTitle .skynet-ip-value {
-            color: var(--skynet-link) !important;
-            font-weight: bold;
-            white-space: nowrap;
-        }
-
-        #FormTitle .StatsTable.skynet-modern-table td.skynet-context-link {
-            color: var(--skynet-link) !important;
-        }
-
-        .skynet-external-link {
-            color: var(--skynet-link) !important;
-            font-weight: bold !important;
-        }
-
-        .skynet-nodata {
-            min-height: 180px;
-            box-sizing: border-box;
-            padding: 24px;
-            display: flex !important;
-            align-items: center;
-            justify-content: center;
-            color: var(--skynet-muted-2) !important;
-            font-size: 16px;
-            line-height: 22px;
-            font-weight: bold;
-            text-align: center;
-            background: var(--skynet-bg);
-        }
-
-        .skynet-table-nodata {
-            min-height: 150px;
-            height: 150px !important;
-        }
-
-        .StatsTable td.skynet-nodata {
-            height:180px !important;
-            min-height:0;
-            padding:24px !important;
-            font-size:16px !important;
-            line-height:22px !important;
-            font-family:Arial !important;
-            color:#cfd7da !important;
-            background:var(--skynet-bg) !important;
-        }
-
-        /* Responsive. */
-        @media (max-width: 900px) {
-            .skynet-chart-shell {
-                height: 320px;
-            }
-
-            .skynet-chart-shell.skynet-activity-shell {
-                height: 270px;
-            }
-        }
-
-        @media (max-width: 760px) {
-            .skynet-tabs {
-                flex-wrap: wrap;
-            }
-
-            .skynet-tab {
-                flex: 1 1 calc(25% - 3px);
-                min-height: 36px;
-            }
-
-            .skynet-hero {
-                padding:42px 10px 12px 10px;
-            }
-
-            .skynet-hero-title {
-                font-size:20px;
-                letter-spacing:3px;
-            }
-
-            .skynet-project-link {
-                position:static;
-                display:inline-block;
-                margin-top:8px;
-            }
-
-            .skynet-update-bar {
-                align-items: stretch;
-                grid-template-columns:1fr;
-            }
-
-            .skynet-update-button {
-                width: 100%;
-            }
-
-            .skynet-update-control {
-                justify-content:flex-end;
-            }
-
-            .skynet-meta-item {
-                flex:0 1 auto;
-            }
-
-            .skynet-meta {
-                flex-wrap:wrap;
-            }
-
-            .skynet-meta-value {
-                white-space:normal;
-            }
-
-            .skynet-update-info {
-                align-items:flex-start;
-                flex-direction:column;
-                gap:5px;
-            }
-
-            .skynet-update-result {
-                padding-left:0;
-                border-left:0;
-                white-space:normal;
-            }
-
-            .skynet-settings-actions {
-                align-items: stretch;
-                flex-direction: column;
-            }
-
-            .skynet-iot-add {
-                align-items: stretch;
-                flex-direction: column;
-            }
-
-            .skynet-settings-table select,
-            .skynet-settings-actions .skynet-update-button {
-                width: 100%;
-            }
-
-            .skynet-country-row th,
-            .skynet-country-row td {
-                display: block !important;
-                box-sizing: border-box;
-                width: 100% !important;
-            }
-
-            .skynet-country-row th {
-                border-right: 0;
-                border-bottom: 1px solid var(--skynet-border-soft);
-            }
-
-            .skynet-malware-controls {
-                align-items: stretch;
-                flex-direction: column;
-            }
-
-            .skynet-malware-update {
-                width: 100%;
-            }
-
-            .skynet-feed-header {
-                display: none;
-            }
-
-            .skynet-feed-intro {
-                padding: 9px 10px;
-            }
-
-            .skynet-feed-row {
-                grid-template-columns: minmax(0, 1fr) auto;
-                gap: 4px 10px;
-                padding: 9px 10px;
-            }
-
-            .skynet-feed-source {
-                grid-column: 1;
-                grid-row: 1;
-            }
-
-            .skynet-feed-entries,
-            .skynet-feed-success {
-                grid-column: 1;
-                text-align: left;
-            }
-
-            .skynet-feed-entries::before,
-            .skynet-feed-success::before {
-                color: var(--skynet-muted);
-                font-size: var(--skynet-font-caption);
-                text-transform: uppercase;
-            }
-
-            .skynet-feed-entries::before {
-                content: "Entries  ";
-            }
-
-            .skynet-feed-success::before {
-                content: "Last success  ";
-            }
-
-            .skynet-feed-state {
-                grid-column: 2;
-                grid-row: 2 / 4;
-                align-self: center;
-            }
-
-            .skynet-feed-controls {
-                grid-column: 2;
-                grid-row: 1;
-                justify-self: end;
-                margin: 0;
-            }
-
-            .skynet-country-health-header,
-            .skynet-rule-header {
-                display: none;
-            }
-
-            .skynet-country-health-row {
-                grid-template-columns: minmax(0, 1fr) auto 28px;
-                gap: 4px 10px;
-            }
-
-            .skynet-country-health-count {
-                grid-column: 1;
-            }
-
-            .skynet-country-health-date {
-                grid-column: 1;
-                white-space: normal;
-            }
-
-            .skynet-country-health-state {
-                grid-column: 2;
-                grid-row: 1 / 4;
-                align-self: center;
-            }
-
-            .skynet-country-health-remove {
-                grid-column: 3;
-                grid-row: 1 / 4;
-                align-self: center;
-            }
-
-            .skynet-country-health-count::before {
-                content: "Ranges ";
-                color: var(--skynet-muted);
-            }
-
-            .skynet-country-health-date::before {
-                content: "Last success  ";
-                color: var(--skynet-muted);
-                font-size: var(--skynet-font-caption);
-                text-transform: uppercase;
-            }
-
-            .skynet-country-health-count {
-                text-align: left;
-            }
-
-            .skynet-rules-toolbar,
-            .skynet-rules-filterbar,
-            .skynet-rules-actions,
-            .skynet-rule-overview {
-                align-items: stretch;
-                flex-direction: column;
-            }
-
-            .skynet-rule-health {
-                align-items: flex-start;
-            }
+/* Theme. */
+:root {
+  --skynet-bg: #2f3e44;
+  --skynet-panel: #354247;
+  --skynet-panel-alt: #39484e;
+  --skynet-border: #607780;
+  --skynet-border-soft: #53666d;
+  --skynet-text: #eef2f3;
+  --skynet-muted: #b8c4c8;
+  --skynet-heading: #dfe7ea;
+  --skynet-link: #8fd1f5;
+  --skynet-accent-muted: #9fc9d8;
+  --skynet-title: #ffffff;
+  --skynet-body: #d7e0e3;
+  --skynet-muted-2: #aebcc1;
+  --skynet-border-faint: rgba(155, 177, 185, 0.18);
+  --skynet-border-medium: rgba(155, 177, 185, 0.34);
+  --skynet-surface: #34464c;
+  --skynet-surface-2: #2d3d43;
+  --skynet-success: #a9e5bf;
+  --skynet-warning: #f4d97b;
+  --skynet-error: #f2afb5;
+  --skynet-font-caption: 12px;
+  --skynet-font-body: 12px;
+  --skynet-font-label: 13px;
+  --skynet-line-caption: 17px;
+  --skynet-line-body: 17px;
+}
+
+/* Merlin page integration. */
+html,
+#FormTitle {
+  scrollbar-color: #718b95 #293a41;
+  scrollbar-width: thin;
+}
+
+html::-webkit-scrollbar,
+#FormTitle ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+html::-webkit-scrollbar-track,
+#FormTitle ::-webkit-scrollbar-track,
+#FormTitle ::-webkit-scrollbar-corner {
+  background: #293a41;
+}
+
+html::-webkit-scrollbar-thumb,
+#FormTitle ::-webkit-scrollbar-thumb {
+  border: 2px solid #293a41;
+  border-radius: 8px;
+  background: #718b95;
+}
+
+html::-webkit-scrollbar-thumb:hover,
+#FormTitle ::-webkit-scrollbar-thumb:hover {
+  background: #9fc9d8;
+}
+
+thead.collapsible {
+  color: white;
+  padding: 0px;
+  width: 100%;
+  border: none;
+  text-align: left;
+  outline: none;
+  cursor: pointer;
+}
+
+.StatsTable {
+  table-layout: fixed !important;
+  width: 100% !important;
+}
+
+.StatsTable th {
+  background-color: #1F2D35 !important;
+  background: #2F3A3E !important;
+  border-bottom: none !important;
+  border-top: none !important;
+  font-size: 12px !important;
+  color: white !important;
+  padding: 4px !important;
+}
+
+.StatsTable td {
+  padding: 2px !important;
+  word-wrap: break-word !important;
+  overflow-wrap: break-word !important;
+}
+
+.StatsTable a {
+  font-weight: bold !important;
+  text-decoration: underline !important;
+}
+
+.StatsTable th:first-child,
+.StatsTable td:first-child {
+  border-left: none !important;
+}
+
+.StatsTable th:last-child,
+.StatsTable td:last-child {
+  border-right: none !important;
+}
+
+#FormTitle,
+#FormTitle > tbody > tr > td {
+  width: 100% !important;
+  max-width: 760px !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+
+#FormTitle #skynet_dashboard,
+#FormTitle .skynet-section {
+  width: 100% !important;
+  max-width: 760px !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+
+#FormTitle .skynet-chart-shell,
+#FormTitle .skynet-controls,
+#FormTitle .skynet-table-shell {
+  max-width: 760px !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+
+#FormTitle .skynet-chart-shell canvas {
+  max-width: 100% !important;
+}
+
+#FormTitle table {
+  box-sizing: border-box;
+}
+
+/* AsusWRT 6 adapts the native Settings navigation around this content. */
+html.skynet-asuswrt6,
+.skynet-asuswrt6 body {
+  min-width: 0 !important;
+  width: 100% !important;
+  margin: 0 !important;
+}
+
+.skynet-asuswrt6 #skynetPageContent,
+.skynet-asuswrt6 #skynetContentLayout,
+.skynet-asuswrt6 #skynetContentLayout > tbody > tr > td {
+  box-sizing: border-box;
+  min-width: 0 !important;
+  max-width: none !important;
+}
+
+.skynet-asuswrt6 #skynetContentLayout {
+  width: 100% !important;
+  float: none;
+  margin: 0;
+}
+
+.skynet-asuswrt6 #FormTitle,
+.skynet-asuswrt6 #FormTitle > tbody > tr > td,
+.skynet-asuswrt6 #FormTitle #skynet_dashboard,
+.skynet-asuswrt6 #FormTitle #skynetUpdateBar,
+.skynet-asuswrt6 #FormTitle .skynet-detail,
+.skynet-asuswrt6 #FormTitle .skynet-section,
+.skynet-asuswrt6 #FormTitle .skynet-section > table,
+.skynet-asuswrt6 #FormTitle .skynet-chart-shell,
+.skynet-asuswrt6 #FormTitle .skynet-controls,
+.skynet-asuswrt6 #FormTitle .skynet-table-shell,
+.skynet-asuswrt6 #FormTitle .StatsTable.skynet-modern-table {
+  max-width: none !important;
+}
+
+.skynet-asuswrt6 #FormTitle {
+  margin: 0 !important;
+}
+
+/* Header and summary. */
+#skynet_dashboard { margin:0 0 10px 0; }
+.skynet-hero {
+  position:relative;
+  overflow:hidden;
+  background:
+    radial-gradient(circle at 50% 130%,rgba(73,171,207,0.18),transparent 55%),
+    repeating-linear-gradient(90deg,rgba(121,183,211,0.025) 0,rgba(121,183,211,0.025) 1px,transparent 1px,transparent 24px),
+    linear-gradient(180deg,#35454b 0%,#28363b 100%);
+  border:1px solid #63879a;
+  border-radius:6px;
+  padding:16px 110px 14px 110px;
+  margin-bottom:10px;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.08),
+    inset 0 -1px 0 rgba(48,120,151,0.12),
+    0 1px 2px rgba(0,0,0,0.18);
+  text-align:center;
+}
+
+.skynet-hero::before {
+  content:"";
+  position:absolute;
+  top:0;
+  right:0;
+  bottom:0;
+  left:0;
+  background:repeating-linear-gradient(0deg,transparent 0,transparent 4px,rgba(0,0,0,0.045) 5px);
+  pointer-events:none;
+}
+
+.skynet-hero::after {
+  content:"";
+  position:absolute;
+  right:14%;
+  bottom:0;
+  left:14%;
+  height:1px;
+  background:linear-gradient(90deg,transparent,#78c6e7,transparent);
+  opacity:0.75;
+}
+
+.skynet-hero-core {
+  position:relative;
+  z-index:1;
+}
+
+.skynet-hero-title {
+  display:inline-block;
+  position:relative;
+  color:#ffffff !important;
+  font-family:monospace;
+  font-size:23px;
+  font-weight:bold;
+  letter-spacing:4px;
+  line-height:27px;
+  text-shadow:0 0 10px rgba(121,198,231,0.22),0 1px 1px rgba(0,0,0,0.3);
+  padding-bottom:4px;
+}
+
+.skynet-hero-title::after {
+  content:"";
+  display:block;
+  width:48px;
+  height:1px;
+  margin:3px auto 0 auto;
+  background:linear-gradient(90deg,transparent,#78c6e7,transparent);
+  box-shadow:0 0 5px rgba(120,198,231,0.45);
+}
+
+.skynet-hero-sub {
+  margin-top:1px;
+  color:#bfcacd !important;
+  font-family:monospace;
+  font-size:var(--skynet-font-body);
+  letter-spacing:0.45px;
+  line-height:var(--skynet-line-body);
+}
+
+.skynet-guidance-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(180, 210, 220, 0.12);
+  font-size: 13px;
+}
+
+.skynet-guidance-row:last-child { border-bottom: 0; }
+.skynet-guidance-label { align-self: center; font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
+.skynet-guidance-detail { grid-column: 1 / -1; color: #b8cbd1; line-height: 1.45; overflow-wrap: anywhere; }
+.skynet-guidance-state { align-self: center; white-space: nowrap; padding: 3px 10px; border: 1px solid #66818a; border-radius: 20px; color: #cfdee3; }
+
+.skynet-status {
+  position:absolute;
+  top:11px;
+  right:12px;
+  margin:0;
+  padding:5px 10px;
+  border-radius:12px;
+  background:linear-gradient(180deg,#385344 0%,#2d4337 100%);
+  color:#a9e5bf;
+  border:1px solid #4c8061;
+  font-weight:bold;
+  font-size:var(--skynet-font-body);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.08),0 1px 3px rgba(0,0,0,0.24);
+  z-index:2;
+}
+.skynet-status-dot {
+  display:inline-block; width:7px; height:7px; border-radius:50%;
+  background:#65c18c; margin-right:5px;
+  box-shadow:0 0 5px rgba(101,193,140,0.5);
+}
+
+.skynet-status[data-state="pending"],
+.skynet-status[data-state="unavailable"] {
+  color: var(--skynet-muted);
+  border-color: var(--skynet-border);
+  background: var(--skynet-panel-alt);
+}
+
+.skynet-status[data-state="partial"] {
+  color: var(--skynet-warning);
+  border-color: currentColor;
+  background: var(--skynet-panel-alt);
+}
+
+.skynet-status[data-state="inactive"] {
+  color: var(--skynet-error);
+  border-color: currentColor;
+  background: var(--skynet-panel-alt);
+}
+
+.skynet-status[data-state] .skynet-status-dot {
+  background: currentColor;
+  box-shadow: none;
+}
+
+.skynet-project-link {
+  position:absolute;
+  top:11px;
+  left:12px;
+  padding:5px 10px;
+  border:1px solid #547d93;
+  border-radius:12px;
+  background:linear-gradient(180deg,#354f5b 0%,#2b4049 100%);
+  color:#9fd5f1 !important;
+  font-size:var(--skynet-font-body);
+  font-weight:bold;
+  text-decoration:none;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.06),0 1px 3px rgba(0,0,0,0.22);
+  z-index:2;
+}
+
+.skynet-project-link:hover,
+.skynet-project-link:focus-visible {
+  border-color:#79b7d3;
+  background:#344e5a;
+  color:#d1efff !important;
+  outline:none;
+}
+.skynet-kpis {
+  width:100%; border-collapse:separate !important;
+  border-spacing:6px !important; margin:-6px 0 4px -6px;
+}
+.skynet-kpi {
+  background:linear-gradient(180deg,#39484e 0%,#344247 100%) !important;
+  border:1px solid #607780 !important;
+  border-radius:5px; text-align:center; padding:9px 5px !important;
+  width:25%;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.035),0 1px 2px rgba(0,0,0,0.12);
+  transition:border-color 140ms ease,transform 140ms ease;
+}
+.skynet-kpi:hover {
+  border-color:#7594a0 !important;
+  transform:translateY(-1px);
+}
+.skynet-kpi-label {
+  display:block; color:var(--skynet-muted-2) !important; font-size:var(--skynet-font-body); font-weight:bold;
+}
+.skynet-kpi-value {
+  display:block; color:var(--skynet-title) !important; font-size:22px; line-height:25px;
+  font-weight:bold; margin-top:3px;
+}
+.skynet-meta {
+  display:flex;
+  flex:1 1 auto;
+  flex-wrap:nowrap;
+  align-items:center;
+  gap:18px;
+  min-width:0;
+  margin:0;
+  color:var(--skynet-muted-2) !important;
+}
+.skynet-meta-item {
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  gap:3px;
+  min-width:0;
+  padding:0;
+}
+.skynet-meta-label {
+  color:var(--skynet-accent-muted) !important;
+  font-size:var(--skynet-font-caption);
+  font-weight:bold;
+  letter-spacing:0.35px;
+  line-height:var(--skynet-line-caption);
+  text-transform:uppercase;
+  white-space:nowrap;
+}
+.skynet-meta-value {
+  overflow:hidden;
+  color:#c5d0d4 !important;
+  font-family:Arial,sans-serif;
+  font-size:var(--skynet-font-caption);
+  line-height:var(--skynet-line-caption);
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.skynet-meta-period {
+  flex:1 1 auto;
+}
+.skynet-meta-period .skynet-meta-value {
+  color:#e1edf1 !important;
+  font-size:var(--skynet-font-caption);
+  font-weight:bold;
+  letter-spacing:0.1px;
+}
+.skynet-meta-log {
+  flex:0 0 auto;
+  padding-left:18px;
+  border-left:1px solid rgba(126,153,163,0.28);
+}
+.skynet-meta-log .skynet-meta-value {
+  color:#d3e0e4 !important;
+  font-size:var(--skynet-font-caption);
+  font-weight:bold;
+  letter-spacing:0.1px;
+}
+.skynet-update-result {
+  grid-column:1 / -1;
+  min-width:0;
+  overflow:hidden;
+  min-height:0;
+  margin:0;
+  padding-top:8px;
+  border-top:1px solid rgba(126,153,163,0.22);
+  color:#b8c4c8;
+  font-size:var(--skynet-font-body);
+  line-height:16px;
+  overflow-wrap:anywhere;
+  white-space:normal;
+}
+.skynet-update-result:empty { display:none; }
+.skynet-update-result.error { color:var(--skynet-error); }
+.skynet-actionbar {
+  padding:0 !important;
+  border:0 !important;
+  background:transparent !important;
+}
+
+/* Navigation and settings. */
+.skynet-tabs {
+  display: flex;
+  gap: 3px;
+  margin: 0 0 10px 0;
+  padding: 4px;
+  border: 1px solid var(--skynet-border-soft);
+  border-radius: 6px;
+  background: #2c3b40;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.24);
+}
+
+.skynet-tab {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 32px;
+  padding: 6px;
+  border: 1px solid transparent;
+  border-bottom: 2px solid transparent;
+  border-radius: 4px;
+  background: transparent !important;
+  color: var(--skynet-muted) !important;
+  font-size: var(--skynet-font-body);
+  font-weight: bold;
+  line-height: 16px;
+  cursor: pointer;
+  transition: background-color 140ms ease,border-color 140ms ease,
+        color 140ms ease,box-shadow 140ms ease;
+}
+
+.skynet-tab:hover,
+.skynet-tab.active {
+  color: var(--skynet-text) !important;
+  background: rgba(255,255,255,0.045) !important;
+}
+
+.skynet-tab.active {
+  border-color: #526d78;
+  border-bottom-color: var(--skynet-link);
+  background: linear-gradient(180deg,#3b5058 0%,#34474e 100%) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.05),
+        0 1px 2px rgba(0,0,0,0.18);
+}
+
+.skynet-tab:focus-visible {
+  outline: 2px solid var(--skynet-link);
+  outline-offset: -2px;
+}
+
+.skynet-view-hidden {
+  display: none;
+}
+
+.skynet-build {
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  min-width:0;
+}
+
+.skynet-build-heading {
+  display:flex;
+  align-items:baseline;
+  gap:10px;
+}
+
+#FormTitle .skynet-version {
+  background:transparent;
+  color:var(--skynet-text);
+  font-size:13px;
+  font-weight:600;
+  line-height:18px;
+}
+
+#FormTitle .skynet-build-algorithm {
+  background:transparent;
+  color:var(--skynet-muted-2);
+  font-size:10px;
+  letter-spacing:0.3px;
+}
+
+#FormTitle .skynet-build-hash {
+  display:block;
+  color:var(--skynet-muted-2);
+  font-family:monospace;
+  font-size:10px;
+  letter-spacing:0;
+  line-height:16px;
+  overflow-wrap:anywhere;
+  word-break:break-all;
+  user-select:all;
+}
+
+
+.skynet-update-bar {
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  align-items: center;
+  gap:8px 20px;
+  min-height:58px;
+  margin:8px 0 10px;
+  padding:11px 14px;
+  background:#34464c;
+  border:1px solid #566d76;
+  border-radius:5px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.025);
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 760px;
+}
+
+.skynet-update-info {
+  display:flex;
+  align-items:center;
+  gap:10px;
+  min-width: 0;
+  color: var(--skynet-muted-2) !important;
+  font-size: var(--skynet-font-body);
+  line-height: var(--skynet-line-body);
+}
+
+.skynet-update-control {
+  position:relative;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex:none;
+}
+
+.skynet-update-control .skynet-update-button {
+  width:auto;
+  min-width:0;
+  height:30px;
+  padding:0 12px !important;
+  border-color:#667f89 !important;
+  border-radius:4px !important;
+  background:linear-gradient(180deg,#4a626b 0%,#40565e 100%) !important;
+  color:#e4edf0 !important;
+  font-family:Arial,sans-serif !important;
+  font-size:var(--skynet-font-body) !important;
+  line-height:28px !important;
+  text-shadow:none;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.055);
+  white-space:nowrap;
+}
+
+.skynet-update-control .skynet-update-button:not(:disabled):hover {
+  border-color:#7d9aa6 !important;
+  background:linear-gradient(180deg,#526d77 0%,#465e67 100%) !important;
+}
+
+.skynet-update-control .skynet-reset-button {
+  background:transparent !important;
+  border-color:transparent !important;
+  color:var(--skynet-muted-2) !important;
+  font-weight:normal !important;
+  box-shadow:none;
+}
+
+.skynet-update-control .skynet-reset-button:not(:disabled):hover {
+  background:rgba(255,255,255,0.04) !important;
+  border-color:var(--skynet-border-soft) !important;
+  color:var(--skynet-text) !important;
+}
+
+.skynet-update-button {
+  min-width: 112px;
+  height: 32px;
+  padding: 0 14px !important;
+  border: 1px solid #8ab0c2 !important;
+  border-radius: 5px !important;
+  background: linear-gradient(180deg, #6ea6bf 0%, #4f7f95 100%) !important;
+  color: #fff !important;
+  font-weight: bold !important;
+  line-height: 30px !important;
+  text-align: center !important;
+  vertical-align: middle;
+  text-shadow: 0 1px 1px rgba(0,0,0,0.35);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.12),
+        0 1px 2px rgba(0,0,0,0.20);
+  cursor: pointer;
+  transition: transform 120ms ease, filter 120ms ease;
+}
+
+.skynet-update-button:disabled {
+  opacity: 0.72;
+  cursor: default;
+  filter: saturate(0.75);
+}
+
+.skynet-update-button.skynet-update-busy {
+  cursor: wait;
+}
+
+.skynet-update-button:not(:disabled):hover {
+  filter: brightness(1.08);
+}
+
+.skynet-update-button:not(:disabled):active {
+  transform: translateY(1px);
+}
+
+.skynet-update-button:focus-visible {
+  outline: 2px solid #8fd1f5;
+  outline-offset: 2px;
+}
+
+.skynet-settings-reload {
+  border-color: var(--skynet-border) !important;
+  background: var(--skynet-panel-alt) !important;
+  color: var(--skynet-heading) !important;
+  box-shadow: none;
+  text-shadow: none;
+}
+
+.skynet-settings {
+  margin: 10px 0;
+  overflow: hidden;
+  border: 1px solid var(--skynet-border-medium);
+  border-radius: 6px;
+  background: var(--skynet-surface);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.025),
+        0 1px 3px rgba(0,0,0,0.14);
+}
+
+.skynet-settings-section-hidden {
+  display: none;
+}
+
+.skynet-settings-table {
+  margin: 0 !important;
+  border: 0 !important;
+}
+
+.skynet-settings-table th {
+  width: 42%;
+}
+
+.skynet-settings-table tr:not(.skynet-settings-group) > th,
+.skynet-settings-table tr:not(.skynet-settings-group) > td {
+  padding: 6px 10px !important;
+  border-color: var(--skynet-border-soft) !important;
+  vertical-align: middle;
+  transition: background-color 120ms ease;
+}
+
+.skynet-settings-table tr:not(.skynet-settings-group) > th {
+  background: #2f3e44 !important;
+}
+
+.skynet-settings-table tr:not(.skynet-settings-group) > td {
+  background: #35474d !important;
+}
+
+.skynet-settings-table tr:not(.skynet-settings-group):hover > th {
+  background: #33454b !important;
+}
+
+.skynet-settings-table tr:not(.skynet-settings-group):hover > td {
+  background: #3a4d54 !important;
+}
+
+#FormTitle .skynet-settings-group th {
+  width: auto;
+  padding: 8px 10px;
+  border-color: var(--skynet-border-soft) !important;
+  border-left: 3px solid #6da7be !important;
+  background: linear-gradient(90deg,#38505a 0%,#35464d 62%,#34444b 100%);
+  color: var(--skynet-accent-muted) !important;
+  font-size: var(--skynet-font-body);
+  line-height: 15px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+#FormTitle .skynet-setting-name,
+#FormTitle .skynet-setting-help {
+  display: block;
+}
+
+#FormTitle .skynet-setting-name {
+  color: var(--skynet-heading) !important;
+  font-size: var(--skynet-font-label);
+  font-weight: bold;
+  line-height: var(--skynet-line-body);
+}
+
+#FormTitle .skynet-setting-help {
+  margin-top: 3px;
+  color: var(--skynet-muted) !important;
+  font-size: var(--skynet-font-body);
+  font-weight: normal;
+  line-height: 15px;
+}
+
+.skynet-settings-table select {
+  width: 280px;
+  max-width: 100%;
+  height: 30px;
+  padding: 0 24px 0 8px;
+  border: 1px solid #70858d;
+  border-radius: 4px;
+  background-color: #536970;
+  color: #ffffff;
+  font-family: Arial, sans-serif;
+  font-size: var(--skynet-font-body);
+  text-align: center;
+  text-align-last: center;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.22);
+  box-sizing: border-box;
+  transition: border-color 120ms ease,box-shadow 120ms ease;
+}
+
+.skynet-settings-table select:hover {
+  border-color: #8aa4ae;
+}
+
+.skynet-settings-table select:focus {
+  outline: none;
+  border-color: var(--skynet-link);
+  box-shadow: 0 0 0 2px rgba(143,209,245,0.15),
+        inset 0 1px 2px rgba(0,0,0,0.18);
+}
+
+.skynet-malware-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.skynet-malware-status {
+  display: block;
+  margin-top: 5px;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: var(--skynet-muted) !important;
+  font-size: var(--skynet-font-body);
+  line-height: 15px;
+}
+
+.skynet-malware-update {
+  min-width: 96px;
+  height: 30px;
+}
+
+.skynet-feed-manager {
+  overflow: hidden;
+  border: 1px solid var(--skynet-border-soft);
+  border-radius: 5px;
+  background: linear-gradient(180deg, #304148 0%, #2d3d43 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.03),
+        0 1px 2px rgba(0,0,0,0.16);
+}
+
+.skynet-feed-container > td {
+  padding: 6px 10px !important;
+}
+
+.skynet-feed-intro {
+  padding: 10px 10px 9px;
+  border-bottom: 1px solid var(--skynet-border-soft);
+  background: rgba(255,255,255,0.025);
+}
+
+.skynet-feed-title,
+.skynet-feed-help {
+  display: block;
+}
+
+.skynet-feed-title {
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: var(--skynet-title) !important;
+  font-size: var(--skynet-font-label);
+  font-weight: bold;
+  line-height: var(--skynet-line-body);
+}
+
+.skynet-feed-help {
+  margin-top: 2px;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: var(--skynet-muted) !important;
+  font-size: var(--skynet-font-body);
+  line-height: 15px;
+}
+
+.skynet-feed-header,
+.skynet-feed-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 64px 140px 68px 112px;
+  align-items: center;
+  gap: 10px;
+}
+
+.skynet-feed-header {
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--skynet-border-soft);
+  background: #29383e;
+  color: var(--skynet-accent-muted);
+  font-size: var(--skynet-font-caption);
+  letter-spacing: 0.4px;
+  line-height: var(--skynet-line-caption);
+  text-transform: uppercase;
+}
+
+.skynet-feed-controls,
+.skynet-template-controls,
+.skynet-feed-add {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.skynet-feed-controls { justify-content: flex-end; }
+.skynet-feed-add { padding: 10px; }
+.skynet-feed-add .skynet-update-button { flex-shrink: 0; width: auto; }
+#FormTitle .skynet-feed-add input[type="text"],
+#FormTitle .skynet-template-controls input[type="url"] { flex: 1; min-width: 0; width: auto; max-width: none; }
+.skynet-template-controls { flex-wrap: wrap; }
+.skynet-feed-controls .skynet-feed-toggle { flex-shrink: 0; }
+
+.skynet-feed-header > span {
+  display: block;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: inherit !important;
+}
+
+.skynet-feed-row {
+  min-height: 36px;
+  padding: 7px 10px;
+  border-top: 1px solid var(--skynet-border-soft);
+  box-sizing: border-box;
+  line-height: 16px;
+  transition: background-color 120ms ease;
+}
+
+.skynet-feed-row:first-child {
+  border-top: 0;
+}
+
+.skynet-feed-row:nth-child(even) {
+  background: rgba(255,255,255,0.018);
+}
+
+.skynet-feed-row:hover {
+  background: rgba(112,181,212,0.07);
+}
+
+#FormTitle .skynet-feed-source {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--skynet-text) !important;
+  font-family: monospace;
+  font-size: var(--skynet-font-body);
+  line-height: var(--skynet-line-body);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#FormTitle .skynet-feed-entries,
+#FormTitle .skynet-feed-success,
+#FormTitle .skynet-feed-success > span {
+  color: var(--skynet-muted-2) !important;
+  font-size: var(--skynet-font-body);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--skynet-line-body);
+}
+
+#FormTitle .skynet-feed-change {
+  display: block;
+  color: var(--skynet-muted) !important;
+  font-size: var(--skynet-font-caption);
+  line-height: var(--skynet-line-caption);
+}
+
+.skynet-feed-header > span:nth-child(2),
+.skynet-feed-entries {
+  text-align: right;
+}
+
+.skynet-feed-header > span:nth-child(3),
+.skynet-feed-success {
+  text-align: center;
+}
+
+.skynet-feed-header > span:nth-child(4),
+.skynet-feed-header > span:nth-child(5) {
+  text-align: center;
+}
+
+.skynet-feed-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.skynet-feed-pill {
+  display: inline-block;
+  min-width: 48px;
+  padding: 3px 6px;
+  border: 1px solid var(--skynet-border);
+  border-radius: 10px;
+  background: var(--skynet-panel-alt);
+  color: var(--skynet-muted-2);
+  font-size: var(--skynet-font-caption);
+  font-weight: bold;
+  line-height: var(--skynet-line-caption);
+  text-align: center;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.07),
+        0 1px 2px rgba(0,0,0,0.24);
+}
+
+.skynet-feed-pill.current {
+  border-color: #4c8061;
+  background: linear-gradient(180deg,#385344 0%,#2d4337 100%);
+  color: var(--skynet-success);
+}
+
+.skynet-feed-pill.cached {
+  border-color: #8b7841;
+  background: linear-gradient(180deg,#554d36 0%,#443e2d 100%);
+  color: var(--skynet-warning);
+}
+
+.skynet-feed-pill.empty,
+.skynet-feed-pill.pending {
+  border-color: #58727d;
+  background: linear-gradient(180deg,#3d5058 0%,#33434a 100%);
+  color: #aac7d2;
+}
+
+.skynet-feed-pill.expired {
+  border-color: #8a6654;
+  background: linear-gradient(180deg,#57463d 0%,#473a34 100%);
+  color: #e3ad8f;
+}
+
+.skynet-feed-pill.failed {
+  border-color: #8a5057;
+  background: linear-gradient(180deg,#583c41 0%,#473136 100%);
+  color: var(--skynet-error);
+}
+
+.skynet-feed-toggle {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  width: 36px;
+  height: 20px;
+  margin: 0 auto;
+  cursor: pointer;
+}
+
+.skynet-feed-toggle input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.skynet-feed-switch {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  border: 1px solid #667980;
+  border-radius: 10px;
+  background: #25343a;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.35);
+  transition: background-color 140ms ease, border-color 140ms ease;
+}
+
+.skynet-feed-switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #a8b5ba;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.35);
+  transition: left 140ms ease, background-color 140ms ease;
+}
+
+.skynet-feed-toggle input:checked + .skynet-feed-switch {
+  border-color: #70aec8;
+  background: #477d94;
+}
+
+.skynet-feed-toggle input:checked + .skynet-feed-switch::after {
+  left: 18px;
+  background: #e9f7fc;
+}
+
+.skynet-feed-toggle input:focus-visible + .skynet-feed-switch {
+  outline: 2px solid var(--skynet-link);
+  outline-offset: 2px;
+}
+
+.skynet-feed-toggle input:disabled + .skynet-feed-switch {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.skynet-feed-empty,
+.skynet-feed-status {
+  color: var(--skynet-muted);
+  font-size: var(--skynet-font-body);
+  line-height: 15px;
+}
+
+.skynet-feed-empty {
+  padding: 8px 10px;
+}
+
+.skynet-feed-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 8px 10px;
+  border-top: 1px solid var(--skynet-border-soft);
+  background: rgba(0,0,0,0.08);
+}
+
+.skynet-feed-status {
+  flex: 1;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: var(--skynet-muted) !important;
+}
+
+.skynet-feed-status.error {
+  color: var(--skynet-error) !important;
+}
+
+.skynet-feed-status.warning {
+  color: var(--skynet-warning) !important;
+}
+
+.skynet-settings-result.warning {
+  color: var(--skynet-warning);
+}
+
+#FormTitle .skynet-country-status.warning {
+  color: var(--skynet-warning) !important;
+}
+
+.skynet-settings-table input[type="number"] {
+  width: 82px;
+}
+
+.skynet-settings-table input[type="url"] {
+  width: 100%;
+  max-width: 360px;
+}
+
+.skynet-settings-table input[type="text"] {
+  width: 100%;
+  max-width: 360px;
+}
+
+.skynet-settings-table input[type="number"],
+.skynet-settings-table input[type="url"],
+.skynet-settings-table input[type="text"] {
+  height: 30px;
+  padding: 5px 9px;
+  border: 1px solid var(--skynet-border);
+  border-radius: 4px;
+  background: var(--skynet-bg);
+  color: var(--skynet-text);
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.28);
+  box-sizing: border-box;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.skynet-settings-table input[type="number"]::placeholder,
+.skynet-settings-table input[type="url"]::placeholder,
+.skynet-settings-table input[type="text"]::placeholder {
+  color: var(--skynet-muted);
+  opacity: 0.9;
+}
+
+.skynet-settings-table input[type="number"]:hover,
+.skynet-settings-table input[type="url"]:hover,
+.skynet-settings-table input[type="text"]:hover {
+  border-color: var(--skynet-heading);
+}
+
+.skynet-settings-table input[type="number"]:focus,
+.skynet-settings-table input[type="url"]:focus,
+.skynet-settings-table input[type="text"]:focus {
+  outline: none;
+  border-color: var(--skynet-link);
+  box-shadow: 0 0 0 2px rgba(143,209,245,0.18),
+    inset 0 1px 2px rgba(0,0,0,0.2);
+}
+
+.skynet-number-control {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.skynet-input-note {
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: var(--skynet-muted) !important;
+  font-size: var(--skynet-font-body);
+  line-height: 15px;
+}
+
+.skynet-country-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+#FormTitle .skynet-settings-table tr.skynet-country-row > th {
+  padding-top: 12px !important;
+  vertical-align: top !important;
+}
+
+.skynet-country-picker {
+  width: 100% !important;
+  max-width: 360px !important;
+}
+
+.skynet-country-chooser {
+  width: 100%;
+  max-width: 360px;
+}
+
+#FormTitle .skynet-country-chooser span {
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: inherit !important;
+  box-shadow: none !important;
+}
+
+#skynetCountryChooser [hidden] {
+  display: none !important;
+}
+
+#skynetCountryPicker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--skynet-border);
+  border-radius: 4px;
+  background: linear-gradient(180deg,#435a63,#3a4e56);
+  color: var(--skynet-text);
+  font: var(--skynet-font-body)/20px Arial, sans-serif;
+  text-align: left;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+  cursor: pointer;
+  transition: border-color 120ms ease,background-color 120ms ease;
+}
+
+#skynetCountryPicker:hover,
+#skynetCountryPicker[aria-expanded="true"] {
+  border-color: #83b3c7;
+  background: linear-gradient(180deg,#48636e,#3c555f);
+}
+
+#skynetCountryPickerLabel {
+  flex: 1;
+}
+
+#FormTitle #skynetCountryPickerCount {
+  min-width: 18px;
+  padding: 0 5px !important;
+  border: 1px solid rgba(150,204,225,0.32) !important;
+  border-radius: 4px;
+  background: rgba(116,191,220,0.12) !important;
+  color: var(--skynet-accent-muted) !important;
+  font-size: 11px;
+  line-height: 18px;
+  text-align: center;
+}
+
+#skynetCountryPicker::after {
+  content: "▾";
+  color: var(--skynet-accent-muted);
+}
+
+#skynetCountryPicker[aria-expanded="true"]::after {
+  content: "▴";
+}
+
+#skynetCountryPicker:focus-visible {
+  outline: 2px solid var(--skynet-link);
+  outline-offset: 2px;
+}
+
+#skynetCountryPicker:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.skynet-country-options-panel {
+  margin-top: 5px;
+  padding: 8px;
+  border: 1px solid var(--skynet-border);
+  border-radius: 4px;
+  background: var(--skynet-surface-2);
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.skynet-country-search-wrap {
+  position: relative;
+  margin-bottom: 7px;
+}
+
+#FormTitle #skynetCountrySearch {
+  width: 100%;
+  height: 31px;
+  margin: 0;
+  padding: 0 33px 0 9px !important;
+  border: 1px solid var(--skynet-border-soft) !important;
+  border-radius: 4px;
+  background: #26363c !important;
+  color: var(--skynet-text) !important;
+  font: var(--skynet-font-body) Arial, sans-serif;
+  box-sizing: border-box;
+}
+
+#FormTitle #skynetCountrySearch:focus {
+  outline: none;
+  border-color: #83b3c7 !important;
+  box-shadow: 0 0 0 2px rgba(143,209,245,0.12);
+}
+
+#skynetCountrySearch::-webkit-search-cancel-button {
+  display: none;
+}
+
+#skynetCountrySearch::placeholder {
+  color: var(--skynet-muted);
+  opacity: 1;
+}
+
+#skynetCountrySearchClear {
+  position: absolute;
+  top: 3px;
+  right: 4px;
+  width: 26px;
+  height: 25px;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--skynet-muted);
+  font: 18px/25px Arial, sans-serif;
+  cursor: pointer;
+}
+
+#skynetCountrySearchClear:hover,
+#skynetCountrySearchClear:focus-visible {
+  background: rgba(121,183,211,0.14);
+  color: var(--skynet-text);
+}
+
+.skynet-country-options {
+  max-height: 200px;
+  padding: 1px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #647e89 transparent;
+}
+
+#FormTitle .skynet-country-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 31px;
+  margin: 1px 0;
+  padding: 0 7px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  color: var(--skynet-text);
+  font-size: var(--skynet-font-body);
+  line-height: var(--skynet-line-body);
+  cursor: pointer;
+}
+
+#FormTitle .skynet-country-option.is-selected {
+  border-color: rgba(121,183,211,0.2);
+  background: rgba(121,183,211,0.1);
+}
+
+#FormTitle .skynet-country-option:hover,
+#FormTitle .skynet-country-option:focus-within {
+  background: rgba(121,183,211,0.14);
+}
+
+.skynet-country-option input {
+  flex: 0 0 auto;
+  margin: 0;
+  accent-color: #74bfdc;
+}
+
+.skynet-country-no-match {
+  padding: 12px 7px;
+  color: var(--skynet-muted);
+  font-size: var(--skynet-font-body);
+}
+
+.skynet-country-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 7px;
+  padding-top: 7px;
+  border-top: 1px solid var(--skynet-border-faint);
+}
+
+#FormTitle #skynetCountryMatchCount {
+  color: var(--skynet-muted) !important;
+  font-size: var(--skynet-font-body);
+  line-height: var(--skynet-line-body);
+}
+
+.skynet-country-footer .skynet-country-done {
+  min-width: 58px;
+  height: 27px;
+  padding: 0 12px !important;
+  line-height: 25px !important;
+}
+
+#FormTitle .skynet-country-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 25px;
+  padding: 0 5px 0 8px;
+  border: 1px solid #5d7f8c;
+  border-radius: 13px;
+  background: linear-gradient(180deg,#3c5964 0%,#304750 100%);
+  color: var(--skynet-text) !important;
+  font-size: var(--skynet-font-body);
+  line-height: 15px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.07),
+        0 1px 2px rgba(0,0,0,0.24);
+  transition: transform 120ms ease,border-color 120ms ease,
+        box-shadow 120ms ease;
+}
+
+#FormTitle .skynet-country-tag:hover {
+  border-color: #79aabd;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.09),
+        0 2px 4px rgba(0,0,0,0.28);
+  transform: translateY(-1px);
+}
+
+#FormTitle .skynet-country-tag::before,
+.skynet-rule-tag::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #74bfdc;
+  box-shadow: 0 0 5px rgba(116,191,220,0.48);
+}
+
+#FormTitle .skynet-country-tag > span {
+  color: var(--skynet-text) !important;
+}
+
+.skynet-country-remove {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--skynet-muted);
+  font-size: 15px;
+  line-height: 22px;
+  cursor: pointer;
+}
+
+.skynet-country-remove:hover,
+.skynet-country-remove:focus-visible {
+  background: rgba(255,95,109,0.18);
+  color: #ff9ca6;
+  outline: none;
+}
+
+.skynet-country-empty,
+#FormTitle .skynet-country-status {
+  color: var(--skynet-muted) !important;
+  font-size: var(--skynet-font-body);
+  line-height: 15px;
+}
+
+.skynet-country-empty {
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: var(--skynet-muted) !important;
+}
+
+#FormTitle .skynet-country-status.error {
+  color: var(--skynet-error) !important;
+}
+
+.skynet-country-health,
+.skynet-rules-manager {
+  overflow: hidden;
+  border: 1px solid var(--skynet-border-soft);
+  border-radius: 5px;
+  background: linear-gradient(180deg, #304148 0%, #2d3d43 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.03),
+        0 1px 2px rgba(0,0,0,0.16);
+}
+
+.skynet-country-health-header,
+.skynet-country-health-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 72px 140px 68px 52px;
+  align-items: center;
+  gap: 10px;
+}
+
+.skynet-country-health-header {
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--skynet-border-soft);
+  background: #29383e;
+  color: var(--skynet-accent-muted);
+  font-size: var(--skynet-font-caption);
+  letter-spacing: 0.4px;
+  line-height: var(--skynet-line-caption);
+  text-transform: uppercase;
+}
+
+.skynet-country-health-header[hidden] {
+  display: none;
+}
+
+.skynet-country-health-row {
+  min-height: 34px;
+  padding: 6px 10px;
+  border-top: 1px solid var(--skynet-border-soft);
+  color: var(--skynet-muted-2);
+  font-size: var(--skynet-font-body);
+  line-height: var(--skynet-line-body);
+}
+
+.skynet-country-health-row:first-child {
+  border-top: 0;
+}
+
+.skynet-country-health-row:nth-child(even) {
+  background: rgba(255,255,255,0.018);
+}
+
+.skynet-country-health-row:hover,
+.skynet-rule-row:hover {
+  background: rgba(112,181,212,0.07);
+}
+
+#FormTitle .skynet-country-health-header > span {
+  color: inherit !important;
+  padding: 0 !important;
+}
+
+#FormTitle .skynet-country-health-row > span {
+  color: var(--skynet-muted-2) !important;
+  padding: 0 !important;
+}
+
+#FormTitle .skynet-country-health-row > .skynet-country-health-name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--skynet-text) !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.skynet-country-health-count,
+.skynet-country-health-date {
+  font-variant-numeric: tabular-nums;
+}
+
+.skynet-country-health-date {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.skynet-country-health-header > span:nth-child(2),
+.skynet-country-health-header > span:nth-child(4),
+.skynet-country-health-header > span:nth-child(5),
+.skynet-country-health-count,
+.skynet-country-health-state,
+.skynet-country-health-remove {
+  text-align: center;
+}
+
+.skynet-country-health-remove {
+  justify-self: center;
+}
+
+.skynet-rules-container > td,
+.skynet-country-health-container > td {
+  padding: 6px 10px !important;
+}
+
+.skynet-rules-toolbar,
+.skynet-rules-filterbar,
+.skynet-rules-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+}
+
+.skynet-rules-toolbar {
+  align-items: flex-end;
+  flex-wrap: wrap;
+  column-gap: 10px;
+  row-gap: 8px;
+}
+
+.skynet-rule-field {
+  display: flex;
+  flex: 1 1 130px;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 110px;
+}
+
+.skynet-rule-field-entries {
+  flex-basis: 240px;
+}
+
+.skynet-rule-field-lifetime {
+  flex: 0 1 150px;
+}
+
+.skynet-rule-field[hidden] {
+  display: none;
+}
+
+#FormTitle .skynet-rule-scope {
+  margin: 0 10px 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--skynet-border-faint);
+  border-left: 2px solid var(--skynet-accent-muted);
+  border-radius: 4px;
+  background: rgba(143, 209, 245, 0.04);
+  color: var(--skynet-muted);
+  font-size: var(--skynet-font-caption);
+  line-height: var(--skynet-line-caption);
+}
+
+#FormTitle .skynet-rule-scope strong {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--skynet-accent-muted);
+  font-weight: 600;
+}
+
+#FormTitle .skynet-rule-scope span {
+  color: inherit;
+  background: transparent;
+}
+
+#FormTitle .skynet-rule-scope[hidden] {
+  display: none;
+}
+
+#FormTitle .skynet-rule-label {
+  box-sizing: border-box;
+  color: var(--skynet-accent-muted) !important;
+  font-size: var(--skynet-font-caption);
+  line-height: var(--skynet-line-caption);
+  letter-spacing: 0.3px;
+  padding: 0 6px !important;
+  border: 0 !important;
+  background: transparent !important;
+  text-transform: uppercase;
+}
+
+.skynet-rule-field input,
+.skynet-rule-field select,
+.skynet-rules-search {
+  width: 100% !important;
+  max-width: none !important;
+}
+
+.skynet-rule-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  min-height: 25px;
+  padding: 0 10px 8px;
+}
+
+.skynet-rule-tag {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  gap: 4px;
+  min-height: 24px;
+  padding: 0 5px 0 8px;
+  border: 1px solid #5d7f8c;
+  border-radius: 12px;
+  background: linear-gradient(180deg,#3c5964 0%,#304750 100%);
+  color: var(--skynet-text);
+  font-family: monospace;
+  font-size: var(--skynet-font-body);
+  line-height: 15px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.07),
+        0 1px 2px rgba(0,0,0,0.24);
+  transition: transform 120ms ease,border-color 120ms ease,
+        box-shadow 120ms ease;
+}
+
+#FormTitle .skynet-rule-tag-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: inherit !important;
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+.skynet-rule-tag:hover {
+  border-color: #79aabd;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.09),
+        0 2px 4px rgba(0,0,0,0.28);
+  transform: translateY(-1px);
+}
+
+.skynet-rules-filterbar {
+  border-top: 1px solid var(--skynet-border-soft);
+  border-bottom: 1px solid var(--skynet-border-soft);
+  background: rgba(0,0,0,0.08);
+}
+
+#FormTitle .skynet-rule-section-label {
+  flex: 0 0 auto;
+  padding: 0 6px !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: var(--skynet-accent-muted) !important;
+  font-size: var(--skynet-font-caption);
+  font-weight: 600;
+  letter-spacing: 0.35px;
+  line-height: var(--skynet-line-caption);
+  text-transform: uppercase;
+}
+
+.skynet-rule-filter {
+  min-width: 92px;
+}
+
+.skynet-rules-search {
+  margin-left: auto;
+}
+
+.skynet-rule-header,
+.skynet-rule-row {
+  display: grid;
+  grid-template-columns: 108px minmax(0, 1fr) minmax(110px, 0.8fr) 62px 70px;
+  align-items: center;
+  gap: 10px;
+}
+
+.skynet-rule-header {
+  padding: 7px 10px;
+  background: #29383e;
+  color: var(--skynet-accent-muted);
+  font-size: var(--skynet-font-caption);
+  letter-spacing: 0.4px;
+  line-height: var(--skynet-line-caption);
+  text-transform: uppercase;
+}
+
+#FormTitle .skynet-rule-header > span {
+  color: inherit !important;
+  padding: 0 !important;
+}
+
+#FormTitle .skynet-rule-header > span:nth-child(4),
+#FormTitle .skynet-rule-header > span:nth-child(5) {
+  text-align: center;
+}
+
+.skynet-rule-row {
+  min-height: 36px;
+  padding: 7px 10px;
+  border-top: 1px solid var(--skynet-border-soft);
+  color: var(--skynet-muted-2);
+  font-size: var(--skynet-font-body);
+  line-height: var(--skynet-line-body);
+}
+
+#FormTitle .skynet-rule-row > span {
+  color: var(--skynet-muted-2) !important;
+  padding: 0 !important;
+}
+
+/* Keep grid text aligned while removing Merlin's default span tiles. */
+#FormTitle .skynet-feed-header > span,
+#FormTitle .skynet-feed-row > span,
+#FormTitle .skynet-country-health-header > span,
+#FormTitle .skynet-country-health-row > span,
+#FormTitle .skynet-rule-header > span,
+#FormTitle .skynet-rule-row > span {
+  box-sizing: border-box;
+  padding: 0 6px !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+
+/* Parent components provide the visual treatment for nested text. */
+#FormTitle .skynet-context-link > span,
+#FormTitle .skynet-table-domains > span,
+#FormTitle .skynet-feed-success > span,
+#FormTitle .skynet-rule-detail-text,
+#FormTitle .skynet-rule-remaining,
+#FormTitle .skynet-country-tag > span,
+#FormTitle .skynet-rules-actions > .skynet-country-status {
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.skynet-rule-row:nth-child(even) {
+  background: rgba(255,255,255,0.018);
+}
+
+#FormTitle .skynet-rule-row > .skynet-rule-type {
+  color: var(--skynet-heading) !important;
+}
+
+#FormTitle .skynet-rule-row > .skynet-rule-type.ban {
+  color: var(--skynet-error) !important;
+}
+
+#FormTitle .skynet-rule-row > .skynet-rule-type.whitelist {
+  color: var(--skynet-success) !important;
+}
+
+.skynet-rule-entry,
+.skynet-rule-comment {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.skynet-rule-comment.temporary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+#FormTitle .skynet-rule-detail-text {
+  color: var(--skynet-text) !important;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#FormTitle .skynet-rule-remaining {
+  flex: 0 0 auto;
+  color: var(--skynet-accent-muted) !important;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.skynet-rule-time-status {
+  flex: 1 0 100%;
+  padding: 0 10px 8px;
+  color: var(--skynet-warning);
+  font-size: var(--skynet-font-body);
+  line-height: var(--skynet-line-body);
+}
+
+.skynet-rule-time-status:empty {
+  display: none;
+}
+
+#FormTitle .skynet-rule-row > .skynet-rule-entry {
+  color: var(--skynet-text) !important;
+  font-family: monospace;
+}
+
+.skynet-rule-count {
+  text-align: center;
+}
+
+.skynet-rule-remove {
+  min-width: 62px !important;
+  padding-right: 6px !important;
+  padding-left: 6px !important;
+  font-size: var(--skynet-font-body) !important;
+  white-space: nowrap;
+}
+
+.skynet-rules-actions {
+  justify-content: flex-end;
+  border-top: 1px solid var(--skynet-border-soft);
+  border-bottom: 1px solid var(--skynet-border-soft);
+  background: rgba(0,0,0,0.08);
+}
+
+.skynet-rules-actions .skynet-country-status {
+  flex: 1;
+}
+
+.skynet-rule-overview {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-top: 1px solid var(--skynet-border-soft);
+  border-bottom: 1px solid var(--skynet-border-soft);
+  background: rgba(0,0,0,0.08);
+}
+
+.skynet-rule-overview[hidden] {
+  display: none;
+}
+
+.skynet-rule-health {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+  color: var(--skynet-muted-2);
+  font-size: var(--skynet-font-body);
+}
+
+#FormTitle .skynet-rule-health > span {
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+#FormTitle .skynet-rule-freshness > span,
+#FormTitle .skynet-action-header > span,
+#FormTitle .skynet-action-row > span {
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.skynet-rule-freshness {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.skynet-rule-age {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--skynet-muted) !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.skynet-rule-health-time {
+  color: var(--skynet-muted) !important;
+  font-variant-numeric: tabular-nums;
+}
+
+#FormTitle .skynet-rule-health-label {
+  color: var(--skynet-accent-muted) !important;
+  font-weight: bold;
+}
+
+.skynet-action-header,
+.skynet-action-row {
+  display: grid;
+  grid-template-columns: 120px 84px 150px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+}
+
+.skynet-action-panel {
+  overflow: hidden;
+  margin-top: 10px;
+  border: 1px solid var(--skynet-border-soft);
+  border-radius: 5px;
+  background: rgba(25,39,44,0.34);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.025);
+}
+
+.skynet-action-intro {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  list-style: none;
+  cursor: pointer;
+  padding: 10px 12px !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--skynet-border-soft) !important;
+  background: linear-gradient(180deg,rgba(69,91,99,0.30),rgba(38,53,59,0.18));
+}
+
+.skynet-action-intro::-webkit-details-marker {
+  display: none;
+}
+
+.skynet-action-intro::after {
+  content: "\25B8";
+  flex: 0 0 auto;
+  margin-left: auto;
+  color: var(--skynet-link);
+  font-size: 15px;
+  line-height: 15px;
+}
+
+.skynet-action-panel[open] .skynet-action-intro::after {
+  content: "\25BE";
+}
+
+.skynet-action-panel:not([open]) .skynet-action-intro {
+  border-bottom: 0 !important;
+}
+
+#FormTitle .skynet-action-intro .skynet-feed-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--skynet-heading) !important;
+}
+
+.skynet-action-intro .skynet-feed-title::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  border-radius: 50%;
+  background: #79c6e7;
+  box-shadow: 0 0 6px rgba(121,198,231,0.5);
+}
+
+.skynet-action-header {
+  background: rgba(29,44,50,0.82);
+  border-bottom: 1px solid var(--skynet-border-soft);
+  font-size: var(--skynet-font-caption);
+  line-height: var(--skynet-line-caption);
+  letter-spacing: 0.35px;
+  text-transform: uppercase;
+}
+
+#FormTitle .skynet-action-header > span {
+  color: var(--skynet-accent-muted) !important;
+  font-weight: 600;
+  text-align: left;
+}
+
+.skynet-action-row {
+  position: relative;
+  min-height: 38px;
+  border-top: 1px solid var(--skynet-border-faint);
+  color: var(--skynet-muted-2);
+  font-size: var(--skynet-font-body);
+  line-height: var(--skynet-line-body);
+  transition: background-color 0.15s ease;
+}
+
+.skynet-action-row:first-child { border-top: 0; }
+
+.skynet-action-row:nth-child(odd) {
+  background: rgba(255,255,255,0.015);
+}
+
+.skynet-action-row:hover {
+  background: rgba(121,198,231,0.055);
+}
+
+.skynet-action-time {
+  min-width: 0;
+  white-space: normal;
+}
+
+.skynet-action-summary,
+.skynet-action-detail {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.skynet-action-time {
+  color: var(--skynet-muted) !important;
+  font-variant-numeric: tabular-nums;
+}
+
+.skynet-history-tools,
+.skynet-history-footer,
+.skynet-backup-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px;
+}
+
+.skynet-history-tools input[type="text"] {
+  flex: 1 1 160px;
+  min-width: 0;
+}
+
+#skynetRulePager[hidden],
+#skynetRuleDraftPager[hidden],
+.skynet-backup-controls[hidden],
+.skynet-backup-controls [hidden] {
+  display: none !important;
+}
+
+#skynetBackupConfirmText {
+  flex-basis: 100%;
+  line-height: 1.5;
+}
+
+#skynetBackupConfirmation {
+  justify-content: flex-end;
+  border-top: 1px solid var(--skynet-border-soft);
+}
+
+.skynet-settings-table #skynetBackupSelect {
+  flex: 0 1 280px;
+  width: 280px;
+  max-width: 100%;
+  min-width: 0;
+  text-align: left;
+  text-align-last: left;
+}
+
+.skynet-backup-buttons {
+  justify-content: flex-end;
+  padding-top: 0;
+}
+
+#FormTitle #skynetBackupResult {
+  padding: 0 10px 10px !important;
+}
+
+#skynetBackupResult:empty {
+  display: none;
+}
+
+.skynet-settings-table .skynet-history-tools select {
+  width: 145px;
+  max-width: 100%;
+}
+
+.skynet-history-footer > span,
+.skynet-backup-controls > span {
+  flex: 1 1 200px;
+}
+
+#FormTitle .skynet-history-footer > span,
+#FormTitle .skynet-backup-controls > span,
+#FormTitle .skynet-domain-note {
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: var(--skynet-muted) !important;
+}
+
+.skynet-domain-details {
+  margin-top: 6px;
+  font-weight: normal;
+  font-family: Arial, sans-serif;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.skynet-block-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+  padding: 12px;
+}
+
+.skynet-block-filters label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  color: var(--skynet-muted);
+}
+
+.skynet-settings-table .skynet-block-filters select,
+.skynet-settings-table .skynet-block-filters input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.skynet-block-chart {
+  position: relative;
+  height: 220px;
+  margin: 8px 12px;
+}
+
+.skynet-block-row {
+  padding: 10px 12px;
+  border-top: 1px solid var(--skynet-border);
+  overflow-wrap: anywhere;
+}
+
+.skynet-block-row:nth-child(even) {
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.skynet-block-row > summary {
+  display: grid;
+  grid-template-columns: minmax(145px, 1.2fr) minmax(70px, .6fr) repeat(2, minmax(115px, 1fr));
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.skynet-block-row > summary::-webkit-details-marker { display: none; }
+
+#FormTitle .skynet-block-row span,
+#FormTitle .skynet-block-note {
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: inherit !important;
+}
+
+.skynet-block-row time,
+.skynet-block-row small,
+.skynet-block-note {
+  display: block;
+  color: var(--skynet-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.skynet-block-row > p { margin: 10px 0 0; line-height: 1.6; }
+
+@media (max-width: 700px) {
+  .skynet-block-row > summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+.skynet-domain-details > summary {
+  cursor: pointer;
+  color: var(--skynet-accent-muted);
+}
+
+.skynet-domain-addresses {
+  margin: 8px 0;
+  line-height: 1.6;
+  font-family: monospace;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.skynet-domain-note {
+  display: block;
+  margin: 6px 0;
+  color: var(--skynet-muted);
+}
+
+.skynet-action-timestamp {
+  display: block;
+  margin-top: 2px;
+  white-space: pre-line;
+  color: var(--skynet-muted);
+}
+
+.skynet-action-relative {
+  display: block;
+  color: var(--skynet-accent-muted);
+}
+
+#skynetLoggingDisabled {
+  padding: 22px 16px;
+  border: 1px solid var(--skynet-border-soft);
+  border-radius: 5px;
+  background: var(--skynet-panel);
+  color: var(--skynet-muted);
+  line-height: 1.7;
+}
+
+#skynetLoggingDisabled strong {
+  display: block;
+  color: var(--skynet-heading);
+  font-size: var(--skynet-font-label);
+}
+
+.skynet-action-result {
+  justify-self: start;
+  min-width: 54px;
+  padding: 2px 8px !important;
+  border: 1px solid transparent !important;
+  border-radius: 10px;
+  font-size: var(--skynet-font-caption);
+  font-weight: 600;
+  line-height: 15px;
+  text-align: center;
+}
+
+#FormTitle .skynet-action-result.success {
+  color: var(--skynet-success) !important;
+  border-color: rgba(105,190,137,0.42) !important;
+  background: rgba(65,126,87,0.18) !important;
+}
+
+#FormTitle .skynet-action-result.degraded {
+  color: var(--skynet-warning) !important;
+  border-color: rgba(210,177,80,0.42) !important;
+  background: rgba(145,111,31,0.17) !important;
+}
+
+#FormTitle .skynet-action-result.failed {
+  color: var(--skynet-error) !important;
+  border-color: rgba(205,103,113,0.42) !important;
+  background: rgba(135,58,68,0.17) !important;
+}
+
+#FormTitle .skynet-action-summary {
+  color: var(--skynet-text) !important;
+  font-weight: 600;
+}
+
+#FormTitle .skynet-action-detail {
+  color: var(--skynet-muted) !important;
+}
+
+#skynetRuleList {
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+#skynetCountryHealthList {
+  max-height: 380px;
+  overflow-y: auto;
+}
+
+#skynetRuleActivity .skynet-feed-empty {
+  padding: 16px 12px;
+  color: var(--skynet-muted) !important;
+  text-align: center;
+}
+
+.skynet-iot-add {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.skynet-iot-add .skynet-update-button {
+  min-width: 62px;
+}
+
+.skynet-iot-tag-main,
+.skynet-iot-tag-meta {
+  display: inline-block;
+}
+
+.skynet-iot-tag-meta {
+  color: var(--skynet-muted);
+  font-size: var(--skynet-font-caption);
+  line-height: var(--skynet-line-caption);
+}
+
+.skynet-settings-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 8px 10px;
+  border-top: 1px solid var(--skynet-border-soft);
+  background: rgba(0,0,0,0.09);
+}
+
+.skynet-settings-result {
+  flex: 1;
+  color: var(--skynet-muted);
+  font-size: var(--skynet-font-body);
+  line-height: 15px;
+}
+
+.skynet-settings-actions .skynet-country-status {
+  flex:1;
+  min-width:0;
+}
+
+.skynet-settings-actions[data-active-section="countries"] {
+  flex-wrap: wrap;
+}
+
+.skynet-settings-actions[data-active-section="rules"] {
+  display: none;
+}
+
+.skynet-settings-actions[data-active-section="countries"]
+#skynetCountryStatus:not(:empty) {
+  flex: 1 0 100%;
+  order: -1;
+  line-height: var(--skynet-line-body);
+}
+
+.skynet-settings-action-hidden {
+  display:none !important;
+}
+
+.skynet-settings-result.error {
+  color: var(--skynet-error);
+}
+
+/* Details. */
+.skynet-detail {
+  display: none;
+  width: 100% !important;
+  max-width: 760px !important;
+  margin: 8px 0 10px 0;
+  background: var(--skynet-surface);
+  border: 1px solid var(--skynet-border-medium);
+  border-radius: 6px;
+  box-sizing: border-box;
+  overflow: hidden;
+  box-shadow:
+    0 2px 6px rgba(0,0,0,0.18),
+    inset 0 1px 0 rgba(255,255,255,0.03);
+}
+
+.skynet-detail.visible {
+  display: block;
+}
+
+.skynet-detail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 38px;
+  box-sizing: border-box;
+  background: linear-gradient(180deg, #66767b 0%, #536267 100%);
+  border-bottom: 1px solid #75858a;
+  color: #fff;
+  padding: 6px 10px;
+  font-size: 13px;
+  font-weight: bold;
+  text-shadow: 0 1px 1px rgba(0,0,0,0.24);
+}
+
+.skynet-detail-close {
+  min-width: 58px;
+  height: 28px;
+  margin: 0 !important;
+}
+
+.skynet-detail-identity {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 10px;
+  padding: 9px 11px;
+  background: var(--skynet-surface-2);
+  border: 1px solid var(--skynet-border-medium);
+  border-radius: 5px;
+  box-sizing: border-box;
+}
+
+.skynet-detail-identity-text {
+  min-width: 0;
+}
+
+.skynet-detail-identity-label {
+  color: var(--skynet-muted-2);
+  font-size: var(--skynet-font-caption);
+  line-height: var(--skynet-line-caption);
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.35px;
+}
+
+.skynet-detail-identity-value {
+  margin-top: 2px;
+  color: var(--skynet-title);
+  font-size: 17px;
+  line-height: 21px;
+  font-weight: bold;
+  letter-spacing: 0.15px;
+  word-break: break-word;
+}
+
+.skynet-detail-copy-primary {
+  flex: 0 0 auto;
+}
+
+.skynet-detail-body {
+  padding: 0 10px 10px 10px;
+}
+
+.skynet-detail-grid {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  background: var(--skynet-surface);
+}
+
+.skynet-detail-grid td {
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--skynet-border-faint);
+  color: var(--skynet-body);
+  vertical-align: middle;
+}
+
+.skynet-detail-grid tr:last-child td {
+  border-bottom: 0;
+}
+
+.skynet-detail-grid td:first-child {
+  width: 150px;
+  color: var(--skynet-muted-2);
+  font-size: var(--skynet-font-body);
+  line-height: var(--skynet-line-body);
+  font-weight: bold;
+  letter-spacing: 0.2px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.skynet-detail-grid td + td {
+  border-left: 1px solid var(--skynet-border-faint);
+  color: var(--skynet-body);
+}
+
+.skynet-detail-grid td:nth-child(2) {
+  text-align: left !important;
+}
+
+.skynet-detail-grid td:nth-child(2) .skynet-detail-value-wrap {
+  min-height: 20px;
+}
+
+.skynet-detail-value-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.skynet-detail-value {
+  min-width: 0;
+  color: var(--skynet-title);
+  font-weight: bold;
+  word-break: break-word;
+}
+
+.skynet-rule-matches {
+  white-space: pre-line;
+}
+
+.skynet-detail-copy,
+.skynet-detail-domain-toggle {
+  flex: 0 0 auto;
+  min-width: 48px;
+  height: 28px;
+  padding: 0 7px !important;
+  font-size: var(--skynet-font-body) !important;
+}
+
+.skynet-detail-copy.copied {
+  border-color: #6dbb8d !important;
+  background: linear-gradient(#6fae87, #4e8063) !important;
+}
+
+.skynet-domain-list {
+  white-space: pre-line;
+}
+
+#FormTitle .skynet-domain-list.collapsed {
+  color: var(--skynet-muted-2) !important;
+}
+
+#FormTitle .skynet-detail-value-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 6px;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+
+.skynet-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 10px;
+}
+.skynet-detail-sources {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--skynet-border-soft);
+}
+.skynet-detail-sources-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.skynet-detail-sources-title {
+  color: var(--skynet-heading);
+  font-weight: bold;
+}
+.skynet-detail-sources-help {
+  margin-top: 6px;
+  color: var(--skynet-muted);
+  font-size: var(--skynet-font-body);
+  line-height: var(--skynet-line-body);
+}
+.skynet-detail-lookup {
+  min-width: 108px;
+  height: 28px;
+  padding: 0 9px !important;
+  border-color: #668a9e !important;
+  background: #405b67 !important;
+  color: #e4f3f8 !important;
+  font-size: var(--skynet-font-body) !important;
+  font-weight: bold;
+  letter-spacing: 0.1px;
+}
+.skynet-detail-lookup:hover {
+  background: #4b6a77 !important;
+  border-color: #7eacbf !important;
+}
+
+.skynet-context-link {
+  cursor: pointer;
+  color: var(--skynet-link) !important;
+  font-weight: bold !important;
+  text-decoration: none !important;
+}
+
+.skynet-context-link:hover {
+  text-decoration: underline !important;
+}
+
+.skynet-context-selected {
+  text-decoration: underline !important;
+}
+
+
+/* Statistics. */
+.skynet-section {
+  width: 100% !important;
+  max-width: 760px !important;
+  margin-top: 8px;
+}
+
+.skynet-section > table {
+  width: 100% !important;
+  max-width: 760px !important;
+  table-layout: fixed !important;
+  border-collapse: collapse !important;
+}
+
+.skynet-section-head,
+.skynet-section-head tr,
+.skynet-section-head td {
+  width: 100% !important;
+  box-sizing: border-box;
+}
+
+.skynet-section-head td:first-child {
+  width: auto !important;
+  text-align: left;
+}
+
+.skynet-section-head td:last-child {
+  width: 34px !important;
+  text-align: center !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+.skynet-section-body-row > td {
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.skynet-controls-table {
+  width: 100% !important;
+  table-layout: fixed !important;
+  border-collapse: collapse !important;
+}
+
+.skynet-controls-table td {
+  vertical-align: middle;
+}
+
+.skynet-controls-table .skynet-control-cell {
+  width: 50% !important;
+  box-sizing: border-box !important;
+}
+
+.skynet-controls-table .skynet-control-cell + .skynet-control-cell {
+  border-left: 1px solid var(--skynet-border-soft) !important;
+}
+
+.StatsTable.skynet-modern-table th + th,
+.StatsTable.skynet-modern-table td + td {
+  border-left: 1px solid var(--skynet-border-faint) !important;
+}
+
+.skynet-modern-table thead th {
+  border-right: 1px solid var(--skynet-border-soft) !important;
+}
+
+.skynet-modern-table thead th:last-child {
+  border-right: 0 !important;
+}
+
+.skynet-modern-table tr:not(:last-child) td {
+  box-shadow: inset 0 -1px 0 rgba(115, 137, 145, 0.14);
+}
+
+.skynet-modern-table th:first-child,
+.skynet-modern-table td:first-child {
+  border-left: 0 !important;
+}
+
+.skynet-modern-table th,
+.skynet-modern-table td {
+  box-sizing: border-box !important;
+  font-family: inherit !important;
+  line-height: var(--skynet-line-body) !important;
+}
+
+.skynet-section-head {
+  background: linear-gradient(180deg,#405158 0%,#35454b 100%) !important;
+  color: #fff !important;
+  border: 1px solid #607780 !important;
+  border-radius: 6px 6px 0 0;
+  height: 36px;
+  box-sizing: border-box;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.055),
+        0 1px 2px rgba(0,0,0,0.12);
+  transition: background 140ms ease,border-color 140ms ease;
+}
+
+.skynet-section-head:hover,
+.skynet-section-head:focus-visible {
+  background: linear-gradient(180deg,#485d65 0%,#3b4e55 100%) !important;
+  border-color: #748e98 !important;
+  outline: none;
+}
+
+.skynet-section-head.collapsed {
+  border-radius: 6px;
+}
+
+.skynet-section-head td {
+  color: var(--skynet-title) !important;
+  font-size: 13px !important;
+  font-weight: bold !important;
+  line-height: 18px !important;
+  padding: 7px 10px !important;
+}
+
+.skynet-section-head td:first-child {
+  letter-spacing: 0.1px;
+}
+
+.skynet-section-head td:last-child {
+  text-align: right;
+  width: 30px;
+  color: #dce4e7 !important;
+}
+
+.skynet-section-toggle {
+  font-size: 15px;
+  line-height: 12px;
+  opacity: 0.9;
+  transition: color 140ms ease,opacity 140ms ease;
+}
+
+.skynet-empty-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 6px;
+  border: 1px solid var(--skynet-border);
+  border-radius: 8px;
+  color: var(--skynet-muted);
+  font-size: var(--skynet-font-caption);
+  line-height: var(--skynet-line-caption);
+  font-weight: normal;
+  letter-spacing: 0.2px;
+  vertical-align: 1px;
+}
+
+.skynet-controls {
+  background: var(--skynet-panel) !important;
+  border-top-color: var(--skynet-border-medium) !important;
+  border-left: 1px solid var(--skynet-border) !important;
+  border-right: 1px solid var(--skynet-border) !important;
+  border-bottom: 1px solid var(--skynet-border) !important;
+  padding: 7px 10px !important;
+}
+
+.skynet-control-label {
+  color: var(--skynet-body) !important;
+  font-size: var(--skynet-font-caption);
+  line-height: var(--skynet-line-caption);
+  font-weight: bold;
+  letter-spacing: 0.25px;
+  margin-right: 5px;
+  text-transform: uppercase;
+}
+.skynet-chart-shell {
+  position: relative;
+  width: 100%;
+  height: 360px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 0, rgba(53, 216, 255, 0.07), transparent 58%),
+    #11191c;
+  border: 1px solid #43565d;
+  border-radius: 0 0 7px 7px;
+  box-sizing: border-box;
+  padding: 8px;
+  box-shadow: inset 0 0 28px rgba(57, 239, 157, 0.035);
+}
+
+.skynet-chart-shell.skynet-activity-shell {
+  height: 285px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 0, rgba(53, 216, 255, 0.08), transparent 58%),
+    #11191c;
+  box-shadow: inset 0 0 28px rgba(57, 239, 157, 0.04);
+}
+
+.skynet-activity-period {
+  margin-left: 10px;
+  color: var(--skynet-muted-2);
+  font-weight: normal;
+  white-space: nowrap;
+}
+
+.skynet-activity-shell::before {
+  opacity: 0.3;
+}
+
+.skynet-chart-shell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(255, 255, 255, 0.018) 0,
+    rgba(255, 255, 255, 0.018) 1px,
+    transparent 1px,
+    transparent 4px
+  );
+}
+
+
+.skynet-chart-shell canvas {
+  display: block;
+  position: relative;
+  z-index: 1;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100%;
+}
+
+.skynet-table-shell {
+  background: var(--skynet-panel);
+  border-left: 1px solid var(--skynet-border);
+  border-right: 1px solid var(--skynet-border);
+  border-bottom: 1px solid var(--skynet-border);
+  border-radius: 0 0 5px 5px;
+  padding: 0;
+  overflow: hidden;
+}
+
+.StatsTable.skynet-modern-table {
+  width: 100% !important;
+  max-width: 760px !important;
+  table-layout: fixed !important;
+  border: 0 !important;
+  background: var(--skynet-panel) !important;
+}
+
+.StatsTable.skynet-modern-table td,
+.StatsTable.skynet-modern-table th {
+  overflow-wrap: anywhere;
+}
+
+.StatsTable.skynet-modern-table th {
+  background: var(--skynet-bg) !important;
+  color: var(--skynet-heading) !important;
+  border: 0 !important;
+  border-bottom: 1px solid #52656c !important;
+  font-size: var(--skynet-font-caption) !important;
+  line-height: var(--skynet-line-caption) !important;
+  padding: 7px 8px !important;
+  text-align: left !important;
+  text-transform: uppercase;
+  vertical-align: middle !important;
+}
+
+.StatsTable.skynet-modern-table td {
+  border: 0 !important;
+  border-bottom: 1px solid #4b5b61 !important;
+  padding: 7px 8px !important;
+  color: var(--skynet-text) !important;
+  font-size: var(--skynet-font-body) !important;
+  vertical-align: middle !important;
+  text-align: left !important;
+}
+
+.StatsTable.skynet-modern-table th:nth-child(1),
+.StatsTable.skynet-modern-table td:nth-child(1) {
+  text-align: left !important;
+}
+
+.StatsTable.skynet-modern-table th:nth-child(2),
+.StatsTable.skynet-modern-table td:nth-child(2) {
+  text-align: left !important;
+}
+
+.StatsTable.skynet-modern-table th:nth-child(3),
+.StatsTable.skynet-modern-table td:nth-child(3) {
+  text-align: center !important;
+}
+
+.StatsTable.skynet-modern-table th:nth-child(4),
+.StatsTable.skynet-modern-table td:nth-child(4) {
+  text-align: center !important;
+}
+
+.StatsTable.skynet-modern-table th:nth-child(5),
+.StatsTable.skynet-modern-table td:nth-child(5) {
+  text-align: left !important;
+}
+
+.StatsTable.skynet-modern-table .skynet-table-details,
+.StatsTable.skynet-modern-table .skynet-table-country {
+  text-align: center !important;
+}
+
+.StatsTable.skynet-modern-table .skynet-table-country {
+  overflow-wrap: normal;
+  white-space: nowrap;
+}
+
+.StatsTable.skynet-modern-table th.skynet-table-domains,
+.StatsTable.skynet-modern-table td.skynet-table-domains {
+  text-align: left !important;
+}
+
+#FormTitle .skynet-domain-preview {
+  display: block;
+  color: var(--skynet-text) !important;
+  line-height: var(--skynet-line-body);
+  word-break: break-word;
+}
+
+#FormTitle .skynet-domain-more {
+  display: inline-block;
+  margin-top: 3px;
+  color: var(--skynet-accent-muted) !important;
+  font-size: var(--skynet-font-caption);
+  font-weight: bold;
+  line-height: var(--skynet-line-caption);
+}
+
+.StatsTable.skynet-modern-table tr:nth-child(even) td {
+  background: var(--skynet-panel-alt) !important;
+}
+
+.StatsTable.skynet-modern-table tr:hover td {
+  background: #42545b !important;
+}
+
+.StatsTable.skynet-modern-table tr:last-child td {
+  border-bottom: 0 !important;
+}
+
+#FormTitle .skynet-ip-value {
+  color: var(--skynet-link) !important;
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+#FormTitle .StatsTable.skynet-modern-table td.skynet-context-link {
+  color: var(--skynet-link) !important;
+}
+
+.skynet-external-link {
+  color: var(--skynet-link) !important;
+  font-weight: bold !important;
+}
+
+.skynet-nodata {
+  min-height: 180px;
+  box-sizing: border-box;
+  padding: 24px;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  color: var(--skynet-muted-2) !important;
+  font-size: 16px;
+  line-height: 22px;
+  font-weight: bold;
+  text-align: center;
+  background: var(--skynet-bg);
+}
+
+.skynet-table-nodata {
+  min-height: 150px;
+  height: 150px !important;
+}
+
+.StatsTable td.skynet-nodata {
+  height:180px !important;
+  min-height:0;
+  padding:24px !important;
+  font-size:16px !important;
+  line-height:22px !important;
+  font-family:Arial !important;
+  color:#cfd7da !important;
+  background:var(--skynet-bg) !important;
+}
+
+/* Responsive. */
+@media (max-width: 900px) {
+  .skynet-chart-shell {
+    height: 320px;
+  }
+
+  .skynet-chart-shell.skynet-activity-shell {
+    height: 270px;
+  }
+}
+
+@media (max-width: 760px) {
+  .skynet-tabs {
+    flex-wrap: wrap;
+  }
+
+  .skynet-tab {
+    flex: 1 1 calc(25% - 3px);
+    min-height: 36px;
+  }
+
+  .skynet-hero {
+    padding:42px 10px 12px 10px;
+  }
+
+  .skynet-hero-title {
+    font-size:20px;
+    letter-spacing:3px;
+  }
+
+  .skynet-project-link {
+    position:static;
+    display:inline-block;
+    margin-top:8px;
+  }
+
+  .skynet-update-bar {
+    align-items: stretch;
+    grid-template-columns:1fr;
+  }
+
+  .skynet-update-button {
+    width: 100%;
+  }
+
+  .skynet-update-control {
+    justify-content:flex-end;
+  }
+
+  .skynet-meta-item {
+    flex:0 1 auto;
+  }
+
+  .skynet-meta {
+    flex-wrap:wrap;
+  }
+
+  .skynet-meta-value {
+    white-space:normal;
+  }
+
+  .skynet-update-info {
+    align-items:flex-start;
+    flex-direction:column;
+    gap:5px;
+  }
+
+  .skynet-update-result {
+    padding-left:0;
+    border-left:0;
+    white-space:normal;
+  }
+
+  .skynet-settings-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .skynet-iot-add {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .skynet-settings-table select,
+  .skynet-settings-actions .skynet-update-button {
+    width: 100%;
+  }
+
+  .skynet-country-row th,
+  .skynet-country-row td {
+    display: block !important;
+    box-sizing: border-box;
+    width: 100% !important;
+  }
+
+  .skynet-country-row th {
+    border-right: 0;
+    border-bottom: 1px solid var(--skynet-border-soft);
+  }
+
+  .skynet-malware-controls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .skynet-malware-update {
+    width: 100%;
+  }
+
+  .skynet-feed-header {
+    display: none;
+  }
+
+  .skynet-feed-intro {
+    padding: 9px 10px;
+  }
+
+  .skynet-feed-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 4px 10px;
+    padding: 9px 10px;
+  }
+
+  .skynet-feed-source {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .skynet-feed-entries,
+  .skynet-feed-success {
+    grid-column: 1;
+    text-align: left;
+  }
+
+  .skynet-feed-entries::before,
+  .skynet-feed-success::before {
+    color: var(--skynet-muted);
+    font-size: var(--skynet-font-caption);
+    text-transform: uppercase;
+  }
+
+  .skynet-feed-entries::before {
+    content: "Entries  ";
+  }
+
+  .skynet-feed-success::before {
+    content: "Last success  ";
+  }
+
+  .skynet-feed-state {
+    grid-column: 2;
+    grid-row: 2 / 4;
+    align-self: center;
+  }
+
+  .skynet-feed-controls {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+    margin: 0;
+  }
+
+  .skynet-country-health-header,
+  .skynet-rule-header {
+    display: none;
+  }
+
+  .skynet-country-health-row {
+    grid-template-columns: minmax(0, 1fr) auto 28px;
+    gap: 4px 10px;
+  }
+
+  .skynet-country-health-count {
+    grid-column: 1;
+  }
+
+  .skynet-country-health-date {
+    grid-column: 1;
+    white-space: normal;
+  }
+
+  .skynet-country-health-state {
+    grid-column: 2;
+    grid-row: 1 / 4;
+    align-self: center;
+  }
+
+  .skynet-country-health-remove {
+    grid-column: 3;
+    grid-row: 1 / 4;
+    align-self: center;
+  }
+
+  .skynet-country-health-count::before {
+    content: "Ranges ";
+    color: var(--skynet-muted);
+  }
+
+  .skynet-country-health-date::before {
+    content: "Last success  ";
+    color: var(--skynet-muted);
+    font-size: var(--skynet-font-caption);
+    text-transform: uppercase;
+  }
+
+  .skynet-country-health-count {
+    text-align: left;
+  }
+
+  .skynet-rules-toolbar,
+  .skynet-rules-filterbar,
+  .skynet-rules-actions,
+  .skynet-rule-overview {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .skynet-rule-health {
+    align-items: flex-start;
+  }
 
 			.skynet-rule-freshness {
 				flex-wrap: wrap;
@@ -3181,178 +3245,529 @@
 				white-space: normal;
 			}
 
-            .skynet-rule-field,
-            .skynet-rule-field-entries {
-                flex: 0 0 auto;
-                min-height: 0;
-                width: 100%;
-            }
+  .skynet-rule-field,
+  .skynet-rule-field-entries {
+    flex: 0 0 auto;
+    min-height: 0;
+    width: 100%;
+  }
 
-            .skynet-rule-comment.temporary {
-                align-items: flex-start;
-                flex-direction: column;
-                gap: 2px;
-            }
+  .skynet-rule-comment.temporary {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 2px;
+  }
 
-            .skynet-rule-detail-text {
-                white-space: normal;
-            }
+  .skynet-rule-detail-text {
+    white-space: normal;
+  }
 
-            .skynet-rules-search {
-                margin-left: 0;
-            }
+  .skynet-rules-search {
+    margin-left: 0;
+  }
 
-            .skynet-rule-row {
-                grid-template-columns: minmax(0, 1fr) auto;
-                gap: 3px 10px;
-            }
+  .skynet-rule-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 3px 10px;
+  }
 
-            .skynet-rule-type,
-            .skynet-rule-entry,
-            .skynet-rule-comment {
-                grid-column: 1;
-            }
+  .skynet-rule-type,
+  .skynet-rule-entry,
+  .skynet-rule-comment {
+    grid-column: 1;
+  }
 
-            .skynet-rule-count {
-                grid-column: 2;
-                grid-row: 1;
-            }
+  .skynet-rule-count {
+    grid-column: 2;
+    grid-row: 1;
+  }
 
-            .skynet-rule-entry::before,
-            .skynet-rule-comment::before,
-            .skynet-rule-count::before {
-                color: var(--skynet-muted);
-                font-size: var(--skynet-font-caption);
-                text-transform: uppercase;
-            }
+  .skynet-rule-entry::before,
+  .skynet-rule-comment::before,
+  .skynet-rule-count::before {
+    color: var(--skynet-muted);
+    font-size: var(--skynet-font-caption);
+    text-transform: uppercase;
+  }
 
-            .skynet-rule-entry::before {
-                content: "Entry  ";
-            }
+  .skynet-rule-entry::before {
+    content: "Entry  ";
+  }
 
-            .skynet-rule-comment::before {
+  .skynet-rule-comment::before {
 				content: "Details  ";
-            }
+  }
 
-            .skynet-rule-comment.freshness::before {
-                content: "Freshness  ";
-            }
+  .skynet-rule-comment.freshness::before {
+    content: "Freshness  ";
+  }
 
-            .skynet-rule-count::before {
-                content: "Count  ";
-            }
+  .skynet-rule-count::before {
+    content: "Count  ";
+  }
 
-            .skynet-rule-remove {
-                grid-column: 2;
-                grid-row: 2 / 4;
-                align-self: center;
-            }
+  .skynet-rule-remove {
+    grid-column: 2;
+    grid-row: 2 / 4;
+    align-self: center;
+  }
 
-            .skynet-action-header {
-                display: none;
-            }
+  .skynet-action-header {
+    display: none;
+  }
 
-            .skynet-action-row {
-                grid-template-columns: minmax(0, 1fr) auto;
-                gap: 3px 10px;
-            }
+  .skynet-action-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 3px 10px;
+  }
 
-            .skynet-action-time,
-            .skynet-action-summary,
-            .skynet-action-detail {
-                grid-column: 1;
-                overflow-wrap: anywhere;
-                white-space: normal;
-            }
+  .skynet-action-time,
+  .skynet-action-summary,
+  .skynet-action-detail {
+    grid-column: 1;
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
 
-            .skynet-action-result {
-                grid-column: 2;
-                grid-row: 1 / 4;
-                align-self: center;
-            }
+  .skynet-action-result {
+    grid-column: 2;
+    grid-row: 1 / 4;
+    align-self: center;
+  }
 
-            .skynet-feed-actions {
-                align-items: stretch;
-                flex-direction: column;
-            }
+  .skynet-feed-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
 
-            .skynet-feed-actions .skynet-update-button {
-                width: 100%;
-            }
+  .skynet-feed-actions .skynet-update-button {
+    width: 100%;
+  }
 
-            .skynet-table-shell {
-                overflow-x: auto;
-                -webkit-overflow-scrolling: touch;
-            }
+  .skynet-table-shell {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
 
-            .StatsTable.skynet-modern-table {
-                min-width: 560px;
-            }
+  .StatsTable.skynet-modern-table {
+    min-width: 560px;
+  }
 
-            .skynet-chart-shell {
-                height: 280px;
-            }
+  .skynet-chart-shell {
+    height: 280px;
+  }
 
-            .skynet-chart-shell.skynet-activity-shell {
-                height: 245px;
-            }
+  .skynet-chart-shell.skynet-activity-shell {
+    height: 245px;
+  }
 
-        }
+}
 
-        @media (max-width: 600px) {
-            .skynet-settings-table tr:not(.skynet-settings-group) > th,
-            .skynet-settings-table tr:not(.skynet-settings-group) > td {
-                display: block !important;
-                box-sizing: border-box;
-                width: 100% !important;
-                height: auto !important;
-            }
+@media (max-width: 600px) {
+  .skynet-settings-table tr:not(.skynet-settings-group) > th,
+  .skynet-settings-table tr:not(.skynet-settings-group) > td {
+    display: block !important;
+    box-sizing: border-box;
+    width: 100% !important;
+    height: auto !important;
+  }
 
-            .skynet-settings-table tr:not(.skynet-settings-group) > th {
-                border-right: 0 !important;
-                border-bottom: 1px solid var(--skynet-border-soft) !important;
-            }
+  .skynet-settings-table tr:not(.skynet-settings-group) > th {
+    border-right: 0 !important;
+    border-bottom: 1px solid var(--skynet-border-soft) !important;
+  }
 
-            .skynet-controls-table .skynet-control-cell {
-                display: block;
-                width: 100% !important;
-            }
+  .skynet-controls-table .skynet-control-cell {
+    display: block;
+    width: 100% !important;
+  }
 
-            .skynet-controls-table .skynet-control-cell + .skynet-control-cell {
-                border-top: 1px solid var(--skynet-border-soft) !important;
-                border-left: 0 !important;
-            }
-        }
+  .skynet-controls-table .skynet-control-cell + .skynet-control-cell {
+    border-top: 1px solid var(--skynet-border-soft) !important;
+    border-left: 0 !important;
+  }
+}
 
-        @media (max-width: 520px) {
-            .skynet-kpis,
-            .skynet-kpis tbody,
-            .skynet-kpis tr {
-                display: block;
-            }
+@media (max-width: 520px) {
+  .skynet-kpis,
+  .skynet-kpis tbody,
+  .skynet-kpis tr {
+    display: block;
+  }
 
-            .skynet-kpis tr {
-                display: grid;
-                grid-template-columns: repeat(2, minmax(0, 1fr));
-                gap: 6px;
-            }
+  .skynet-kpis tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
 
-            .skynet-kpi {
-                display: block;
-                width: auto !important;
-            }
+  .skynet-kpi {
+    display: block;
+    width: auto !important;
+  }
 
-            .skynet-detail-grid td:first-child {
-                width: 105px;
-                white-space: normal;
-            }
+  .skynet-detail-grid td:first-child {
+    width: 105px;
+    white-space: normal;
+  }
 
-            .skynet-detail-actions {
-                flex-wrap: wrap;
-            }
-        }
+  .skynet-detail-actions {
+    flex-wrap: wrap;
+  }
+}
 
-    </style>
+/* Native AsusWRT 6 tokens follow mode, brand and appearance changes. */
+.skynet-asuswrt6 {
+  --skynet-bg: var(--surface-panel, #2f3e44);
+  --skynet-panel: var(--surface-card, #354247);
+  --skynet-panel-alt: var(--surface-banner, #39484e);
+  --skynet-border: var(--border-default, #607780);
+  --skynet-border-soft: var(--border-subtle, #53666d);
+  --skynet-text: var(--text-primary, #eef2f3);
+  --skynet-muted: var(--text-secondary, #b8c4c8);
+  --skynet-heading: var(--text-primary, #dfe7ea);
+  --skynet-link: var(--brand-primary, #8fd1f5);
+  --skynet-accent-muted: var(--brand-primary, #9fc9d8);
+  --skynet-title: var(--text-primary, #ffffff);
+  --skynet-body: var(--text-primary, #d7e0e3);
+  --skynet-muted-2: var(--text-secondary, #aebcc1);
+  --skynet-border-faint: var(--border-subtle, rgba(155, 177, 185, 0.18));
+  --skynet-border-medium: var(--border-default, rgba(155, 177, 185, 0.34));
+  --skynet-surface: var(--surface-card, #34464c);
+  --skynet-surface-2: var(--surface-panel, #2d3d43);
+  --skynet-success: var(--status-on, #a9e5bf);
+  --skynet-warning: var(--status-warning, #f4d97b);
+  --skynet-error: var(--status-msg-negative-strong, #f2afb5);
+  --skynet-chart-text: var(--text-primary, #cccccc);
+  --skynet-chart-grid: var(--border-subtle, #3b4549);
+  --skynet-chart-bg: var(--surface-card, #11191c);
+  --skynet-series-inbound: var(--brand-primary, #35d8ff);
+  --skynet-series-outbound: var(--status-on, #39ef9d);
+  --skynet-series-invalid: var(--red-60, #ff5f6d);
+  --skynet-series-firewall: var(--orange-60, #ffb454);
+  --skynet-series-iot: #8458c7;
+  --skynet-series-teal: var(--teal-60, #087f8c);
+  --skynet-series-orange: var(--orange-60, #b95f10);
+  --skynet-series-blue: #326bc2;
+  --skynet-series-purple: var(--purple-60, #a044a0);
+  --skynet-series-yellow: var(--yellow-80, #727a0d);
+}
+
+.skynet-asuswrt6[data-asuswrt-color="dark"] {
+  --skynet-series-invalid: var(--red-40, #ff5f6d);
+  --skynet-series-firewall: var(--orange-40, #ffb454);
+  --skynet-series-iot: #c39aef;
+  --skynet-series-teal: var(--teal-40, #2fe1c4);
+  --skynet-series-orange: var(--orange-40, #ff8c42);
+  --skynet-series-blue: #80acff;
+  --skynet-series-purple: var(--purple-40, #e96bff);
+  --skynet-series-yellow: var(--yellow-40, #d1de77);
+}
+
+html.skynet-asuswrt6,
+.skynet-asuswrt6 #FormTitle,
+.skynet-asuswrt6 #FormTitle .skynet-country-options {
+  scrollbar-color: var(--wrt-scrollbar-thumb-color, var(--skynet-muted)) transparent;
+}
+
+html.skynet-asuswrt6::-webkit-scrollbar,
+.skynet-asuswrt6 #FormTitle ::-webkit-scrollbar {
+  width: var(--wrt-scrollbar-width, 5px);
+  height: var(--wrt-scrollbar-height, 5px);
+}
+
+html.skynet-asuswrt6::-webkit-scrollbar-track,
+html.skynet-asuswrt6::-webkit-scrollbar-corner,
+.skynet-asuswrt6 #FormTitle ::-webkit-scrollbar-track,
+.skynet-asuswrt6 #FormTitle ::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+html.skynet-asuswrt6::-webkit-scrollbar-thumb,
+.skynet-asuswrt6 #FormTitle ::-webkit-scrollbar-thumb {
+  border: 0;
+  border-radius: var(--wrt-scrollbar-radius, 8px);
+  background: var(--wrt-scrollbar-thumb-color, var(--skynet-muted));
+}
+
+html.skynet-asuswrt6::-webkit-scrollbar-thumb:hover,
+.skynet-asuswrt6 #FormTitle ::-webkit-scrollbar-thumb:hover {
+  background: var(--wrt-scrollbar-thumb-hover-color, var(--skynet-link));
+}
+
+html.skynet-asuswrt6::-webkit-scrollbar-track:hover,
+.skynet-asuswrt6 #FormTitle ::-webkit-scrollbar-track:hover {
+  background: var(--wrt-scrollbar-track-hover-color, var(--skynet-border-soft));
+}
+
+.skynet-asuswrt6 #FormTitle {
+  color: var(--skynet-text);
+  background: var(--skynet-panel) !important;
+  font-family: var(--global-font-style, Arial, sans-serif);
+  border-color: var(--skynet-border-soft) !important;
+  text-shadow: none;
+}
+
+.skynet-asuswrt6 #FormTitle > tbody > tr,
+.skynet-asuswrt6 #FormTitle > tbody > tr > td {
+  background: var(--skynet-panel) !important;
+}
+
+.skynet-asuswrt6 #FormTitle .skynet-hero,
+.skynet-asuswrt6 #FormTitle .skynet-tabs,
+.skynet-asuswrt6 #FormTitle .skynet-kpi,
+.skynet-asuswrt6 #FormTitle .skynet-update-bar,
+.skynet-asuswrt6 #FormTitle .skynet-feed-manager,
+.skynet-asuswrt6 #FormTitle .skynet-country-health,
+.skynet-asuswrt6 #FormTitle .skynet-rules-manager,
+.skynet-asuswrt6 #FormTitle .skynet-action-panel {
+  background: var(--skynet-surface-2) !important;
+  border-color: var(--skynet-border-soft) !important;
+  border-radius: var(--wrt-card-radius, 6px);
+  box-shadow: none;
+}
+
+.skynet-asuswrt6 #FormTitle .skynet-hero-title,
+.skynet-asuswrt6 #FormTitle .skynet-guidance-state,
+.skynet-asuswrt6 #FormTitle .skynet-meta-value,
+.skynet-asuswrt6 #FormTitle .skynet-section-head td,
+.skynet-asuswrt6 #FormTitle .skynet-detail-head {
+  color: var(--skynet-text) !important;
+  text-shadow: none;
+}
+
+.skynet-asuswrt6 #FormTitle .skynet-hero-sub,
+.skynet-asuswrt6 #FormTitle .skynet-guidance-detail,
+.skynet-asuswrt6 #FormTitle .skynet-update-result:not(.error) {
+  color: var(--skynet-muted) !important;
+}
+
+.skynet-asuswrt6 #FormTitle .skynet-hero::after,
+.skynet-asuswrt6 #FormTitle .skynet-hero-title::after {
+  background: var(--skynet-link);
+  box-shadow: none;
+}
+
+.skynet-asuswrt6 #FormTitle .skynet-hero::before {
+  background: none;
+}
+
+.skynet-asuswrt6[data-asuswrt-style~="tech"] #FormTitle .skynet-hero::before {
+  background: var(--global-bg-image, none) center / cover;
+  opacity: 0.18;
+}
+
+.skynet-asuswrt6[data-asuswrt-style~="tech"] #FormTitle .skynet-hero::after {
+  height: 3px;
+  background: var(--gradient-color-primary, var(--skynet-link));
+}
+
+.skynet-asuswrt6 #FormTitle .skynet-project-link,
+.skynet-asuswrt6 #FormTitle .skynet-detail-head,
+.skynet-asuswrt6 #FormTitle .skynet-feed-header,
+.skynet-asuswrt6 #FormTitle .skynet-country-health-header,
+.skynet-asuswrt6 #FormTitle .skynet-rule-header,
+.skynet-asuswrt6 #FormTitle .skynet-action-header,
+.skynet-asuswrt6 #FormTitle .skynet-action-intro,
+.skynet-asuswrt6 #FormTitle .skynet-section-head,
+.skynet-asuswrt6 #FormTitle .skynet-settings-group th {
+  background: var(--skynet-panel-alt) !important;
+  border-color: var(--skynet-border) !important;
+  box-shadow: none;
+}
+
+.skynet-asuswrt6 #FormTitle .skynet-project-link {
+  color: var(--skynet-link) !important;
+}
+
+.skynet-asuswrt6 #FormTitle .skynet-tab.active,
+.skynet-asuswrt6 #FormTitle .skynet-tab:hover {
+  background: var(--wrt-segment-fill-selected-bg, var(--skynet-panel-alt)) !important;
+  border-color: var(--skynet-border) !important;
+  border-bottom-color: var(--skynet-link) !important;
+  color: var(--skynet-text) !important;
+  box-shadow: none;
+}
+
+.skynet-asuswrt6 #FormTitle .skynet-settings-table tr:not(.skynet-settings-group) > th {
+  background: var(--skynet-bg) !important;
+}
+
+.skynet-asuswrt6 #FormTitle .skynet-settings-table tr:not(.skynet-settings-group) > td {
+  background: var(--skynet-panel) !important;
+}
+
+.skynet-asuswrt6 #FormTitle .skynet-update-button,
+.skynet-asuswrt6 #FormTitle .skynet-detail-close,
+.skynet-asuswrt6 #FormTitle .skynet-detail-copy,
+.skynet-asuswrt6 #FormTitle .skynet-detail-domain-toggle,
+.skynet-asuswrt6 #FormTitle .skynet-detail-lookup {
+  background: var(--wrt-btn-primary-bg, var(--brand-primary)) !important;
+  border-color: var(--wrt-btn-primary-border, var(--brand-primary)) !important;
+  color: var(--wrt-btn-primary-color, #ffffff) !important;
+  border-radius: var(--wrt-btn-radius, 5px) !important;
+  text-shadow: none;
+  box-shadow: none;
+}
+
+.skynet-asuswrt6 #FormTitle .skynet-update-button:not(:disabled):hover {
+  background: var(--wrt-btn-primary-hover-bg, var(--brand-primary)) !important;
+  color: var(--wrt-btn-primary-hover-color, #ffffff) !important;
+}
+
+.skynet-asuswrt6 #FormTitle .skynet-update-button {
+  min-width: max-content !important;
+  font-family: var(--global-font-style, Arial, sans-serif);
+  white-space: nowrap;
+  word-break: normal;
+  overflow-wrap: normal;
+}
+
+.skynet-asuswrt6 #FormTitle .skynet-settings-reload,
+.skynet-asuswrt6 #FormTitle .skynet-reset-button {
+  background: var(--skynet-surface-2) !important;
+  border-color: var(--skynet-border) !important;
+  color: var(--skynet-text) !important;
+}
+
+.skynet-asuswrt6 #FormTitle .skynet-update-button:disabled {
+  background: var(--wrt-btn-primary-disabled-bg, var(--skynet-panel-alt)) !important;
+  color: var(--wrt-btn-primary-disabled-color, var(--skynet-muted)) !important;
+  border-color: var(--wrt-btn-primary-disabled-border, var(--skynet-border)) !important;
+}
+
+.skynet-asuswrt6 #FormTitle select,
+.skynet-asuswrt6 #FormTitle input[type="text"],
+.skynet-asuswrt6 #FormTitle input[type="url"],
+.skynet-asuswrt6 #FormTitle input[type="number"],
+.skynet-asuswrt6 #FormTitle textarea,
+.skynet-asuswrt6 #FormTitle #skynetCountrySearch,
+.skynet-asuswrt6 #FormTitle #skynetCountryPicker,
+.skynet-asuswrt6 #FormTitle .skynet-country-tag,
+.skynet-asuswrt6 #FormTitle .skynet-rule-tag {
+  background: var(--wrt-input-bg, var(--skynet-bg)) !important;
+  color: var(--wrt-input-color, var(--skynet-text)) !important;
+  border-color: var(--wrt-input-border, var(--skynet-border)) !important;
+  box-shadow: none;
+}
+
+.skynet-asuswrt6 #FormTitle select,
+.skynet-asuswrt6 #FormTitle input[type="text"],
+.skynet-asuswrt6 #FormTitle input[type="url"],
+.skynet-asuswrt6 #FormTitle input[type="number"],
+.skynet-asuswrt6 #FormTitle textarea {
+  border-radius: var(--wrt-input-radius, 4px);
+}
+
+.skynet-asuswrt6 #FormTitle input:focus-visible,
+.skynet-asuswrt6 #FormTitle select:focus-visible,
+.skynet-asuswrt6 #FormTitle button:focus-visible,
+.skynet-asuswrt6 #FormTitle textarea:focus-visible {
+  outline: 2px solid var(--focus-ring, var(--skynet-link));
+  outline-offset: 2px;
+}
+
+.skynet-asuswrt6 #FormTitle input[type="checkbox"] {
+  accent-color: var(--brand-primary);
+}
+
+.skynet-asuswrt6 #FormTitle .skynet-feed-switch {
+  background: var(--wrt-switch-track-bg-off, transparent);
+  border-color: var(--wrt-switch-track-border-off, var(--skynet-border));
+  box-shadow: none;
+}
+
+.skynet-asuswrt6 #FormTitle .skynet-feed-switch::after {
+  background: var(--wrt-switch-thumb-bg-off, var(--skynet-muted));
+}
+
+.skynet-asuswrt6 #FormTitle .skynet-feed-toggle input:checked + .skynet-feed-switch {
+  background: var(--wrt-switch-track-bg-on, var(--brand-primary));
+  border-color: var(--wrt-switch-track-border-on, var(--brand-primary));
+}
+
+.skynet-asuswrt6 #FormTitle .skynet-feed-toggle input:checked + .skynet-feed-switch::after {
+  background: var(--wrt-switch-thumb-bg-on, #ffffff);
+}
+
+.skynet-asuswrt6 #FormTitle .skynet-chart-shell,
+.skynet-asuswrt6 #FormTitle .skynet-chart-shell.skynet-activity-shell,
+.skynet-asuswrt6 #FormTitle .skynet-block-chart {
+  background: var(--skynet-chart-bg) !important;
+  border-color: var(--skynet-border) !important;
+  box-shadow: none;
+}
+
+.skynet-asuswrt6 #FormTitle .skynet-chart-shell::before {
+  display: none;
+}
+
+.skynet-asuswrt6 #FormTitle .StatsTable.skynet-modern-table td,
+.skynet-asuswrt6 #FormTitle .StatsTable.skynet-modern-table th {
+  border-color: var(--skynet-border-soft) !important;
+}
+
+.skynet-asuswrt6 #FormTitle .StatsTable.skynet-modern-table tr:hover td {
+  background: var(--skynet-panel-alt) !important;
+}
+
+.skynet-asuswrt6 #FormTitle .skynet-status,
+.skynet-asuswrt6 #FormTitle .skynet-feed-pill,
+.skynet-asuswrt6 #FormTitle .skynet-action-result {
+  background: var(--skynet-panel) !important;
+  border-color: currentColor !important;
+  box-shadow: none;
+}
+
+.skynet-asuswrt6 #FormTitle .skynet-feed-pill.empty,
+.skynet-asuswrt6 #FormTitle .skynet-feed-pill.pending {
+  color: var(--skynet-muted);
+}
+
+.skynet-asuswrt6 #FormTitle .skynet-feed-pill.expired {
+  color: var(--skynet-warning);
+}
+
+.skynet-asuswrt6 #FormTitle .skynet-country-tag::before,
+.skynet-asuswrt6 #FormTitle .skynet-rule-tag::before,
+.skynet-asuswrt6 #FormTitle .skynet-action-intro .skynet-feed-title::before {
+  background: var(--skynet-link);
+  box-shadow: none;
+}
+
+.skynet-asuswrt6 #FormTitle .skynet-country-remove:hover,
+.skynet-asuswrt6 #FormTitle .skynet-country-remove:focus-visible {
+  color: var(--skynet-error);
+}
+
+.skynet-asuswrt6 #FormTitle .skynet-status {
+  color: var(--skynet-success);
+}
+
+.skynet-asuswrt6 #FormTitle .skynet-status[data-state="partial"] {
+  color: var(--skynet-warning);
+}
+
+.skynet-asuswrt6 #FormTitle .skynet-status[data-state="inactive"] {
+  color: var(--skynet-error);
+}
+
+.skynet-asuswrt6 #FormTitle .skynet-status[data-state="pending"],
+.skynet-asuswrt6 #FormTitle .skynet-status[data-state="unavailable"] {
+  color: var(--skynet-muted);
+}
+
+.skynet-asuswrt6 #FormTitle .skynet-status[data-state] .skynet-status-dot {
+  background: currentColor;
+  box-shadow: none;
+}
+
+.skynet-asuswrt6 #FormTitle .skynet-nodata {
+  color: var(--skynet-muted) !important;
+  background: var(--skynet-panel) !important;
+}
+
+  </style>
     <script src="/js/chart.min.js"></script>
     <script src="/js/jquery.js"></script>
     <script src="/js/httpApi.js"></script>
@@ -3743,21 +4158,162 @@
             return value || fallback;
         };
 
+        SkynetUI.initializePlatform = function() {
+            /* UI4 is supplied by get_ui_support(), independently of rc_support. */
+            this.asuswrt6 = typeof window.isSupport === "function" && Boolean(window.isSupport("UI4"));
+            document.documentElement.classList.toggle("skynet-asuswrt6", this.asuswrt6);
+
+            if (this.asuswrt6 && !document.querySelector('meta[name="viewport"]')) {
+                const viewport = document.createElement("meta");
+                viewport.name = "viewport";
+                viewport.content = "width=device-width, initial-scale=1";
+                document.head.appendChild(viewport);
+            }
+        };
+
         SkynetUI.initializeTheme = function() {
-            this.theme.text = this.getCssVariable("--text-regular-color", "#CCCCCC");
-            this.theme.grid = this.getCssVariable("--border-color", "#3B4549");
+            if (this.asuswrt6) {
+                this.syncNativeTheme();
+                this.theme.text = this.getCssVariable("--skynet-chart-text", "#CCCCCC");
+                this.theme.grid = this.getCssVariable("--skynet-chart-grid", "#3B4549");
+
+                if (!this.themeObserver && typeof window.MutationObserver === "function") {
+                    this.themeObserver = new window.MutationObserver(function() {
+                        SkynetUI.syncNativeTheme();
+                        SkynetUI.scheduleThemeRefresh();
+                    });
+                    const options = {attributes: true, attributeFilter: [
+                        "data-asuswrt-color", "data-asuswrt-theme", "data-asuswrt-style"
+                    ]};
+                    this.themeObserver.observe(document.documentElement, options);
+                    const host = this.getNativeThemeHost();
+                    if (host) this.themeObserver.observe(host, options);
+                }
+                if (!this.themeLifecycleBound && typeof window.addEventListener === "function") {
+                    this.themeLifecycleBound = true;
+                    window.addEventListener("pagehide", function() {
+                        if (SkynetUI.themeObserver) SkynetUI.themeObserver.disconnect();
+                        SkynetUI.themeObserver = null;
+                    });
+                    window.addEventListener("pageshow", function(event) {
+                        if (event.persisted) SkynetUI.scheduleThemeRefresh();
+                    });
+                }
+            } else {
+                this.theme.text = this.getCssVariable("--text-regular-color", "#CCCCCC");
+                this.theme.grid = this.getCssVariable("--border-color", "#3B4549");
+            }
+        };
+
+        SkynetUI.getNativeThemeHost = function() {
+            try {
+                const host = window.webWrapperHost;
+                return host && host !== window && host.document ? host.document.documentElement : null;
+            } catch (error) {
+                return null;
+            }
+        };
+
+        SkynetUI.syncNativeTheme = function() {
+            const host = this.getNativeThemeHost();
+            if (!host) return;
+            ["data-asuswrt-color", "data-asuswrt-theme", "data-asuswrt-style"].forEach(function(name) {
+                const value = host.getAttribute(name);
+                const root = document.documentElement;
+                if (value === root.getAttribute(name)) return;
+                if (value === null) root.removeAttribute(name);
+                else root.setAttribute(name, value);
+            });
+        };
+
+        SkynetUI.captureChartVisibility = function(chart) {
+            return {
+                datasets: (chart.data.datasets || []).map(function(dataset, index) {
+                    return typeof chart.isDatasetVisible === "function"
+                        ? chart.isDatasetVisible(index) : !dataset.hidden;
+                }),
+                points: (chart.data.labels || []).map(function(label, index) {
+                    return typeof chart.getDataVisibility === "function" ? chart.getDataVisibility(index) : true;
+                })
+            };
+        };
+
+        SkynetUI.restoreChartVisibility = function(chart, saved) {
+            if (!chart) return;
+            saved.datasets.forEach(function(visible, index) {
+                if (typeof chart.setDatasetVisibility === "function" && chart.data.datasets[index]) {
+                    chart.setDatasetVisibility(index, visible && !chart.data.datasets[index].disabledBySetting);
+                }
+            });
+            saved.points.forEach(function(visible, index) {
+                if (typeof chart.getDataVisibility === "function" && typeof chart.toggleDataVisibility === "function" &&
+                    chart.getDataVisibility(index) !== visible) chart.toggleDataVisibility(index);
+            });
+            if (typeof chart.update === "function") chart.update("none");
+        };
+
+        SkynetUI.scheduleThemeRefresh = function() {
+            if (this.themeRefreshPending) return;
+            this.themeRefreshPending = true;
+            const refresh = function() {
+                SkynetUI.themeRefreshPending = false;
+                SkynetUI.initializeTheme();
+                Object.keys(SkynetUI.charts).forEach(function(name) {
+                    const saved = SkynetUI.captureChartVisibility(SkynetUI.charts[name]);
+                    const definition = SkynetUI.chartDefinitions[name];
+                    if (!definition) return;
+                    SkynetUI.setupChart(name, definition.multiLabel ? "true" : "false");
+                    SkynetUI.restoreChartVisibility(SkynetUI.charts[name], saved);
+                });
+                if (SkynetUI.blockHistoryChart) {
+                    const saved = SkynetUI.captureChartVisibility(SkynetUI.blockHistoryChart);
+                    SkynetUI.renderBlockHistoryChart();
+                    SkynetUI.restoreChartVisibility(SkynetUI.blockHistoryChart, saved);
+                }
+                SkynetUI.scheduleChartResize();
+            };
+            if (typeof window.requestAnimationFrame === "function") window.requestAnimationFrame(refresh);
+            else window.setTimeout(refresh, 0);
         };
 
         SkynetUI.getChartTextColor = function() {
+            if (this.asuswrt6) return this.getCssVariable("--skynet-chart-text", "#CCCCCC");
             return this.theme.text || this.getCssVariable("--text-regular-color", "#CCCCCC");
         };
 
         SkynetUI.getChartGridColor = function() {
+            if (this.asuswrt6) return this.getCssVariable("--skynet-chart-grid", "#3B4549");
             return this.theme.grid || this.getCssVariable("--border-color", "#3B4549");
         };
 
         SkynetUI.getChartColor = function(index) {
+            if (this.asuswrt6) {
+                const nativeColors = ["--skynet-series-inbound", "--skynet-series-outbound",
+                    "--skynet-series-firewall", "--skynet-series-invalid", "--skynet-series-iot",
+                    "--skynet-series-teal", "--skynet-series-orange", "--skynet-series-blue",
+                    "--skynet-series-purple", "--skynet-series-yellow"];
+                const colorIndex = index % nativeColors.length;
+                return this.getCssVariable(nativeColors[colorIndex], this.chartColors[colorIndex]);
+            }
             return this.chartColors[index % this.chartColors.length];
+        };
+
+        SkynetUI.getActivityColor = function(kind, fallback) {
+            return this.asuswrt6 ? this.getCssVariable("--skynet-series-" + kind, fallback) : fallback;
+        };
+
+        SkynetUI.getChartSurface = function() {
+            return this.asuswrt6 ? this.getCssVariable("--skynet-chart-bg", "#11191c") : "#11191c";
+        };
+
+        SkynetUI.chartColorAlpha = function(color, alpha) {
+            const hex = /^#([0-9a-f]{6})(?:[0-9a-f]{2})?$/i.exec(color);
+            if (hex) {
+                const value = parseInt(hex[1], 16);
+                return "rgba(" + [(value >> 16) & 255, (value >> 8) & 255, value & 255, alpha].join(",") + ")";
+            }
+            const rgb = /^rgba?\(\s*(\d+)[, ]+\s*(\d+)[, ]+\s*(\d+)/i.exec(color);
+            return rgb ? "rgba(" + [rgb[1], rgb[2], rgb[3], alpha].join(",") + ")" : color;
         };
 
         SkynetUI.formatNumber = function(value) {
@@ -3827,13 +4383,31 @@
         };
 
         SkynetUI.getCookie = function(name) {
-            const value = cookie.get(name);
+            /* Store presentation preferences independently of firmware helpers. */
+            try {
+                const cookieName = name.indexOf("skynet_") === 0 ? name : "skynet_" + name;
+                const prefix = encodeURIComponent(cookieName) + "=";
+                const saved = document.cookie.split(";").map(function(entry) {
+                    return entry.trim();
+                }).find(function(entry) {
+                    return entry.indexOf(prefix) === 0;
+                });
 
-            return value === null || value === undefined ? null : value;
+                return saved === undefined ? null : decodeURIComponent(saved.substring(prefix.length));
+            } catch (error) {
+                return null;
+            }
         };
 
         SkynetUI.setCookie = function(name, value) {
-            cookie.set(name, value, 31);
+            try {
+                const expires = new Date(Date.now() + 31 * 24 * 60 * 60 * 1000);
+                const cookieName = name.indexOf("skynet_") === 0 ? name : "skynet_" + name;
+                document.cookie = encodeURIComponent(cookieName) + "=" + encodeURIComponent(value) +
+                    "; expires=" + expires.toUTCString() + "; path=/; SameSite=Lax";
+            } catch (error) {
+                /* Blocked browser storage only disables saved presentation preferences. */
+            }
         };
 
         SkynetUI.getSelectValue = function(id, fallback) {
@@ -4525,7 +5099,7 @@
             this.refreshInProgress = true;
             this.setUpdateResult("Searching local caches...", false, this.selectors.sourceSearchResult);
             this.setActionState(true, this.selectors.sourceSearchButton, "Searching...");
-            this.submitBackgroundAction("start_SkynetSources");
+            if (!this.submitBackgroundAction("start_SkynetSources")) return;
             this.sourceQueryRequest = this.activeRequest;
             this.waitForUpdate(window.SkynetSettingsGenerated, 120, "sources");
         };
@@ -5013,7 +5587,7 @@
                     ? context.createLinearGradient(0, 0, chartWidth, 0)
                     : context.createLinearGradient(0, chartHeight, 0, 0);
 
-                gradient.addColorStop(0, "rgba(17, 25, 28, 0.72)");
+                gradient.addColorStop(0, SkynetUI.asuswrt6 ? SkynetUI.getChartSurface() : "rgba(17, 25, 28, 0.72)");
                 gradient.addColorStop(1, color);
                 return gradient;
             });
@@ -5021,10 +5595,10 @@
             const dataset = {
                 data: source.data,
                 borderWidth: 1,
-                borderColor: isPie ? "#11191c" : colors,
+                borderColor: isPie ? this.getChartSurface() : colors,
                 backgroundColor: fills,
                 hoverBackgroundColor: colors,
-                hoverBorderColor: "#dffaff",
+                hoverBorderColor: this.asuswrt6 ? textColor : "#dffaff",
                 hoverBorderWidth: 2,
                 borderRadius: isPie ? 0 : 5,
                 borderSkipped: false,
@@ -5039,8 +5613,8 @@
                 id: "skynetChartGlow",
                 beforeDatasetDraw: function(chart) {
                     chart.ctx.save();
-                    chart.ctx.shadowColor = "rgba(53, 216, 255, 0.34)";
-                    chart.ctx.shadowBlur = isPie ? 6 : 8;
+                    chart.ctx.shadowColor = SkynetUI.asuswrt6 ? "transparent" : "rgba(53, 216, 255, 0.34)";
+                    chart.ctx.shadowBlur = SkynetUI.asuswrt6 ? 0 : (isPie ? 6 : 8);
                 },
                 afterDatasetDraw: function(chart) {
                     chart.ctx.restore();
@@ -5127,23 +5701,23 @@
                     mode: "nearest",
                     intersect: true,
                     displayColors: false,
-                    backgroundColor: "rgba(8, 14, 16, 0.94)",
-                    borderColor: "#43565d",
+                    backgroundColor: this.asuswrt6 ? this.getChartSurface() : "rgba(8, 14, 16, 0.94)",
+                    borderColor: this.asuswrt6 ? gridColor : "#43565d",
                     borderWidth: 1,
                     boxPadding: 0,
                     padding: 10,
                     caretPadding: 8,
-                    titleColor: "#ffffff",
+                    titleColor: this.asuswrt6 ? textColor : "#ffffff",
                     titleFont: {
                         size: 12,
                         weight: "bold"
                     },
                     titleMarginBottom: 4,
-                    bodyColor: "#dbe4e7",
+                    bodyColor: this.asuswrt6 ? textColor : "#dbe4e7",
                     bodyFont: {
                         size: 11
                     },
-                    footerColor: "#8fd1f5",
+                    footerColor: this.asuswrt6 ? this.getChartColor(0) : "#8fd1f5",
                     footerFont: {
                         size: 10,
                         style: "normal"
@@ -5225,9 +5799,9 @@
                     x: {
                         beginAtZero: true,
                         grid: {
-                            color: "rgba(143, 209, 245, 0.08)",
+                            color: this.asuswrt6 ? gridColor : "rgba(143, 209, 245, 0.08)",
                             borderColor: gridColor,
-                            tickColor: "rgba(143, 209, 245, 0.12)"
+                            tickColor: this.asuswrt6 ? gridColor : "rgba(143, 209, 245, 0.12)"
                         },
                         ticks: {
                             color: textColor,
@@ -5246,9 +5820,9 @@
                     y: {
                         beginAtZero: true,
                         grid: {
-                            color: "rgba(143, 209, 245, 0.08)",
+                            color: this.asuswrt6 ? gridColor : "rgba(143, 209, 245, 0.08)",
                             borderColor: gridColor,
-                            tickColor: "rgba(143, 209, 245, 0.12)"
+                            tickColor: this.asuswrt6 ? gridColor : "rgba(143, 209, 245, 0.12)"
                         },
                         ticks: {
                             color: textColor,
@@ -5371,18 +5945,21 @@
             const series = [
                 {
                     label: "Inbound",
+                    kind: "inbound",
                     values: window.DataActivityInbound,
                     color: "#35d8ff",
                     fill: "rgba(53, 216, 255, 0.18)"
                 },
                 {
                     label: "Outbound",
+                    kind: "outbound",
                     values: window.DataActivityOutbound,
                     color: "#39ef9d",
                     fill: "rgba(57, 239, 157, 0.14)"
                 },
                 {
                     label: "Invalid",
+                    kind: "invalid",
                     values: window.DataActivityInvalid,
                     color: "#ff5f6d",
                     fill: "rgba(255, 95, 109, 0.12)",
@@ -5390,6 +5967,7 @@
                 },
                 {
                     label: "Firewall Drops",
+                    kind: "firewall",
                     values: window.DataActivityFirewall,
                     color: "#ffb454",
                     fill: "rgba(255, 180, 84, 0.12)",
@@ -5397,6 +5975,7 @@
                 },
                 {
                     label: "IoT",
+                    kind: "iot",
                     values: window.DataActivityIOT,
                     color: "#c875ff",
                     fill: "rgba(200, 117, 255, 0.12)",
@@ -5414,23 +5993,24 @@
                  */
                 const disabled = Boolean(item.setting && window.SkynetSettings &&
                     window.SkynetSettings[item.setting] !== "enabled");
-                gradient.addColorStop(0, item.fill);
-                gradient.addColorStop(1, "rgba(17, 25, 28, 0)");
+                const color = SkynetUI.getActivityColor(item.kind, item.color);
+                gradient.addColorStop(0, SkynetUI.asuswrt6 ? SkynetUI.chartColorAlpha(color, 0.16) : item.fill);
+                gradient.addColorStop(1, SkynetUI.asuswrt6 ? SkynetUI.chartColorAlpha(color, 0) : "rgba(17, 25, 28, 0)");
 
                 return {
                     label: item.label,
                     data: item.values.map(function(value) {
                         return Number(value) || 0;
                     }),
-                    borderColor: item.color,
+                    borderColor: color,
                     backgroundColor: gradient,
                     borderWidth: 2,
                     pointRadius: item.values.map(function(value, index) {
                         return index === labels.length - 1 ? 3 : 0;
                     }),
                     pointHoverRadius: 5,
-                    pointBackgroundColor: item.color,
-                    pointBorderColor: "#11191c",
+                    pointBackgroundColor: color,
+                    pointBorderColor: SkynetUI.getChartSurface(),
                     pointBorderWidth: 1,
                     tension: 0.35,
                     fill: true,
@@ -5458,7 +6038,7 @@
                 beforeDatasetDraw: function(chart, args) {
                     chart.ctx.save();
                     chart.ctx.shadowColor = chart.data.datasets[args.index].borderColor;
-                    chart.ctx.shadowBlur = 4;
+                    chart.ctx.shadowBlur = SkynetUI.asuswrt6 ? 0 : 4;
                 },
                 afterDatasetDraw: function(chart) {
                     chart.ctx.restore();
@@ -5520,11 +6100,11 @@
                         tooltip: {
                             mode: "index",
                             intersect: false,
-                            backgroundColor: "rgba(8, 14, 16, 0.94)",
-                            borderColor: "#43565d",
+                            backgroundColor: this.asuswrt6 ? this.getChartSurface() : "rgba(8, 14, 16, 0.94)",
+                            borderColor: this.asuswrt6 ? this.getChartGridColor() : "#43565d",
                             borderWidth: 1,
-                            titleColor: "#ffffff",
-                            bodyColor: "#dbe4e7",
+                            titleColor: this.asuswrt6 ? textColor : "#ffffff",
+                            bodyColor: this.asuswrt6 ? textColor : "#dbe4e7",
                             padding: 10,
                             callbacks: {
                                 title: function(items) {
@@ -5567,7 +6147,7 @@
                         y: {
                             beginAtZero: true,
                             grid: {
-                                color: "rgba(143, 209, 245, 0.06)"
+                                color: this.asuswrt6 ? this.getChartGridColor() : "rgba(143, 209, 245, 0.06)"
                             },
                             ticks: {
                                 color: textColor,
@@ -6319,6 +6899,16 @@
         };
 
         SkynetUI.populateBlacklistCounts = function(settings) {
+            if (settings.blacklistcountavailable === false) {
+                ["blcount1", "blcount2"].forEach(function(id) {
+                    const counter = SkynetUI.getElement(id);
+                    if (counter) {
+                        counter.textContent = "—";
+                        counter.title = "Current firewall counts are unavailable. Reload Data to retry.";
+                    }
+                });
+                return;
+            }
             const settingsGenerated = Number(String(window.SkynetSettingsGenerated || "").split(".")[0]);
             const statsGenerated = Number(String(window.SkynetStatsGenerated || "").split(".")[0]);
             if (Number.isFinite(statsGenerated) && statsGenerated > 0 &&
@@ -6333,8 +6923,9 @@
             Object.keys(counters).forEach(function(id) {
                 const counter = SkynetUI.getElement(id);
 
-                if (counter && /^\d+$/.test(String(counters[id] || ""))) {
+                if (counter && counters[id] !== null && counters[id] !== undefined && /^\d+$/.test(String(counters[id]))) {
                     counter.textContent = SkynetUI.formatNumber(counters[id]);
+                    counter.title = "";
                 }
             });
         };
@@ -6795,8 +7386,8 @@
             const parsed = this.normaliseRuleEntries(raw, mode);
             const comment = mode === "ip" && this.getElement(this.selectors.ruleAction).value !== "unban"
                 ? this.getElement(this.selectors.ruleComment).value.trim() : "";
-            if (comment.length > 242 || /[\r\n\t\x00-\x1f\x7f"\\]/.test(comment)) {
-                this.setUpdateResult("Enter a valid comment of up to 242 characters.", true, this.selectors.ruleResult);
+            if (new TextEncoder().encode(comment).length > 242 || /[\r\n\t\x00-\x1f\x7f"\\]/.test(comment)) {
+                this.setUpdateResult("Enter a valid comment of up to 242 UTF-8 bytes.", true, this.selectors.ruleResult);
                 return;
             }
 
@@ -7416,7 +8007,7 @@
             this.refreshInProgress = true;
             this.setUpdateResult("Validating and restoring backup. Traffic may be interrupted briefly...", false, this.selectors.backupResult);
             this.setActionState(true, this.selectors.backupRestore, "Restoring...");
-            this.submitBackgroundAction("start_SkynetRestore");
+            if (!this.submitBackgroundAction("start_SkynetRestore")) return;
             this.waitForUpdate(window.SkynetSettingsGenerated, 600, "restore");
         };
 
@@ -7426,7 +8017,7 @@
             this.refreshInProgress = true;
             this.setUpdateResult("Creating backup...", false, this.selectors.backupResult);
             this.setActionState(true, this.selectors.backupButton, "Creating...");
-            this.submitBackgroundAction("start_SkynetBackup");
+            if (!this.submitBackgroundAction("start_SkynetBackup")) return;
             this.waitForUpdate(window.SkynetSettingsGenerated, 600, "backup");
         };
 
@@ -7447,7 +8038,11 @@
                     return response.arrayBuffer();
                 }).then(function(data) {
                     const bytes = new Uint8Array(data);
-                    if (bytes[0] !== 31 || bytes[1] !== 139) throw new Error("Archive unavailable or session expired");
+                    const expectedSize = Number(backup.size);
+                    if (bytes.length < 18 || bytes[0] !== 31 || bytes[1] !== 139 ||
+                        (Number.isFinite(expectedSize) && expectedSize > 0 && bytes.length !== expectedSize)) {
+                        throw new Error("Archive incomplete, unavailable or session expired");
+                    }
                     const stamp = new Date(Number(backup.created) * 1000);
                     const date = stamp.getFullYear() + String(stamp.getMonth() + 1).padStart(2, "0") + String(stamp.getDate()).padStart(2, "0");
                     const time = String(stamp.getHours()).padStart(2, "0") + String(stamp.getMinutes()).padStart(2, "0") + String(stamp.getSeconds()).padStart(2, "0");
@@ -7505,7 +8100,10 @@
                 this.setUpdateResult("Adding rules requires synchronized router time.", true, this.selectors.ruleResult);
                 return;
             }
-            const payload = Object.assign({}, custom_settings);
+            const payload = Object.create(null);
+            Object.keys(custom_settings).forEach(function(key) {
+                if (key.indexOf("skynet_") === 0) payload[key] = custom_settings[key];
+            });
             payload.skynet_ruleoperation = operation;
             payload.skynet_ruleaction = action;
             payload.skynet_rulemode = rule
@@ -7536,7 +8134,7 @@
             this.setUpdateResult(removing ? (rule ? "Removing rule..." : "Removing rules...") : "Applying rules...", false, this.selectors.ruleResult);
             this.setActionState(true, this.selectors.ruleButton, removing ? "Removing..." : "Applying...");
             document.form.amng_custom.value = JSON.stringify(custom_settings);
-            this.submitBackgroundAction("start_SkynetRules", request);
+            if (!this.submitBackgroundAction("start_SkynetRules", request)) return;
             this.waitForUpdate(window.SkynetSettingsGenerated, 600, "rules");
         };
 
@@ -7573,7 +8171,7 @@
             this.setUpdateResult("Refreshing dynamic rules...", false, this.selectors.ruleResult);
             this.setActionState(true, this.selectors.ruleRefresh, "Refreshing...");
             document.form.amng_custom.value = JSON.stringify(custom_settings);
-            this.submitBackgroundAction("start_SkynetRules");
+            if (!this.submitBackgroundAction("start_SkynetRules")) return;
             this.waitForUpdate(window.SkynetSettingsGenerated, 600, "ruleRefresh");
         };
 
@@ -7654,7 +8252,7 @@
         SkynetUI.canManageIOT = function() {
             const settings = window.SkynetSettings;
 
-            return Boolean(settings && window.SkynetSettingsGenerated &&
+            return Boolean(settings && settings.iotavailable !== false && window.SkynetSettingsGenerated &&
                 Array.isArray(window.SkynetIOTDevices) &&
                 Object.prototype.hasOwnProperty.call(settings, "iotentries"));
         };
@@ -7776,7 +8374,9 @@
             if (!this.iotSelection.length) {
                 const empty = document.createElement("span");
                 empty.className = "skynet-country-empty";
-                empty.textContent = "No devices selected.";
+                empty.textContent = (window.SkynetSettings || {}).iotavailable === false
+                    ? "Current IoT device rules are unavailable."
+                    : "No devices selected.";
                 list.appendChild(empty);
             } else {
                 this.iotSelection.forEach(function(ip) {
@@ -7808,7 +8408,9 @@
                 });
             }
             this.setUpdateResult(
-                this.isIOTDirty()
+                (window.SkynetSettings || {}).iotavailable === false
+                    ? "Current IoT rules are unavailable. Reload Data to retry."
+                    : this.isIOTDirty()
                     ? "Unsaved IoT isolation changes."
                     : (this.iotSelection.length
                         ? this.iotSelection.length +
@@ -7834,7 +8436,9 @@
             if (mode !== "custom" || !this.iotPortSelection.length) {
                 const empty = document.createElement("span");
                 empty.className = "skynet-country-empty";
-                if (mode === "none") {
+                if ((window.SkynetSettings || {}).iotavailable === false) {
+                    empty.textContent = "Current IoT port rules are unavailable.";
+                } else if (mode === "none") {
                     empty.textContent = "No TCP or UDP WAN ports are allowed.";
                 } else if (mode === "custom") {
                     empty.textContent = "Add at least one custom port.";
@@ -7979,7 +8583,7 @@
             this.setUpdateResult("Applying IoT isolation...", false, this.selectors.iotResult);
             this.setActionState(true, this.selectors.iotButton, "Applying...");
             document.form.amng_custom.value = JSON.stringify(custom_settings);
-            this.submitBackgroundAction("start_SkynetIOT");
+            if (!this.submitBackgroundAction("start_SkynetIOT")) return;
             this.waitForUpdate(window.SkynetSettingsGenerated, 600, "iot");
         };
 
@@ -8037,8 +8641,8 @@
                 this.setUpdateResult("Enter a complete IPv4 address or CIDR range.", true, this.selectors.blockHistoryResult);
                 return;
             }
-            if (filters.port && (!/^\d{1,5}$/.test(filters.port) || Number(filters.port) < 1 || Number(filters.port) > 65535)) {
-                this.setUpdateResult("Enter a port from 1 to 65535.", true, this.selectors.blockHistoryResult);
+            if (filters.port && (!/^\d{1,5}$/.test(filters.port) || Number(filters.port) > 65535)) {
+                this.setUpdateResult("Enter a port from 0 to 65535.", true, this.selectors.blockHistoryResult);
                 return;
             }
             const cursors = (this.blockHistoryCursors || []).slice();
@@ -8068,7 +8672,7 @@
             this.setUpdateResult(direction === "export" ? "Preparing up to 1,000 matching events..." : "Loading history...", false, this.selectors.blockHistoryResult);
             this.setActionState(true, this.selectors.blockHistoryButton, "Loading...");
             document.form.amng_custom.value = JSON.stringify(payload);
-            this.submitBackgroundAction("start_SkynetHistory");
+            if (!this.submitBackgroundAction("start_SkynetHistory")) return;
             this.waitForUpdate(window.SkynetSettingsGenerated, 120, "history");
         };
 
@@ -8148,6 +8752,7 @@
 
         SkynetUI.renderBlockHistoryChart = function() {
             if (this.blockHistoryChart) this.blockHistoryChart.destroy();
+            this.blockHistoryChart = null;
             const data = this.blockHistory || {};
             const recorded = data.points || [];
             const canvas = this.getElement("skynetBlockChart");
@@ -8164,7 +8769,12 @@
             for (let epoch = first; epoch <= last && points.length < 2200; epoch += bucket) {
                 points.push(observed[epoch] || [epoch, null, null, null, null, null]);
             }
-            const colors = ["#68bed4", "#8bbfab", "#c9a96f", "#a69dca", "#ffb454"];
+            const colors = ["#68bed4", "#8bbfab", "#c9a96f", "#a69dca", "#ffb454"].map(function(color, index) {
+                return SkynetUI.getActivityColor(["inbound", "outbound", "invalid", "iot", "firewall"][index], color);
+            });
+            const textColor = this.asuswrt6 ? this.getChartTextColor() : "#c3d0d4";
+            const tickColor = this.asuswrt6 ? textColor : "#a6bac1";
+            const gridColor = this.asuswrt6 ? this.getChartGridColor() : "rgba(143,209,245,.08)";
             const selected = (this.blockHistoryFilters || {}).kind;
             this.blockHistoryChart = new Chart(canvas, {
                 type: "line",
@@ -8184,14 +8794,17 @@
                 },
                 options: {responsive: true, maintainAspectRatio: false, animation: false,
                     interaction: {mode: "index", intersect: false},
-                    plugins: {legend: {labels: {color: "#c3d0d4", boxWidth: 10, usePointStyle: true}}},
-                    scales: {x: {ticks: {color: "#a6bac1", maxTicksLimit: 7, maxRotation: 0}, grid: {display: false}},
-                        y: {beginAtZero: true, ticks: {color: "#a6bac1", precision: 0}, grid: {color: "rgba(143,209,245,.08)"}}}}
+                    plugins: {legend: {labels: {color: textColor, boxWidth: 10, usePointStyle: true}},
+                        tooltip: this.asuswrt6 ? {backgroundColor: this.getChartSurface(), titleColor: textColor, bodyColor: textColor,
+                            borderColor: gridColor, borderWidth: 1} : undefined},
+                    scales: {x: {ticks: {color: tickColor, maxTicksLimit: 7, maxRotation: 0}, grid: {display: false}},
+                        y: {beginAtZero: true, ticks: {color: tickColor, precision: 0}, grid: {color: gridColor}}}}
             });
         };
 
         SkynetUI.populateSettingsMetadata = function() {
             const settings = window.SkynetSettings || {};
+            this.populateProtectionStatus();
             const statsLimit = this.getElement("statslimit");
             if (statsLimit) {
                 const limit = Number(settings.logsize);
@@ -8204,6 +8817,25 @@
             }
             const scriptHash = this.getElement("skynetScriptHash");
             if (scriptHash) scriptHash.textContent = settings.scriptsha256 || "Unavailable";
+        };
+
+        SkynetUI.populateProtectionStatus = function() {
+            const status = this.getElement("skynetProtectionStatus");
+            const label = this.getElement("skynetProtectionLabel");
+            if (!status || !label) return;
+            const states = {
+                active: ["PROTECTED", "Skynet firewall rules and IP sets passed the router's integrity checks at the last data refresh."],
+                partial: ["CHECK FIREWALL", "Some Skynet components are present, but the firewall integrity checks failed. Run firewall debug info over SSH."],
+                inactive: ["INACTIVE", "Skynet firewall protection is not active at the last data refresh."],
+                unavailable: ["STATUS UNAVAILABLE", "The router could not verify current Skynet firewall protection. Reload Data to retry."],
+                pending: ["CHECKING STATUS", "Loading the router's firewall status."]
+            };
+            const reported = (window.SkynetSettings || {}).protectionstatus;
+            const state = Object.prototype.hasOwnProperty.call(states, reported) ? reported
+                : (window.SkynetSettingsGenerated ? "unavailable" : "pending");
+            status.dataset.state = state;
+            status.title = states[state][1];
+            label.textContent = states[state][0];
         };
 
         SkynetUI.populateSettings = function(preserveEditors, preserveSettings) {
@@ -8276,11 +8908,7 @@
             }
         };
 
-        /*
-         * Background actions use Merlin's native service-event form target.
-             * The page remains interactive while matching worker results are
-             * polled to detect completion.
-         */
+        /* Background actions use Merlin's service-event form and poll for matching results. */
         SkynetUI.setUpdateResult = function(message, isError, resultSelector, isWarning) {
             const result = this.getElement(resultSelector || this.selectors.updateResult);
 
@@ -8301,6 +8929,7 @@
             [
                 this.selectors.updateButton,
                 this.selectors.resetStatsButton,
+                this.selectors.blockHistoryButton,
                 this.selectors.backupButton,
                 this.selectors.restartButton,
                 this.selectors.sourceSearchButton,
@@ -8431,11 +9060,37 @@
         };
 
         SkynetUI.loadStatsScript = function() {
-            return this.loadScript("stats.js", "Unable to load refreshed statistics");
+            window.SkynetStatsComplete = false;
+            window.SkynetStatsGenerated = "";
+            window.SkynetStatsRequest = "";
+            return this.loadScript("stats.js", "Unable to load refreshed statistics").then(function() {
+                if (window.SkynetStatsComplete !== true || !window.SkynetStatsGenerated) {
+                    throw new Error("Statistics are incomplete. Refresh Stats to retry.");
+                }
+            });
         };
 
         SkynetUI.loadSettingsScript = function() {
             return this.loadScript("settings.js", "Unable to load current settings");
+        };
+
+        SkynetUI.loadResponseScript = function(request, statsRequest) {
+            if (!/^\d{1,32}$/.test(String(request || ""))) return Promise.resolve(false);
+            /* A missing or partial file cannot reuse an earlier response marker. */
+            window.SkynetResponseComplete = false;
+            window.SkynetResponseRequest = "";
+            window.SkynetResponseStats = false;
+            if (statsRequest) {
+                window.SkynetStatsComplete = false;
+                window.SkynetStatsGenerated = "";
+                window.SkynetStatsRequest = "";
+            }
+            return this.loadScript("results/" + request + ".js", "Unable to load the completed request")
+                .then(function() {
+                    return window.SkynetResponseComplete === true &&
+                        String(window.SkynetResponseRequest || "") === request &&
+                        String(window.SkynetSettingsRequest || "") === request;
+                }).catch(function() { return false; });
         };
 
         SkynetUI.loadInitialSettings = function() {
@@ -8632,12 +9287,25 @@
                 : this.selectors[action.result];
             const statsRequest = requestType === "stats" || requestType === "statsReset";
             const loadSettings = action.source === "settings";
+            let responseConfirmed = false;
+            let rejectedResponse = false;
+            let responseStats = false;
             const request = loadSettings
                 ? this.loadSettingsScript()
                 : this.loadStatsScript();
 
             request.then(function() {
-                if (statsRequest &&
+                if (loadSettings && self.activeRequest &&
+                    String(window.SkynetSettingsRequest || "") !== self.activeRequest) {
+                    return self.loadResponseScript(self.activeRequest, statsRequest).then(function(found) {
+                        rejectedResponse = !found;
+                        responseStats = found && window.SkynetResponseStats === true;
+                        if (responseStats && (String(window.SkynetStatsRequest || "") !== self.activeRequest ||
+                            window.SkynetStatsComplete !== true || !window.SkynetStatsGenerated)) rejectedResponse = true;
+                    });
+                }
+            }).then(function() {
+                if (!rejectedResponse && !responseStats && statsRequest &&
                     String(window.SkynetSettingsRequest || "") === self.activeRequest &&
                     ["success", "warning:history"].includes(window.SkynetSettingsResult)) {
                     return self.loadStatsScript();
@@ -8647,7 +9315,7 @@
                     ? window.SkynetSettingsGenerated
                     : window.SkynetStatsGenerated;
 
-                if (String(currentStamp || "") !== String(previousStamp || "")) {
+                if (!rejectedResponse && String(currentStamp || "") !== String(previousStamp || "")) {
                     const expectedRequest = self.activeRequest;
                     const currentRequest = String(window.SkynetSettingsRequest || "");
                     const ruleRequestType = requestType === "rules" ||
@@ -8666,6 +9334,7 @@
                         self.setActionState(false, button, "Try Again");
                         return;
                     }
+                    responseConfirmed = true;
                     const response = String(window.SkynetSettingsResult || "error");
                     const accepted = action.accepted || ["success"];
                     const acceptedResponse = accepted.some(function(value) {
@@ -8790,6 +9459,13 @@
                 self.setUpdateResult(action.timeout, true, result);
 				self.setActionState(false, button, retryLabel);
             }).catch(function() {
+                if (responseConfirmed) {
+                    self.refreshInProgress = false;
+                    self.setUpdateResult("The router finished this request, but the page could not display the result. Reload the page to load current data.",
+                        true, result);
+                    self.setActionState(false, button, action.label);
+                    return;
+                }
                 if (attempts > 0) {
                     window.setTimeout(function() {
                         self.waitForUpdate(previousStamp, attempts - 1, requestType);
@@ -8812,7 +9488,7 @@
             this.setUpdateResult("Generating statistics...", false);
             this.setActionState(true, this.selectors.updateButton, "Refreshing...");
             document.form.amng_custom.value = JSON.stringify(custom_settings);
-            this.submitBackgroundAction("start_SkynetStats");
+            if (!this.submitBackgroundAction("start_SkynetStats")) return;
             this.waitForUpdate(window.SkynetSettingsGenerated, 600, "stats");
         };
 
@@ -8824,7 +9500,7 @@
             this.setUpdateResult("Resetting statistics...", false);
             this.setActionState(true, this.selectors.resetStatsButton, "Resetting...");
             document.form.amng_custom.value = JSON.stringify(custom_settings);
-            this.submitBackgroundAction("start_SkynetStatsReset");
+            if (!this.submitBackgroundAction("start_SkynetStatsReset")) return;
             this.waitForUpdate(window.SkynetSettingsGenerated, 600, "statsReset");
         };
 
@@ -8842,7 +9518,7 @@
             );
             this.setActionState(true, this.selectors.malwareButton, "Updating...");
             document.form.amng_custom.value = JSON.stringify({skynet_feed_action: "refresh", skynet_feed_values: ""});
-            this.submitBackgroundAction("start_SkynetBanMalware");
+            if (!this.submitBackgroundAction("start_SkynetBanMalware")) return;
             this.waitForUpdate(window.SkynetSettingsGenerated, 600, "malware");
         };
 
@@ -8864,7 +9540,7 @@
             );
             this.setActionState(true, this.selectors.feedButton, "Applying...");
             document.form.amng_custom.value = JSON.stringify(custom_settings);
-            this.submitBackgroundAction("start_SkynetBanMalware");
+            if (!this.submitBackgroundAction("start_SkynetBanMalware")) return;
             this.waitForUpdate(window.SkynetSettingsGenerated, 600, "feeds");
         };
 
@@ -8885,7 +9561,7 @@
             this.setActionState(true, this.selectors.feedButton, "Applying...");
             this.updateFeedControls();
             document.form.amng_custom.value = JSON.stringify(custom_settings);
-            this.submitBackgroundAction("start_SkynetBanMalware");
+            if (!this.submitBackgroundAction("start_SkynetBanMalware")) return;
             this.waitForUpdate(window.SkynetSettingsGenerated, 600, "feeds");
         };
 
@@ -8907,7 +9583,7 @@
             );
             this.setActionState(true, this.selectors.countryButton, "Applying...");
             document.form.amng_custom.value = JSON.stringify(custom_settings);
-            this.submitBackgroundAction("start_SkynetCountries");
+            if (!this.submitBackgroundAction("start_SkynetCountries")) return;
             this.waitForUpdate(window.SkynetSettingsGenerated, 600, "countries");
         };
 
@@ -8922,7 +9598,7 @@
             this.setUpdateResult("Refreshing country sources...", false, this.selectors.countryResult);
             this.setActionState(true, this.selectors.countryRefresh, "Refreshing...");
             document.form.amng_custom.value = JSON.stringify(custom_settings);
-            this.submitBackgroundAction("start_SkynetCountries");
+            if (!this.submitBackgroundAction("start_SkynetCountries")) return;
             this.waitForUpdate(window.SkynetSettingsGenerated, 600, "countryRefresh");
         };
 
@@ -8942,23 +9618,94 @@
             return encoded.toString().length;
         };
 
-        SkynetUI.submitBackgroundAction = function(action, request) {
-            /*
-             * action_script is dispatched by Merlin after the hidden form is
-             * submitted. Clear amng_custom afterwards to prevent stale edits
-             * from being included in a later, unrelated request.
-             */
-            const settings = this.getElement("amng_custom");
-            const payload = settings && settings.value ? JSON.parse(settings.value) : {};
-            this.activeRequest = request || this.createRequestID();
-            payload.skynet_request = this.activeRequest;
-            document.form.amng_custom.value = JSON.stringify(payload);
-            document.form.action_script.value = action + "_" + this.activeRequest;
-            document.form.submit();
-
-            if (settings) {
-                settings.value = "";
+        SkynetUI.parseSharedSettings = function(text) {
+            if (typeof text !== "string" || /[\0\ufffd]/.test(text)) return null;
+            const values = Object.create(null);
+            for (const line of text.split("\n")) {
+                if (!line) continue;
+                const separator = line.indexOf(" ");
+                if (separator < 1) return null;
+                const key = line.slice(0, separator);
+                if (!/^[A-Za-z0-9_.-]+$/.test(key) || Object.prototype.hasOwnProperty.call(values, key)) return null;
+                values[key] = line.slice(separator + 1);
             }
+            return values;
+        };
+
+        SkynetUI.getCustomSettingsPayload = function(pending) {
+            let previous = null;
+            let current = null;
+            // Merlin replaces the whole shared store. Its JSON getter omits blank
+            // values and stops at whitespace; preserve values from the raw file.
+            for (let attempt = 0; attempt < 2; attempt++) {
+                let snapshot = null;
+                jQuery.ajax({
+                    url: "/ext/skynet/shared-settings.cab",
+                    dataType: "text",
+                    async: false,
+                    cache: false,
+                    success: function(response) { snapshot = response; }
+                });
+                current = this.parseSharedSettings(snapshot);
+                if (!current || (attempt && snapshot !== previous)) {
+                    throw new Error("Unable to read stable add-on settings. Reload the page and try again.");
+                }
+                previous = snapshot;
+            }
+            const payload = Object.assign(Object.create(null), current);
+            Object.keys(pending).forEach(function(key) {
+                if (key.indexOf("skynet_") === 0) payload[key] = pending[key];
+            });
+            return payload;
+        };
+
+        SkynetUI.abortBackgroundAction = function(message) {
+            let action = null;
+            Object.keys(this.actionDefinitions).some(function(type) {
+                const candidate = SkynetUI.actionDefinitions[type];
+                const button = SkynetUI.getElement(SkynetUI.selectors[candidate.button]);
+                if (button && button.classList.contains("skynet-update-busy")) {
+                    action = candidate;
+                    return true;
+                }
+                return false;
+            });
+            this.activeRequest = "";
+            this.refreshInProgress = false;
+            this.blockHistoryPending = null;
+            this.setActionState(false, action && this.selectors[action.button], action && action.label);
+            const result = action && action.button === "settingsReloadButton" && this.reloadResult
+                ? this.reloadResult : action ? this.selectors[action.result] : this.selectors.settingsResult;
+            this.setUpdateResult(message, true, result);
+        };
+
+        SkynetUI.submitBackgroundAction = function(action, request) {
+            const settings = this.getElement("amng_custom");
+            const requestID = request || this.createRequestID();
+            let payload;
+            try {
+                const pending = settings && settings.value ? JSON.parse(settings.value) : {};
+                payload = this.getCustomSettingsPayload(pending);
+                payload.skynet_request = requestID;
+                const encoder = new TextEncoder();
+                if (Object.keys(payload).some(function(key) {
+                    return key.indexOf("skynet_") === 0 && encoder.encode(String(payload[key])).length > 2999;
+                }) || this.getEncodedFormLength(payload, action + "_" + requestID) > 65534) {
+                    throw new Error("Add-on settings exceed the router's form limits. No changes were submitted.");
+                }
+            } catch (error) {
+                if (settings) settings.value = "";
+                this.abortBackgroundAction(error.message || "Unable to prepare add-on settings. Reload the page and try again.");
+                return false;
+            }
+            custom_settings = payload;
+            this.activeRequest = requestID;
+            document.form.amng_custom.value = JSON.stringify(payload);
+            document.form.action_script.value = action + "_" + requestID;
+            document.form.submit();
+            // Do not include the previous action's fields in a later submission.
+            if (settings) settings.value = "";
+            return true;
         };
 
         SkynetUI.restoreDefaultSettings = function() {
@@ -9070,7 +9817,7 @@
             this.setUpdateResult("Applying settings...", false, this.selectors.settingsResult);
             this.setActionState(true, this.selectors.settingsButton, "Applying...");
             document.form.amng_custom.value = JSON.stringify(custom_settings);
-            this.submitBackgroundAction("start_SkynetSettings");
+            if (!this.submitBackgroundAction("start_SkynetSettings")) return;
             this.waitForUpdate(window.SkynetSettingsGenerated, 600, "settings");
         };
 
@@ -9089,7 +9836,7 @@
             this.refreshInProgress = true;
             this.setUpdateResult("Reloading current data...", false, this.reloadResult);
             this.setActionState(true, this.selectors.settingsReloadButton, "Reloading...");
-            this.submitBackgroundAction("start_SkynetSettingsLoad");
+            if (!this.submitBackgroundAction("start_SkynetSettingsLoad")) return;
             this.waitForUpdate(window.SkynetSettingsGenerated, 60, "reload");
         };
 
@@ -9100,7 +9847,7 @@
             this.setUpdateResult("Requesting firewall restart...", false, this.selectors.restartResult);
             this.setActionState(true, this.selectors.restartButton, "Restarting...");
             document.form.amng_custom.value = "{}";
-            this.submitBackgroundAction("start_SkynetRestart");
+            if (!this.submitBackgroundAction("start_SkynetRestart")) return;
             this.waitForUpdate(window.SkynetSettingsGenerated, 180, "restart");
         };
 
@@ -9695,7 +10442,11 @@
         }
 
         SkynetUI.initialize = function() {
-            show_menu();
+            this.initializePlatform();
+            /* Both firmware generations populate the native Settings navigation. */
+            if (typeof show_menu === "function") {
+                show_menu();
+            }
 
             this.initializeTheme();
 
@@ -9763,987 +10514,987 @@
 </head>
 
 <body onload="initial();">
-    <div id="TopBanner"></div>
-    <div id="Loading" class="popup_bg"></div>
-    <iframe name="hidden_frame" id="hidden_frame" src="about:blank" width="0" height="0" frameborder="0"></iframe>
-    <form method="post" name="form" id="ruleForm" action="/start_apply.htm" target="hidden_frame">
-        <input type="hidden" name="action_script" value="start_SkynetStats" />
-        <input type="hidden" name="current_page" id="current_page" value="" />
-        <input type="hidden" name="next_page" id="next_page" value="" />
-        <input type="hidden" name="modified" value="0" />
-        <input type="hidden" name="action_mode" value="apply" />
-        <input type="hidden" name="action_wait" value="45" />
-        <input type="hidden" name="flag" value="background" />
-        <input type="hidden" name="amng_custom" id="amng_custom" value="" />
-        <input type="hidden" name="first_time" value="" />
-        <input type="hidden" name="SystemCmd" value="" />
-        <input type="hidden" name="preferred_lang" id="preferred_lang" value="<% nvram_get( preferred_lang ); %>" />
-        <input type="hidden" name="firmver" value="<% nvram_get( firmver ); %>" />
-        <table class="content" align="center" cellpadding="0" cellspacing="0">
-            <tr>
-                <td width="17">&nbsp;</td>
-                <td valign="top" width="202">
-                    <div id="mainMenu"></div>
-                    <div id="subMenu"></div>
-                </td>
-                <td valign="top">
-                    <div id="tabMenu" class="submenuBlock"></div>
-                    <table width="98%" border="0" align="left" cellpadding="0" cellspacing="0">
-                        <tr>
-                            <td valign="top">
-                                <table width="760px" border="0" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="FormTitle" id="FormTitle">
-                                    <tbody>
-                                        <tr bgcolor="#4D595D">
-                                            <td valign="top">
-                                                <div style="line-height:10px;">&nbsp;</div>
+<div id="TopBanner"></div>
+<div id="Loading" class="popup_bg"></div>
+<iframe name="hidden_frame" id="hidden_frame" src="about:blank" width="0" height="0" frameborder="0"></iframe>
+<form method="post" name="form" id="ruleForm" action="/start_apply.htm" target="hidden_frame">
+    <input type="hidden" name="action_script" value="start_SkynetStats" />
+    <input type="hidden" name="current_page" id="current_page" value="" />
+    <input type="hidden" name="next_page" id="next_page" value="" />
+    <input type="hidden" name="modified" value="0" />
+    <input type="hidden" name="action_mode" value="apply" />
+    <input type="hidden" name="action_wait" value="45" />
+    <input type="hidden" name="flag" value="background" />
+    <input type="hidden" name="amng_custom" id="amng_custom" value="" />
+    <input type="hidden" name="first_time" value="" />
+    <input type="hidden" name="SystemCmd" value="" />
+    <input type="hidden" name="preferred_lang" id="preferred_lang" value="<% nvram_get( preferred_lang ); %>" />
+    <input type="hidden" name="firmver" value="<% nvram_get( firmver ); %>" />
+    <table class="content" align="center" cellpadding="0" cellspacing="0">
+        <tr>
+            <td width="17">&nbsp;</td>
+            <td valign="top" width="202">
+                <div id="mainMenu"></div>
+                <div id="subMenu"></div>
+            </td>
+            <td id="skynetPageContent" valign="top">
+                <div id="tabMenu" class="submenuBlock"></div>
+                <table id="skynetContentLayout" width="98%" border="0" align="left" cellpadding="0" cellspacing="0">
+                    <tr>
+                        <td valign="top">
+                            <table width="760px" border="0" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="FormTitle" id="FormTitle">
+                                <tbody>
+                                    <tr bgcolor="#4D595D">
+                                        <td valign="top">
+                                            <div style="line-height:10px;">&nbsp;</div>
 
-                                                <div class="skynet-tabs" role="tablist" aria-label="Skynet views">
-                                                    <input type="button"
-                                                        id="skynetOverviewTab"
-                                                        value="Overview"
-                                                        class="skynet-tab active"
-                                                        role="tab"
-                                                        aria-controls="skynetOverviewView"
-                                                        aria-selected="true" />
-                                                    <input type="button"
-                                                        id="skynetUpdatesTab"
-                                                        value="Updates"
-                                                        class="skynet-tab skynet-settings-tab"
-                                                        data-settings-target="updates"
-                                                        role="tab"
-                                                        aria-controls="skynetSettingsView"
-                                                        aria-selected="false" />
-                                                    <input type="button"
-                                                        id="skynetProtectionTab"
-                                                        value="Protection"
-                                                        class="skynet-tab skynet-settings-tab"
-                                                        data-settings-target="protection"
-                                                        role="tab"
-                                                        aria-controls="skynetSettingsView"
-                                                        aria-selected="false" />
-                                                    <input type="button"
-                                                        id="skynetRulesTab"
-                                                        value="Rules"
-                                                        class="skynet-tab skynet-settings-tab"
-                                                        data-settings-target="rules"
-                                                        role="tab"
-                                                        aria-controls="skynetSettingsView"
-                                                        aria-selected="false" />
-                                                    <input type="button"
-                                                        id="skynetIotTab"
-                                                        value="IoT"
-                                                        class="skynet-tab skynet-settings-tab"
-                                                        data-settings-target="iot"
-                                                        role="tab"
-                                                        aria-controls="skynetSettingsView"
-                                                        aria-selected="false" />
-                                                    <input type="button"
-                                                        id="skynetCountriesTab"
-                                                        value="Countries"
-                                                        class="skynet-tab skynet-settings-tab"
-                                                        data-settings-target="countries"
-                                                        role="tab"
-                                                        aria-controls="skynetSettingsView"
-                                                        aria-selected="false" />
-                                                    <input type="button"
-                                                        id="skynetStatisticsTab"
-                                                        value="Statistics"
-                                                        class="skynet-tab skynet-settings-tab"
-                                                        data-settings-target="statistics"
-                                                        role="tab"
-                                                        aria-controls="skynetSettingsView"
-                                                        aria-selected="false" />
-                                                    <input type="button"
-                                                        id="skynetBlockHistoryTab"
-                                                        value="History"
-                                                        class="skynet-tab skynet-settings-tab"
-                                                        data-settings-target="history"
-                                                        role="tab"
-                                                        aria-controls="skynetSettingsView"
-                                                        aria-selected="false" />
-                                                </div>
+                                            <div class="skynet-tabs" role="tablist" aria-label="Skynet views">
+                                                <input type="button"
+                                                    id="skynetOverviewTab"
+                                                    value="Overview"
+                                                    class="skynet-tab active"
+                                                    role="tab"
+                                                    aria-controls="skynetOverviewView"
+                                                    aria-selected="true" />
+                                                <input type="button"
+                                                    id="skynetUpdatesTab"
+                                                    value="Updates"
+                                                    class="skynet-tab skynet-settings-tab"
+                                                    data-settings-target="updates"
+                                                    role="tab"
+                                                    aria-controls="skynetSettingsView"
+                                                    aria-selected="false" />
+                                                <input type="button"
+                                                    id="skynetProtectionTab"
+                                                    value="Protection"
+                                                    class="skynet-tab skynet-settings-tab"
+                                                    data-settings-target="protection"
+                                                    role="tab"
+                                                    aria-controls="skynetSettingsView"
+                                                    aria-selected="false" />
+                                                <input type="button"
+                                                    id="skynetRulesTab"
+                                                    value="Rules"
+                                                    class="skynet-tab skynet-settings-tab"
+                                                    data-settings-target="rules"
+                                                    role="tab"
+                                                    aria-controls="skynetSettingsView"
+                                                    aria-selected="false" />
+                                                <input type="button"
+                                                    id="skynetIotTab"
+                                                    value="IoT"
+                                                    class="skynet-tab skynet-settings-tab"
+                                                    data-settings-target="iot"
+                                                    role="tab"
+                                                    aria-controls="skynetSettingsView"
+                                                    aria-selected="false" />
+                                                <input type="button"
+                                                    id="skynetCountriesTab"
+                                                    value="Countries"
+                                                    class="skynet-tab skynet-settings-tab"
+                                                    data-settings-target="countries"
+                                                    role="tab"
+                                                    aria-controls="skynetSettingsView"
+                                                    aria-selected="false" />
+                                                <input type="button"
+                                                    id="skynetStatisticsTab"
+                                                    value="Statistics"
+                                                    class="skynet-tab skynet-settings-tab"
+                                                    data-settings-target="statistics"
+                                                    role="tab"
+                                                    aria-controls="skynetSettingsView"
+                                                    aria-selected="false" />
+                                                <input type="button"
+                                                    id="skynetBlockHistoryTab"
+                                                    value="History"
+                                                    class="skynet-tab skynet-settings-tab"
+                                                    data-settings-target="history"
+                                                    role="tab"
+                                                    aria-controls="skynetSettingsView"
+                                                    aria-selected="false" />
+                                            </div>
 
-                                                <div id="skynetSettingsView" class="skynet-view-hidden" role="tabpanel" aria-labelledby="skynetUpdatesTab">
-                                                    <div class="skynet-settings">
-                                                        <table class="FormTable skynet-settings-table">
-                                                            <tr class="skynet-settings-group" data-settings-section="updates">
-                                                                <th colspan="2">Updates &amp; Lists</th>
-                                                            </tr>
-                                                            <tr>
-                                                                <th>
-                                                                    <span class="skynet-setting-name">Automatic Updates</span>
-                                                                    <span class="skynet-setting-help">Installs Skynet updates weekly.</span>
-                                                                </th>
-                                                                <td>
-                                                                    <select class="input_option" id="skynetAutoUpdate">
-                                                                        <option value="enabled">Enabled (Default)</option>
+                                            <div id="skynetSettingsView" class="skynet-view-hidden" role="tabpanel" aria-labelledby="skynetUpdatesTab">
+                                                <div class="skynet-settings">
+                                                    <table class="FormTable skynet-settings-table">
+                                                        <tr class="skynet-settings-group" data-settings-section="updates">
+                                                            <th colspan="2">Updates &amp; Lists</th>
+                                                        </tr>
+                                                        <tr>
+                                                            <th>
+                                                                <span class="skynet-setting-name">Automatic Updates</span>
+                                                                <span class="skynet-setting-help">Installs Skynet updates weekly.</span>
+                                                            </th>
+                                                            <td>
+                                                                <select class="input_option" id="skynetAutoUpdate">
+                                                                    <option value="enabled">Enabled (Default)</option>
+                                                                    <option value="disabled">Disabled</option>
+                                                                </select>
+                                                            </td>
+                                                        </tr>
+                                                        <tr>
+                                                            <th>
+                                                                <span class="skynet-setting-name">Malware List Updates</span>
+                                                                <span class="skynet-setting-help">Refreshes the malware blacklist on schedule.</span>
+                                                            </th>
+                                                            <td>
+                                                                <div class="skynet-malware-controls">
+                                                                    <select class="input_option" id="skynetMalwareUpdates">
+                                                                        <option value="daily">Daily (Default)</option>
+                                                                        <option value="weekly">Weekly</option>
                                                                         <option value="disabled">Disabled</option>
                                                                     </select>
-                                                                </td>
-                                                            </tr>
-                                                            <tr>
-                                                                <th>
-                                                                    <span class="skynet-setting-name">Malware List Updates</span>
-                                                                    <span class="skynet-setting-help">Refreshes the malware blacklist on schedule.</span>
-                                                                </th>
-                                                                <td>
-                                                                    <div class="skynet-malware-controls">
-                                                                        <select class="input_option" id="skynetMalwareUpdates">
-                                                                            <option value="daily">Daily (Default)</option>
-                                                                            <option value="weekly">Weekly</option>
-                                                                            <option value="disabled">Disabled</option>
-                                                                        </select>
+                                                                    <input type="button"
+                                                                        id="skynetUpdateMalware"
+                                                                        value="Update Now"
+                                                                        class="button_gen skynet-update-button skynet-malware-update"
+                                                                        disabled="disabled" />
+                                                                </div>
+                                                                <span class="skynet-malware-status" id="skynetMalwareStatus">Loading malware list status...</span>
+                                                            </td>
+                                                        </tr>
+                                                        <tr>
+                                                            <th>
+                                                                <span class="skynet-setting-name">Malware Update Hour</span>
+                                                                <span class="skynet-setting-help">Router local time. Weekly updates run on Monday. Automatic selects a random hour when the schedule is installed.</span>
+                                                            </th>
+                                                            <td>
+                                                                <select class="input_option" id="skynetMalwareHour" aria-label="Malware update hour">
+                                                                    <option value="auto">Automatic (Default)</option>
+                                                                    <option value="0">12:25 AM</option>
+                                                                    <option value="1">1:25 AM</option>
+                                                                    <option value="2">2:25 AM</option>
+                                                                    <option value="3">3:25 AM</option>
+                                                                    <option value="4">4:25 AM</option>
+                                                                    <option value="5">5:25 AM</option>
+                                                                    <option value="6">6:25 AM</option>
+                                                                    <option value="7">7:25 AM</option>
+                                                                    <option value="8">8:25 AM</option>
+                                                                    <option value="9">9:25 AM</option>
+                                                                    <option value="10">10:25 AM</option>
+                                                                    <option value="11">11:25 AM</option>
+                                                                    <option value="12">12:25 PM</option>
+                                                                    <option value="13">1:25 PM</option>
+                                                                    <option value="14">2:25 PM</option>
+                                                                    <option value="15">3:25 PM</option>
+                                                                    <option value="16">4:25 PM</option>
+                                                                    <option value="17">5:25 PM</option>
+                                                                    <option value="18">6:25 PM</option>
+                                                                    <option value="19">7:25 PM</option>
+                                                                    <option value="20">8:25 PM</option>
+                                                                    <option value="21">9:25 PM</option>
+                                                                    <option value="22">10:25 PM</option>
+                                                                    <option value="23">11:25 PM</option>
+                                                                </select>
+                                                            </td>
+                                                        </tr>
+                                                        <tr>
+                                                            <th>
+                                                                <span class="skynet-setting-name">Filter List Template</span>
+                                                                <span class="skynet-setting-help">Starting feed selection. Leave blank for Skynet defaults. Importing replaces your saved sources; normal updates keep your changes.</span>
+                                                            </th>
+                                                            <td>
+                                                                <div class="skynet-template-controls">
+                                                                <input type="url"
+                                                                    id="skynetMalwareUrl"
+                                                                    maxlength="512"
+                                                                    placeholder="Default Skynet filter list"
+                                                                    autocomplete="off"
+                                                                    autocorrect="off"
+                                                                    autocapitalize="off"
+                                                                    spellcheck="false" />
+                                                                <button type="button" id="skynetUseTemplate" class="button_gen skynet-update-button skynet-settings-reload">Use Template</button>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                        <tr class="skynet-feed-container">
+                                                            <td colspan="2">
+                                                                <div class="skynet-feed-manager">
+                                                                    <div class="skynet-feed-intro">
+                                                                        <span class="skynet-feed-title">Threat Feed Sources</span>
+                                                                        <span class="skynet-feed-help">Choose which trusted sources build the malware blacklist.</span>
+                                                                    </div>
+                                                                    <div class="skynet-feed-header" id="skynetFeedHeader">
+                                                                        <span>Source</span>
+                                                                        <span>Entries</span>
+                                                                        <span>Last Success / Change</span>
+                                                                        <span>State</span>
+                                                                        <span>Controls</span>
+                                                                    </div>
+                                                                    <div id="skynetFeedList">
+                                                                        <div class="skynet-feed-empty">Loading threat feed details...</div>
+                                                                    </div>
+                                                                    <div class="skynet-feed-add">
+                                                                        <input type="text" id="skynetFeedURL" class="input_32_table" maxlength="512" placeholder="https://example.com/ipv4-list.txt" aria-label="Threat feed URL" />
+                                                                        <button type="button" id="skynetAddFeed" class="button_gen skynet-update-button skynet-settings-reload" disabled="disabled">Add Source</button>
+                                                                    </div>
+                                                                    <div class="skynet-feed-actions">
+                                                                        <span class="skynet-feed-status" id="skynetFeedStatus" aria-live="polite"></span>
                                                                         <input type="button"
-                                                                            id="skynetUpdateMalware"
-                                                                            value="Update Now"
-                                                                            class="button_gen skynet-update-button skynet-malware-update"
+                                                                            id="skynetApplyFeeds"
+                                                                            value="Apply Sources"
+                                                                            class="button_gen skynet-update-button"
                                                                             disabled="disabled" />
                                                                     </div>
-                                                                    <span class="skynet-malware-status" id="skynetMalwareStatus">Loading malware list status...</span>
-                                                                </td>
-                                                            </tr>
-                                                            <tr>
-                                                                <th>
-                                                                    <span class="skynet-setting-name">Malware Update Hour</span>
-                                                                    <span class="skynet-setting-help">Router local time. Weekly updates run on Monday. Automatic selects a random hour when the schedule is installed.</span>
-                                                                </th>
-                                                                <td>
-                                                                    <select class="input_option" id="skynetMalwareHour" aria-label="Malware update hour">
-                                                                        <option value="auto">Automatic (Default)</option>
-                                                                        <option value="0">12:25 AM</option>
-                                                                        <option value="1">1:25 AM</option>
-                                                                        <option value="2">2:25 AM</option>
-                                                                        <option value="3">3:25 AM</option>
-                                                                        <option value="4">4:25 AM</option>
-                                                                        <option value="5">5:25 AM</option>
-                                                                        <option value="6">6:25 AM</option>
-                                                                        <option value="7">7:25 AM</option>
-                                                                        <option value="8">8:25 AM</option>
-                                                                        <option value="9">9:25 AM</option>
-                                                                        <option value="10">10:25 AM</option>
-                                                                        <option value="11">11:25 AM</option>
-                                                                        <option value="12">12:25 PM</option>
-                                                                        <option value="13">1:25 PM</option>
-                                                                        <option value="14">2:25 PM</option>
-                                                                        <option value="15">3:25 PM</option>
-                                                                        <option value="16">4:25 PM</option>
-                                                                        <option value="17">5:25 PM</option>
-                                                                        <option value="18">6:25 PM</option>
-                                                                        <option value="19">7:25 PM</option>
-                                                                        <option value="20">8:25 PM</option>
-                                                                        <option value="21">9:25 PM</option>
-                                                                        <option value="22">10:25 PM</option>
-                                                                        <option value="23">11:25 PM</option>
-                                                                    </select>
-                                                                </td>
-                                                            </tr>
-                                                            <tr>
-                                                                <th>
-                                                                    <span class="skynet-setting-name">Filter List Template</span>
-                                                                    <span class="skynet-setting-help">Starting feed selection. Leave blank for Skynet defaults. Importing replaces your saved sources; normal updates keep your changes.</span>
-                                                                </th>
-                                                                <td>
-                                                                    <div class="skynet-template-controls">
-                                                                    <input type="url"
-                                                                        id="skynetMalwareUrl"
-                                                                        maxlength="512"
-                                                                        placeholder="Default Skynet filter list"
-                                                                        autocomplete="off"
-                                                                        autocorrect="off"
-                                                                        autocapitalize="off"
-                                                                        spellcheck="false" />
-                                                                    <button type="button" id="skynetUseTemplate" class="button_gen skynet-update-button skynet-settings-reload">Use Template</button>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                        <tr class="skynet-settings-group" data-settings-section="updates">
+                                                            <th colspan="2">Backup</th>
+                                                        </tr>
+                                                        <tr>
+                                                            <td colspan="2">
+                                                                <div class="skynet-feed-manager">
+                                                                    <div class="skynet-feed-intro">
+                                                                        <span class="skynet-feed-title">Skynet Backup</span>
+                                                                        <span class="skynet-feed-help">Save configuration, rules, source caches and logs. Select a dated point to download or restore. The latest three backups are kept.</span>
                                                                     </div>
-                                                                </td>
-                                                            </tr>
-                                                            <tr class="skynet-feed-container">
-                                                                <td colspan="2">
-                                                                    <div class="skynet-feed-manager">
-                                                                        <div class="skynet-feed-intro">
-                                                                            <span class="skynet-feed-title">Threat Feed Sources</span>
-                                                                            <span class="skynet-feed-help">Choose which trusted sources build the malware blacklist.</span>
-                                                                        </div>
-                                                                        <div class="skynet-feed-header" id="skynetFeedHeader">
-                                                                            <span>Source</span>
-                                                                            <span>Entries</span>
-                                                                            <span>Last Success / Change</span>
-                                                                            <span>State</span>
-                                                                            <span>Controls</span>
-                                                                        </div>
-                                                                        <div id="skynetFeedList">
-                                                                            <div class="skynet-feed-empty">Loading threat feed details...</div>
-                                                                        </div>
-                                                                        <div class="skynet-feed-add">
-                                                                            <input type="text" id="skynetFeedURL" class="input_32_table" maxlength="512" placeholder="https://example.com/ipv4-list.txt" aria-label="Threat feed URL" />
-                                                                            <button type="button" id="skynetAddFeed" class="button_gen skynet-update-button skynet-settings-reload" disabled="disabled">Add Source</button>
-                                                                        </div>
-                                                                        <div class="skynet-feed-actions">
-                                                                            <span class="skynet-feed-status" id="skynetFeedStatus" aria-live="polite"></span>
-                                                                            <input type="button"
-                                                                                id="skynetApplyFeeds"
-                                                                                value="Apply Sources"
-                                                                                class="button_gen skynet-update-button"
-                                                                                disabled="disabled" />
-                                                                        </div>
+                                                                    <div class="skynet-backup-controls">
+                                                                        <select id="skynetBackupSelect" class="input_option" aria-label="Backup restore point" hidden></select>
+                                                                        <span id="skynetBackupInfo">Loading backup details...</span>
                                                                     </div>
-                                                                </td>
-                                                            </tr>
-                                                            <tr class="skynet-settings-group" data-settings-section="updates">
-                                                                <th colspan="2">Backup</th>
-                                                            </tr>
-                                                            <tr>
-                                                                <td colspan="2">
-                                                                    <div class="skynet-feed-manager">
-                                                                        <div class="skynet-feed-intro">
-                                                                            <span class="skynet-feed-title">Skynet Backup</span>
-                                                                            <span class="skynet-feed-help">Save configuration, rules, source caches and logs. Select a dated point to download or restore. The latest three backups are kept.</span>
-                                                                        </div>
-                                                                        <div class="skynet-backup-controls">
-                                                                            <select id="skynetBackupSelect" class="input_option" aria-label="Backup restore point" hidden></select>
-                                                                            <span id="skynetBackupInfo">Loading backup details...</span>
-                                                                        </div>
-                                                                        <div class="skynet-backup-controls skynet-backup-buttons">
-                                                                            <button type="button" id="skynetCreateBackup" class="button_gen skynet-update-button">Create Backup</button>
-                                                                            <button type="button" id="skynetDownloadBackup" class="button_gen skynet-update-button skynet-settings-reload" hidden>Download Backup</button>
-                                                                            <button type="button" id="skynetRestoreBackup" class="button_gen skynet-update-button skynet-settings-reload" hidden>Restore Backup</button>
-                                                                        </div>
-                                                                        <div id="skynetBackupConfirmation" class="skynet-backup-controls" role="group" aria-label="Confirm backup restore" hidden>
-                                                                            <span id="skynetBackupConfirmText"></span>
-                                                                            <button type="button" id="skynetCancelRestore" class="button_gen skynet-update-button skynet-settings-reload">Cancel</button>
-                                                                            <button type="button" id="skynetConfirmRestore" class="button_gen skynet-update-button">Confirm Restore</button>
-                                                                        </div>
-                                                                        <div id="skynetBackupResult" class="skynet-feed-status" aria-live="polite"></div>
+                                                                    <div class="skynet-backup-controls skynet-backup-buttons">
+                                                                        <button type="button" id="skynetCreateBackup" class="button_gen skynet-update-button">Create Backup</button>
+                                                                        <button type="button" id="skynetDownloadBackup" class="button_gen skynet-update-button skynet-settings-reload" hidden>Download Backup</button>
+                                                                        <button type="button" id="skynetRestoreBackup" class="button_gen skynet-update-button skynet-settings-reload" hidden>Restore Backup</button>
                                                                     </div>
-                                                                </td>
-                                                            </tr>
-                                                            <tr class="skynet-settings-group" data-settings-section="protection">
-                                                                <th colspan="2">Protection</th>
-                                                            </tr>
-                                                            <tr>
-                                                                <th>
-                                                                    <span class="skynet-setting-name">Installed Build</span>
-                                                                    <span class="skynet-setting-help">Version and script hash identify the exact release or hotfix installed.</span>
-                                                                </th>
-                                                                <td>
-                                                                    <div class="skynet-build">
-                                                                        <div class="skynet-build-heading">
-                                                                            <span class="skynet-version" id="skynetVersion">Loading...</span>
-                                                                            <span class="skynet-build-algorithm">SHA-256</span>
-                                                                        </div>
-                                                                        <code class="skynet-build-hash" id="skynetScriptHash">Loading...</code>
+                                                                    <div id="skynetBackupConfirmation" class="skynet-backup-controls" role="group" aria-label="Confirm backup restore" hidden>
+                                                                        <span id="skynetBackupConfirmText"></span>
+                                                                        <button type="button" id="skynetCancelRestore" class="button_gen skynet-update-button skynet-settings-reload">Cancel</button>
+                                                                        <button type="button" id="skynetConfirmRestore" class="button_gen skynet-update-button">Confirm Restore</button>
                                                                     </div>
-                                                                </td>
-                                                            </tr>
-                                                            <tr>
-                                                                <th>
-                                                                    <span class="skynet-setting-name">Restart Skynet</span>
-                                                                    <span class="skynet-setting-help">Restarts Merlin's firewall and reapplies Skynet rules. Connections may be briefly interrupted.</span>
-                                                                </th>
-                                                                <td>
-                                                                    <input type="button" id="skynetRestart" value="Restart Skynet" class="button_gen skynet-update-button skynet-settings-reload" disabled="disabled" />
-                                                                    <div id="skynetRestartResult" class="skynet-feed-status" aria-live="polite"></div>
-                                                                </td>
-                                                            </tr>
-                                                            <tr>
-                                                                <th>
-                                                                    <span class="skynet-setting-name">Traffic Filtering</span>
-                                                                    <span class="skynet-setting-help">Selects which traffic directions Skynet blocks.</span>
-                                                                </th>
-                                                                <td>
-                                                                    <select class="input_option" id="skynetFilterTraffic">
-                                                                        <option value="all">Inbound &amp; Outbound (Default)</option>
-                                                                        <option value="inbound">Inbound Only</option>
-                                                                        <option value="outbound">Outbound Only</option>
-                                                                    </select>
-                                                                </td>
-                                                            </tr>
-                                                            <tr>
-                                                                <th>
-                                                                    <span class="skynet-setting-name">Unban Private IPs</span>
-                                                                    <span class="skynet-setting-help">Removes and whitelists private addresses found in blocked traffic.</span>
-                                                                </th>
-                                                                <td>
-                                                                    <select class="input_option" id="skynetUnbanPrivate">
-                                                                        <option value="enabled">Enabled (Default)</option>
-                                                                        <option value="disabled">Disabled</option>
-                                                                    </select>
-                                                                </td>
-                                                            </tr>
-                                                            <tr>
-                                                                <th>
-                                                                    <span class="skynet-setting-name">Import AiProtection Bans</span>
-                                                                    <span class="skynet-setting-help">Imports threats blocked by AiProtection into Skynet.</span>
-                                                                </th>
-                                                                <td>
-                                                                    <select class="input_option" id="skynetAiProtect">
-                                                                        <option value="enabled">Enabled (Default)</option>
-                                                                        <option value="disabled">Disabled</option>
-                                                                    </select>
-                                                                </td>
-                                                            </tr>
-                                                            <tr>
-                                                                <th>
-                                                                    <span class="skynet-setting-name">Secure Mode</span>
-                                                                    <span class="skynet-setting-help">Disables WAN access to SSH and the router WebUI.</span>
-                                                                </th>
-                                                                <td>
-                                                                    <select class="input_option" id="skynetSecureMode">
-                                                                        <option value="enabled">Enabled (Default)</option>
-                                                                        <option value="disabled">Disabled</option>
-                                                                    </select>
-                                                                </td>
-                                                            </tr>
-                                                            <tr>
-                                                                <th>
-                                                                    <span class="skynet-setting-name">CDN Whitelisting</span>
-                                                                    <span class="skynet-setting-help">Whitelists common CDN address ranges to reduce false positives.</span>
-                                                                </th>
-                                                                <td>
-                                                                    <select class="input_option" id="skynetCdnWhitelist">
-                                                                        <option value="enabled">Enabled (Default)</option>
-                                                                        <option value="disabled">Disabled</option>
-                                                                    </select>
-                                                                </td>
-                                                            </tr>
-                                                            <tr class="skynet-settings-group" data-settings-section="rules">
-                                                                <th colspan="2">Rules Manager</th>
-                                                            </tr>
-                                                            <tr class="skynet-rules-container">
-                                                                <td colspan="2">
-                                                                    <div class="skynet-rules-manager">
-                                                                        <div class="skynet-feed-intro">
-                                                                            <span class="skynet-feed-title">Create Rules</span>
-                                                                            <span class="skynet-feed-help">Manage IPv4, domain and ASN rules. IPv4 and ASN bans support temporary lifetimes. Imported rule lists are one-time copies; use threat feeds for scheduled blacklist refreshes.</span>
-                                                                        </div>
-                                                                        <div class="skynet-rule-overview">
-                                                                            <div class="skynet-rule-health" id="skynetRuleHealth">Loading domain health...</div>
-                                                                            <input type="button"
-                                                                                id="skynetRefreshRules"
-                                                                                value="Refresh Dynamic Rules"
-                                                                                class="button_gen skynet-update-button skynet-settings-reload" />
-                                                                        </div>
-                                                                        <div class="skynet-rules-toolbar">
-                                                                            <label class="skynet-rule-field">
-                                                                                <span class="skynet-rule-label">Action</span>
-                                                                                <select class="input_option" id="skynetRuleAction">
-                                                                                    <option value="ban">Ban</option>
-                                                                                    <option value="unban">Unban</option>
-                                                                                    <option value="whitelist">Whitelist</option>
-                                                                                </select>
-                                                                            </label>
-                                                                            <label class="skynet-rule-field">
-                                                                                <span class="skynet-rule-label">Rule Type</span>
-                                                                                <select class="input_option" id="skynetRuleMode">
-                                                                                    <option value="ip">IPv4 / CIDR</option>
-                                                                                    <option value="domain">Domain</option>
-                                                                                    <option value="asn">ASN</option>
-                                                                                </select>
-                                                                            </label>
-                                                                            <label class="skynet-rule-field skynet-rule-field-lifetime" id="skynetRuleLifetimeField">
-                                                                                <span class="skynet-rule-label">Lifetime</span>
-                                                                                <select class="input_option" id="skynetRuleLifetime">
-                                                                                    <option value="">Permanent</option>
-                                                                                    <option value="15m">15 Minutes</option>
-                                                                                    <option value="1h">1 Hour</option>
-                                                                                    <option value="6h">6 Hours</option>
-                                                                                    <option value="24h">24 Hours</option>
-                                                                                    <option value="7d">7 Days</option>
-                                                                                </select>
-                                                                            </label>
-                                                                            <label class="skynet-rule-field skynet-rule-field-entries">
-                                                                                <span class="skynet-rule-label">Entries</span>
-                                                                                <input type="text"
-                                                                                    id="skynetRuleInput"
-                                                                                    maxlength="1024"
-                                                                                    placeholder="Separate multiple entries with spaces"
-                                                                                    autocomplete="off"
-                                                                                    spellcheck="false" />
-                                                                            </label>
-                                                                            <label class="skynet-rule-field skynet-rule-field-entries">
-                                                                                <span class="skynet-rule-label">Comment</span>
-                                                                                <input type="text"
-                                                                                    id="skynetRuleComment"
-                                                                                    maxlength="242"
-                                                                                    placeholder="Optional comment"
-                                                                                    autocomplete="off" />
-                                                                            </label>
-                                                                            <input type="button"
-                                                                                id="skynetAddRuleEntry"
-                                                                                value="Add Entries"
-                                                                                class="button_gen skynet-update-button skynet-settings-reload" />
-                                                                        </div>
-                                                                        <div class="skynet-rule-tags" id="skynetRuleTags">
-                                                                            <span class="skynet-country-empty">Add entries with their comment, then select Apply Rules.</span>
-                                                                        </div>
-                                                                        <div class="skynet-history-footer" id="skynetRuleDraftPager" hidden>
-                                                                            <span id="skynetRuleDraftPageCount" aria-live="polite"></span>
-                                                                            <input type="button" id="skynetRuleDraftPrevious" class="button_gen skynet-update-button skynet-settings-reload" value="Previous" disabled />
-                                                                            <input type="button" id="skynetRuleDraftNext" class="button_gen skynet-update-button skynet-settings-reload" value="Next" disabled />
-                                                                        </div>
-                                                                        <div class="skynet-rule-time-status" id="skynetRuleTimeStatus" aria-live="polite"></div>
-                                                                        <div class="skynet-rule-scope" id="skynetRuleScope" hidden>
-                                                                            <strong>Applies to all clients</strong>
-                                                                            <span>Whitelisted destinations take precedence over bans.</span>
-                                                                        </div>
-                                                                        <div class="skynet-rules-actions">
-                                                                            <span class="skynet-country-status" id="skynetRuleStatus" aria-live="polite"></span>
-                                                                            <input type="button"
-                                                                                id="skynetApplyRule"
-                                                                                value="Apply Rules"
-                                                                                class="button_gen skynet-update-button"
-                                                                                disabled="disabled" />
-                                                                        </div>
-                                                                        <div class="skynet-rules-filterbar">
-                                                                            <span class="skynet-rule-section-label">Saved Rules</span>
-                                                                            <select class="input_option skynet-rule-filter" id="skynetRuleFilter" aria-label="Filter rules">
-                                                                                <option value="all">All Rules</option>
-                                                                                <option value="bans">Bans</option>
-                                                                                <option value="temporary">Temporary</option>
-                                                                                <option value="whitelists">Whitelists</option>
-                                                                                <option value="imports">Imports</option>
+                                                                    <div id="skynetBackupResult" class="skynet-feed-status" aria-live="polite"></div>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                        <tr class="skynet-settings-group" data-settings-section="protection">
+                                                            <th colspan="2">Protection</th>
+                                                        </tr>
+                                                        <tr>
+                                                            <th>
+                                                                <span class="skynet-setting-name">Installed Build</span>
+                                                                <span class="skynet-setting-help">Version and script hash identify the exact release or hotfix installed.</span>
+                                                            </th>
+                                                            <td>
+                                                                <div class="skynet-build">
+                                                                    <div class="skynet-build-heading">
+                                                                        <span class="skynet-version" id="skynetVersion">Loading...</span>
+                                                                        <span class="skynet-build-algorithm">SHA-256</span>
+                                                                    </div>
+                                                                    <code class="skynet-build-hash" id="skynetScriptHash">Loading...</code>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                        <tr>
+                                                            <th>
+                                                                <span class="skynet-setting-name">Restart Skynet</span>
+                                                                <span class="skynet-setting-help">Restarts Merlin's firewall and reapplies Skynet rules. Connections may be briefly interrupted.</span>
+                                                            </th>
+                                                            <td>
+                                                                <input type="button" id="skynetRestart" value="Restart Skynet" class="button_gen skynet-update-button skynet-settings-reload" disabled="disabled" />
+                                                                <div id="skynetRestartResult" class="skynet-feed-status" aria-live="polite"></div>
+                                                            </td>
+                                                        </tr>
+                                                        <tr>
+                                                            <th>
+                                                                <span class="skynet-setting-name">Traffic Filtering</span>
+                                                                <span class="skynet-setting-help">Selects which traffic directions Skynet blocks.</span>
+                                                            </th>
+                                                            <td>
+                                                                <select class="input_option" id="skynetFilterTraffic">
+                                                                    <option value="all">Inbound &amp; Outbound (Default)</option>
+                                                                    <option value="inbound">Inbound Only</option>
+                                                                    <option value="outbound">Outbound Only</option>
+                                                                </select>
+                                                            </td>
+                                                        </tr>
+                                                        <tr>
+                                                            <th>
+                                                                <span class="skynet-setting-name">Unban Private IPs</span>
+                                                                <span class="skynet-setting-help">Removes and whitelists private addresses found in blocked traffic.</span>
+                                                            </th>
+                                                            <td>
+                                                                <select class="input_option" id="skynetUnbanPrivate">
+                                                                    <option value="enabled">Enabled (Default)</option>
+                                                                    <option value="disabled">Disabled</option>
+                                                                </select>
+                                                            </td>
+                                                        </tr>
+                                                        <tr>
+                                                            <th>
+                                                                <span class="skynet-setting-name">Import AiProtection Bans</span>
+                                                                <span class="skynet-setting-help">Imports threats blocked by AiProtection into Skynet.</span>
+                                                            </th>
+                                                            <td>
+                                                                <select class="input_option" id="skynetAiProtect">
+                                                                    <option value="enabled">Enabled (Default)</option>
+                                                                    <option value="disabled">Disabled</option>
+                                                                </select>
+                                                            </td>
+                                                        </tr>
+                                                        <tr>
+                                                            <th>
+                                                                <span class="skynet-setting-name">Secure Mode</span>
+                                                                <span class="skynet-setting-help">Disables WAN access to SSH and the router WebUI.</span>
+                                                            </th>
+                                                            <td>
+                                                                <select class="input_option" id="skynetSecureMode">
+                                                                    <option value="enabled">Enabled (Default)</option>
+                                                                    <option value="disabled">Disabled</option>
+                                                                </select>
+                                                            </td>
+                                                        </tr>
+                                                        <tr>
+                                                            <th>
+                                                                <span class="skynet-setting-name">CDN Whitelisting</span>
+                                                                <span class="skynet-setting-help">Whitelists common CDN address ranges to reduce false positives.</span>
+                                                            </th>
+                                                            <td>
+                                                                <select class="input_option" id="skynetCdnWhitelist">
+                                                                    <option value="enabled">Enabled (Default)</option>
+                                                                    <option value="disabled">Disabled</option>
+                                                                </select>
+                                                            </td>
+                                                        </tr>
+                                                        <tr class="skynet-settings-group" data-settings-section="rules">
+                                                            <th colspan="2">Rules Manager</th>
+                                                        </tr>
+                                                        <tr class="skynet-rules-container">
+                                                            <td colspan="2">
+                                                                <div class="skynet-rules-manager">
+                                                                    <div class="skynet-feed-intro">
+                                                                        <span class="skynet-feed-title">Create Rules</span>
+                                                                        <span class="skynet-feed-help">Manage IPv4, domain and ASN rules. IPv4 and ASN bans support temporary lifetimes. Imported rule lists are one-time copies; use threat feeds for scheduled blacklist refreshes.</span>
+                                                                    </div>
+                                                                    <div class="skynet-rule-overview">
+                                                                        <div class="skynet-rule-health" id="skynetRuleHealth">Loading domain health...</div>
+                                                                        <input type="button"
+                                                                            id="skynetRefreshRules"
+                                                                            value="Refresh Dynamic Rules"
+                                                                            class="button_gen skynet-update-button skynet-settings-reload" />
+                                                                    </div>
+                                                                    <div class="skynet-rules-toolbar">
+                                                                        <label class="skynet-rule-field">
+                                                                            <span class="skynet-rule-label">Action</span>
+                                                                            <select class="input_option" id="skynetRuleAction">
+                                                                                <option value="ban">Ban</option>
+                                                                                <option value="unban">Unban</option>
+                                                                                <option value="whitelist">Whitelist</option>
                                                                             </select>
+                                                                        </label>
+                                                                        <label class="skynet-rule-field">
+                                                                            <span class="skynet-rule-label">Rule Type</span>
+                                                                            <select class="input_option" id="skynetRuleMode">
+                                                                                <option value="ip">IPv4 / CIDR</option>
+                                                                                <option value="domain">Domain</option>
+                                                                                <option value="asn">ASN</option>
+                                                                            </select>
+                                                                        </label>
+                                                                        <label class="skynet-rule-field skynet-rule-field-lifetime" id="skynetRuleLifetimeField">
+                                                                            <span class="skynet-rule-label">Lifetime</span>
+                                                                            <select class="input_option" id="skynetRuleLifetime">
+                                                                                <option value="">Permanent</option>
+                                                                                <option value="15m">15 Minutes</option>
+                                                                                <option value="1h">1 Hour</option>
+                                                                                <option value="6h">6 Hours</option>
+                                                                                <option value="24h">24 Hours</option>
+                                                                                <option value="7d">7 Days</option>
+                                                                            </select>
+                                                                        </label>
+                                                                        <label class="skynet-rule-field skynet-rule-field-entries">
+                                                                            <span class="skynet-rule-label">Entries</span>
                                                                             <input type="text"
-                                                                                class="skynet-rules-search"
-                                                                                id="skynetRuleSearch"
-                                                                                placeholder="Search rules"
+                                                                                id="skynetRuleInput"
+                                                                                maxlength="1024"
+                                                                                placeholder="Separate multiple entries with spaces"
                                                                                 autocomplete="off"
                                                                                 spellcheck="false" />
-                                                                        </div>
-                                                                        <div class="skynet-rule-header">
-                                                                            <span>Type</span>
-                                                                            <span>Entry / Group</span>
-																											<span>Details</span>
-                                                                            <span>Count</span>
-                                                                            <span>Action</span>
-                                                                        </div>
-                                                                        <div id="skynetRuleList">
-                                                                            <div class="skynet-feed-empty">Loading firewall rules...</div>
-                                                                        </div>
-                                                                        <div class="skynet-history-footer" id="skynetRulePager" hidden>
-                                                                            <span id="skynetRulePageCount" aria-live="polite"></span>
-                                                                            <input type="button" id="skynetRulePrevious" class="button_gen skynet-update-button skynet-settings-reload" value="Previous" disabled />
-                                                                            <input type="button" id="skynetRuleNext" class="button_gen skynet-update-button skynet-settings-reload" value="Next" disabled />
-                                                                        </div>
-                                                                    </div>
-                                                                </td>
-                                                            </tr>
-                                                            <tr class="skynet-settings-group" data-settings-section="rules">
-                                                                <th colspan="2">Activity Log</th>
-                                                            </tr>
-                                                            <tr class="skynet-rules-container">
-                                                                <td colspan="2">
-                                                                    <details class="skynet-action-panel" open>
-                                                                        <summary class="skynet-feed-intro skynet-action-intro">
-                                                                            <span class="skynet-feed-title">Activity History</span>
-                                                                            <span class="skynet-feed-help">Search the latest 200 actions. Export includes all matching entries, not just this page.</span>
-                                                                        </summary>
-                                                                        <div class="skynet-history-tools">
-                                                                            <select id="skynetHistoryArea" class="input_option" aria-label="Activity category">
-                                                                                <option value="">All Activities</option><option value="rules">Rules</option><option value="settings">Settings</option><option value="feeds">Threat Feeds</option><option value="countries">Countries</option><option value="iot">IoT</option><option value="system">System</option>
-                                                                            </select>
-                                                                            <select id="skynetHistoryResult" class="input_option" aria-label="Activity result">
-                                                                                <option value="">All Results</option><option value="success">Success</option><option value="degraded">Degraded</option><option value="failed">Failed</option>
-                                                                            </select>
-                                                                            <input type="text" id="skynetHistorySearch" placeholder="Search activity" aria-label="Search activity history" maxlength="200" />
-                                                                            <button type="button" id="skynetHistoryExport" class="button_gen skynet-update-button skynet-settings-reload">Export CSV</button>
-                                                                        </div>
-                                                                        <div class="skynet-action-header">
-                                                                            <span>Time</span>
-                                                                            <span>Result</span>
-                                                                            <span>Activity</span>
-                                                                            <span>Details</span>
-                                                                        </div>
-                                                                        <div class="skynet-action-list" id="skynetRuleActivity">
-                                                                            <div class="skynet-feed-empty">Loading recent actions...</div>
-                                                                        </div>
-                                                                        <div class="skynet-history-footer">
-                                                                            <span id="skynetHistoryCount" aria-live="polite"></span>
-                                                                            <button type="button" id="skynetHistoryPrevious" class="button_gen skynet-update-button skynet-settings-reload">Previous</button>
-                                                                            <button type="button" id="skynetHistoryNext" class="button_gen skynet-update-button skynet-settings-reload">Next</button>
-                                                                        </div>
-                                                                    </details>
-                                                                </td>
-                                                            </tr>
-                                                            <tr class="skynet-settings-group" data-settings-section="iot">
-                                                                <th colspan="2">IoT Isolation</th>
-                                                            </tr>
-                                                            <tr>
-                                                                <th>
-                                                                    <span class="skynet-setting-name">IoT WAN Blocking</span>
-                                                                    <span class="skynet-setting-help">Blocks WAN access for saved devices. Disabling it preserves the device list.</span>
-                                                                </th>
-                                                                <td>
-                                                                    <select class="input_option" id="skynetIotBlocking">
-                                                                        <option value="enabled">Enabled</option>
-                                                                        <option value="disabled">Disabled (Default)</option>
-                                                                    </select>
-                                                                </td>
-                                                            </tr>
-                                                            <tr>
-                                                                <th>
-                                                                    <span class="skynet-setting-name">IoT Block Logging</span>
-                                                                    <span class="skynet-setting-help">Records blocked IoT traffic for statistics while enforcement is enabled.</span>
-                                                                </th>
-                                                                <td>
-                                                                    <select class="input_option" id="skynetIotLogging">
-                                                                        <option value="enabled">Enabled (Default)</option>
-                                                                        <option value="disabled">Disabled</option>
-                                                                    </select>
-                                                                </td>
-                                                            </tr>
-                                                            <tr class="skynet-country-row">
-                                                                <th>
-                                                                    <span class="skynet-setting-name">IoT Devices</span>
-                                                                    <span class="skynet-setting-help">Select a detected client or enter an IPv4 address/CIDR range manually.</span>
-                                                                </th>
-                                                                <td>
-                                                                    <div class="skynet-country-editor">
-                                                                        <select class="input_option skynet-country-picker"
-                                                                            id="skynetIotPicker"
-                                                                            aria-label="Add an IoT device"
-                                                                            disabled="disabled">
-                                                                            <option value="">Add a detected client...</option>
-                                                                        </select>
-                                                                        <div class="skynet-iot-add">
+                                                                        </label>
+                                                                        <label class="skynet-rule-field skynet-rule-field-entries">
+                                                                            <span class="skynet-rule-label">Comment</span>
                                                                             <input type="text"
-                                                                                id="skynetIotManual"
-                                                                                maxlength="18"
-                                                                                placeholder="IPv4 address or CIDR range"
-                                                                                autocomplete="off"
-                                                                                spellcheck="false" />
-                                                                            <input type="button"
-                                                                                id="skynetAddIotManual"
-                                                                                value="Add"
-                                                                                class="button_gen skynet-update-button skynet-settings-reload" />
-                                                                        </div>
-                                                                        <div class="skynet-country-list" id="skynetIotList">
-                                                                            <span class="skynet-country-empty">Loading IoT devices...</span>
-                                                                        </div>
-                                                                    </div>
-                                                                </td>
-                                                            </tr>
-                                                            <tr>
-                                                                <th>
-                                                                    <span class="skynet-setting-name">WAN Port Access</span>
-                                                                    <span class="skynet-setting-help">The default permits UDP/123 so isolated devices can synchronize their clocks using NTP. Choose Custom Ports or No Ports to override it.</span>
-                                                                </th>
-                                                                <td>
-                                                                    <div class="skynet-country-editor">
-                                                                        <select class="input_option skynet-country-picker"
-                                                                            id="skynetIotPortMode"
-                                                                            aria-label="Select IoT WAN port access">
-                                                                            <option value="default">NTP Time Sync Only (Default)</option>
-                                                                            <option value="custom">Custom Ports</option>
-                                                                            <option value="none">No Ports</option>
-                                                                        </select>
-                                                                        <div class="skynet-iot-add">
-                                                                            <input type="number"
-                                                                                id="skynetIotPortInput"
-                                                                                min="1"
-                                                                                max="65535"
-                                                                                step="1"
-                                                                                placeholder="Port"
+                                                                                id="skynetRuleComment"
+                                                                                maxlength="242"
+                                                                                placeholder="Optional comment"
                                                                                 autocomplete="off" />
-                                                                            <input type="button"
-                                                                                id="skynetAddIotPort"
-                                                                                value="Add"
-                                                                                class="button_gen skynet-update-button skynet-settings-reload" />
-                                                                        </div>
-                                                                        <div class="skynet-country-list" id="skynetIotPortList">
-                                                                            <span class="skynet-country-empty">UDP/123 is allowed for NTP time synchronization.</span>
-                                                                        </div>
+                                                                        </label>
+                                                                        <input type="button"
+                                                                            id="skynetAddRuleEntry"
+                                                                            value="Add Entries"
+                                                                            class="button_gen skynet-update-button skynet-settings-reload" />
                                                                     </div>
-                                                                </td>
-                                                            </tr>
-                                                            <tr>
-                                                                <th>
-                                                                    <span class="skynet-setting-name">Allowed Protocol</span>
-                                                                    <span class="skynet-setting-help">Applies only when Custom Ports is selected.</span>
-                                                                </th>
-                                                                <td>
-                                                                    <select class="input_option" id="skynetIotProtocol">
-                                                                        <option value="udp">UDP (Default)</option>
-                                                                        <option value="tcp">TCP</option>
-                                                                        <option value="all">TCP &amp; UDP</option>
+                                                                    <div class="skynet-rule-tags" id="skynetRuleTags">
+                                                                        <span class="skynet-country-empty">Add entries with their comment, then select Apply Rules.</span>
+                                                                    </div>
+                                                                    <div class="skynet-history-footer" id="skynetRuleDraftPager" hidden>
+                                                                        <span id="skynetRuleDraftPageCount" aria-live="polite"></span>
+                                                                        <input type="button" id="skynetRuleDraftPrevious" class="button_gen skynet-update-button skynet-settings-reload" value="Previous" disabled />
+                                                                        <input type="button" id="skynetRuleDraftNext" class="button_gen skynet-update-button skynet-settings-reload" value="Next" disabled />
+                                                                    </div>
+                                                                    <div class="skynet-rule-time-status" id="skynetRuleTimeStatus" aria-live="polite"></div>
+                                                                    <div class="skynet-rule-scope" id="skynetRuleScope" hidden>
+                                                                        <strong>Applies to all clients</strong>
+                                                                        <span>Whitelisted destinations take precedence over bans.</span>
+                                                                    </div>
+                                                                    <div class="skynet-rules-actions">
+                                                                        <span class="skynet-country-status" id="skynetRuleStatus" aria-live="polite"></span>
+                                                                        <input type="button"
+                                                                            id="skynetApplyRule"
+                                                                            value="Apply Rules"
+                                                                            class="button_gen skynet-update-button"
+                                                                            disabled="disabled" />
+                                                                    </div>
+                                                                    <div class="skynet-rules-filterbar">
+                                                                        <span class="skynet-rule-section-label">Saved Rules</span>
+                                                                        <select class="input_option skynet-rule-filter" id="skynetRuleFilter" aria-label="Filter rules">
+                                                                            <option value="all">All Rules</option>
+                                                                            <option value="bans">Bans</option>
+                                                                            <option value="temporary">Temporary</option>
+                                                                            <option value="whitelists">Whitelists</option>
+                                                                            <option value="imports">Imports</option>
+                                                                        </select>
+                                                                        <input type="text"
+                                                                            class="skynet-rules-search"
+                                                                            id="skynetRuleSearch"
+                                                                            placeholder="Search rules"
+                                                                            autocomplete="off"
+                                                                            spellcheck="false" />
+                                                                    </div>
+                                                                    <div class="skynet-rule-header">
+                                                                        <span>Type</span>
+                                                                        <span>Entry / Group</span>
+																											<span>Details</span>
+                                                                        <span>Count</span>
+                                                                        <span>Action</span>
+                                                                    </div>
+                                                                    <div id="skynetRuleList">
+                                                                        <div class="skynet-feed-empty">Loading firewall rules...</div>
+                                                                    </div>
+                                                                    <div class="skynet-history-footer" id="skynetRulePager" hidden>
+                                                                        <span id="skynetRulePageCount" aria-live="polite"></span>
+                                                                        <input type="button" id="skynetRulePrevious" class="button_gen skynet-update-button skynet-settings-reload" value="Previous" disabled />
+                                                                        <input type="button" id="skynetRuleNext" class="button_gen skynet-update-button skynet-settings-reload" value="Next" disabled />
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                        <tr class="skynet-settings-group" data-settings-section="rules">
+                                                            <th colspan="2">Activity Log</th>
+                                                        </tr>
+                                                        <tr class="skynet-rules-container">
+                                                            <td colspan="2">
+                                                                <details class="skynet-action-panel" open>
+                                                                    <summary class="skynet-feed-intro skynet-action-intro">
+                                                                        <span class="skynet-feed-title">Activity History</span>
+                                                                        <span class="skynet-feed-help">Search the latest 200 actions. Export includes all matching entries, not just this page.</span>
+                                                                    </summary>
+                                                                    <div class="skynet-history-tools">
+                                                                        <select id="skynetHistoryArea" class="input_option" aria-label="Activity category">
+                                                                            <option value="">All Activities</option><option value="rules">Rules</option><option value="settings">Settings</option><option value="feeds">Threat Feeds</option><option value="countries">Countries</option><option value="iot">IoT</option><option value="system">System</option>
+                                                                        </select>
+                                                                        <select id="skynetHistoryResult" class="input_option" aria-label="Activity result">
+                                                                            <option value="">All Results</option><option value="success">Success</option><option value="degraded">Degraded</option><option value="failed">Failed</option>
+                                                                        </select>
+                                                                        <input type="text" id="skynetHistorySearch" placeholder="Search activity" aria-label="Search activity history" maxlength="200" />
+                                                                        <button type="button" id="skynetHistoryExport" class="button_gen skynet-update-button skynet-settings-reload">Export CSV</button>
+                                                                    </div>
+                                                                    <div class="skynet-action-header">
+                                                                        <span>Time</span>
+                                                                        <span>Result</span>
+                                                                        <span>Activity</span>
+                                                                        <span>Details</span>
+                                                                    </div>
+                                                                    <div class="skynet-action-list" id="skynetRuleActivity">
+                                                                        <div class="skynet-feed-empty">Loading recent actions...</div>
+                                                                    </div>
+                                                                    <div class="skynet-history-footer">
+                                                                        <span id="skynetHistoryCount" aria-live="polite"></span>
+                                                                        <button type="button" id="skynetHistoryPrevious" class="button_gen skynet-update-button skynet-settings-reload">Previous</button>
+                                                                        <button type="button" id="skynetHistoryNext" class="button_gen skynet-update-button skynet-settings-reload">Next</button>
+                                                                    </div>
+                                                                </details>
+                                                            </td>
+                                                        </tr>
+                                                        <tr class="skynet-settings-group" data-settings-section="iot">
+                                                            <th colspan="2">IoT Isolation</th>
+                                                        </tr>
+                                                        <tr>
+                                                            <th>
+                                                                <span class="skynet-setting-name">IoT WAN Blocking</span>
+                                                                <span class="skynet-setting-help">Blocks WAN access for saved devices. Disabling it preserves the device list.</span>
+                                                            </th>
+                                                            <td>
+                                                                <select class="input_option" id="skynetIotBlocking">
+                                                                    <option value="enabled">Enabled</option>
+                                                                    <option value="disabled">Disabled (Default)</option>
+                                                                </select>
+                                                            </td>
+                                                        </tr>
+                                                        <tr>
+                                                            <th>
+                                                                <span class="skynet-setting-name">IoT Block Logging</span>
+                                                                <span class="skynet-setting-help">Records blocked IoT traffic for statistics while enforcement is enabled.</span>
+                                                            </th>
+                                                            <td>
+                                                                <select class="input_option" id="skynetIotLogging">
+                                                                    <option value="enabled">Enabled (Default)</option>
+                                                                    <option value="disabled">Disabled</option>
+                                                                </select>
+                                                            </td>
+                                                        </tr>
+                                                        <tr class="skynet-country-row">
+                                                            <th>
+                                                                <span class="skynet-setting-name">IoT Devices</span>
+                                                                <span class="skynet-setting-help">Select a detected client or enter an IPv4 address/CIDR range manually.</span>
+                                                            </th>
+                                                            <td>
+                                                                <div class="skynet-country-editor">
+                                                                    <select class="input_option skynet-country-picker"
+                                                                        id="skynetIotPicker"
+                                                                        aria-label="Add an IoT device"
+                                                                        disabled="disabled">
+                                                                        <option value="">Add a detected client...</option>
                                                                     </select>
-                                                                </td>
-                                                            </tr>
-                                                            <tr class="skynet-settings-group" data-settings-section="countries">
-                                                                <th colspan="2">Country Blocking</th>
-                                                            </tr>
-                                                            <tr class="skynet-country-row">
-                                                                <th>
-                                                                    <span class="skynet-setting-name">Blocked Countries</span>
-                                                                    <span class="skynet-setting-help">Blocks known IPv4 ranges assigned to the selected countries. Sources refresh weekly.</span>
-                                                                </th>
-                                                                <td>
-                                                                    <div class="skynet-country-editor">
-                                                                        <div class="skynet-country-chooser" id="skynetCountryChooser">
-                                                                            <button type="button" class="skynet-country-picker"
-                                                                                id="skynetCountryPicker"
-                                                                                aria-expanded="false"
-                                                                                aria-controls="skynetCountryPanel"
-                                                                                disabled="disabled">
-                                                                                <span id="skynetCountryPickerLabel">Select countries</span>
-                                                                                <span id="skynetCountryPickerCount" hidden></span>
-                                                                            </button>
-                                                                            <div class="skynet-country-options-panel" id="skynetCountryPanel"
-                                                                                role="group" aria-label="Countries to block" hidden>
-                                                                                <div class="skynet-country-search-wrap">
-                                                                                    <input type="search" class="input_32_table" id="skynetCountrySearch"
-                                                                                        aria-label="Search countries" placeholder="Search countries..."
-                                                                                        autocomplete="off" disabled="disabled" />
-                                                                                    <button type="button" id="skynetCountrySearchClear"
-                                                                                        aria-label="Clear country search" title="Clear search" hidden>×</button>
-                                                                                </div>
-                                                                                <div class="skynet-country-options" id="skynetCountryOptions"></div>
-                                                                                <div class="skynet-country-no-match" id="skynetCountryNoMatch" hidden>No matching countries.</div>
-                                                                                <div class="skynet-country-footer">
-                                                                                    <span id="skynetCountryMatchCount" aria-live="polite"></span>
-                                                                                    <button type="button" id="skynetCountryDone"
-                                                                                        class="button_gen skynet-update-button skynet-settings-reload skynet-country-done">Done</button>
-                                                                                </div>
+                                                                    <div class="skynet-iot-add">
+                                                                        <input type="text"
+                                                                            id="skynetIotManual"
+                                                                            maxlength="18"
+                                                                            placeholder="IPv4 address or CIDR range"
+                                                                            autocomplete="off"
+                                                                            spellcheck="false" />
+                                                                        <input type="button"
+                                                                            id="skynetAddIotManual"
+                                                                            value="Add"
+                                                                            class="button_gen skynet-update-button skynet-settings-reload" />
+                                                                    </div>
+                                                                    <div class="skynet-country-list" id="skynetIotList">
+                                                                        <span class="skynet-country-empty">Loading IoT devices...</span>
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                        <tr>
+                                                            <th>
+                                                                <span class="skynet-setting-name">WAN Port Access</span>
+                                                                <span class="skynet-setting-help">The default permits UDP/123 so isolated devices can synchronize their clocks using NTP. Choose Custom Ports or No Ports to override it.</span>
+                                                            </th>
+                                                            <td>
+                                                                <div class="skynet-country-editor">
+                                                                    <select class="input_option skynet-country-picker"
+                                                                        id="skynetIotPortMode"
+                                                                        aria-label="Select IoT WAN port access">
+                                                                        <option value="default">NTP Time Sync Only (Default)</option>
+                                                                        <option value="custom">Custom Ports</option>
+                                                                        <option value="none">No Ports</option>
+                                                                    </select>
+                                                                    <div class="skynet-iot-add">
+                                                                        <input type="number"
+                                                                            id="skynetIotPortInput"
+                                                                            min="1"
+                                                                            max="65535"
+                                                                            step="1"
+                                                                            placeholder="Port"
+                                                                            autocomplete="off" />
+                                                                        <input type="button"
+                                                                            id="skynetAddIotPort"
+                                                                            value="Add"
+                                                                            class="button_gen skynet-update-button skynet-settings-reload" />
+                                                                    </div>
+                                                                    <div class="skynet-country-list" id="skynetIotPortList">
+                                                                        <span class="skynet-country-empty">UDP/123 is allowed for NTP time synchronization.</span>
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                        <tr>
+                                                            <th>
+                                                                <span class="skynet-setting-name">Allowed Protocol</span>
+                                                                <span class="skynet-setting-help">Applies only when Custom Ports is selected.</span>
+                                                            </th>
+                                                            <td>
+                                                                <select class="input_option" id="skynetIotProtocol">
+                                                                    <option value="udp">UDP (Default)</option>
+                                                                    <option value="tcp">TCP</option>
+                                                                    <option value="all">TCP &amp; UDP</option>
+                                                                </select>
+                                                            </td>
+                                                        </tr>
+                                                        <tr class="skynet-settings-group" data-settings-section="countries">
+                                                            <th colspan="2">Country Blocking</th>
+                                                        </tr>
+                                                        <tr class="skynet-country-row">
+                                                            <th>
+                                                                <span class="skynet-setting-name">Blocked Countries</span>
+                                                                <span class="skynet-setting-help">Blocks known IPv4 ranges assigned to the selected countries. Sources refresh weekly.</span>
+                                                            </th>
+                                                            <td>
+                                                                <div class="skynet-country-editor">
+                                                                    <div class="skynet-country-chooser" id="skynetCountryChooser">
+                                                                        <button type="button" class="skynet-country-picker"
+                                                                            id="skynetCountryPicker"
+                                                                            aria-expanded="false"
+                                                                            aria-controls="skynetCountryPanel"
+                                                                            disabled="disabled">
+                                                                            <span id="skynetCountryPickerLabel">Select countries</span>
+                                                                            <span id="skynetCountryPickerCount" hidden></span>
+                                                                        </button>
+                                                                        <div class="skynet-country-options-panel" id="skynetCountryPanel"
+                                                                            role="group" aria-label="Countries to block" hidden>
+                                                                            <div class="skynet-country-search-wrap">
+                                                                                <input type="search" class="input_32_table" id="skynetCountrySearch"
+                                                                                    aria-label="Search countries" placeholder="Search countries..."
+                                                                                    autocomplete="off" disabled="disabled" />
+                                                                                <button type="button" id="skynetCountrySearchClear"
+                                                                                    aria-label="Clear country search" title="Clear search" hidden>×</button>
+                                                                            </div>
+                                                                            <div class="skynet-country-options" id="skynetCountryOptions"></div>
+                                                                            <div class="skynet-country-no-match" id="skynetCountryNoMatch" hidden>No matching countries.</div>
+                                                                            <div class="skynet-country-footer">
+                                                                                <span id="skynetCountryMatchCount" aria-live="polite"></span>
+                                                                                <button type="button" id="skynetCountryDone"
+                                                                                    class="button_gen skynet-update-button skynet-settings-reload skynet-country-done">Done</button>
                                                                             </div>
                                                                         </div>
                                                                     </div>
-                                                                </td>
-                                                            </tr>
-                                                            <tr class="skynet-country-health-container">
-                                                                <td colspan="2">
-                                                                    <div class="skynet-country-health">
-                                                                        <div class="skynet-country-health-header" id="skynetCountryHealthHeader">
-                                                                            <span>Country</span>
-                                                                            <span>Ranges</span>
-                                                                            <span>Last Success</span>
-                                                                            <span>State</span>
-                                                                            <span>Action</span>
-                                                                        </div>
-                                                                        <div id="skynetCountryHealthList">
-                                                                            <div class="skynet-feed-empty">Loading country source details...</div>
-                                                                        </div>
-                                                                    </div>
-                                                                </td>
-                                                            </tr>
-                                                            <tr class="skynet-settings-group" data-settings-section="statistics">
-                                                                <th colspan="2">Logging &amp; Statistics</th>
-                                                            </tr>
-                                                            <tr>
-                                                                <th>
-                                                                    <span class="skynet-setting-name">Packet Logging</span>
-                                                                    <span class="skynet-setting-help">Records blocked traffic for statistics and history. Disabling it leaves protection and WebUI management active.</span>
-                                                                </th>
-                                                                <td>
-                                                                    <select class="input_option" id="skynetLogMode">
-                                                                        <option value="enabled">Enabled</option>
-                                                                        <option value="disabled">Disabled</option>
-                                                                    </select>
-                                                                </td>
-                                                            </tr>
-                                                            <tr>
-                                                                <th>
-                                                                    <span class="skynet-setting-name">Invalid Packet Logging</span>
-                                                                    <span class="skynet-setting-help">Logs invalid connection-state packets for statistics.</span>
-                                                                </th>
-                                                                <td>
-                                                                    <select class="input_option" id="skynetLogInvalid">
-                                                                        <option value="enabled">Enabled</option>
-                                                                        <option value="disabled">Disabled (Default)</option>
-                                                                    </select>
-                                                                </td>
-                                                            </tr>
-                                                            <tr>
-                                                                <th>
-                                                                    <span class="skynet-setting-name">Firewall Drop Logging</span>
-                                                                    <span class="skynet-setting-help">Logs new IPv4 connections rejected by the router firewall. Requires Packet Logging. Limited to 4 packets/second with a burst of 10; totals count logged packets and may undercount drops. Blocking is unchanged.</span>
-                                                                </th>
-                                                                <td>
-                                                                    <select class="input_option" id="skynetLogFirewall">
-                                                                        <option value="enabled">Enabled</option>
-                                                                        <option value="disabled">Disabled (Default)</option>
-                                                                    </select>
-                                                                </td>
-                                                            </tr>
-                                                            <tr>
-                                                                <th>
-                                                                    <span class="skynet-setting-name">Log Size</span>
-                                                                    <span class="skynet-setting-help">Limits retained block history. Older entries are removed when space is needed.</span>
-                                                                </th>
-                                                                <td>
-                                                                    <div class="skynet-number-control">
-                                                                        <input type="number"
-                                                                            id="skynetLogSize"
-                                                                            min="10"
-                                                                            max="200"
-                                                                            step="1"
-                                                                            placeholder="10" />
-                                                                        <span class="skynet-input-note">MB · Default: 10MB</span>
-                                                                    </div>
-                                                                </td>
-                                                            </tr>
-                                                            <tr>
-                                                                <th>
-                                                                    <span class="skynet-setting-name">Extended Statistics</span>
-                                                                    <span class="skynet-setting-help">Adds associated domain names to blocked IP statistics when available.</span>
-                                                                </th>
-                                                                <td>
-                                                                    <select class="input_option" id="skynetExtendedStats">
-                                                                        <option value="enabled">Enabled (Default)</option>
-                                                                        <option value="disabled">Disabled</option>
-                                                                    </select>
-                                                                </td>
-                                                            </tr>
-                                                            <tr>
-                                                                <th>
-                                                                    <span class="skynet-setting-name">Country Lookup</span>
-                                                                    <span class="skynet-setting-help">Adds country information and grouping to IP statistics.</span>
-                                                                </th>
-                                                                <td>
-                                                                    <select class="input_option" id="skynetCountryLookup">
-                                                                        <option value="enabled">Enabled (Default)</option>
-                                                                        <option value="disabled">Disabled</option>
-                                                                    </select>
-                                                                </td>
-                                                            </tr>
-                                                            <tr>
-                                                                <th>
-                                                                    <span class="skynet-setting-name">Log Source</span>
-                                                                    <span class="skynet-setting-help">Automatic follows the running system logger or Scribe's installed Skynet handler. Custom keeps your chosen paths.</span>
-                                                                </th>
-                                                                <td>
-                                                                    <select class="input_option" id="skynetSyslogMode">
-                                                                        <option value="auto">Automatic (Default)</option>
-                                                                        <option value="custom">Custom</option>
-                                                                    </select>
-                                                                </td>
-                                                            </tr>
-                                                            <tr>
-                                                                <th>
-                                                                    <span class="skynet-setting-name">Syslog File</span>
-                                                                    <span class="skynet-setting-help">Current log Skynet reads. Does not move files or change the system logger.</span>
-                                                                </th>
-                                                                <td>
-                                                                    <input type="text" id="skynetSyslog" maxlength="512" placeholder="/tmp/syslog.log" spellcheck="false" />
-                                                                </td>
-                                                            </tr>
-                                                            <tr>
-                                                                <th>
-                                                                    <span class="skynet-setting-name">Rotated Syslog File</span>
-                                                                    <span class="skynet-setting-help">Previous log Skynet reads after rotation. Automatic uses the current path plus -1; choose Custom for other layouts.</span>
-                                                                </th>
-                                                                <td>
-                                                                    <input type="text" id="skynetSyslogArchive" maxlength="512" placeholder="/tmp/syslog.log-1" spellcheck="false" />
-                                                                </td>
-                                                            </tr>
-                                                            <tr class="skynet-settings-group" data-settings-section="history">
-                                                                <th colspan="2">Block History</th>
-                                                            </tr>
-                                                            <tr class="skynet-rules-container">
-                                                                <td colspan="2">
-                                                                    <div id="skynetBlockHistory" class="skynet-action-panel">
-                                                                        <div class="skynet-feed-intro">
-                                                                            <span class="skynet-feed-title">Recorded Traffic</span>
-                                                                            <span class="skynet-feed-help">Search retained packet events without loading the full log. Open an event for packet details.</span>
-                                                                        </div>
-                                                                        <div class="skynet-block-filters">
-                                                                            <label for="skynetBlockRange">Period<select id="skynetBlockRange" class="input_option"><option value="today">Today</option><option value="7d">Last 7 Days</option><option value="90d">Last 90 Days</option></select></label>
-                                                                            <label for="skynetBlockKind">Category<select id="skynetBlockKind" class="input_option"><option value="all">All Categories</option><option value="inbound">Inbound</option><option value="outbound">Outbound</option><option value="invalid">Invalid</option><option value="iot">IoT</option><option value="firewall">Firewall Drops</option></select></label>
-                                                                            <label for="skynetBlockIP">IP Address / CIDR<input type="text" id="skynetBlockIP" maxlength="18" placeholder="Any IP address" spellcheck="false" /></label>
-                                                                            <label for="skynetBlockProtocol">Protocol<select id="skynetBlockProtocol" class="input_option"><option value="all">All Protocols</option><option value="TCP">TCP</option><option value="UDP">UDP</option><option value="ICMP">ICMP</option></select></label>
-                                                                            <label for="skynetBlockPort">Port<input type="text" id="skynetBlockPort" maxlength="5" inputmode="numeric" placeholder="Any port" /></label>
-                                                                        </div>
-                                                                        <div class="skynet-history-footer">
-                                                                            <span id="skynetBlockNotice" class="skynet-block-note"></span>
-                                                                            <input type="button" id="skynetBlockRefresh" class="button_gen skynet-update-button" value="Refresh History" />
-                                                                        </div>
-                                                                        <div class="skynet-block-chart" hidden><canvas id="skynetBlockChart" aria-label="Recorded events by time and category" role="img"></canvas></div>
-                                                                        <div class="skynet-history-footer"><span class="skynet-block-note">Trends show recorded category totals. Firewall Drops logging is rate-limited, so recorded totals may undercount drops. Gaps have no recorded events, not a confirmed zero. IP, protocol and port filters apply to detailed events below.</span></div>
-                                                                        <div id="skynetBlockRows"><div class="skynet-feed-empty">Open History to load retained events.</div></div>
-                                                                        <div class="skynet-history-footer">
-                                                                            <span id="skynetBlockCount" aria-live="polite"></span>
-                                                                            <input type="button" id="skynetBlockExport" class="button_gen skynet-update-button skynet-settings-reload" value="Export CSV" disabled />
-                                                                            <input type="button" id="skynetBlockPrevious" class="button_gen skynet-update-button skynet-settings-reload" value="Previous" disabled />
-                                                                            <input type="button" id="skynetBlockNext" class="button_gen skynet-update-button skynet-settings-reload" value="Next" disabled />
-                                                                        </div>
-                                                                        <div id="skynetBlockStatus" class="skynet-history-footer skynet-settings-result" aria-live="polite"></div>
-                                                                    </div>
-                                                                </td>
-                                                            </tr>
-                                                        </table>
-                                                        <div class="skynet-settings-actions">
-                                                            <div class="skynet-settings-result"
-                                                                id="skynetSettingsResult"
-                                                                data-action-sections="updates protection statistics"
-                                                                aria-live="polite"></div>
-                                                            <div class="skynet-country-status"
-                                                                id="skynetIotStatus"
-                                                                data-action-sections="iot"
-                                                                aria-live="polite"></div>
-                                                            <div class="skynet-country-status"
-                                                                id="skynetCountryStatus"
-                                                                data-action-sections="countries"
-                                                                aria-live="polite"></div>
-                                                            <input type="button"
-                                                                id="skynetRestoreDefaults"
-                                                                value="Restore Defaults"
-                                                                class="button_gen skynet-update-button skynet-settings-reload"
-                                                                data-action-sections="updates protection statistics" />
-                                                            <input type="button"
-                                                                id="skynetReloadSettings"
-                                                                value="Reload Data"
-                                                                class="button_gen skynet-update-button skynet-settings-reload"
-                                                                data-action-sections="updates protection iot statistics" />
-                                                            <input type="button"
-                                                                id="skynetApplySettings"
-                                                                value="Apply Settings"
-                                                                class="button_gen skynet-update-button"
-                                                                data-action-sections="updates protection statistics"
-                                                                disabled="disabled" />
-                                                            <input type="button"
-                                                                id="skynetClearIot"
-                                                                value="Clear Devices"
-                                                                class="button_gen skynet-update-button skynet-settings-reload"
-                                                                data-action-sections="iot"
-                                                                disabled="disabled" />
-                                                            <input type="button"
-                                                                id="skynetApplyIot"
-                                                                value="Apply IoT"
-                                                                class="button_gen skynet-update-button"
-                                                                data-action-sections="iot"
-                                                                disabled="disabled" />
-                                                            <input type="button"
-                                                                id="skynetClearCountries"
-                                                                value="Clear All"
-                                                                class="button_gen skynet-update-button skynet-settings-reload"
-                                                                data-action-sections="countries"
-                                                                disabled="disabled" />
-                                                            <input type="button"
-                                                                id="skynetRefreshCountries"
-                                                                value="Refresh Sources"
-                                                                class="button_gen skynet-update-button skynet-settings-reload"
-                                                                data-action-sections="countries"
-                                                                disabled="disabled" />
-                                                            <input type="button"
-                                                                id="skynetApplyCountries"
-                                                                value="Apply Countries"
-                                                                class="button_gen skynet-update-button"
-                                                                data-action-sections="countries"
-                                                                disabled="disabled" />
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                <div id="skynetOverviewView" role="tabpanel" aria-labelledby="skynetOverviewTab">
-                                                <div id="skynetLoggingDisabled" hidden="hidden" role="status">
-                                                    <strong>Traffic statistics are disabled</strong>
-                                                    Packet logging is off. Settings, rules and source management remain available.<br />
-                                                    Enable Packet Logging in the Statistics settings tab to resume.
-                                                </div>
-                                                <!-- Skynet dashboard. -->
-                                                <div id="skynet_dashboard">
-                                                    <div class="skynet-hero">
-                                                        <span class="skynet-status"><span class="skynet-status-dot"></span>PROTECTED</span>
-                                                        <div class="skynet-hero-core">
-                                                            <div class="skynet-hero-title">SKYNET</div>
-                                                            <div class="skynet-hero-sub">Router Firewall And Security Enhancements</div>
-                                                        </div>
-                                                        <a class="skynet-project-link"
-                                                            href="https://github.com/Adamm00/IPSet_ASUS"
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            title="Official Skynet repository">ADAMM00 / GITHUB</a>
-                                                    </div>
-
-                                                    <div class="skynet-detail" id="skynetDetail" aria-hidden="true">
-                                                        <div class="skynet-detail-head">
-                                                            <span id="skynetDetailTitle">Skynet Details</span>
-                                                            <input type="button"
-                                                                id="skynetDetailClose"
-                                                                value="Close"
-                                                                class="button_gen skynet-detail-close" />
-                                                        </div>
-                                                        <div class="skynet-detail-body" id="skynetDetailBody"></div>
-                                                    </div>
-
-                                                    <table class="skynet-kpis">
-                                                        <tr>
-                                                            <td class="skynet-kpi">
-                                                                <span class="skynet-kpi-label">IPs Banned</span>
-                                                                <span class="skynet-kpi-value" id="blcount1">—</span>
-                                                            </td>
-                                                            <td class="skynet-kpi">
-                                                                <span class="skynet-kpi-label">Ranges Banned</span>
-                                                                <span class="skynet-kpi-value" id="blcount2">—</span>
-                                                            </td>
-                                                            <td class="skynet-kpi">
-                                                                <span class="skynet-kpi-label" title="Packets since the inbound firewall rules were installed. Resets when rules are rebuilt or the router reboots.">Inbound Blocks</span>
-                                                                <span class="skynet-kpi-value" id="hits1">—</span>
-                                                            </td>
-                                                            <td class="skynet-kpi">
-                                                                <span class="skynet-kpi-label" title="Packets since the outbound firewall rules were installed. Resets when rules are rebuilt or the router reboots.">Outbound Blocks</span>
-                                                                <span class="skynet-kpi-value" id="hits2">—</span>
+                                                                </div>
                                                             </td>
                                                         </tr>
-                                                    </table>
-
-                                                    <table width="100%" border="0" cellpadding="0" cellspacing="0">
+                                                        <tr class="skynet-country-health-container">
+                                                            <td colspan="2">
+                                                                <div class="skynet-country-health">
+                                                                    <div class="skynet-country-health-header" id="skynetCountryHealthHeader">
+                                                                        <span>Country</span>
+                                                                        <span>Ranges</span>
+                                                                        <span>Last Success</span>
+                                                                        <span>State</span>
+                                                                        <span>Action</span>
+                                                                    </div>
+                                                                    <div id="skynetCountryHealthList">
+                                                                        <div class="skynet-feed-empty">Loading country source details...</div>
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                        <tr class="skynet-settings-group" data-settings-section="statistics">
+                                                            <th colspan="2">Logging &amp; Statistics</th>
+                                                        </tr>
                                                         <tr>
-                                                            <td class="skynet-actionbar" align="left" style="padding:0;">
-                                                                <div class="skynet-update-bar" id="skynetUpdateBar">
-                                                                    <div class="skynet-update-info">
-                                                                        <div class="skynet-meta" aria-label="Statistics coverage">
-                                                                            <span class="skynet-meta-item skynet-meta-period">
-                                                                                <span class="skynet-meta-label">Monitoring</span>
-                                                                                <span class="skynet-meta-value" id="statsdate">N/A</span>
-                                                                            </span>
-                                                                            <span class="skynet-meta-item skynet-meta-log">
-                                                                                <span class="skynet-meta-label" title="Used history space / configured maximum. Excludes empty space reserved for reuse. Usage updates with the charts.">Log Size</span>
-                                                                                <span class="skynet-meta-value"><span id="statssize">N/A</span><span id="statslimit"></span></span>
-                                                                            </span>
-                                                                        </div>
+                                                            <th>
+                                                                <span class="skynet-setting-name">Packet Logging</span>
+                                                                <span class="skynet-setting-help">Records blocked traffic for statistics and history. Disabling it leaves protection and WebUI management active.</span>
+                                                            </th>
+                                                            <td>
+                                                                <select class="input_option" id="skynetLogMode">
+                                                                    <option value="enabled">Enabled</option>
+                                                                    <option value="disabled">Disabled</option>
+                                                                </select>
+                                                            </td>
+                                                        </tr>
+                                                        <tr>
+                                                            <th>
+                                                                <span class="skynet-setting-name">Invalid Packet Logging</span>
+                                                                <span class="skynet-setting-help">Logs invalid connection-state packets for statistics.</span>
+                                                            </th>
+                                                            <td>
+                                                                <select class="input_option" id="skynetLogInvalid">
+                                                                    <option value="enabled">Enabled</option>
+                                                                    <option value="disabled">Disabled (Default)</option>
+                                                                </select>
+                                                            </td>
+                                                        </tr>
+                                                        <tr>
+                                                            <th>
+                                                                <span class="skynet-setting-name">Firewall Drop Logging</span>
+                                                                <span class="skynet-setting-help">Logs new IPv4 connections rejected by the router firewall. Requires Packet Logging. Limited to 4 packets/second with a burst of 10; totals count logged packets and may undercount drops. Blocking is unchanged.</span>
+                                                            </th>
+                                                            <td>
+                                                                <select class="input_option" id="skynetLogFirewall">
+                                                                    <option value="enabled">Enabled</option>
+                                                                    <option value="disabled">Disabled (Default)</option>
+                                                                </select>
+                                                            </td>
+                                                        </tr>
+                                                        <tr>
+                                                            <th>
+                                                                <span class="skynet-setting-name">Log Size</span>
+                                                                <span class="skynet-setting-help">Limits retained block history. Older entries are removed when space is needed.</span>
+                                                            </th>
+                                                            <td>
+                                                                <div class="skynet-number-control">
+                                                                    <input type="number"
+                                                                        id="skynetLogSize"
+                                                                        min="10"
+                                                                        max="200"
+                                                                        step="1"
+                                                                        placeholder="10" />
+                                                                    <span class="skynet-input-note">MB · Default: 10MB</span>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                        <tr>
+                                                            <th>
+                                                                <span class="skynet-setting-name">Extended Statistics</span>
+                                                                <span class="skynet-setting-help">Adds associated domain names to blocked IP statistics when available.</span>
+                                                            </th>
+                                                            <td>
+                                                                <select class="input_option" id="skynetExtendedStats">
+                                                                    <option value="enabled">Enabled (Default)</option>
+                                                                    <option value="disabled">Disabled</option>
+                                                                </select>
+                                                            </td>
+                                                        </tr>
+                                                        <tr>
+                                                            <th>
+                                                                <span class="skynet-setting-name">Country Lookup</span>
+                                                                <span class="skynet-setting-help">Adds country information and grouping to IP statistics.</span>
+                                                            </th>
+                                                            <td>
+                                                                <select class="input_option" id="skynetCountryLookup">
+                                                                    <option value="enabled">Enabled (Default)</option>
+                                                                    <option value="disabled">Disabled</option>
+                                                                </select>
+                                                            </td>
+                                                        </tr>
+                                                        <tr>
+                                                            <th>
+                                                                <span class="skynet-setting-name">Log Source</span>
+                                                                <span class="skynet-setting-help">Automatic follows the running system logger or Scribe's installed Skynet handler. Custom keeps your chosen paths.</span>
+                                                            </th>
+                                                            <td>
+                                                                <select class="input_option" id="skynetSyslogMode">
+                                                                    <option value="auto">Automatic (Default)</option>
+                                                                    <option value="custom">Custom</option>
+                                                                </select>
+                                                            </td>
+                                                        </tr>
+                                                        <tr>
+                                                            <th>
+                                                                <span class="skynet-setting-name">Syslog File</span>
+                                                                <span class="skynet-setting-help">Current log Skynet reads. Does not move files or change the system logger.</span>
+                                                            </th>
+                                                            <td>
+                                                                <input type="text" id="skynetSyslog" maxlength="512" placeholder="/tmp/syslog.log" spellcheck="false" />
+                                                            </td>
+                                                        </tr>
+                                                        <tr>
+                                                            <th>
+                                                                <span class="skynet-setting-name">Rotated Syslog File</span>
+                                                                <span class="skynet-setting-help">Previous log Skynet reads after rotation. Automatic uses the current path plus -1; choose Custom for other layouts.</span>
+                                                            </th>
+                                                            <td>
+                                                                <input type="text" id="skynetSyslogArchive" maxlength="512" placeholder="/tmp/syslog.log-1" spellcheck="false" />
+                                                            </td>
+                                                        </tr>
+                                                        <tr class="skynet-settings-group" data-settings-section="history">
+                                                            <th colspan="2">Block History</th>
+                                                        </tr>
+                                                        <tr class="skynet-rules-container">
+                                                            <td colspan="2">
+                                                                <div id="skynetBlockHistory" class="skynet-action-panel">
+                                                                    <div class="skynet-feed-intro">
+                                                                        <span class="skynet-feed-title">Recorded Traffic</span>
+                                                                        <span class="skynet-feed-help">Search retained packet events without loading the full log. Open an event for packet details.</span>
                                                                     </div>
-                                                                    <div class="skynet-update-control">
-                                                                        <input type="button"
-                                                                            id="skynetUpdateStats"
-                                                                            value="Refresh Stats"
-                                                                            class="button_gen skynet-update-button"
-                                                                            aria-label="Update Skynet statistics" />
-                                                                        <input type="button"
-                                                                            id="skynetResetStats"
-                                                                            value="Reset Stats"
-                                                                            class="button_gen skynet-update-button skynet-reset-button"
-                                                                            aria-label="Reset Skynet statistics and recorded block history" />
+                                                                    <div class="skynet-block-filters">
+                                                                        <label for="skynetBlockRange">Period<select id="skynetBlockRange" class="input_option"><option value="today">Today</option><option value="7d">Last 7 Days</option><option value="90d">Last 90 Days</option></select></label>
+                                                                        <label for="skynetBlockKind">Category<select id="skynetBlockKind" class="input_option"><option value="all">All Categories</option><option value="inbound">Inbound</option><option value="outbound">Outbound</option><option value="invalid">Invalid</option><option value="iot">IoT</option><option value="firewall">Firewall Drops</option></select></label>
+                                                                        <label for="skynetBlockIP">IP Address / CIDR<input type="text" id="skynetBlockIP" maxlength="18" placeholder="Any IP address" spellcheck="false" /></label>
+                                                                        <label for="skynetBlockProtocol">Protocol<select id="skynetBlockProtocol" class="input_option"><option value="all">All Protocols</option><option value="TCP">TCP</option><option value="UDP">UDP</option><option value="ICMP">ICMP</option></select></label>
+                                                                        <label for="skynetBlockPort">Port<input type="text" id="skynetBlockPort" maxlength="5" inputmode="numeric" placeholder="Any port" /></label>
                                                                     </div>
-                                                                    <div class="skynet-update-result" id="skynetUpdateResult" aria-live="polite"></div>
+                                                                    <div class="skynet-history-footer">
+                                                                        <span id="skynetBlockNotice" class="skynet-block-note"></span>
+                                                                        <input type="button" id="skynetBlockRefresh" class="button_gen skynet-update-button" value="Refresh History" />
+                                                                    </div>
+                                                                    <div class="skynet-block-chart" hidden><canvas id="skynetBlockChart" aria-label="Recorded events by time and category" role="img"></canvas></div>
+                                                                    <div class="skynet-history-footer"><span class="skynet-block-note">Trends show recorded category totals. Firewall Drops logging is rate-limited, so recorded totals may undercount drops. Gaps have no recorded events, not a confirmed zero. IP, protocol and port filters apply to detailed events below.</span></div>
+                                                                    <div id="skynetBlockRows"><div class="skynet-feed-empty">Open History to load retained events.</div></div>
+                                                                    <div class="skynet-history-footer">
+                                                                        <span id="skynetBlockCount" aria-live="polite"></span>
+                                                                        <input type="button" id="skynetBlockExport" class="button_gen skynet-update-button skynet-settings-reload" value="Export CSV" disabled />
+                                                                        <input type="button" id="skynetBlockPrevious" class="button_gen skynet-update-button skynet-settings-reload" value="Previous" disabled />
+                                                                        <input type="button" id="skynetBlockNext" class="button_gen skynet-update-button skynet-settings-reload" value="Next" disabled />
+                                                                    </div>
+                                                                    <div id="skynetBlockStatus" class="skynet-history-footer skynet-settings-result" aria-live="polite"></div>
                                                                 </div>
                                                             </td>
                                                         </tr>
                                                     </table>
+                                                    <div class="skynet-settings-actions">
+                                                        <div class="skynet-settings-result"
+                                                            id="skynetSettingsResult"
+                                                            data-action-sections="updates protection statistics"
+                                                            aria-live="polite"></div>
+                                                        <div class="skynet-country-status"
+                                                            id="skynetIotStatus"
+                                                            data-action-sections="iot"
+                                                            aria-live="polite"></div>
+                                                        <div class="skynet-country-status"
+                                                            id="skynetCountryStatus"
+                                                            data-action-sections="countries"
+                                                            aria-live="polite"></div>
+                                                        <input type="button"
+                                                            id="skynetRestoreDefaults"
+                                                            value="Restore Defaults"
+                                                            class="button_gen skynet-update-button skynet-settings-reload"
+                                                            data-action-sections="updates protection statistics" />
+                                                        <input type="button"
+                                                            id="skynetReloadSettings"
+                                                            value="Reload Data"
+                                                            class="button_gen skynet-update-button skynet-settings-reload"
+                                                            data-action-sections="updates protection iot statistics" />
+                                                        <input type="button"
+                                                            id="skynetApplySettings"
+                                                            value="Apply Settings"
+                                                            class="button_gen skynet-update-button"
+                                                            data-action-sections="updates protection statistics"
+                                                            disabled="disabled" />
+                                                        <input type="button"
+                                                            id="skynetClearIot"
+                                                            value="Clear Devices"
+                                                            class="button_gen skynet-update-button skynet-settings-reload"
+                                                            data-action-sections="iot"
+                                                            disabled="disabled" />
+                                                        <input type="button"
+                                                            id="skynetApplyIot"
+                                                            value="Apply IoT"
+                                                            class="button_gen skynet-update-button"
+                                                            data-action-sections="iot"
+                                                            disabled="disabled" />
+                                                        <input type="button"
+                                                            id="skynetClearCountries"
+                                                            value="Clear All"
+                                                            class="button_gen skynet-update-button skynet-settings-reload"
+                                                            data-action-sections="countries"
+                                                            disabled="disabled" />
+                                                        <input type="button"
+                                                            id="skynetRefreshCountries"
+                                                            value="Refresh Sources"
+                                                            class="button_gen skynet-update-button skynet-settings-reload"
+                                                            data-action-sections="countries"
+                                                            disabled="disabled" />
+                                                        <input type="button"
+                                                            id="skynetApplyCountries"
+                                                            value="Apply Countries"
+                                                            class="button_gen skynet-update-button"
+                                                            data-action-sections="countries"
+                                                            disabled="disabled" />
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div id="skynetOverviewView" role="tabpanel" aria-labelledby="skynetOverviewTab">
+                                            <div id="skynetLoggingDisabled" hidden="hidden" role="status">
+                                                <strong>Traffic statistics are disabled</strong>
+                                                Packet logging is off. Settings, rules and source management remain available.<br />
+                                                Enable Packet Logging in the Statistics settings tab to resume.
+                                            </div>
+                                            <!-- Skynet dashboard. -->
+                                            <div id="skynet_dashboard">
+                                                <div class="skynet-hero">
+                                                    <span class="skynet-status" id="skynetProtectionStatus" data-state="pending"><span class="skynet-status-dot"></span><span id="skynetProtectionLabel">CHECKING STATUS</span></span>
+                                                    <div class="skynet-hero-core">
+                                                        <div class="skynet-hero-title">SKYNET</div>
+                                                        <div class="skynet-hero-sub">Router Firewall And Security Enhancements</div>
+                                                    </div>
+                                                    <a class="skynet-project-link"
+                                                        href="https://github.com/Adamm00/IPSet_ASUS"
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        title="Official Skynet repository">ADAMM00 / GITHUB</a>
                                                 </div>
 
-                                                <!-- Statistics content insertion point. -->
-                                                <div id="skynetDynamicContent"></div>
+                                                <div class="skynet-detail" id="skynetDetail" aria-hidden="true">
+                                                    <div class="skynet-detail-head">
+                                                        <span id="skynetDetailTitle">Skynet Details</span>
+                                                        <input type="button"
+                                                            id="skynetDetailClose"
+                                                            value="Close"
+                                                            class="button_gen skynet-detail-close" />
+                                                    </div>
+                                                    <div class="skynet-detail-body" id="skynetDetailBody"></div>
                                                 </div>
 
+                                                <table class="skynet-kpis">
+                                                    <tr>
+                                                        <td class="skynet-kpi">
+                                                            <span class="skynet-kpi-label">IPs Banned</span>
+                                                            <span class="skynet-kpi-value" id="blcount1">—</span>
+                                                        </td>
+                                                        <td class="skynet-kpi">
+                                                            <span class="skynet-kpi-label">Ranges Banned</span>
+                                                            <span class="skynet-kpi-value" id="blcount2">—</span>
+                                                        </td>
+                                                        <td class="skynet-kpi">
+                                                            <span class="skynet-kpi-label" title="Packets since the inbound firewall rules were installed. Resets when rules are rebuilt or the router reboots.">Inbound Blocks</span>
+                                                            <span class="skynet-kpi-value" id="hits1">—</span>
+                                                        </td>
+                                                        <td class="skynet-kpi">
+                                                            <span class="skynet-kpi-label" title="Packets since the outbound firewall rules were installed. Resets when rules are rebuilt or the router reboots.">Outbound Blocks</span>
+                                                            <span class="skynet-kpi-value" id="hits2">—</span>
+                                                        </td>
+                                                    </tr>
+                                                </table>
 
-                                                <!-- Statistics content. -->
+                                                <table width="100%" border="0" cellpadding="0" cellspacing="0">
+                                                    <tr>
+                                                        <td class="skynet-actionbar" align="left" style="padding:0;">
+                                                            <div class="skynet-update-bar" id="skynetUpdateBar">
+                                                                <div class="skynet-update-info">
+                                                                    <div class="skynet-meta" aria-label="Statistics coverage">
+                                                                        <span class="skynet-meta-item skynet-meta-period">
+                                                                            <span class="skynet-meta-label">Monitoring</span>
+                                                                            <span class="skynet-meta-value" id="statsdate">N/A</span>
+                                                                        </span>
+                                                                        <span class="skynet-meta-item skynet-meta-log">
+                                                                            <span class="skynet-meta-label" title="Used history space / configured maximum. Excludes empty space reserved for reuse. Usage updates with the charts.">Log Size</span>
+                                                                            <span class="skynet-meta-value"><span id="statssize">N/A</span><span id="statslimit"></span></span>
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="skynet-update-control">
+                                                                    <input type="button"
+                                                                        id="skynetUpdateStats"
+                                                                        value="Refresh Stats"
+                                                                        class="button_gen skynet-update-button"
+                                                                        aria-label="Update Skynet statistics" />
+                                                                    <input type="button"
+                                                                        id="skynetResetStats"
+                                                                        value="Reset Stats"
+                                                                        class="button_gen skynet-update-button skynet-reset-button"
+                                                                        aria-label="Reset Skynet statistics and recorded block history" />
+                                                                </div>
+                                                                <div class="skynet-update-result" id="skynetUpdateResult" aria-live="polite"></div>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                </table>
+                                            </div>
 
-                                                <div style="line-height:10px;">&nbsp;</div>
+                                            <!-- Statistics content insertion point. -->
+                                            <div id="skynetDynamicContent"></div>
+                                            </div>
 
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </td>
-                        </tr>
-                    </table>
-                </td>
-                <td width="10" align="center" valign="top">&nbsp;</td>
-            </tr>
-        </table>
 
-        <div id="footer">
-        </div>
-    </form>
+                                            <!-- Statistics content. -->
+
+                                            <div style="line-height:10px;">&nbsp;</div>
+
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+            <td width="10" align="center" valign="top">&nbsp;</td>
+        </tr>
+    </table>
+
+    <div id="footer">
+    </div>
+</form>
 </body>
 
 </html>

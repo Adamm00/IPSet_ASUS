@@ -39,13 +39,17 @@ Whitelisting allows that destination for **all clients** and takes precedence ov
 
 ## Skynet is missing from the WebUI
 
-Look under **Firewall → Skynet**. If integration is disabled, enable it over SSH:
+Look under **Firewall → Skynet** in the classic interface, or **Settings → Firewall → Skynet** on AsusWRT 6. If integration is disabled, enable it over SSH:
 
 ```sh
 firewall settings webui enable
 ```
 
 Refresh the router page after the command completes. Check `firewall debug info` if the page is still missing. WebUI integration requires Merlin's Addons API and the matching Skynet WebUI file. It does not require Packet Logging to be enabled.
+
+Existing page entries and title files reserve WebUI slots, including dangling links. If Skynet reports no available mount points, clear unused registrations through their owning add-ons.
+
+AsusWRT 6 caches its Settings menu. After enabling or updating integration, allow a few seconds and reload the router page if the tab has not appeared. Update both the script and its matching WebUI when moving an existing installation to a newer firmware platform.
 
 ## Charts are empty or stale
 
