@@ -9643,7 +9643,9 @@ html.skynet-asuswrt6::-webkit-scrollbar-track:hover,
                     url: "/ext/skynet/shared-settings.cab",
                     dataType: "text",
                     async: false,
-                    cache: false,
+                    // CAB downloads require a literal path; headers keep both reads fresh.
+                    cache: true,
+                    headers: {"Cache-Control": "no-cache, no-store", "Pragma": "no-cache"},
                     success: function(response) { snapshot = response; }
                 });
                 current = this.parseSharedSettings(snapshot);
