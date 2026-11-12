@@ -3711,6 +3711,33 @@ Ensure_IPSet_Topology() {
 	Create_IPSet_Topology
 }
 
+Restore_Skynet_IPTables_Rules() {
+	restorerulesstatus="0"
+	for restorerulestable in raw filter; do
+		if ! iptables-save -t "$restorerulestable" > "$TMP_DIR/firewall-current" 2>/dev/null \
+			|| ! awk -v table="$restorerulestable" '
+			function owned() {
+				return (table == "raw" && ($2 == "PREROUTING" || $2 == "OUTPUT") && index($0, "Skynet-Master")) ||
+					(table == "filter" && (($2 == "FORWARD" && index($0, "Skynet-IOT")) ||
+					($2 == "logdrop" && (index($0, "[BLOCKED - INVALID]") || index($0, "[BLOCKED - FIREWALL]")))))
+			}
+			BEGIN { print "*" table }
+			$1 == "-A" {
+				position[FILENAME, $2]++
+				if (!owned()) next
+				if (FILENAME == ARGV[1]) sub(/^-A /, "-D ")
+				else sub(/^-A [^ ]+ /, "-I " $2 " " position[FILENAME, $2] " ")
+				print
+			}
+			END { print "COMMIT" }
+		' "$TMP_DIR/firewall-current" "$TMP_DIR/firewall-old.$restorerulestable" > "$TMP_DIR/firewall-restore" \
+			|| ! iptables-restore --noflush < "$TMP_DIR/firewall-restore"; then
+			restorerulesstatus="1"
+		fi
+	done
+	return "$restorerulesstatus"
+}
+
 Reconcile_Firewall_Rules() {
 	# Merlin has already rebuilt its base firewall. Serialize only the short rule
 	# inspection and repair; no state, network or presentation work occurs here.
@@ -3721,29 +3748,42 @@ Reconcile_Firewall_Rules() {
 		Release_Firewall_Lock
 		return 0
 	fi
-	if ! Purge_Skynet_IPTables_Rules; then
-		Log error -s "Failed To Remove Previous Firewall Rules"
+	# Keep the previous layout; rollback replaces only Skynet rules, never Merlin's tables.
+	if ! iptables-save -t raw > "$TMP_DIR/firewall-old.raw" 2>/dev/null \
+		|| ! iptables-save -t filter > "$TMP_DIR/firewall-old.filter" 2>/dev/null; then
+		Log error -s "Failed To Save Previous Firewall Rules"
 		Release_Firewall_Lock
 		return 1
 	fi
-	if ! Load_IPTables; then
-		Log error -s "Failed To Load Firewall Blocking Rules"
-		Release_Firewall_Lock
-		return 1
+	trap '' INT TERM
+	reconcilestatus="1"
+	while :; do
+		if ! Purge_Skynet_IPTables_Rules; then
+			Log error -s "Failed To Remove Previous Firewall Rules"
+			break
+		fi
+		if ! Load_IPTables; then
+			Log error -s "Failed To Load Firewall Blocking Rules"
+			break
+		fi
+		if ! Load_IOT_Rules; then
+			Log error -s "Failed To Load IoT Firewall Rules"
+			break
+		fi
+		if Time_Is_Ready; then
+			Load_LogIPTables || { Log error -s "Failed To Load Firewall Logging Rules"; break; }
+		else
+			Unload_LogIPTables
+		fi
+		Check_IPTables
+		reconcilestatus="$?"
+		[ "$reconcilestatus" = "0" ] || Log error -s "Firewall Rule Verification Failed ($fail)"
+		break
+	done
+	if [ "$reconcilestatus" != "0" ]; then
+		Restore_Skynet_IPTables_Rules || Log error -s "Failed To Restore Previous Firewall Rules"
 	fi
-	if ! Load_IOT_Rules; then
-		Log error -s "Failed To Load IoT Firewall Rules"
-		Release_Firewall_Lock
-		return 1
-	fi
-	if Time_Is_Ready; then
-		Load_LogIPTables || { Log error -s "Failed To Load Firewall Logging Rules"; Release_Firewall_Lock; return 1; }
-	else
-		Unload_LogIPTables
-	fi
-	Check_IPTables
-	reconcilestatus="$?"
-	[ "$reconcilestatus" = "0" ] || Log error -s "Firewall Rule Verification Failed ($fail)"
+	Set_Cleanup_Traps
 	Release_Firewall_Lock
 	return "$reconcilestatus"
 }
