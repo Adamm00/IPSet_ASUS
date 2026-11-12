@@ -334,6 +334,8 @@ Check_Lock() {
 	}
 	state_lock_held="1"
 	unset "locked_cmd" "locked_pid" "lock_timestamp" "lockcurrenttime" "lockage"
+	# Settings may have changed while the menu was open or before lock acquisition.
+	[ ! -f "$skynetcfg" ] || Load_Config fresh
 }
 
 Wait_For_Lock() {
@@ -367,6 +369,7 @@ Wait_For_Lock() {
 		return 1
 	}
 	state_lock_held="1"
+	[ ! -f "$skynetcfg" ] || Load_Config fresh
 }
 
 Read_Active_Lock() {
@@ -13816,13 +13819,14 @@ Settings_MalwareSchedule() {
 		disable) malwareschedulenew="disabled" ;;
 		*) Command_Not_Recognized ;;
 	esac
-	malwarehournew="${4:-${banmalwarehour:-auto}}"
+	malwarehournew="${4:-auto}"
 	case "$malwarehournew" in
 		auto|[0-9]|1[0-9]|2[0-3]) ;;
 		*) echo "[*] Malware Update Hour Must Be auto Or 0-23"; return 2 ;;
 	esac
 	Check_Lock "$@" || return 1
 	Require_Running
+	malwarehournew="${4:-${banmalwarehour:-auto}}"
 	[ "$malwareschedulenew:$malwarehournew" != "$banmalwareupdate:${banmalwarehour:-auto}" ] || return 0
 	malwarescheduleold="$banmalwareupdate"
 	malwarehourold="${banmalwarehour:-auto}"
@@ -13892,12 +13896,12 @@ Settings_LogMode() {
 
 Settings_Packet_Category() {
 	case "$3" in enable) categorynew="enabled" ;; disable) categorynew="disabled" ;; *) Command_Not_Recognized ;; esac
+	Check_Lock "$@" || return 1
 	case "$2" in
 		loginvalid) categoryold="$loginvalid"; categorylabel="Invalid Packet Logging" ;;
 		logfirewall) categoryold="$logfirewall"; categorylabel="Firewall Drop Logging" ;;
 		*) return 2 ;;
 	esac
-	Check_Lock "$@" || return 1
 	Require_Running
 	Refresh_History
 	Acquire_Firewall_Lock || return 1
@@ -17229,7 +17233,7 @@ dispatchstatus="$?"
 Display_Header "9"
 if [ "$nolog" != "2" ] || [ "$webuisummary" = "1" ]; then Print_Command_Summary "$@"; echo; fi
 commandstatus="${commandfailed:-$dispatchstatus}"
-if [ "$commandstatus" = "0" ] && [ "$nocfg" != "1" ]; then Write_Config || commandstatus="1"; fi
+if [ "$commandstatus" = "0" ] && [ "$nocfg" != "1" ] && [ "$state_lock_held" = "1" ]; then Write_Config || commandstatus="1"; fi
 if [ "$restartfirewall" = "1" ]; then
 	# Startup/recovery hooks may need both locks; never wait for them while owning either.
 	Release_Firewall_Lock
